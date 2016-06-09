@@ -1,0 +1,7 @@
+*.cmake
+o2.xcodeproj/
+o2.build/
+CMakeFiles/
+CMakeScripts/
+Debug/
+CMakeCache.txt

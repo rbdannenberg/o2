@@ -1,0 +1,212 @@
+Performance
+-----------
+On Roger's MacBook Pro, optimized client/server takes 64 microseconds
+for round trip, or 32 microseconds for a send through localhost.
+
+2nd try: liblo 33us per send
+
+with -O3 optimization, liblo is 23us per message
+
+with -O3 and non-blocking receive, liblo is 17.5us
+
+
+O2 takes 40s for 1M messages round trip -> 40us per round trip or 20us
+for a send through localhost
+
+With non-blocking poll(), O2 takes 14us per message
+
+With poll() and 1ms timeout, O2 takes 24us per message in debug version
+ 
+With blocking_hack which set timeout to -1, O2 takes 21us per message  
+
+June 8: 1M messages in 48.95s -> 49us/round-trip on 3GHz Core i7
+but on my 2.4GHz Core i7 OS X 10.7.5, round-trip was 29us, so that's
+15us per message.  
+
+Message Handling
+----------------
+For non-pattern messages, just use a hash table for whole pattern including
+service name.
+
+For pattern messages, use a tree and match each node. Each node in the tree
+is a dictionary of keys to either handler or another node.
+
+The dictionary should be a hash table with linked overflow to simplify
+deletions. The dictionary should have between 2 and 3 times as many locations
+as data items.
+
+Discovery Protocol
+------------------
+New processes broadcast to 5 ports in sequence, initially every 0.33s
+but increase the interval by 10% each time until a maximum interval of
+4s is reached. This gives a message every 40ms on average when there
+are 100 processes. Also gives 2 tries on 5 ports within first 2s.
+
+In addition to sending broadcast messages, we send messages to
+localhost because broadcast messages (at least on OS X) are not
+received on the same machine. The locolhost messages are sent at the
+same times as the broadcast messages and to the same ports, except
+that there is no need to send localhost messages to a process's own
+discovery port.
+
+When a discovery message arrives, we check:
+1) if the application name does not match, ignore the message
+2) if the IP:PORT string is already in the master_table (as a process)  
+   do no further processing
+3) if the IP:PORT string (process name) in the message is lower than
+   the receiver's name, do not process the message, but send a
+   discovery message back to the sender.
+4) Otherwise, create a process descriptor in master_table and initiate
+   a connection to the process.
+
+Connection is made via TCP. Since we want to share the clock
+synchronization states, the connecting process must send clock state
+as well as its name (because it cannot know if any previous discovery
+message was sent or received) and UDP port. The connected-to process
+must have gotten a discovery message to the connecting process
+(otherwise the connection would not take place), but we do not know
+when the message was sent and the clock synchronization state might
+have changed in the interim, so there's no use sending clock state
+with discovery messages. Instead, the connected-to process will send a
+status message to the connecting process.
+
+Summary: discovery messages need only send IP and TCP server
+ports. Processes are named by strings of the form "128.2.1.50:54321"
+and the higher name (using strcmp()) connects to the lower name. After
+the TCP connection is established, *both* processes send their
+endianness (as "l" or "b"), IP, TCP port, UDP port, and clock
+synchronization state.
+
+Connection Walkthrough
+----------------------
+
+Processes are connected two ways: connect and accept.
+
+For the connect case, the sequence starts with the receipt of a
+discovery message, handled by:
+  - o2_discovery_handler: A process entry is created by
+    - add_remote_process with state PROCESS_CONNECTING. The tcp
+      socket is then created using
+    - make_tcp_connection which makes a socket with
+      - make_tcp_recv_socket and is connected to the remote process.
+    After connection, the status becomes PROCESS_CONNECTED.
+    We send the !_o2/in initialization message using 
+    - send_by_tcp_to_process. 
+    We then send services to the remote process.  
+    When we made the socket, the handler was set to
+  - tcp_initial_handler, which calls
+    - o2_discovery_init_handler. This function updates the process
+      entry with tcp_port (TODO: not needed?), the udp_port,
+      the process status (either PROCESS_OK or PROCESS_NO_CLOCK,
+      depending on the clock sync information from the incoming
+      message), and the udp_sa socket address which is used to
+      send UDP messages.
+      
+
+For the accept case, we just add the newly accepted socket and set the
+handler to
+  - tcp_initial_handler. At this point, there is no process entry.
+    The tcp_initial_handler ensures the incoming !_o2/in message is
+    complete and passes it off to
+    - o2_discovery_init_handler. This function does a lookup on the
+      process entry and discovers it is not there, so it makes
+      one with
+      - add_remote_process. The process entry is intialized and the
+        status becomes either PROCESS_OK or PROCESS_NO_CLOCK.
+      We send the !_o2/in initialization message using 
+      - send_by_tcp_to_process. 
+    We then send services to the remote process.  
+
+
+Services
+--------
+After making a connection, the connecting process sends all local
+services. If a new service is added, all connected processes are sent
+information about the new service. Similarly if a service is removed,
+all connected processes are sent a "remove service" message.
+
+Process State Protocol
+----------------------
+Internally, remote process descriptors go through a sequence of
+states:
+* PROCESS_DISCOVERED - a discovery message has revealed this process.
+* PROCESS_CONNECTING - a connection request has been issued.
+* PROCESS_CONNECTED - the connection has been completed, waiting for
+                      the initial status message.
+* PROCESS_NO_CLOCK - the process status message has arrived, and the
+                     process does not yet have clock sync. 
+* PROCESS_OK - the process status message has arrived and the process
+               has clock sync.
+
+The local process (o2_process) is initialized with the state
+PROCESS_NO_CLOCK and when it either becomes the master or clock
+synchronization is achieved the state changes to PROCESS_OK.
+
+Initially, processes have no clock and no services. Status information
+is obtained on a per-service basis using
+    o2_status("service-name")
+which initially will return O2_FAIL.
+
+Periodically, the clock_sync "thread" (which is just a scheduled
+handler that reschedules itself periodically to do clock sync
+activities) checks the status of the "_cs" service.  When it exists
+locally, clock sync is achieve implicitly. When it exists remotely,
+clock synchronization starts, and after some time, it will be
+established.
+
+For local services, the status values are:
+* O2_LOCAL_NOTIME - the service is local, but we cannot send scheduled  
+    messages because we do not have a synchronized clock  
+* O2_LOCAL - the service is local, and timed messages will work  
+ 
+For remote services, the status values are:
+* O2_REMOTE_NOTIME - the service is remote, but we cannot send scheduled 
+    messages because we do not have a synchronized clock 
+* O2_REMOTE - the service is remote, and timed messages will work 
+
+To implement the remote status, we need to know if the *remote*
+process has clock synchronization. Therefore, when clock
+synchronization is achieved, a process will send a message to all
+connected processes "register" the fact that they are
+synchronized. When connecting to a new process, the discovery info
+will include clock synchronization status.
+
+Messages
+--------
+
+!_o2/dy "sssii" b_or_l_endian application_name ip tcp_port udp_port
+        o2_discovery_handler(): message arrives by UDP broadcast or a
+        send to localhost; this is a notification that another O2
+        process exists. The tcp_port is the server port listening for
+        connections. The udp_port is the discovery port.
+
+!_o2/in "ssiii" b_or_l_endian ip tcp_port_number udp_port_number clocksync
+        o2_initial_handler(): message arrives via tcp to initialize
+        connection between two processes. clocksync is true (1) if the
+        process is already synchronized to the master clock
+
+!_o2/sv "s..." process_name service1 service2 ...
+        o2_services_handler(): message arrives via tcp to announce the
+        initial list or an additional service
+
+!_o2/sd "ss" process_name service
+        o2_service_delete_handler(): message arrives via tcp to
+        announce the service has been deleted from the sending process
+
+!_o2/ds ""
+        o2_discovery_send_handler(): (no arguments) send next
+        discovery message via broadcast and send to localhost
+
+!_o2/ps ""
+        o2_ping_send_handler(): (no arguments) send next ping message
+        to clock service (_cs)
+
+!_cs/get "is" serial_no reply_to
+        o2_ping_handler(): sends serial_no and master clock time back
+        to sender by appending "/get-reply" to the reply_to argument
+        to form a reply path.
+
+<path>/get-reply "it" serial_no master_time
+        o2_ping_reply_handler(): receive the time read from the master
+        clock (via udp) in response to a !_cs/get message.
+

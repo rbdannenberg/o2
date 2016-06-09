@@ -1,0 +1,41 @@
+//  clockslave.c - clock synchronization test/demo
+////
+//  see clockmaster.c for details
+
+
+#include "o2.h"
+#include "stdio.h"
+#include "string.h"
+#include "unistd.h"
+
+int clockslave(o2_message_ptr msg, const char *types,
+               o2_arg ** argv, int argc, void *user_data)
+{
+    int ss = o2_status("server");
+    int cs = o2_status("client");
+    double mean_rtt, min_rtt;
+    o2_roundtrip(&mean_rtt, &min_rtt);
+    printf("clockslave: local time %g global time %g "
+           "ss %d cs %d mean %g min %g\n",
+           o2_local_time(), o2_get_time(), ss, cs, mean_rtt, min_rtt);
+    // Since the clock slave cannot immediately send scheduled messages
+    // due to there being no global time reference, we will schedule
+    // messages directly on the local scheduler
+    o2_start_send();
+    msg = o2_finish_message(o2_local_time() + 1, "!client/clockslave");
+    o2_schedule(&ltsched, msg);
+    return O2_SUCCESS;
+}
+
+
+int main(int argc, const char * argv[]) {
+    o2_initialize("test");
+    o2_add_service("client");
+    o2_add_method("/client/clockslave", "", &clockslave, NULL, FALSE, FALSE);
+    // this particular handler ignores all parameters, so this is OK:
+    // start polling and reporting status
+    clockslave(NULL, NULL, NULL, 0, NULL);
+    o2_run(100);
+    o2_finish();
+    return 0;
+}
