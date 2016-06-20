@@ -137,13 +137,15 @@ int o2_send_message(o2_message_ptr msg, int tcp_flag)
 {
     // Find the remote service, note that we skip over the leading '/':
     generic_entry_ptr service = o2_find_service(msg->data.address + 1);
-    if (!service) return O2_FAIL;
-    
+    if (!service) {
+        free_message(msg);
+        return O2_FAIL;
+    }
     // Local delivery?
     if (service->tag == PATTERN_NODE) {
         // future?
         if (msg->data.timestamp > o2_get_time()) {
-            o2_schedule(&ltsched, msg);
+            o2_schedule(&o2_ltsched, msg);
         } else { // send it now
             find_and_call_handlers(msg);
         }

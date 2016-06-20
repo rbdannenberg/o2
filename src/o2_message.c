@@ -64,7 +64,7 @@ o2_message_ptr alloc_message()
         (msg) = alloc_bigger_message((msg), (needed))
 
 
-void free_message(o2_message_ptr msg)
+void o2_free_message(o2_message_ptr msg)
 {
     if (msg->allocated == MESSAGE_ALLOCATED_FROM_SIZE(MESSAGE_DEFAULT_SIZE)) {
         msg->next = message_freelist;
@@ -91,7 +91,7 @@ o2_message_ptr alloc_bigger_message(o2_message_ptr msg, int needed)
     newmsg->length = msg->length;
     memcpy(&(newmsg->data), &(msg->data), msg->length);
     MSG_ZERO_END(newmsg, size);
-    free_message(msg);
+    o2_free_message(msg);
     return newmsg;
 }
 
@@ -650,7 +650,7 @@ int add_argument(int size, void *data, char typecode)
         temp_end = newmsg->data.address +
                    ((char *) temp_end - temp_msg->data.address);
         // free temp_msg
-        free_message(temp_msg);
+        o2_free_message(temp_msg);
         temp_msg = newmsg;
     }
     // add the typecode
@@ -799,7 +799,7 @@ int add_time_address(o2_time time, char *address)
                typelen);
         memcpy(newmsg->data.address + addrspace + typespace, temp_start,
                temp_end - temp_start);
-        free_message(temp_msg);
+        o2_free_message(temp_msg);
         newmsg->length = (newmsg->data.address - (char *) &(newmsg->data)) +
                         addrspace + typespace + (temp_end - temp_start);
         temp_msg = newmsg;
@@ -822,7 +822,7 @@ o2_message_ptr o2_finish_message(o2_time time, char *address)
 {
     int rslt = add_time_address(time, address);
     if (rslt != O2_SUCCESS) {
-        free_message(temp_msg);
+        o2_free_message(temp_msg);
         temp_msg = NULL;
         return NULL;
     }

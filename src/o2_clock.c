@@ -57,6 +57,10 @@ void o2_time_init()
     gettimeofday(&tv, NULL);
     start_time = tv.tv_sec;
 #endif
+    // until local clock is synchronized, LOCAL_TO_GLOBAL will return -1:
+    local_time_base = 0;
+    global_time_base = -1;
+    clock_rate = 0;
 }
 
 
@@ -64,7 +68,7 @@ void o2_time_init()
 //
 void o2_clock_synchronized(o2_time local_time, o2_time master_time)
 {
-    o2_start_a_scheduler(&gtsched, master_time);
+    o2_start_a_scheduler(&o2_gtsched, master_time);
 
     // do not set local_now or global_now because we could be inside
     // o2_sched_poll() and we don't want "now" to change, but we can
@@ -102,7 +106,7 @@ void will_catch_up_after(double delay)
         return;
     
     o2_message_ptr msg = o2_finish_message(local_time_base + delay, "!_o2/cu");
-    o2_schedule(&ltsched, msg);
+    o2_schedule(&o2_ltsched, msg);
 }
 
 
@@ -296,7 +300,7 @@ int o2_ping_send_handler(o2_message_ptr msg, const char *types,
     if ((err = o2_start_send())) return err;
     msg = o2_finish_message(when, "!_o2/ps");
     // printf("*    schedule ping_send at %g, now is %g\n", when, o2_local_time());
-    o2_schedule(&ltsched, msg);
+    o2_schedule(&o2_ltsched, msg);
     return O2_SUCCESS;
 }
 

@@ -140,6 +140,9 @@ void *o2_calloc(size_t n, size_t size)
 int o2_initialize(char *application_name)
 {
     int err;
+    if (o2_application_name) return O2_RUNNING;
+    if (!application_name) return O2_BAD_NAME;
+
     // Initialize the hash tables
     initialize_node(&master_table, "");
     initialize_node(&path_tree_table, "");

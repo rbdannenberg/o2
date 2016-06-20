@@ -16,8 +16,6 @@ extern o2_message_ptr message_freelist;
 /** get a free message */
 o2_message_ptr alloc_message();
 
-void free_message(o2_message_ptr msg);
-
 /* allocate message structure with at least size bytes in the data portion */
 o2_message_ptr alloc_size_message(int size);
 

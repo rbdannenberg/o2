@@ -3,7 +3,7 @@
 
 /* Overview:
  
- There are two schedulers here: gtsched, and ltsched. They are identical,
+ There are two schedulers here: o2_gtsched, and o2_ltsched. They are identical,
  but one should use "real" local time, and the other should use
  synchronized clock time. There is no code here for smoothing the
  synchronized clock or making sure it does not go backward. (Well, maybe
@@ -59,9 +59,9 @@
 #define SCHED_BIN_TO_INDEX(b) ((b) & (O2_SCHED_TABLE_LEN - 1))  // Get modulo
 #define SCHED_INDEX(t) (SCHED_BIN_TO_INDEX(SCHED_BIN(t) ))
 
-o2_sched gtsched, ltsched;
-o2_sched_ptr o2_active_sched = &gtsched;
-int gtsched_started = FALSE;  // cannot use gtsched until clock is in sync
+o2_sched o2_gtsched, o2_ltsched;
+o2_sched_ptr o2_active_sched = &o2_gtsched;
+int o2_gtsched_started = FALSE;  // cannot use o2_gtsched until clock is in sync
 
 /* KEEP THIS FOR DEBUGGING
  void sched_debug_print(const char *msg, sched_ptr s)
@@ -82,8 +82,8 @@ void o2_start_a_scheduler(o2_sched_ptr s, o2_time start_time)
 {
     memset(s->table, 0, sizeof(s->table));
     s->last_bin = SCHED_BIN(start_time);
-    if (s == &gtsched) {
-        gtsched_started = TRUE;
+    if (s == &o2_gtsched) {
+        o2_gtsched_started = TRUE;
     }
     s->last_time = start_time;
 }
@@ -91,8 +91,8 @@ void o2_start_a_scheduler(o2_sched_ptr s, o2_time start_time)
 void o2_sched_init()
 {
     // TODO: is start_time right?
-    o2_start_a_scheduler(&ltsched, o2_local_time());
-    gtsched_started = FALSE;
+    o2_start_a_scheduler(&o2_ltsched, o2_local_time());
+    o2_gtsched_started = FALSE;
 }
 
 /*DEBUG
@@ -194,12 +194,12 @@ void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
 void o2_sched_poll()
 {
     o2_time local_now = o2_local_time();
-    sched_dispatch(&ltsched, local_now);
-    // assert(scheduled_after(&ltsched, local_now));
+    sched_dispatch(&o2_ltsched, local_now);
+    // assert(scheduled_after(&o2_ltsched, local_now));
 
-    if (gtsched_started) {
+    if (o2_gtsched_started) {
         double global_now = o2_local_to_global(local_now);
-        sched_dispatch(&gtsched, global_now);
+        sched_dispatch(&o2_gtsched, global_now);
     }
 }
 

@@ -23,7 +23,7 @@ int clockslave(o2_message_ptr msg, const char *types,
     // messages directly on the local scheduler
     o2_start_send();
     msg = o2_finish_message(o2_local_time() + 1, "!client/clockslave");
-    o2_schedule(&ltsched, msg);
+    o2_schedule(&o2_ltsched, msg);
     return O2_SUCCESS;
 }
 
