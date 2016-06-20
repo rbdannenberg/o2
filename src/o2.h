@@ -302,7 +302,6 @@ typedef struct o2_message {
 } o2_message, *o2_message_ptr;
 
 
-//TODO: implement o2_blob_new()
 /**
  *  \brief The structure for binary large object.
  *
@@ -870,6 +869,28 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * @{
  */
 /**
+ * \brief Allocate a blob.
+ * 
+ * Allocate a blob and initialize the size field. If the return address
+ * is not NULL, copy data (up to length size) to `blob->data`. You can 
+ * change `blob->size`, but of course you should not set `blob->size` 
+ * greater than the `size` parameter originally passed to o2_blob_new().
+ *
+ * Caller is responsible for freeing the returned blob using O2_FREE().
+ *
+ * A constructed blob can be added to a message. If you add parameters to 
+ * a message one-at-a-time, you can use o2_add_blob_data() to copy data 
+ * directly to a message without first allocating a blob and copying 
+ * data into it.
+ * 
+ * @param size The size of the data to be added to the blob
+ *
+ * @return the address of the new blob or NULL if memory cannot be allocated.
+ */
+o2_blob_ptr o2_blob_new(uint32_t size);
+
+
+/**
  * \brief Prepare to build a message
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
@@ -893,8 +914,13 @@ int o2_add_symbol(char *s);
 /// \brief add a string to the message (see o2_start_send())
 int o2_add_string(char *s);
 
-/// \brief add an `o2_blob` to the message (see o2_start_send())
+/// \brief add an `o2_blob` to the message (see o2_start_send()), where
+///        the blob is given as a pointer to an #o2_blob object.
 int o2_add_blob(o2_blob *b);
+
+/// \brief add an `o2_blob` to the message (see o2_start_send()), where
+///        the blob is specified by a size and a data address.
+int o2_add_blob_data(uint32_t size, void *data);
 
 /// \brief add an `int64` to the message (see o2_start_send())
 int o2_add_int64(int64_t i);
