@@ -954,7 +954,7 @@ void find_and_call_handlers(o2_message_ptr msg)
         char name[NAME_BUF_LEN];
         find_and_call_handlers_rec(address + 1, name, &path_tree_table, msg);
     }
-    free_message(msg);
+    o2_free_message(msg);
     in_find_and_call_handlers = FALSE;
     return;
 }

@@ -37,7 +37,7 @@
  *
  * Algorithm: Create 
  */
-int o2_create_osc_port(char *service_name, int port_num, int udp_flag)
+int o2_create_osc_port(const char *service_name, int port_num, int udp_flag)
 {
     osc_entry_ptr osc_entry = O2_MALLOC(sizeof(osc_entry));
     osc_entry->tag = OSC_LOCAL_SERVICE;

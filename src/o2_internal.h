@@ -28,21 +28,19 @@
 
 // define IS_BIG_ENDIAN, IS_LITTLE_ENDIAN, and swap64(i),
 // swap32(i), and swap16(i)
-#ifdef __APPLE__
-#include "machine/endian.h" // OS X endian.h is in /usr/include/machine
+#if _WIN32
+// WIN32 requires predefinition of IS_BIG_ENDIAN=1 or IS_BIG_ENDIAN=0
 #else
-#include <endian.h>
+ #ifdef __APPLE__
+  #include "machine/endian.h" // OS X endian.h is in /usr/include/machine
+  #define LITTLE_ENDIAN __DARWIN_LITTLE_ENDIAN
+ #else
+  #include <endian.h>
+  #define LITTLE_ENDIAN __LITTLE_ENDIAN
+ #endif
+ #define IS_BIG_ENDIAN (__BYTE_ORDER != LITTLE_ENDIAN)
 #endif
-#ifdef __LITTLE_ENDIAN
-#define LITTLE_ENDIAN __LITTLE_ENDIAN
-#else
-#define LITTLE_ENDIAN __DARWIN_LITTLE_ENDIAN
-#endif
-#ifndef __BYTE_ORDER
-#define __BYTE_ORDER BYTE_ORDER
-#endif
-#define IS_BIG_ENDIAN (__BYTE_ORDER != LITTLE_ENDIAN)
-#define IS_LITTLE_ENDIAN (__BYTE_ORDER == LITTLE_ENDIAN)
+#define IS_LITTLE_ENDIAN (!(IS_BIG_ENDIAN))
 #define swap16(i) ((((i) >> 8) & 0xff) | (((i) & 0xff) << 8))
 #define swap32(i) ((((i) >> 24) & 0xff) | (((i) & 0xff0000) >> 8) | \
                    (((i) & 0xff00) << 8) | (((i) & 0xff) << 24))

@@ -300,7 +300,8 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 
 
 static char o2_error_msg[100];
-char *o2_get_error(int i){
+const char *o2_get_error(int i)
+{
     sprintf(o2_error_msg, "O2 error, code is %d", i);
     return o2_error_msg;
 }

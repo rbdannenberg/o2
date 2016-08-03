@@ -267,7 +267,7 @@ void tcp_initial_handler(SOCKET sock, struct fds_info *info)
     //       info->u.process_info->name);
     // since we called o2_discovery_init_handler directly,
     //   we need to free the message
-    free_message(info->message);
+    o2_free_message(info->message);
     tcp_message_cleanup(info);
     return;
 }

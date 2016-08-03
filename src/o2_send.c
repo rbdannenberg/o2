@@ -138,7 +138,7 @@ int o2_send_message(o2_message_ptr msg, int tcp_flag)
     // Find the remote service, note that we skip over the leading '/':
     generic_entry_ptr service = o2_find_service(msg->data.address + 1);
     if (!service) {
-        free_message(msg);
+        o2_free_message(msg);
         return O2_FAIL;
     }
     // Local delivery?

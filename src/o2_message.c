@@ -713,7 +713,7 @@ int o2_add_blob_data(uint32_t size, void *data)
     int rslt = add_argument(sizeof(size), size, 'b');
     if (rslt != O2_SUCCESS) return rslt;
     temp_type_end--;
-    return add_argument(size, b->data, 'b');
+    return add_argument(size, data, 'b');
 }
 
 int o2_add_blob(o2_blob *b)

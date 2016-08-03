@@ -198,7 +198,7 @@ int o2_discovery_msg_init()
         return O2_FAIL;
     }
     memcpy(o2_discovery_msg, outmsg, size);
-    free_message(outmsg);
+    o2_free_message(outmsg);
     return O2_SUCCESS;
 }
     
