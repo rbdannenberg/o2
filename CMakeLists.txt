@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.2.2)
 project(o2)
 
 if(WIN32)
-  add_definitions("-D_CRT_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS")
+  add_definitions("-D_CRT_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -DIS_BIG_ENDIAN=0")
   set(EXTRA_NEEDED_LIBS winmm.lib ws2_32.lib Iphlpapi.lib)
 endif(WIN32)
 
