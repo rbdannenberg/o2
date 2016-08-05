@@ -412,6 +412,39 @@ int make_tcp_recv_socket(int tag, process_info_ptr process)
 
                                     
 #ifdef _WIN32
+
+FD_SET o2_read_set;
+timeval o2_no_timeout;
+
+int o2_recv()
+{
+    int i;
+    FD_ZERO(&o2_read_set);
+    for (i = 0; i < o2_fds.length; i++) {
+        struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
+        FD_SET(d->fd, &o2_read_set);
+    }
+    o2_no_timeout.tv_sec = 0;
+    o2_no_timeout.tv_usec = 0;
+    if ((total = select(0, &o2_read_set, NULL, NULL, o2_no_timeout)) == SOCKET_ERROR) {
+        /* TODO: error handling here */
+        return O2_FAIL; /* TODO: return a specific error code for this */
+    }
+    if (total == 0) { /* no messages waiting */
+        return O2_SUCCESS;
+    }
+    for (i = 0; i < o2_fds.length; i++) {
+        struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
+        if (FD_ISSET(d->fd, &o2_read_set)) {
+            fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
+            (*(info->handler))(d->fd, info);
+        }
+    }
+    return O2_SUCCESS;
+}
+
+
+#ifdef OLD_CODE_IS_HERE
 // Use select function to receive messages.
 int o2_recv()
 {
@@ -463,6 +496,7 @@ int o2_recv()
     }    
     return O2_SUCCESS;
 }
+#endif
 #else  // Use poll function to receive messages.
 int o2_recv()
 {
