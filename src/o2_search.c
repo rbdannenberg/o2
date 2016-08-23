@@ -228,7 +228,7 @@ generic_entry_ptr *lookup(node_entry_ptr node, const char *key, int *index)
     int n = node->children.length;
     int64_t hash = get_hash(key);
     *index = hash % n;
-    generic_entry_ptr *ptr = DA_GET(node->children, generic_entry_ptr,
+    generic_entry_ptr *ptr = DA_GET(node->children, generic_entry_ptr *,
                                     *index);
     while (*ptr) {
         if (streql(key, (*ptr)->key)) {
@@ -302,6 +302,10 @@ int initialize_table(dyn_array_ptr table, int locations)
     memset(table->array, 0, locations * sizeof(generic_entry_ptr));
     table->allocated = locations;
     table->length = locations;
+    printf("initialize_table %p len %d, array %p\n", table, table->length, table->array);
+    int i;
+    for (i = 0; i < table->length; i++)
+        printf("   %d: %p\n", i, ((generic_entry_ptr *)(table->array))[i]);
     return O2_SUCCESS;
 }
 

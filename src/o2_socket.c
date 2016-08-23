@@ -30,7 +30,7 @@ char o2_local_ip[24];
 int o2_local_tcp_port = 0;
 SOCKET local_send_sock = INVALID_SOCKET; // socket for sending all UDP msgs
 
-//dyn_array o2_fds; ///< pre-constructed fds parameter for poll()
+dyn_array o2_fds; ///< pre-constructed fds parameter for poll()
 dyn_array o2_fds_info; ///< info about sockets
 
 process_info o2_process; ///< the process descriptor for this process

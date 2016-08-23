@@ -46,6 +46,8 @@ static o2_time master_minus_local[CLOCK_SYNC_HISTORY_LEN];
 static uint64_t start_time;
 #elif __UNIX__
 long start_time;
+#elif WIN32
+long start_time;
 #endif
 
 void o2_time_init()
@@ -56,6 +58,8 @@ void o2_time_init()
     struct timeval tv;
     gettimeofday(&tv, NULL);
     start_time = tv.tv_sec;
+#elif WIN32
+    start_time = timeGetTime();
 #endif
     // until local clock is synchronized, LOCAL_TO_GLOBAL will return -1:
     local_time_base = 0;
@@ -389,6 +393,8 @@ o2_time o2_local_time()
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return (tv.tv_sec - start_time) + (tv.tv_usec * 0.000001);
+#elif WIN32
+    return (timeGetTime() - start_time) * 0.001;
 #endif
 }
 
