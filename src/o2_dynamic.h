@@ -5,7 +5,13 @@
 typedef struct dyn_array {
     int allocated;
     int length;
-    void *array;
+
+#ifdef WIN32
+    void **array;
+#else
+	void *array;
+#endif
+
 } dyn_array, *dyn_array_ptr;
 
 /* initialize a dynamic array. typ is the type of each element,

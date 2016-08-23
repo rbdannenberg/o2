@@ -2,16 +2,27 @@
  * udp broadcast server example 
  * Example Stock Index Broadcast:
  */
-#include <stdio.h>
+
+#ifdef WIN32
+#include <winsock2.h> 
+#include <windows.h> 
+#else
 #include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#endif
+
+#include <stdio.h>
+#include <windows.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+
+#pragma comment(lib,"ws2_32.lib")
+#pragma comment(lib, "Kernel32.lib")
  
 #ifndef TRUE
 #define TRUE 1
@@ -96,7 +107,11 @@ int main(int argc, char **argv) {
      * Form the dest address:
      */
     memset(&broadcast_to_addr, 0, sizeof(broadcast_to_addr));
-    broadcast_to_addr.sin_len = sizeof(broadcast_to_addr);
+
+#ifndef WIN32
+	broadcast_to_addr.sin_len = sizeof(broadcast_to_addr);
+#endif
+
     broadcast_to_addr.sin_family = AF_INET;
     if (inet_pton(AF_INET, "255.255.255.255",
                   &(broadcast_to_addr.sin_addr.s_addr)) != 1) {
@@ -126,7 +141,11 @@ int main(int argc, char **argv) {
     /*
      * Form the local dest address:
      */
-    local_to_addr.sin_len = sizeof(broadcast_to_addr);
+
+#ifndef WIN32
+	local_to_addr.sin_len = sizeof(broadcast_to_addr);
+#endif
+
     local_to_addr.sin_family = AF_INET;
     if (inet_pton(AF_INET, "127.0.0.1",
                   &(local_to_addr.sin_addr.s_addr)) != 1) {
@@ -190,7 +209,11 @@ int main(int argc, char **argv) {
         if (z == -1)
 			displayError("local sendto()");
         
-        sleep(4);
+#ifdef WIN32
+		Sleep(4);
+#else
+		sleep(4)
+#endif
     }
     
     return 0;

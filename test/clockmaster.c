@@ -7,7 +7,14 @@
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "unistd.h"
+
+#ifdef WIN32
+#include <windows.h> 
+#else
+#include <unistd.h>
+#endif
+
+//#pragma comment(lib,"o2_static.lib")
 
 // this is a handler that polls for current status
 //

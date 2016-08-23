@@ -4,7 +4,7 @@ project(o2)
 
 if(WIN32)
   add_definitions("-D_CRT_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -DIS_BIG_ENDIAN=0")
-  set(EXTRA_NEEDED_LIBS winmm.lib ws2_32.lib Iphlpapi.lib)
+  #set(EXTRA_NEEDED_LIBS winmm.lib ws2_32.lib Iphlpapi.lib)
 endif(WIN32)
 
 
@@ -66,21 +66,21 @@ target_link_libraries(clockslave ${LIBRARIES})
 add_executable(clockmaster test/clockmaster.c) 
 target_include_directories(clockmaster PRIVATE ${CMAKE_SOURCE_DIR}/src) 
 target_link_libraries(clockmaster ${LIBRARIES}) 
-
-add_executable(broadcastclient test/broadcastclient.c) 
-add_executable(broadcastserver test/broadcastserver.c) 
-add_executable(tcppollclient test/tcppollclient.c) 
-add_executable(tcppollserver test/tcppollserver.c) 
+message(STATUS LIBRARIES=${LIBRARIES})
+#add_executable(broadcastclient test/broadcastclient.c) 
+#add_executable(broadcastserver test/broadcastserver.c) 
+#add_executable(tcppollclient test/tcppollclient.c) 
+#add_executable(tcppollserver test/tcppollserver.c) 
 
 
 
 # I don't know if this is necessary. If it is, it should be duplicated
 # for o2client and o2server:
-if(WIN32)
-  set_target_properties(o2test PROPERTIES 
-                               LINK_FLAGS "/SUBSYSTEM:WINDOWS")
-  set_property(TARGET o2test PROPERTY WIN32_EXECUTABLE TRUE)
-endif(WIN32)
+#if(WIN32)
+  #set_target_properties(o2test PROPERTIES 
+                               #LINK_FLAGS "/SUBSYSTEM:WINDOWS")
+  #set_property(TARGET o2test PROPERTY WIN32_EXECUTABLE TRUE)
+#endif(WIN32)
 
 ##########################################################
 # liblo was used for some performance comparisons, but it 
@@ -96,9 +96,7 @@ endif(WIN32)
 # where to find liblo include files:
 #set(LO_PATH ${LIBLO_PATH} CACHE PATH "where to find liblo include files") 
 
-set(FRAMEWORK_PATH ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks) 
-set(COREAUDIO_LIB "${FRAMEWORK_PATH}/CoreAudio.framework") 
-set(LIBRARIES o2_static ${COREAUDIO_LIB} CACHE INTERNAL "") 
+set(LIBRARIES o2_static winmm.lib ws2_32.lib Iphlpapi.lib CACHE INTERNAL "") 
 
 #message(STATUS "LO_LIB is ${LO_LIB}") 
 

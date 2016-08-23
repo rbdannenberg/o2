@@ -12,8 +12,15 @@
 #include "o2_internal.h"
 #include "o2_sched.h"
 #include "o2_send.h"
+
+#ifdef WIN32
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <windows.h>
+#else
 #include "sys/ioctl.h"
 #include <ifaddrs.h>
+#endif
 
 
 //#include <netdb.h>
@@ -23,7 +30,7 @@ char o2_local_ip[24];
 int o2_local_tcp_port = 0;
 SOCKET local_send_sock = INVALID_SOCKET; // socket for sending all UDP msgs
 
-dyn_array o2_fds; ///< pre-constructed fds parameter for poll()
+//dyn_array o2_fds; ///< pre-constructed fds parameter for poll()
 dyn_array o2_fds_info; ///< info about sockets
 
 process_info o2_process; ///< the process descriptor for this process
@@ -151,7 +158,11 @@ void udp_recv_handler(SOCKET sock, struct fds_info *info)
 {
     o2_message_ptr msg;
     int len;
+#ifndef WIN32
     if (ioctl(sock, FIONREAD, &len) == -1) {
+#else
+	if (ioctlsocket(sock, FIONREAD, &len) == -1) {
+#endif
         perror("udp_recv_handler");
         return;
     }
@@ -294,7 +305,11 @@ int make_udp_recv_socket(int tag, int port)
     // Bind the socket
     int err;
     if ((err = bind_recv_socket(sock, &port, FALSE))) {
-        close(sock);
+#ifndef WIN32
+		close(sock);
+#else
+		closesocket(sock);
+#endif
         return err;
     }
     add_new_socket(sock, tag, &o2_process, &udp_recv_handler);
@@ -414,26 +429,26 @@ int make_tcp_recv_socket(int tag, process_info_ptr process)
 #ifdef _WIN32
 
 FD_SET o2_read_set;
-timeval o2_no_timeout;
+struct timeval o2_no_timeout;
 
 int o2_recv()
 {
-    int i;
+    int total;
     FD_ZERO(&o2_read_set);
-    for (i = 0; i < o2_fds.length; i++) {
+    for (int i = 0; i < o2_fds.length; i++) {
         struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
         FD_SET(d->fd, &o2_read_set);
     }
     o2_no_timeout.tv_sec = 0;
     o2_no_timeout.tv_usec = 0;
-    if ((total = select(0, &o2_read_set, NULL, NULL, o2_no_timeout)) == SOCKET_ERROR) {
+    if ((total = select(0, &o2_read_set, NULL, NULL, &o2_no_timeout)) == SOCKET_ERROR) {
         /* TODO: error handling here */
         return O2_FAIL; /* TODO: return a specific error code for this */
     }
     if (total == 0) { /* no messages waiting */
         return O2_SUCCESS;
     }
-    for (i = 0; i < o2_fds.length; i++) {
+    for (int i = 0; i < o2_fds.length; i++) {
         struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
         if (FD_ISSET(d->fd, &o2_read_set)) {
             fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
@@ -443,8 +458,113 @@ int o2_recv()
     return O2_SUCCESS;
 }
 
+#ifdef _WIN32
+
+static struct sockaddr *dupaddr(const sockaddr_gen * src)
+{
+	sockaddr_gen * d = malloc(sizeof(*d));
+	if (d) {
+		memcpy(d, src, sizeof(*d));
+	}
+	return (struct sockaddr *) d;
+}
+
+int getifaddrs(struct ifaddrs **ifpp)
+{
+	SOCKET sock = INVALID_SOCKET;
+	size_t intarray_len = 8192;
+	int ret = -1;
+	INTERFACE_INFO *intarray = NULL;
+
+	*ifpp = NULL;
+
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sock == INVALID_SOCKET)
+		return -1;
+
+	for (;;) {
+		DWORD cbret = 0;
+
+		intarray = malloc(intarray_len);
+		if (!intarray)
+			break;
+
+		ZeroMemory(intarray, intarray_len);
+
+		if (WSAIoctl(sock, SIO_GET_INTERFACE_LIST, NULL, 0,
+			(LPVOID)intarray, (DWORD)intarray_len, &cbret,
+			NULL, NULL) == 0) {
+			intarray_len = cbret;
+			break;
+		}
+
+		free(intarray);
+		intarray = NULL;
+
+		if (WSAGetLastError() == WSAEFAULT && cbret > intarray_len) {
+			intarray_len = cbret;
+		}
+		else {
+			break;
+		}
+	}
+
+	if (!intarray)
+		goto _exit;
+
+	/* intarray is an array of INTERFACE_INFO structures.  intarray_len has the
+	actual size of the buffer.  The number of elements is
+	intarray_len/sizeof(INTERFACE_INFO) */
+
+	{
+		size_t n = intarray_len / sizeof(INTERFACE_INFO);
+		size_t i;
+
+		for (i = 0; i < n; i++) {
+			struct ifaddrs *ifp;
+
+			ifp = malloc(sizeof(*ifp));
+			if (ifp == NULL)
+				break;
+
+			ZeroMemory(ifp, sizeof(*ifp));
+
+			ifp->ifa_next = NULL;
+			ifp->ifa_name = NULL;
+			ifp->ifa_flags = intarray[i].iiFlags;
+			ifp->ifa_addr = dupaddr(&intarray[i].iiAddress);
+			ifp->ifa_netmask = dupaddr(&intarray[i].iiNetmask);
+			ifp->ifa_broadaddr = dupaddr(&intarray[i].iiBroadcastAddress);
+			ifp->ifa_data = NULL;
+
+			*ifpp = ifp;
+			ifpp = &ifp->ifa_next;
+		}
+
+		if (i == n)
+			ret = 0;
+	}
+
+_exit:
+
+	if (sock != INVALID_SOCKET)
+		closesocket(sock);
+
+	if (intarray)
+		free(intarray);
+
+	return ret;
+}
+
+void freeifaddrs(struct ifaddrs *ifp)
+{
+	free(ifp);
+}
+
+#endif
 
 #ifdef OLD_CODE_IS_HERE
+
 // Use select function to receive messages.
 int o2_recv()
 {

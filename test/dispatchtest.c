@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "o2.h"
 
+#pragma comment(lib,"o2_static.lib")
+
 #define N_ADDRS 20
 
 int s = 0;

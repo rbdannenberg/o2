@@ -6,7 +6,14 @@
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "unistd.h"
+
+#ifdef WIN32
+#include <windows.h> 
+#else
+#include <unistd.h>
+#endif
+
+#pragma comment(lib,"o2_static.lib")
 
 int clockslave(o2_message_ptr msg, const char *types,
                o2_arg ** argv, int argc, void *user_data)

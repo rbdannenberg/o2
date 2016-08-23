@@ -6,7 +6,7 @@
 /** \file o2.h
 \mainpage
 \section Introduction
- 
+
 This documentation is divided into modules. Each module describes a
 different area of functionality: Basics, Return Codes, Low-Level
 Message Send, and Low-Level Message Parsing.
@@ -30,7 +30,7 @@ as Bluetooth.
 
 O2 addresses begin with the service name. Thus, a complete O2 address
 would be written simply as "/synth/filter/cutoff," where "synth" is
-the service name. 
+the service name.
 
 Furthermore, O2 implements a clock synchronization protocol. A single
 process is designated as the "master," and other processes
@@ -42,7 +42,7 @@ immediately. Messages with non-zero timestamps are only deliverable
 after both the sender and receiver have synchronized clocks.
 
 A service is created using the functions: o2_add_service(service_name)
-and 
+and
 
     o2_add_method("address," "types," handler, user_data, coerce, parse),
 
@@ -50,18 +50,18 @@ where o2_add_method is called to install a handler for each node, and each
 "address" includes the service name as the first node.
 
 Some major components and concepts of O2 are the following:
- 
+
 - **Application** - a collection of collaborating processes are called
   an "application." Applications are named by a simple ASCII string.
   In O2, all components belong to an application, and O2 supports
   communication only *within* an application. This allows multiple
   independent applications to co-exist and share the same local area
   network.
- 
+
 - **Host** - (conventional definition) a host is a computer (virtual
   or real) that may host multiple processes. Essentially, a Host is
   equivalent to an IP address.
- 
+
 - **Process** - (conventional definition) an address space and one or
   more threads. A process can offer one or more O2 services and
   can serve as a client of O2 services in the same or other processes.
@@ -70,7 +70,7 @@ Some major components and concepts of O2 are the following:
   thought of as a "singleton" object). The single O2 instance in a
   process belongs to one and only one application. O2 does not support
   communication between applications.
- 
+
 - **Service** - an O2 service is a named server that receives and acts
   upon O2 messages. A service is addressed by name. Multiple services
   can exist within one process. A service does not imply a (new) thread
@@ -81,11 +81,11 @@ Some major components and concepts of O2 are the following:
   be called by only one thread. Since there is at most one O2 instance
   per process, a single call to o2_poll() handles all services in the
   process.
- 
+
 - **Message** - an O2 message, similar to an OSC message, contains an address
   pattern representing a function, a type string and a set of values
   representing parameters.
- 
+
 - **Address Pattern** - O2 messages use URL-like addresses, as does OSC,
   but the top-level node in the hierarchical address space is the
   service name. Thus, to send a message to the "note" node of the
@@ -94,7 +94,7 @@ Some major components and concepts of O2 are the following:
   is "!", e.g. "!synth/note" denotes the same address as "/synth/note"
   except that O2 can assume that there are no pattern characters such
   as "*" or "[".
- 
+
 - **Scheduler** - O2 implements two schedulers for timed message
     delivery. Schedulers are served by the same o2_poll() call that
     runs other O2 activity. The #o2_gtsched schedules according to the
@@ -106,7 +106,7 @@ Some major components and concepts of O2 are the following:
     scheduler (not with o2_send(), but by explicitly constructing
     messages and scheduling them with o2_schedule(). In any case,
     scheduling is useful *within* a service for any kind of timed
-    activity. 
+    activity.
 
 */
 
@@ -146,7 +146,7 @@ Some major components and concepts of O2 are the following:
 
 // TODO: this value is never used/returned
 /// an error return value: path to handler specifies non-existant service
-#define O2_NO_SERVICE (-3)       
+#define O2_NO_SERVICE (-3)
 
 /// an error return value: process is out of free memory
 #define O2_NO_MEMORY (-4)
@@ -162,7 +162,7 @@ Some major components and concepts of O2 are the following:
 
 /// \brief return value for o2_status() function: this is a local service
 /// but clock sync has not yet been established
-#define O2_LOCAL_NOTIME 0  
+#define O2_LOCAL_NOTIME 0
 
 /// \brief return value for o2_status() function: this is a remote service
 /// but clock sync has not yet been established. The remote service
@@ -174,13 +174,13 @@ Some major components and concepts of O2 are the following:
 /// The service is attached to this process by non-IP link. Clock sync
 /// has not yet been established between the master clock and this
 /// process, so timestamped messages to this service will be
-/// dropped. Note that within other processes, 
+/// dropped. Note that within other processes,
 /// the status for this service will be #O2_REMOTE_NOTIME rather than
 /// #O2_BRIDGE_NOTIME. Note also that O2 does not require the
 /// remote bridged process to have a synchronized clock, so "NOTIME" only
 /// means that *this* process is not synchronized and therefore cannot
 /// (and will not) schedule a timestamped message for timed delivery.
-#define O2_BRIDGE_NOTIME 2 
+#define O2_BRIDGE_NOTIME 2
 
 /// \brief return value for o2_status() function: this service is connected.
 /// The service forwards messages to an OSC server. The status of the
@@ -189,7 +189,7 @@ Some major components and concepts of O2 are the following:
 /// "connected" may just mean that the service has been defined).
 /// Clock sync has not yet been established between the master clock
 /// and this process, so timestamped messages to this service will be
-/// dropped. Note that within other processes, 
+/// dropped. Note that within other processes,
 /// the status for this service will be #O2_REMOTE_NOTIME rather than
 /// #O2_TO_OSC_NOTIME. Note also that O2 does not require the
 /// OSC server to have a synchronized clock, so "NOTIME" only
@@ -259,7 +259,7 @@ void *o2_calloc(size_t n, size_t s);
 /** \brief allocate memory
  *
  * O2 allows you to provide custom heap implementations to avoid
- * priority inversion or other real-time problems. Normally, you 
+ * priority inversion or other real-time problems. Normally, you
  * should not need to explicitly allocate memory since O2 functions
  * are provided to allocate, construct, and deallocate messages, but
  * if you need to allocate memory, especially in an O2 message
@@ -284,21 +284,21 @@ typedef double o2_time;
  *
  */
 typedef struct o2_message {
-    struct o2_message *next; ///< links used for free list and scheduler
-    int allocated;           ///< how many bytes allocated in data part
-    int length;              ///< the length of the message in data part
-    struct {
-        o2_time timestamp;   ///< the message delivery time (0 for immediate)
-        /** \brief the message address string
-         *
-         * Although this field is declared as 4 bytes, actual messages
-         * have variable length, and the address is followed by a
-         * string of type codes and the actual parameters. The length
-         * of the entire message including the timestamp is given by
-         * the `length` field.
-         */
-        char address[4];
-    } data; ///< the message (type string and payload follow address)
+  struct o2_message *next; ///< links used for free list and scheduler
+  int allocated;           ///< how many bytes allocated in data part
+  int length;              ///< the length of the message in data part
+  struct {
+    o2_time timestamp;   ///< the message delivery time (0 for immediate)
+    /** \brief the message address string
+     *
+     * Although this field is declared as 4 bytes, actual messages
+     * have variable length, and the address is followed by a
+     * string of type codes and the actual parameters. The length
+     * of the entire message including the timestamp is given by
+     * the `length` field.
+     */
+    char address[4];
+  } data; ///< the message (type string and payload follow address)
 } o2_message, *o2_message_ptr;
 
 
@@ -306,11 +306,11 @@ typedef struct o2_message {
  *  \brief The structure for binary large object.
  *
  *  A blob can be passed in an O2 message using the 'b' type. Created
- *  by calls to o2_blob_new(). 
+ *  by calls to o2_blob_new().
  */
 typedef struct o2_blob {
-    uint32_t size;  ///< size of data
-    char data[4];   ///< the data, actually of variable length
+  uint32_t size;  ///< size of data
+  char data[4];   ///< the data, actually of variable length
 } o2_blob, *o2_blob_ptr;
 
 
@@ -318,26 +318,26 @@ typedef struct o2_blob {
  *  \brief An enumeration of the O2 message types.
  */
 typedef enum {
-    // basic O2 types
-    O2_INT32 =     'i',     ///< 32 bit signed integer.
-    O2_FLOAT =     'f',     ///< 32 bit IEEE-754 float.
-    O2_STRING =    's',     ///< NULL terminated string (Standard C).
-    O2_BLOB =      'b',     ///< Binary Large OBject (BLOB) type.
-    
-    // extended O2 types
-    O2_INT64 =     'h',     ///< 64 bit signed integer.
-    O2_TIME  =     't',     ///< OSC time type.
-    O2_DOUBLE =    'd',     ///< 64 bit IEEE-754 double.
-    O2_SYMBOL =    'S',     ///< Used in systems distinguish strings and symbols.
-    O2_CHAR =      'c',     ///< 8bit char variable (Standard C).
-    O2_MIDI =      'm',     ///< 4 byte MIDI packet.
-    O2_TRUE =      'T',     ///< Sybol representing the value True.
-    O2_FALSE =     'F',     ///< Sybol representing the value False.
-    O2_NIL =       'N',     ///< Sybol representing the value Nil.
-    O2_INFINITUM = 'I',     ///< Sybol representing the value Infinitum.
+  // basic O2 types
+  O2_INT32 =     'i',     ///< 32 bit signed integer.
+  O2_FLOAT =     'f',     ///< 32 bit IEEE-754 float.
+  O2_STRING =    's',     ///< NULL terminated string (Standard C).
+  O2_BLOB =      'b',     ///< Binary Large OBject (BLOB) type.
 
-    // O2 types
-    O2_BOOL =      'B'      ///< Boolean value returned as either 0 or 1
+  // extended O2 types
+  O2_INT64 =     'h',     ///< 64 bit signed integer.
+  O2_TIME  =     't',     ///< OSC time type.
+  O2_DOUBLE =    'd',     ///< 64 bit IEEE-754 double.
+  O2_SYMBOL =    'S',     ///< Used in systems distinguish strings and symbols.
+  O2_CHAR =      'c',     ///< 8bit char variable (Standard C).
+  O2_MIDI =      'm',     ///< 4 byte MIDI packet.
+  O2_TRUE =      'T',     ///< Sybol representing the value True.
+  O2_FALSE =     'F',     ///< Sybol representing the value False.
+  O2_NIL =       'N',     ///< Sybol representing the value Nil.
+  O2_INFINITUM = 'I',     ///< Sybol representing the value Infinitum.
+
+  // O2 types
+  O2_BOOL =      'B'      ///< Boolean value returned as either 0 or 1
 } o2_type, *o2_type_ptr;
 
 
@@ -347,12 +347,12 @@ typedef enum {
  * An o2_arg_ptr is a pointer to an O2 message argument. If argument
  * parsing is requested (by setting the parse parameter in o2_add_method),
  * then the handler receives an array of o2_arg_ptrs. If argument parsing
- * is not requested, you have the option of parsing the message one 
+ * is not requested, you have the option of parsing the message one
  * parameter at a time by calling o2_get_next(), which returns an
  * o2_arg_ptr.
  *
- * The o2_arg_ptr can then be dereferenced to obtain a value of the 
- * expected type. For example, you could write 
+ * The o2_arg_ptr can then be dereferenced to obtain a value of the
+ * expected type. For example, you could write
  * \code{.c}
  *     double d = o2_get_next()->d;
  * \endcode
@@ -362,23 +362,23 @@ typedef enum {
  * o2_add_method().)
  */
 typedef union {
-    int32_t    i32;  ///< 32 bit signed integer.
-    int32_t    i;    ///< an alias for i32
-    int64_t    i64;  ///< 64 bit signed integer.
-    int64_t    h;    ///< an alias for i64
-    float      f;    ///< 32 bit IEEE-754 float.
-    float      f32;  ///< an alias for f
-    double     d;    ///< 64 bit IEEE-754 double.
-    double     f64;  ///< an alias for d
-    char       s[4]; ///< Standard C, NULL terminated string.
-    /** \brief Standard C, NULL terminated, string. 
-               Used in systems which distinguish strings and symbols. */
-    char       S[4];
-    int        c;    ///< Standard C, 8 bit, char, stored as int.
-    uint8_t    m[4]; ///< A 4 byte MIDI packet.
-    o2_time    t;    ///< TimeTag value.
-    o2_blob    b;    ///< a blob (unstructured bytes)
-    int32_t    B;    ///< a boolean value, either 0 or 1
+  int32_t    i32;  ///< 32 bit signed integer.
+  int32_t    i;    ///< an alias for i32
+  int64_t    i64;  ///< 64 bit signed integer.
+  int64_t    h;    ///< an alias for i64
+  float      f;    ///< 32 bit IEEE-754 float.
+  float      f32;  ///< an alias for f
+  double     d;    ///< 64 bit IEEE-754 double.
+  double     f64;  ///< an alias for d
+  char       s[4]; ///< Standard C, NULL terminated string.
+  /** \brief Standard C, NULL terminated, string.
+             Used in systems which distinguish strings and symbols. */
+  char       S[4];
+  int        c;    ///< Standard C, 8 bit, char, stored as int.
+  uint8_t    m[4]; ///< A 4 byte MIDI packet.
+  o2_time    t;    ///< TimeTag value.
+  o2_blob    b;    ///< a blob (unstructured bytes)
+  int32_t    B;    ///< a boolean value, either 0 or 1
 } o2_arg, *o2_arg_ptr;
 
 
@@ -391,7 +391,7 @@ typedef union {
  * "sue", each with services named "synth." Since the application
  * names are different, joe's messages to the synth service go to
  * joe's synth and not to sue's synth.
- * 
+ *
  * Do not set, modify or free this variable! Consider it to be
  * read-only. It is managed by O2 using o2_initialize() and o2_finish().
  */
@@ -413,12 +413,12 @@ extern int o2_stop_flag;
  * @param types If you set a type string in your method creation call,
  *              then this type string is provided here. If you did not
  *              specify a string, types will be the type string from the
- *              message (without the initial ','). If parse_args and 
- *              coerce_flag were set in the method creation call, 
+ *              message (without the initial ','). If parse_args and
+ *              coerce_flag were set in the method creation call,
  *              types will match the types in argv, but not necessarily
  *              the type string or types in msg.
  * @param argv An array of #o2_arg types containing the values, e.g. if the
- *             first argument of the incoming message is of type 'f' then 
+ *             first argument of the incoming message is of type 'f' then
  *             the value will be found in argv[0]->f. (If parse_args was
  *             not set in the method creation call, argv will be NULL.)
  * @param argc The number of arguments received. (This is valid even if
@@ -478,7 +478,7 @@ int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)));
  * Once created, services are "advertised" to other processes with
  * matching application names, and messages are delivered
  * accordingly. E.g. to handle messages addressed to "/synth/volume"
- * you call 
+ * you call
  * \code{.c}
  * o2_add_service("synth");
  * o2_add_method("/synth/volume", "f", synth_volume_handler, NULL, NULL, TRUE);
@@ -504,7 +504,7 @@ int o2_add_service(char *service_name);
  * @param coerce    is true if you want to allow automatic coercion of types.
  *                      Coercion is only enabled if both coerce and parse are
  *                      true.
- * @param parse     is true if you want O2 to construct an argv argument 
+ * @param parse     is true if you want O2 to construct an argv argument
  *                      vector to pass to the handle
  *
  * @return O2_SUCCESS if succeed, O2_FAIL if not.
@@ -550,7 +550,7 @@ int o2_run(int rate);
  * - #O2_FAIL if no service is found,
  * - #O2_LOCAL_NOTIME if the service is local but we have no clock sync yet,
  * - #O2_REMOTE_NOTIME if the service is remote but we have no clock sync yet,
- * - #O2_BRIDGE_NOTIME if service is attached by a non-IP link, but we have 
+ * - #O2_BRIDGE_NOTIME if service is attached by a non-IP link, but we have
  *        no clock sync yet (if the non-IP connection is not handled
  *        by this process, the service status will be #O2_REMOTE_NOTIME),
  * - #O2_TO_OSC_NOTIME if service forwards to an OSC server but we
@@ -560,36 +560,36 @@ int o2_run(int rate);
  * - #O2_REMOTE if service is remote and we have clock sync,
  * - #O2_BRIDGE if service is handled locally by forwarding to an
  *        attached non-IP link, and we have clock sync. (If the non-IP
- *        connection is not local, the service status will be #O2_REMOTE). 
+ *        connection is not local, the service status will be #O2_REMOTE).
  * - #O2_TO_OSC if service is handled locally by forwarding to an OSC
  *       server and this process has clock sync. (If the OSC
  *       connection is not handled locally, the service status will be
- *       #O2_REMOTE). 
+ *       #O2_REMOTE).
  *
  *  @return Note that codes are carefully
  * ordered to allow testing for categories:
  * - to test if delivery is possible with a zero (immediate) timestamp,
- * use `o2_status(service) > O2_FAIL`, `o2_status(service) >= 0`, or 
+ * use `o2_status(service) > O2_FAIL`, `o2_status(service) >= 0`, or
  * `o2_status(service) >= O2_LOCAL_NOTIME`.
  * - to test if delivery is possible with a non-zero timestamp, use
  * `o2_status(service) >= O2_LOCAL`. Note that status can change over
- * time, e.g. the 
+ * time, e.g. the
  * status of a remote service will be #O2_FAIL until the service is
  * discovered. It will then change to #O2_REMOTE_NOTIME until both the
  * sender and receiver achieve clock synchronization and share their
  * synchronized status, and finally the status will become #O2_REMOTE.
  *
  * In the cases with no clock sync, it is safe to send an immediate message
- * with timestamp = 0, but non-zero timestamps are meaningless because 
+ * with timestamp = 0, but non-zero timestamps are meaningless because
  * either the sending process has no way to obtain a valid timestamp
  * or the receiver has no way to schedule delivery according to a
- * timestamp. 
+ * timestamp.
  *
  * Messages to services are *dropped* if the service has not been
  * discovered. Timestamped messages (timestamp != 0) are *dropped* if
  * the sender and receiver are not
  * clock-synchronized. (`o2_status(service) >= O2_LOCAL`).
- * 
+ *
  * A special case is with `BRIDGE` and `OSC` services. In these cases,
  * the O2 process offering the service can either schedule the
  * messages locally, sending them according to the timestamp (and
@@ -612,8 +612,8 @@ int o2_status(const char *service);
  *
  * @return If clock is synchronized, return O2_SUCCESS and set
  *   `*mean` to the mean round-trip time and `*min` to the minimum
- *   round-trip time of the last 5 (where 5 is the value of 
- *   CLOCK_SYNC_HISTORY_LEN) clock sync requests. Otherwise, 
+ *   round-trip time of the last 5 (where 5 is the value of
+ *   CLOCK_SYNC_HISTORY_LEN) clock sync requests. Otherwise,
  *   O2_FAIL is returned and `*mean` and `*min` are unaltered.
  */
 int o2_roundtrip(double *mean, double *min);
@@ -671,7 +671,7 @@ int o2_set_clock(o2_time_callback gettime, void *rock);
  *
  */
 /** \hideinitializer */ // turn off Doxygen report on o2_send_marker()
-#define o2_send(path, time, typestring...) \
+#define o2_send(path, time, typestring, ...) \
     o2_send_marker(path, time, FALSE, typestring, O2_MARKER_A, O2_MARKER_B)
 
 /** \cond INTERNAL */ \
@@ -700,25 +700,25 @@ int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...)
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
 /** \hideinitializer */ // turn off Doxygen report on o2_send_marker()
-#define o2_send_cmd(path, time, typestring...) \
+#define o2_send_cmd(path, time, typestring, ...) \
     o2_send_marker(path, time, TRUE, typestring, O2_MARKER_A, O2_MARKER_B)
 
 
-/** 
+/**
  * \brief Send an O2 message. (See also macros #o2_send and #o2_send_cmd).
- * 
+ *
  * @param msg points to an O2 message.
  * @param tcp_flag is true for reliable send, false for best effort (UDP) send.
- * 
+ *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  *
- * After the call, the `msg` parameter is "owned" by O2, which will 
+ * After the call, the `msg` parameter is "owned" by O2, which will
  * free it.
  */
 int o2_send_message(o2_message_ptr msg, int tcp_flag);
 
 /**
- * \brief Get the estimated synchronized global O2 time. 
+ * \brief Get the estimated synchronized global O2 time.
  *
  *  This function returns a valid value either after you call
  *  o2_set_clock(), making the local clock the master clock for the O2
@@ -753,7 +753,7 @@ const char *o2_get_error(int i);
  *  \brief release the memory and shut down O2.
  *
  *  Close all sockets, free all memory, and restore critical
- *  variables so that O2 behaves as if it was never initialized.    
+ *  variables so that O2 behaves as if it was never initialized.
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
@@ -762,12 +762,12 @@ int o2_finish();
 
 // Interoperate with OSC
 /**
- *  \brief Create a port to receive OSC messages. 
+ *  \brief Create a port to receive OSC messages.
  *
  *  OSC messages are converted to O2 messages and directed to the service.
  *  E.g. if the service is "maxmsp" and the message address is
  *  `/foo/x`, then the message is directed to and handled by
- *  `/maxmsp/foo/x`. 
+ *  `/maxmsp/foo/x`.
  *
  *  @param service_name The name of the service to which messages are delivered
  *  @param port_num     Port number.
@@ -778,7 +778,7 @@ int o2_create_osc_port(const char *service_name, int port_num, int udp_flag);
 
 
 /**
- *  \brief Send an OSC message. 
+ *  \brief Send an OSC message.
  *
  * This function (mostly) bypasses O2 and just constructs a message
  *  and sends it directly via UDP to an OSC server.
@@ -796,7 +796,7 @@ int o2_create_osc_port(const char *service_name, int port_num, int udp_flag);
  *  @return O2_SUCCESS if success, O2_FAIL if not.
  */
 /** \hideinitializer */
-#define o2_send_osc_message(service_name, path, typestring...) \
+#define o2_send_osc_message(service_name, path, typestring, ...) \
     o2_send_osc_message_marker(service_name, path, typestring, \
                                O2_MARKER_A, O2_MARKER_B)
 
@@ -837,13 +837,13 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * Rather than passing all parameters in one call or letting O2
  * extract parameters from a message before calling its handler,
  * these functions allow building messages one parameter at a time
- * and extracting message parameters one at a time. 
+ * and extracting message parameters one at a time.
  * The functions operate on "hidden" messages, so these functions are
- * not reentrant. 
- * 
+ * not reentrant.
+ *
  * To build a message, begin by calling o2_start_send() to allocate a
- * message. Then call one of the `o2_add_()` functions to add each 
- * parameter. Finally, call either o2_finish_send() or 
+ * message. Then call one of the `o2_add_()` functions to add each
+ * parameter. Finally, call either o2_finish_send() or
  * o2_finish_send_cmd() to send the message. You should not explicitly
  * allocate or deallocate a message using this procedure.
  *
@@ -862,7 +862,7 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * the type string. Normally, you should not free the message because
  * normally you are accessing the message in a handler and the message
  * will be freed by the O2 message dispatch code that called the
- * handler. 
+ * handler.
  */
 
 /** \addtogroup lowlevelsend
@@ -870,19 +870,19 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  */
 /**
  * \brief Allocate a blob.
- * 
+ *
  * Allocate a blob and initialize the size field. If the return address
- * is not NULL, copy data (up to length size) to `blob->data`. You can 
- * change `blob->size`, but of course you should not set `blob->size` 
+ * is not NULL, copy data (up to length size) to `blob->data`. You can
+ * change `blob->size`, but of course you should not set `blob->size`
  * greater than the `size` parameter originally passed to o2_blob_new().
  *
  * Caller is responsible for freeing the returned blob using O2_FREE().
  *
- * A constructed blob can be added to a message. If you add parameters to 
- * a message one-at-a-time, you can use o2_add_blob_data() to copy data 
- * directly to a message without first allocating a blob and copying 
+ * A constructed blob can be added to a message. If you add parameters to
+ * a message one-at-a-time, you can use o2_add_blob_data() to copy data
+ * directly to a message without first allocating a blob and copying
  * data into it.
- * 
+ *
  * @param size The size of the data to be added to the blob
  *
  * @return the address of the new blob or NULL if memory cannot be allocated.
@@ -961,7 +961,7 @@ int o2_add_infinitum();
  * @return the address of the completed message, or NULL on error
  *
  * The message must be freed using o2_free_message() or by calling
- * o2_send_message(). 
+ * o2_send_message().
  */
 o2_message_ptr o2_finish_message(o2_time time, char *address);
 
@@ -980,7 +980,7 @@ void o2_free_message(o2_message_ptr msg);
  * process of (1) allocate the message with o2_start_send(), (2) add
  * parameters to it using `o2_add_` functions, and (3) call
  * o2_finish_send() to send it.
- * 
+ *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
 int o2_finish_send(o2_time time, char *address);
@@ -988,7 +988,7 @@ int o2_finish_send(o2_time time, char *address);
 
 /**
  * \brief send a message allocated by o2_start_send().
- * 
+ *
  * This is similar to calling o2_send_cmd(), except you use a three-step
  * process of (1) allocate the message with o2_start_send(), (2) add
  * parameters to it using `o2_add_` functions, and (3) call
@@ -1021,7 +1021,7 @@ int o2_finish_send_cmd(o2_time time, char *address);
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  *
  * To get arguments from a message, call o2_start_extract(), then for
- * each parameter, call o2_get_next(). 
+ * each parameter, call o2_get_next().
  */
 int o2_start_extract(o2_message_ptr msg);
 
@@ -1059,7 +1059,7 @@ int o2_start_extract(o2_message_ptr msg);
  *
 ### Example 1: Simple but not completely robust
 
-Note: call o2_add_method() with type_spec = "id", h = my_handler, 
+Note: call o2_add_method() with type_spec = "id", h = my_handler,
 coerce = false, parse = false. In this case, since there is
 no type coercion, type_spec must match the message exactly,
 so o2_get_next() should always return a non-null o2_arg_ptr.
@@ -1080,8 +1080,8 @@ returned by o2_get_next().
 
 ### Example 2: Type coercion and type checking.
 
-Note: call o2_add_method() with type_spec = NULL, h = my_handler, 
-coerce = false, parse = false. In this case, even though 
+Note: call o2_add_method() with type_spec = NULL, h = my_handler,
+coerce = false, parse = false. In this case, even though
 coerce is false, there is no type_spec, so the handler will
 be called without type checking. We could check the
 actual message types (given by types), but here, we will
@@ -1104,7 +1104,7 @@ from o2_get_next(), where NULL indicates incompatible types.
         ...
     }
 \endcode
- * 
+ *
  * @param type_code the desired parameter type
  *
  * @return the next message parameter or NULL if no more parameters
@@ -1130,9 +1130,9 @@ o2_arg_ptr o2_get_next(char type_code);
 
 // Scheduler data structure.
 typedef struct o2_sched {
-    int64_t last_bin;
-    double last_time;
-    o2_message_ptr table[O2_SCHED_TABLE_LEN];
+  int64_t last_bin;
+  double last_time;
+  o2_message_ptr table[O2_SCHED_TABLE_LEN];
 } o2_sched, *o2_sched_ptr;
 /** \endcond */
 
@@ -1143,11 +1143,11 @@ typedef struct o2_sched {
  * Scheduling on this scheduler (including sending timed messages)
  * will only work after clock synchronization is obtained. Until then,
  * timed message sends will fail and attempts to o2_schedule() will
- * fail. 
+ * fail.
  */
 extern o2_sched o2_gtsched;
 
-/** 
+/**
  * \brief Scheduler that schedules according to local clock time
  *
  * It may be necessary to schedule events before clock synchronization
@@ -1157,7 +1157,7 @@ extern o2_sched o2_gtsched;
  * be small). For example, O2 uses the local time scheduler to
  * schedule the clock synchronization protocol, which of course must
  * run before clock synchronization is obtained.
- * 
+ *
  * In these cases, you should schedule messages using #o2_ltsched.
  */
 extern o2_sched o2_ltsched;
@@ -1168,12 +1168,12 @@ extern o2_sched o2_ltsched;
  * When a timed message is delivered by a scheduler, #o2_active_sched
  * is set to pount to the scheduler. A handler that constructs and
  * schedules a message can use this pointer to continue using the same
- * scheduler. 
+ * scheduler.
  */
 extern o2_sched_ptr o2_active_sched; // the scheduler that should be used
 
 
-/** 
+/**
  * /brief Schedule a message.
  *
  * Rather than sending a message, messages can be directly
@@ -1191,11 +1191,11 @@ extern o2_sched_ptr o2_active_sched; // the scheduler that should be used
  *
  * The message is scheduled for delivery according to its timestamp
  * (which is interpreted as local or global time depending on the
- * scheduler). 
- * 
- * The message is delivered immediately if the time is zero or less 
- * than the current time; however, to avoid unbounded recursion, 
- * messages scheduled within handlers are appended to a "pending 
+ * scheduler).
+ *
+ * The message is delivered immediately if the time is zero or less
+ * than the current time; however, to avoid unbounded recursion,
+ * messages scheduled within handlers are appended to a "pending
  * messages" queue and delivered after the handler returns.
  */
 void o2_schedule(o2_sched_ptr scheduler, o2_message_ptr msg);

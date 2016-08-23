@@ -13,6 +13,10 @@ extern o2_message_ptr message_freelist;
 
 #define MAX_SERVICE_LEN 64
 
+#ifdef WIN32
+#define ssize_t long long
+#endif
+
 /** get a free message */
 o2_message_ptr alloc_message();
 

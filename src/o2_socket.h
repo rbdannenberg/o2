@@ -17,13 +17,14 @@
 #include <ws2tcpip.h>                   // Header for tcp connections
 #pragma comment(lib, "ws2_32.lib")
 // #include <windows.h>
+
 #define socklen_t int
 #define sleep Sleep
 #define strdup _strdup
 
 /* Define pollfd for Windows */
 struct poll_fd {
-    int64 fd; /* the windows socket number */
+    __int64 fd; /* the windows socket number */
     int events; /* not used, but needed for compatibility */
 };
 
@@ -47,7 +48,7 @@ typedef int SOCKET;     // In O2, we'll use SOCKET to denote the type of a socke
 /**
  * The fds_info structure tells us info about each socket. For Unix, there
  * is a parallel structure, fds, that contains an fds parameter for poll().
- * 
+ *
  * In fds_info, we have the socket, a handler for the socket, and buffer info
  * to store incoming data, and the service the socket is attached to.
  */
@@ -59,9 +60,30 @@ typedef int SOCKET;     // In O2, we'll use SOCKET to denote the type of a socke
 
 struct process_info;
 
+#ifdef WIN32
+typedef struct ifaddrs
+{
+    struct ifaddrs  *ifa_next;    /* Next item in list */
+    char            *ifa_name;    /* Name of interface */
+    unsigned int     ifa_flags;   /* Flags from SIOCGIFFLAGS */
+    struct sockaddr *ifa_addr;    /* Address of interface */
+    struct sockaddr *ifa_netmask; /* Netmask of interface */
+    union
+    {
+        struct sockaddr *ifu_broadaddr; /* Broadcast address of interface */
+        struct sockaddr *ifu_dstaddr; /* Point-to-point destination address */
+    } ifa_ifu;
+#define              ifa_broadaddr ifa_ifu.ifu_broadaddr
+#define              ifa_dstaddr   ifa_ifu.ifu_dstaddr
+    void            *ifa_data;    /* Address-specific data */
+} ifaddrs;
+
+
+#endif
+
 typedef struct fds_info {
     int tag;                    // UDP_SOCKET, TCP_SOCKET, OSC_SOCKET, DISCOVER_SOCKET,
-                                // TCP_SERVER_SOCKET
+    // TCP_SERVER_SOCKET
     //int port;                   // Record the port number of the socket.
     uint32_t length;            // message length
     o2_message_ptr message;     // message data from TCP stream goes here
@@ -78,12 +100,12 @@ extern char o2_local_ip[24];
 extern int o2_local_tcp_port;
 extern dyn_array o2_fds_info;
 extern int o2_found_network; // true if we have an IP address, which implies a network connection
-    // if false, we only talk to 127.0.0.1 (localhost)
+// if false, we only talk to 127.0.0.1 (localhost)
 
 
-#ifndef _WIN32
-extern dyn_array o2_fds;
-#endif
+//#ifndef _WIN32
+extern dyn_array o2_fds;///< pre-constructed fds parameter for poll()
+//#endif
 
 /**
  *  In windows, before we want to use the socket to transport, we need to initialize
@@ -93,6 +115,8 @@ extern dyn_array o2_fds;
  */
 #ifdef _WIN32
 int initWSock();
+int getifaddrs(struct ifaddrs **ifpp);
+void freeifaddrs(struct ifaddrs *ifp);
 #endif
 
 int init_sockets();

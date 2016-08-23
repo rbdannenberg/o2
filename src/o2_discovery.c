@@ -247,7 +247,11 @@ int o2_send_init(process_info_ptr process)
         o2_add_int32(o2_clock_is_synchronized);
     if (err) return err;
     char address[32];
-    snprintf(address, 32, "!%s/in", process->name);
+#ifndef WIN32 
+	snprintf(address, 32, "!%s/in", process->name);
+#else
+	_snprintf(address, 32, "!%s/in", process->name);
+#endif
     o2_message_ptr initmsg = o2_finish_message(0.0, address);
 
     return send_by_tcp_to_process(process, initmsg);
@@ -271,7 +275,11 @@ int o2_send_services(process_info_ptr process)
         }
     }
     char address[32];
-    snprintf(address, 32, "!%s/sv", process->name);
+#ifndef WIN32 
+	snprintf(address, 32, "!%s/sv", process->name);
+#else
+	_snprintf(address, 32, "!%s/sv", process->name);
+#endif
     return o2_finish_send_cmd(0.0, address);
 }
 
@@ -306,8 +314,11 @@ int o2_discovery_handler(o2_message_ptr msg, const char *types,
     
     char name[32];
     // ip:port + pad with zeros
-    snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp_arg->i32, 0, 0, 0, 0);
-    
+#ifndef WIN32 
+	snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp_arg->i32, 0, 0, 0, 0);
+#else
+	_snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp_arg->i32, 0, 0, 0, 0);
+#endif
     int index;
     // printf("%s: o2_discovery_handler: lookup %s\n", debug_prefix, name);
     if (lookup(&path_tree_table, name, &index)) {
@@ -380,7 +391,11 @@ int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
     // get process name
     char name[32];
     // ip:port + pad with zeros
-    snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp_port, 0, 0, 0, 0);
+#ifndef WIN32 
+	snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp_port, 0, 0, 0, 0);
+#else
+	_snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp_port, 0, 0, 0, 0);
+#endif
     
     // if process does not exist, create it
     int index;
@@ -415,7 +430,11 @@ int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
     process->udp_sa.sin_family = AF_INET;
     process->udp_port = udp_port;
     assert(udp_port != 0);
-    process->udp_sa.sin_len = sizeof(process->udp_sa);
+
+#ifndef WIN32
+	process->udp_sa.sin_len = sizeof(process->udp_sa);
+#endif
+
     inet_pton(AF_INET, ip, &(process->udp_sa.sin_addr.s_addr));
     process->udp_sa.sin_port = htons(udp_port);
     // printf("%s: finished /in for %s, status %d, udp_port %d\n", debug_prefix, name, status, udp_port);
