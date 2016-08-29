@@ -116,15 +116,9 @@ static O2_INLINE uint64_t o2_hn64(uint64_t x)
 /// how many bytes are used by next and length fields before data and by
 /// 4 bytes of zero pad after the data?
 
-#ifdef WIN32
-#define MESSAGE_EXTRA ((((void **) &((o2_message_ptr) 0)->data.timestamp) - \
-                        ((void **) &((o2_message_ptr) 0)->next)) + \
+#define MESSAGE_EXTRA ((((char *) &((o2_message_ptr) 0)->data.timestamp) - \
+                        ((char *) &((o2_message_ptr) 0)->next)) + \
                        4)
-#else
-#define MESSAGE_EXTRA ((((void *) &((o2_message_ptr) 0)->data.timestamp) - \
-                        ((void *) &((o2_message_ptr) 0)->next)) + \
-                       4)
-#endif
 
 /// how big should whole o2_message be to leave len bytes for the data part?
 #define MESSAGE_SIZE_FROM_ALLOCATED(len) ((len) + MESSAGE_EXTRA)
