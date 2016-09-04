@@ -32,27 +32,52 @@ void enumerate_begin(enumerate_ptr enumerator, dyn_array_ptr array);
 #define NEGATE  '!'
 #endif
 
+// return true if string str matches pattern p.
+//   str is a node name terminated by zero (end-of-string)
+//   p can be the remainder of a whole address pattern, so it is
+//     terminated by either zero (end-of-string) or slash (/)
+//
 int o2_pattern_match(const char *str, const char *p)
 {
-    int negate;
-    int match;
-    char c;
+    int negate; // the ! is used before a character or range of characters
+    int match;  // a boolean used to exit a loop looking for a match
+    char c;     // a character from the pattern
     
-    while (*p) {
+    // match each character of the pattern p with string str up to
+    //   pattern end marked by zero (end of string) or '/'
+    while (*p && *p != '/') {
+        // fast exit: if we have exhausted str and there is more
+        //   pattern to match, give up (unless *p is '*', which can
+        //   match zero characters)
+        // also, [!...] processing assumes a character to match in str
+        //   without checking, so the case of !*str is handled here
         if (!*str && *p != '*') {
             return FALSE;
         }
         
-        switch (c = *p++) {
-            case '*':
-                while (*p == '*' && *p != '/') p++;
+        // process the next character(s) of the pattern
+        switch ((c = *p++)) {
+            case '*': // matches 0 or more characters
+                while (*p == '*') p++; // "*...*" is equivalent to "*" so
+                                       // skip over a run of '*'s
                 
-                if (!*p) return TRUE;
+                // if there are no more pattern characters, we can match
+                //   '*' to the rest of str, so we have a match. This is an
+                //   optimization that tests for a special case:
+                if (!*p || *p == '/') return TRUE;
                 
-                //if (*p != '?' && *p != '[' && *p != '\\')
+                // if the next pattern character is not a meta character,
+                //   we can skip over all the characters in str that
+                //   do not match: at least these skipped characters must
+                //   match the '*'. This is an optimization:
                 if (*p != '?' && *p != '[' && *p != '{')
                     while (*str && *p != *str) str++;
                 
+                // we do not know if '*' should match more characters or
+                //   not, so we have to try every possibility. This is
+                //   done recursively. There are more special cases and
+                //   possible optimizations, but at this point we give up
+                //   looking for special cases and just try everything:
                 while (*str) {
                     if (o2_pattern_match(str, p)) {
                         return TRUE;
@@ -61,114 +86,112 @@ int o2_pattern_match(const char *str, const char *p)
                 }
                 return FALSE;
                 
-            case '?':
-                if (*str) break;
+            case '?': // matches exactly 1 character in str
+                if (*str) break; // success
                 return FALSE;
-                /*
-                 * set specification is inclusive, that is [a-z] is a, z and
-                 * everything in between. this means [z-a] may be interpreted
-                 * as a set that contains z, a and nothing in between.
-                 */
+            /*
+             * set specification is inclusive, that is [a-z] is a, z and
+             * everything in between. this means [z-a] may be interpreted
+             * as a set that contains z, a and nothing in between.
+             */
             case '[':
                 if (*p != NEGATE) {
                     negate = 1;
                 } else {
-                    negate = 0;
-                    p++;
+                    negate = 0; // note that negate == 0 if '!' found
+                    p++;        //   so in this case, 0 means "true"
                 }
                 
-                match = 0;
-                
+                match = 0; // no match found yet
+                // search in set for a match until it is found
+                // if/when you exit the loop, p is pointing to ']' or
+                //   before it, or c == ']' and p points to the
+                //   next character, or there is no matching ']'
                 while (!match && (c = *p++)) {
-                    if (!*p) {
+                    if (!*p || *p == '/') { // no matching ']' in pattern
                         return FALSE;
-                    }
-                    if (*p == '-') {        /* c-c */
-                        if (!*++p)
-                            return FALSE;
-                        if (*p != ']') {
-                            if (*str == c || *str == *p ||
-                                (*str > c && *str < *p))
-                                match = 1;
-                        } else {    /* c-] */
-                            if (*str >= c)
-                                match = 1;
-                            break;
+                    } else if (c == ']') {
+                        p--; // because we search forward for ']' below
+                        break;
+                    } else if (*p == '-') {  // expected syntax is c-c
+                        p++;
+                        if (!*p || *p == '/')
+                            return FALSE; // expected to find at least ']'
+                        if (*p != ']') {  // found end of range
+                            match = (*str == c || *str == *p ||
+                                     (*str > c && *str < *p));
+                        } else {  //  c-] means ok to match c or '-'
+                            match = (*str == c || *str == '-');
                         }
-                    } else {        /* cc or c] */
-                        if (c == *str)
-                            match = 1;
-                        if (*p != ']') {
-                            if (*p == *str)
-                                match = 1;
-                        } else {
-                            break;
-                        }
+                    } else {   // no dash, so see if we match 'c'
+                        match = (c == *str);
                     }
                 }
                 
                 if (negate == match) {
                     return FALSE;
                 }
-                /*
-                 * if there is a match, skip past the cset and continue on
-                 */
-                while (*p && *p != ']')
-                    p++;
-                if (!*p++) /* oops! */ {
-                    return FALSE;
+                // if there is a match, skip past the cset and continue on
+                while ((c = *p++) != ']') {
+                    if (!c || c == '/') { // no matching ']' in pattern
+                        return FALSE;
+                    }
                 }
                 break;
                 
             /*
-             * {astring,bstring,cstring}
+             * {astring,bstring,cstring}: This is tricky because astring
+             *   could be a prefix of bstring, so even if astring matches
+             *   the beginning of str, we may have to backtrack and match
+             *   bstring in order to get an overall match
              */
             case '{': {
                 // *p is now first character in the {brace list}
                 const char *place = str;        // to backtrack
                 const char *remainder = p;      // to forwardtrack
                 
-                // find the end of the brace list
-                while (*remainder && *remainder != '}')
-                    remainder++;
-                if (!*remainder++)      /* oops! */
-                { return O2_FAIL; }
-                
+                // find the end of the brace list (or end of pattern)
+                c = *remainder;
+                while (c != '}') {
+                    if (!c || c == '/') {  // unexpected end of pattern
+                        return FALSE;
+                    }
+                    c = *remainder++;
+                }
                 c = *p++;
                 
-                while (c) {
+                // test each string in the {brace list}. At the top of
+                //   the loop:
+                //     c is a character of a {brace list} string
+                //     p points to the next character after c
+                //     str points to the so-far unmatched remainder of
+                //         the address
+                //     place points to the location in str that must
+                //         be matched with this {brace list}
+                while (c && c != '/') {
                     if (c == ',') {
+                        // recursively see if we can complete the match
                         if (o2_pattern_match(str, remainder)) {
                             return TRUE;
                         } else {
-                            // backtrack on test string
-                            str = place;
-                            // continue testing,
-                            // skip comma
-                            if (!*p++) { // oops
+                            str = place; // backtrack on test string
+                            // continue testing, skipping the comma
+                            p++;
+                            if (!*p || *p == '/') { // unexpected end
                                 return FALSE;
                             }
                         }
                     } else if (c == '}') {
-                        // continue normal pattern matching
-                        if (!*p && !*str) {
-                            return TRUE;
-                        }
                         str--;  // str is incremented again below
                         break;
-                    } else if (c == *str) {
+                    } else if (c == *str) { // match a character
                         str++;
-                        if (!*str && *remainder) {
-                            return FALSE;
-                        }
                     } else {    // skip to next comma
                         str = place;
-                        while (*p != ',' && *p != '}' && *p)
-                            p++;
-                        if (*p == ',')
-                            p++;
-                        else if (*p == '}') {
-                            return FALSE;
+                        while ((c = *p++) != ',') {
+                            if (!c || c == '/' || c == '}') {
+                                return FALSE; // no more choices, so no match
+                            }
                         }
                     }
                     c = *p++;
@@ -184,7 +207,8 @@ int o2_pattern_match(const char *str, const char *p)
         }
         str++;
     }
-    
+    // since we have reached the end of the pattern, we match iff we are
+    //   also at the end of the string:
     return (*str == 0);
 }
 
@@ -228,7 +252,7 @@ generic_entry_ptr *lookup(node_entry_ptr node, const char *key, int *index)
     int n = node->children.length;
     int64_t hash = get_hash(key);
     *index = hash % n;
-    generic_entry_ptr *ptr = DA_GET(node->children, generic_entry_ptr *,
+    generic_entry_ptr *ptr = DA_GET(node->children, generic_entry_ptr,
                                     *index);
     while (*ptr) {
         if (streql(key, (*ptr)->key)) {
@@ -302,10 +326,10 @@ int initialize_table(dyn_array_ptr table, int locations)
     memset(table->array, 0, locations * sizeof(generic_entry_ptr));
     table->allocated = locations;
     table->length = locations;
-    printf("initialize_table %p len %d, array %p\n", table, table->length, table->array);
+/*    printf("initialize_table %p len %d, array %p\n", table, table->length, table->array);
     int i;
     for (i = 0; i < table->length; i++)
-        printf("   %d: %p\n", i, ((generic_entry_ptr *)(table->array))[i]);
+        printf("   %d: %p\n", i, ((generic_entry_ptr *)(table->array))[i]); */
     return O2_SUCCESS;
 }
 
@@ -714,13 +738,15 @@ int o2_add_method(const char *path, const char *typespec,
     }
     handler->tag = PATTERN_HANDLER;
     handler->key = o2_heapify(remaining);
+    handler->handler = h;
+    handler->user_data = user_data;
+    handler->full_path = key; // key will also be master_table key
     char *types_copy = (typespec ? o2_heapify(typespec) : NULL);
     int arg_count = (typespec ? strlen(typespec) : 0);
     handler->type_string = types_copy;
     handler->argc = arg_count;
-    handler->handler = h;
-    handler->user_data = user_data;
-    handler->full_path = key; // key will also be master_table key
+    handler->coerce_flag = coerce;
+    handler->parse_args = parse;
     int ret = add_entry(table, (generic_entry_ptr) handler);
     if (ret) {
         // TODO CLEANUP
@@ -733,12 +759,14 @@ int o2_add_method(const char *path, const char *typespec,
     handler->tag = PATTERN_HANDLER;
     handler->key = key;
     handler->handler = h;
+    handler->user_data = user_data;
+    handler->full_path = NULL; // only leaf nodes have full_path pointer
     // typespec will be freed, so we can't share copies
     if (types_copy) types_copy = o2_heapify(typespec);
     handler->type_string = types_copy;
     handler->argc = arg_count;
-    handler->user_data = user_data;
-    handler->full_path = NULL; // only leaf nodes have full_path pointer
+    handler->coerce_flag = coerce;
+    handler->parse_args = parse;
     
     // put the entry in the master table
     return add_entry(&master_table, (generic_entry_ptr) handler);
@@ -838,7 +866,8 @@ void call_handler(handler_entry_ptr handler, o2_message_ptr msg,
             needed += argc * sizeof(double);
         }
         if (needed <= msg->allocated - msg->length) {
-            argv = (o2_arg_ptr *) &(msg->data);
+            argv = (o2_arg_ptr *) (WORD_ALIGN_PTR(((char *) msg) +
+                    MESSAGE_SIZE_FROM_ALLOCATED(msg->length)));
         } else {
             argv = (o2_arg_ptr *) o2_malloc(needed);
             free_argv_flag = TRUE;
@@ -864,6 +893,7 @@ void call_handler(handler_entry_ptr handler, o2_message_ptr msg,
                 }
             }
             desired_type++;
+            i++;
         }
     }
     (*(handler->handler))(msg, types, argv, argc, handler->user_data);
@@ -888,7 +918,7 @@ void find_and_call_handlers_rec(char *remaining, char *name,
                                 node_entry_ptr node, o2_message_ptr msg)
 {
     char *slash = strchr(remaining, '/');
-    if (slash) *slash = 0;
+    // if (slash) *slash = 0;
     int pattern = strpbrk(remaining, "*?[{");
     if (pattern) { // this is a pattern 
         enumerate enumerator;
@@ -907,7 +937,9 @@ void find_and_call_handlers_rec(char *remaining, char *name,
         }
     } else { // no pattern characters so do hash lookup
         int index;
+        if (slash) *slash = 0;
         string_pad(name, remaining, NAME_BUF_LEN);
+        if (slash) *slash = '/';
         generic_entry_ptr *entry_ptr = lookup(node, name, &index);
         if (entry_ptr) {
             if (slash && ((*entry_ptr)->tag == PATTERN_NODE)) {
@@ -920,7 +952,7 @@ void find_and_call_handlers_rec(char *remaining, char *name,
             }
         }
     }
-    if (slash) *slash = '/';
+    // if (slash) *slash = '/';
 }
 
 

@@ -672,7 +672,7 @@ int o2_set_clock(o2_time_callback gettime, void *rock);
  */
 /** \hideinitializer */ // turn off Doxygen report on o2_send_marker()
 #define o2_send(path, time, typestring, ...) \
-    o2_send_marker(path, time, FALSE, typestring, O2_MARKER_A, O2_MARKER_B)
+    o2_send_marker(path, time, FALSE, typestring, __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
 /** \cond INTERNAL */ \
 int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...);
@@ -701,7 +701,7 @@ int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...)
  */
 /** \hideinitializer */ // turn off Doxygen report on o2_send_marker()
 #define o2_send_cmd(path, time, typestring, ...) \
-    o2_send_marker(path, time, TRUE, typestring, O2_MARKER_A, O2_MARKER_B)
+    o2_send_marker(path, time, TRUE, typestring, __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
 
 /**

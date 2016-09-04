@@ -35,7 +35,9 @@ typedef struct node_entry {
     char *key;
     generic_entry_ptr next;
     int num_children;
-    dyn_array children;
+    dyn_array children; // children is a dynamic array of generic_entry_ptr
+    // a generic_entry_ptr can point to a node_entry, a handler_entry, a
+    //   remote_service_entry, or an osc_entry (are there more?)
 } node_entry, *node_entry_ptr;
 
 // Hash table's entry for handler

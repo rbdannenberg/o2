@@ -88,6 +88,17 @@ static int detect_windows_service_2003_or_later()
 #endif
 
 
+void deliver_or_schedule(o2_message_ptr msg)
+{
+    // TODO: test if o2_get_time() is operational?
+    if (msg->data.timestamp > o2_get_time()) {
+        o2_schedule(&o2_ltsched, msg);
+    } else {
+        find_and_call_handlers(msg);
+    }
+}
+
+
 void add_new_socket(SOCKET sock, int tag, process_info_ptr process,
                     void (*handler)(SOCKET sock, struct fds_info *info))
 {
@@ -99,6 +110,10 @@ void add_new_socket(SOCKET sock, int tag, process_info_ptr process,
     info->tag = tag;
     info->u.process_info = process;
     info->handler = handler;
+    info->length = 0;
+    info->length_got = 0;
+    info->message = NULL;
+    info->message_got = 0;
     pfd->fd = sock;
     pfd->events = POLLIN;
     // printf("%s: added new socket at %d", debug_prefix, o2_fds.length - 1);
@@ -178,12 +193,13 @@ void udp_recv_handler(SOCKET sock, struct fds_info *info)
     }
     msg->length = n;
     // endian corrections are done in handler
-    find_and_call_handlers(msg);
+    deliver_or_schedule(msg);
 }
 
 
 int read_whole_message(SOCKET sock, struct fds_info *info)
 {
+    assert(info->length_got < 5);
     // printf("--   %s: read_whole message length_got %d length %d message_got %d\n",
     //       debug_prefix, info->length_got, info->length, info->message_got);
     /* first read length if it has not been read yet */
@@ -194,6 +210,7 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
             printf("****** error: code incomplete ********\n");
         }
         info->length_got += n;
+        assert(info->length_got < 5);
         if (info->length_got < 4) {
             return FALSE;
         }
@@ -238,7 +255,7 @@ void tcp_recv_handler(SOCKET sock, struct fds_info *info)
     
     /* got the message, deliver it */
     // endian corrections are done in handler
-    find_and_call_handlers(info->message);
+    deliver_or_schedule(info->message);
     // info->message is now freed
     tcp_message_cleanup(info);
 }
@@ -631,6 +648,7 @@ int o2_recv()
             // ignore
         } else if (d->revents) {
             fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
+            assert(info->length_got < 5);
             /* if (i == 2) {
                 printf("%s: got connection request at o2_fds[2]\n", debug_prefix);
             }
@@ -639,6 +657,9 @@ int o2_recv()
             } */
             (*(info->handler))(d->fd, info);
         }
+        /* DEBUG: */
+        fds_info_ptr fip = DA_GET(o2_fds_info, fds_info, i);
+        assert(fip->length_got < 5);
     }
   
     return O2_SUCCESS;

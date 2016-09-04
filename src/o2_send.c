@@ -143,6 +143,7 @@ int o2_send_message(o2_message_ptr msg, int tcp_flag)
     }
     // Local delivery?
     if (service->tag == PATTERN_NODE) {
+        // TODO: test if o2_get_time() is operational?
         // future?
         if (msg->data.timestamp > o2_get_time()) {
             o2_schedule(&o2_ltsched, msg);

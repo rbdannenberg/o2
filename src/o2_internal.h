@@ -32,13 +32,14 @@
 // WIN32 requires predefinition of IS_BIG_ENDIAN=1 or IS_BIG_ENDIAN=0
 #else
  #ifdef __APPLE__
-  #include "machine/endian.h" // OS X endian.h is in /usr/include/machine
+  #include "machine/endian.h" // OS X endian.h is in MacOSX10.8.sdk/usr/include/machine/endian.h
   #define LITTLE_ENDIAN __DARWIN_LITTLE_ENDIAN
  #else
   #include <endian.h>
   #define LITTLE_ENDIAN __LITTLE_ENDIAN
+  #define BYTE_ORDER __BYTE_ORDER
  #endif
- #define IS_BIG_ENDIAN (__BYTE_ORDER != LITTLE_ENDIAN)
+ #define IS_BIG_ENDIAN (BYTE_ORDER != LITTLE_ENDIAN)
 #endif
 #define IS_LITTLE_ENDIAN (!(IS_BIG_ENDIAN))
 #define swap16(i) ((((i) >> 8) & 0xff) | (((i) & 0xff) << 8))
