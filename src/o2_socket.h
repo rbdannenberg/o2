@@ -12,7 +12,7 @@
 /**
  *  TCP and UDP head for different system
  */
-#ifdef _WIN32
+#ifdef WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>                   // Header for tcp connections
 #pragma comment(lib, "ws2_32.lib")
@@ -103,7 +103,7 @@ extern int o2_found_network; // true if we have an IP address, which implies a n
 // if false, we only talk to 127.0.0.1 (localhost)
 
 
-//#ifndef _WIN32
+//#ifndef WIN32
 extern dyn_array o2_fds;///< pre-constructed fds parameter for poll()
 //#endif
 
@@ -113,7 +113,7 @@ extern dyn_array o2_fds;///< pre-constructed fds parameter for poll()
  *
  *  @returns: return the state of the socket
  */
-#ifdef _WIN32
+#ifdef WIN32
 int initWSock();
 int getifaddrs(struct ifaddrs **ifpp);
 void freeifaddrs(struct ifaddrs *ifp);

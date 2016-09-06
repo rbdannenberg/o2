@@ -52,11 +52,11 @@ int o2_port_map[16] = { 53472, 54859, 55764, 60238, 62711,
 int o2_discovery_init()
 {
     int i;
-#ifdef _WIN32
+#ifdef WIN32
     //Initialize (in Windows)
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
-#endif // _WIN32
+#endif // WIN32
 
     // Set up a socket for broadcasting discovery info
     if ((broadcast_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -150,7 +150,7 @@ int make_tcp_connection(process_info_ptr process, char *ip, int tcp_port)
     // We are the client because our ip:port string is higher
     struct sockaddr_in remote_addr;
     //set up the sockaddr_in
-#ifndef _WIN32
+#ifndef WIN32
     bzero(&remote_addr, sizeof(remote_addr));
 #endif
     // expand socket arrays for new port

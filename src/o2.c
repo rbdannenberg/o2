@@ -106,7 +106,7 @@ number. The remaining arguments are service names.
 #include "o2_sched.h"
 #include "o2_clock.h"
 
-#ifndef _WIN32
+#ifndef WIN32
 #include <sys/time.h>
 #endif
 
@@ -290,7 +290,7 @@ int o2_status(const char *service)
 }
 
 
-#ifdef _WIN32
+#ifdef WIN32
 int gettimeofday(struct timeval * tp, struct timezone * tzp)
 {
     // Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's

@@ -380,7 +380,7 @@ int make_udp_recv_socket(int tag, int port)
  */
 int init_sockets()
 {
-#ifdef _WIN32
+#ifdef WIN32
     // Initialize (in Windows)
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -389,7 +389,7 @@ int init_sockets()
     }
 #else
     DA_INIT(o2_fds, struct pollfd, 5);
-#endif // _WIN32
+#endif // WIN32
     
     DA_INIT(o2_fds_info, struct fds_info, 5);
     memset(o2_fds_info.array, 5 * sizeof(fds_info), 0);
@@ -480,7 +480,7 @@ int make_tcp_recv_socket(int tag, process_info_ptr process)
 }
 
                                     
-#ifdef _WIN32
+#ifdef WIN32
 
 FD_SET o2_read_set;
 struct timeval o2_no_timeout;

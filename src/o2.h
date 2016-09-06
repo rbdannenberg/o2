@@ -117,7 +117,7 @@ Some major components and concepts of O2 are the following:
 #include <stdlib.h>
 #include <stdint.h>
 
-#ifdef _WIN32
+#ifdef WIN32
 #define usleep(x) Sleep(x/1000)
 #endif
 
@@ -252,7 +252,7 @@ int o2_debug;
 
 
 // Macros for o2 protocol
-//#ifdef _WIN32
+//#ifdef WIN32
 //#define o2_send o2_send_marker
 //#define o2_send_cmd o2_send_cmd_marker
 //#define o2_send_osc_message o2_send_osc_message_marker

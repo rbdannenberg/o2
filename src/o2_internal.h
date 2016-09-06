@@ -42,7 +42,7 @@
 
 // define IS_BIG_ENDIAN, IS_LITTLE_ENDIAN, and swap64(i),
 // swap32(i), and swap16(i)
-#if _WIN32
+#if WIN32
 // WIN32 requires predefinition of IS_BIG_ENDIAN=1 or IS_BIG_ENDIAN=0
 #else
  #ifdef __APPLE__

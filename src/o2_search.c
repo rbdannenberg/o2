@@ -14,7 +14,7 @@
 #include "o2_message.h"
 #include "o2_discovery.h"
 
-#ifdef _WIN32
+#ifdef WIN32
 #include "malloc.h"
 #define allloca _alloca
 
