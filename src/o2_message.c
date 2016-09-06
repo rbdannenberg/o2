@@ -342,118 +342,6 @@ void o2_arg_swap_endian(o2_type type, void *data)
 	}
 }
 
-#ifdef OLDCODE
-void o2_arg_pp_internal(o2_type type, void *data, int bigendian)
-{
-	o2_arg val32;
-	o2_arg val64;
-	o2_time valt = 0;
-	int size;
-	int i;
-
-	size = o2_arg_size(type, data);
-	if (size == 4 || type == O2_BLOB) {
-		if (bigendian) {
-			val32.u32 = ntohl(*(int32_t *)data);
-		}
-		else {
-			val32.u64 = *(int32_t *)data;
-		}
-	}
-	else if (type == O2_TIME) {
-		valt = bigendian ? ntohl(*(uint32_t *)data) : *(uint32_t *)data;
-	}
-	else if (size == 8) {
-		if (bigendian) {
-			val64.u64 = o2_hn64(*(int64_t *)data);
-		}
-		else {
-			val64.u64 = *(int64_t *)data;
-		}
-	}
-
-	switch (type) {
-	case O2_INT32:
-		printf("%d", val32.i);
-		break;
-
-	case O2_FLOAT:
-		printf("%f", val32.f);
-		break;
-
-	case O2_STRING:
-		printf("\"%s\"", (char *)data);
-		break;
-
-	case O2_BLOB:
-		printf("[");
-		if (val32.i > 12) {
-			printf("%d byte blob", val32.i);
-		}
-		else {
-			printf("%db ", val32.i);
-			for (i = 0; i < val32.i; i++) {
-				printf("%#02x", (unsigned int)* ((unsigned char *)(data)+4 + i));
-				if (i + 1 < val32.i)
-					printf(" ");
-			}
-		}
-		printf("]");
-		break;
-
-	case O2_INT64:
-		printf("%lld", (long long int) val64.i);
-		break;
-
-	case O2_TIME:
-		printf("%08f", valt);
-		break;
-
-	case O2_DOUBLE:
-		printf("%f", val64.f);
-		break;
-
-	case O2_SYMBOL:
-		printf("'%s", (char *)data);
-		break;
-
-	case O2_CHAR:
-		printf("'%c'", (char)val32.c);
-		break;
-
-	case O2_MIDI:
-		printf("MIDI [");
-		for (i = 0; i < 4; i++) {
-			printf("0x%02x", *((uint8_t *)(data)+i));
-			if (i + 1 < 4)
-				printf(" ");
-		}
-		printf("]");
-		break;
-
-	case O2_TRUE:
-		printf("#T");
-		break;
-
-	case O2_FALSE:
-		printf("#F");
-		break;
-
-	case O2_NIL:
-		printf("Nil");
-		break;
-
-	case O2_INFINITUM:
-		printf("Infinitum");
-		break;
-
-	default:
-		fprintf(stderr, "liblo warning: unhandled type: %c\n", type);
-		break;
-	}
-}
-#endif
-
 
 o2_message_ptr o2_build_message(o2_time timestamp, const char *service_name,
 	const char *path, const char *typestring, va_list ap)
@@ -975,77 +863,158 @@ o2_arg_ptr convert_float(char type_code, double d)
 //
 o2_arg_ptr o2_get_next(char type_code)
 {
-	o2_arg_ptr rslt = (o2_arg_ptr)temp_end;
-	if (temp_type_end >= temp_barrier) return NULL; // overrun
-	if (*temp_type_end == 0) return NULL; // no more args
-	switch (*temp_type_end++) {
-	case O2_INT32:
-		if (type_code != O2_INT32) {
-			rslt = convert_int(type_code, *((int32_t *)temp_end));
-		}
-		temp_end += sizeof(int32_t);
-		break;
-	case O2_FLOAT:
-		if (type_code != O2_FLOAT) {
-			rslt = convert_int(type_code, *((float *)temp_end));
-		}
-		temp_end += sizeof(float);
-		break;
-	case O2_SYMBOL:
-	case O2_STRING:
-		if (type_code != O2_SYMBOL && type_code != O2_STRING) {
-			rslt = NULL; // type error
-		} // otherwise the requested type is suitable
-		temp_end += ((strlen(temp_end) + 4) & ~3);
-		break;
-	case O2_CHAR:
-		if (type_code != O2_CHAR) {
-			rslt = NULL;
-		}
-		temp_end += sizeof(int32_t); // char uses 4 bytes
-		break;
-	case O2_BLOB:
-		if (type_code != O2_BLOB) {
-			rslt = NULL; // type mismatch
-		}
-		temp_end += sizeof(uint32_t) + rslt->b.size;
-		break;
-	case O2_INT64:
-		if (type_code != O2_INT64) {
-			rslt = convert_int(type_code, *((int64_t *)temp_end));
-		}
-		temp_end += sizeof(int64_t);
-		break;
-	case O2_DOUBLE:
-	case O2_TIME:
-		if (type_code != O2_DOUBLE && type_code != O2_TIME) {
-			rslt = convert_int(type_code, *((double *)temp_end));
-		} // otherwise the requested type is suitable
-		temp_end += sizeof(double);
-		break;
-	case O2_MIDI:
-		if (type_code != O2_MIDI) {
-			rslt = NULL; // type mismatch
-		}
-		temp_end += 4;
-		break;
-	case O2_TRUE:
-		rslt = convert_int(type_code, 1);
-		break;
-	case O2_FALSE:
-		rslt = convert_int(type_code, 0);
-		break;
-	case O2_NIL:
-	case O2_INFINITUM:
-		break;
-	default:
-		fprintf(stderr, "O2 warning: unhandled OSC type '%c'\n",
-			*temp_type_end);
-		return NULL;
+    o2_arg_ptr rslt = (o2_arg_ptr)temp_end;
+    if (temp_type_end >= temp_barrier) return NULL; // overrun
+    if (*temp_type_end == 0) return NULL; // no more args
+    switch (*temp_type_end++) {
+      case O2_INT32:
+       	if (type_code != O2_INT32) {
+    	    rslt = convert_int(type_code, *((int32_t *)temp_end));
 	}
-	if (temp_end > temp_barrier) {
-		temp_end = temp_barrier; // which points to 4 zero bytes at end
-		return NULL;             // of the message
-	}
-	return rslt;
+        temp_end += sizeof(int32_t);
+        break;
+      case O2_FLOAT:
+        if (type_code != O2_FLOAT) {
+            rslt = convert_int(type_code, *((float *)temp_end));
+        }
+        temp_end += sizeof(float);
+        break;
+      case O2_SYMBOL:
+      case O2_STRING:
+        if (type_code != O2_SYMBOL && type_code != O2_STRING) {
+            rslt = NULL; // type error
+        } // otherwise the requested type is suitable
+        temp_end += ((strlen(temp_end) + 4) & ~3);
+        break;
+      case O2_CHAR:
+        if (type_code != O2_CHAR) {
+            rslt = NULL;
+        }
+        temp_end += sizeof(int32_t); // char uses 4 bytes
+        break;
+      case O2_BLOB:
+        if (type_code != O2_BLOB) {
+            rslt = NULL; // type mismatch
+        }
+        temp_end += sizeof(uint32_t) + rslt->b.size;
+        break;
+      case O2_INT64:
+        if (type_code != O2_INT64) {
+            rslt = convert_int(type_code, *((int64_t *)temp_end));
+        }
+        temp_end += sizeof(int64_t);
+        break;
+      case O2_DOUBLE:
+      case O2_TIME:
+        if (type_code != O2_DOUBLE && type_code != O2_TIME) {
+            rslt = convert_int(type_code, *((double *)temp_end));
+        } // otherwise the requested type is suitable
+        temp_end += sizeof(double);
+        break;
+      case O2_MIDI:
+        if (type_code != O2_MIDI) {
+            rslt = NULL; // type mismatch
+        }
+        temp_end += 4;
+        break;
+      case O2_TRUE:
+        rslt = convert_int(type_code, 1);
+        break;
+      case O2_FALSE:
+        rslt = convert_int(type_code, 0);
+        break;
+      case O2_NIL:
+      case O2_INFINITUM:
+      	break;
+      default:
+        fprintf(stderr, "O2 warning: unhandled OSC type '%c'\n",
+                *temp_type_end);
+        return NULL;
+    }
+    if (temp_end > temp_barrier) {
+        temp_end = temp_barrier; // which points to 4 zero bytes at end
+        return NULL;             // of the message
+    }
+    return rslt;
+}
+
+
+void o2_print_msg(o2_message_ptr msg)
+{
+    int i;
+    printf("%s @ %g", msg->data.address, msg->data.timestamp);
+    if (msg->data.timestamp > 0.0) {
+        if (msg->data.timestamp > o2_global_now) {
+            printf("(now+%gs)", msg->data.timestamp - o2_global_now);
+        } else {
+            printf("(%gs late)", o2_global_now - msg->data.timestamp);
+        }
+    }
+    o2_start_extract(msg);
+    char *types = temp_type_end;
+    while (*types) {
+        o2_arg_ptr arg = o2_get_next(*types);
+        switch (*types) {
+          case O2_INT32:
+            printf(" %d", arg->i32);
+            break;
+          case O2_FLOAT:
+            printf(" %f", arg->f);
+            break;
+          case O2_STRING:
+            printf(" \"%s\"", arg->s);
+            break;
+          case O2_BLOB:
+            printf(" [");
+            if (arg->b.size > 12) {
+                printf("%d byte blob", arg->b.size);
+            } else {
+                for (i = 0; i < arg->b.size; i++) {
+                    if (i > 0) printf(" ");
+                    printf("%#02x", *((unsigned char *)(arg->b.data)+4 + i));
+                }
+                printf("]");
+            }
+            break;
+          case O2_INT64:
+            printf(" %lld", arg->i64);
+            break;
+          case O2_TIME:
+            printf(" %g", arg->d);
+            break;
+          case O2_DOUBLE:
+            printf(" %g", arg->d);
+            break;
+          case O2_SYMBOL:
+            printf(" '%s", arg->s);
+            break;
+          case O2_CHAR:
+            printf(" '%c'", arg->c);
+            break;
+          case O2_MIDI:
+            printf(" MIDI [");
+            for (i = 0; i < 4; i++) {
+                if (i > 0) printf(" "); 
+                printf("0x%02x", arg->m[i]);
+            }
+            printf("]");
+            break;
+          case O2_TRUE:
+            printf(" #T");
+            break;
+          case O2_FALSE:
+             printf(" #F");
+             break;
+          case O2_NIL:
+            printf(" Nil");
+            break;
+          case O2_INFINITUM:
+            printf(" Infinitum");
+            break;
+          default:
+            printf(" O2 WARNING: unhandled type: %c\n", *types);
+            break;
+        }
+        types++;
+    }
 }

@@ -25,14 +25,14 @@
 // The structure of generic entry in hash table
 typedef struct generic_entry {
     int tag;
-    char *key;
+    char *key; // key is "owned" by this generic entry struct
     struct generic_entry *next;
 } generic_entry, *generic_entry_ptr;
 
 // Hash table's entry for node
 typedef struct node_entry {
     int tag; // must be PATTERN_NODE
-    char *key;
+    char *key; // key is "owned" by this node_entry struct
     generic_entry_ptr next;
     int num_children;
     dyn_array children; // children is a dynamic array of generic_entry_ptr
@@ -43,7 +43,7 @@ typedef struct node_entry {
 // Hash table's entry for handler
 typedef struct handler_entry {
     int tag; // must be PATTERN_HANDLER
-    char *key;
+    char *key; // key is "owned" by this handler_entry struct
     generic_entry_ptr next;
     o2_method_handler handler;
     void *user_data;
@@ -74,9 +74,11 @@ typedef struct process_info {
         // add a service, we can enumerate all the processes and send them
         // updates. Updates are addressed using this name field. Also, when
         // a new process is connected, we send an /in message to this name.
+        // name is "owned" by the process_info struct and will be deleted
+        //   when the struct is freed
     int status; // PROCESS_DISCOVERED through PROCESS_OK
     dyn_array services; // these are the keys of remote_service_entry objects,
-                        //    so do not free these
+                        //    owned by the service entries (do not free)
     int little_endian;  // true if the host is little-endian
     // port numbers are here so that in discovery, we can check for any changes
     int udp_port;       // current udp port number
@@ -88,7 +90,7 @@ typedef struct process_info {
 // Hash table's entry for a remote service
 typedef struct remote_service_entry {
     int tag;   // must be O2_REMOTE_SERVICE
-    char *key;
+    char *key; // key is "owned" by this remote_service_entry struct
     generic_entry_ptr next;
     process_info_ptr parent;   // points to its host process for the service
 } remote_service_entry, *remote_service_entry_ptr;
@@ -98,7 +100,7 @@ typedef struct remote_service_entry {
 //    is provided by an OSC server
 typedef struct osc_entry {
     int tag; // must be OSC_REMOTE_SERVICE
-    char *key;
+    char *key; // key is "owned" by this osc_entry struct
     generic_entry_ptr next;
     struct sockaddr_in udp_sa; // address for sending UDP messages
     char ip[20];
@@ -115,7 +117,7 @@ typedef struct dict {
 } dict, *dict_ptr;
 */
 
-// Enumarate structure is hash table
+// Enumerate structure is hash table
 typedef struct enumerate {
     dyn_array_ptr dict;
     int index;
@@ -182,10 +184,12 @@ node_entry_ptr initialize_node(node_entry_ptr node, char *key);
 generic_entry_ptr *lookup(node_entry_ptr dict, const char *key, int *index);
 
 
-void init_process(process_info_ptr process, int status, int is_little_endian);
+void o2_init_process(process_info_ptr process, int status, int is_little_endian);
       
-process_info_ptr add_remote_process(const char *ip_port, int status,
+process_info_ptr o2_add_remote_process(const char *ip_port, int status,
                                      int is_little_endian);
+
+int o2_remove_remote_process(process_info_ptr proc);
 
 
 /**

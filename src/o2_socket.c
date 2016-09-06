@@ -5,6 +5,7 @@
 //  Created by 弛张 on 2/4/16.
 //  Copyright © 2016 弛张. All rights reserved.
 //
+#include "ctype.h"
 #include "o2.h"
 #include "o2_dynamic.h"
 #include "o2_socket.h"
@@ -90,9 +91,23 @@ static int detect_windows_service_2003_or_later()
 
 void deliver_or_schedule(o2_message_ptr msg)
 {
-    // TODO: test if o2_get_time() is operational?
-    if (msg->data.timestamp > o2_get_time()) {
-        o2_schedule(&o2_ltsched, msg);
+#ifndef O2_NO_DEBUGGING
+    if (o2_debug > 2 || // non-o2-system messages only if o2_debug <= 2
+        (o2_debug > 1 && msg->data.address[1] != '_' &&
+                         !isdigit(msg->data.address[1]))) {
+            printf("O2: received ");
+            o2_print_msg(msg);
+            printf("\n");
+    }
+#endif
+    if (msg->data.timestamp > 0.0) {
+        if (o2_gtsched_started) {
+            if (msg->data.timestamp > o2_global_now) {
+                o2_schedule(&o2_gtsched, msg);
+            } else {
+                find_and_call_handlers(msg);
+            }
+        } // else drop the message, no timestamps allowed before clock sync
     } else {
         find_and_call_handlers(msg);
     }
@@ -119,12 +134,13 @@ void add_new_socket(SOCKET sock, int tag, process_info_ptr process,
     // printf("%s: added new socket at %d", debug_prefix, o2_fds.length - 1);
     // if (process == &o2_process) printf(" for local process");
     // if (process) printf(" key %s",  process->name);
-    printf("\n");
 }
 
 
-// remove the i'th socket from o2_fds and o2_fds_info - does not remove a process
-void remove_socket(int i)
+// remove the i'th socket from o2_fds and o2_fds_info
+//   does not remove a process, see o2_remove_remote_process()
+//
+void o2_remove_socket(int i)
 {
     if (o2_fds.length > i + 1) { // move last to i
         struct pollfd *fd = DA_LAST(o2_fds, struct pollfd);
@@ -189,12 +205,26 @@ void udp_recv_handler(SOCKET sock, struct fds_info *info)
     if (!msg) return;
     int n;
     if ((n = recvfrom(sock, &(msg->data), len, 0, NULL, NULL)) <= 0) {
-        printf("*** recvfrom error handling needed here ***");
+        // I think udp errors should be ignored. UDP is not reliable
+        // anyway. For now, though, let's at least print errors.
+        perror("recvfrom in udp_recv_handler");
+        o2_free_message(info->message);
+        return;
     }
     msg->length = n;
     // endian corrections are done in handler
     deliver_or_schedule(msg);
 }
+
+
+void tcp_message_cleanup(struct fds_info *info)
+{
+    /* clean up for next message */
+    info->message = NULL;
+    info->message_got = 0;
+    info->length = 0;
+    info->length_got = 0;
+}    
 
 
 int read_whole_message(SOCKET sock, struct fds_info *info)
@@ -207,7 +237,11 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
         int n = recvfrom(sock, ((char *) &(info->length)) + info->length_got,
                          4 - info->length_got, 0, NULL, NULL);
         if (n <= 0) { /* error: close the socket */
-            printf("****** error: code incomplete ********\n");
+            if (errno != EAGAIN && errno != EINTR) {
+                perror("recvfrom in read_whole_message getting length");
+                tcp_message_cleanup(info);
+                return O2_FAIL;
+            }
         }
         info->length_got += n;
         assert(info->length_got < 5);
@@ -226,7 +260,12 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
                          ((char *) &(info->message->data)) + info->message_got,
                          info->length - info->message_got, 0, NULL, NULL);
         if (n <= 0) {
-            printf("****** error: code incomplete ********\n");
+            if (errno != EAGAIN && errno != EINTR) {
+                perror("recvfrom in read_whole_message getting data");
+                o2_free_message(info->message);
+                tcp_message_cleanup(info);
+                return O2_FAIL;
+            }
         }
         info->message_got += n;
         if (info->message_got < info->length) {
@@ -237,16 +276,6 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
     // printf("-    %s: received tcp msg %s\n", debug_prefix, info->message->data.address);
     return TRUE; // we have a full message now
 }
-
-
-void tcp_message_cleanup(struct fds_info *info)
-{
-    /* clean up for next message */
-    info->message = NULL;
-    info->message_got = 0;
-    info->length = 0;
-    info->length_got = 0;
-}    
 
 
 void tcp_recv_handler(SOCKET sock, struct fds_info *info)
@@ -310,6 +339,9 @@ void tcp_accept_handler(SOCKET sock, struct fds_info *info)
     // note that this handler does not call read_whole_message()
     // printf("%s: accepting a tcp connection\n", debug_prefix);
     SOCKET connection = accept(sock, NULL, NULL);
+    int set = 1;
+    setsockopt(connection, SOL_SOCKET, SO_NOSIGPIPE,
+               (void *) &set, sizeof(int));
     add_new_socket(connection, TCP_SOCKET, NULL, &tcp_initial_handler);
 }
 
@@ -319,6 +351,7 @@ int make_udp_recv_socket(int tag, int port)
     SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET)
         return O2_FAIL;
+    int specified_port = port;
     // Bind the socket
     int err;
     if ((err = bind_recv_socket(sock, &port, FALSE))) {
@@ -330,7 +363,11 @@ int make_udp_recv_socket(int tag, int port)
         return err;
     }
     add_new_socket(sock, tag, &o2_process, &udp_recv_handler);
-    o2_process.udp_port = port;
+    // If port was 0 (unspecified), we must be creating the general
+    // UDP message receive port for this process. Remember it.
+    if (!specified_port) {
+        o2_process.udp_port = port;
+    }
     // printf("%s: make_udp_recv_socket: listening on port %d\n", debug_prefix, o2_process.udp_port);
     return O2_SUCCESS;
 }
@@ -385,7 +422,7 @@ int init_sockets()
 }
 
 // Add a socket for TCP to sockets arrays o2_fds and o2_fds_info
-// as a side effect, if this is the TCP server socket, the
+// As a side effect, if this is the TCP server socket, the
 // o2_process.key will be set to the server IP address
 int make_tcp_recv_socket(int tag, process_info_ptr process)
 {

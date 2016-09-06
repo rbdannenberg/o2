@@ -29,8 +29,8 @@ static o2_time start_sync_time; // local time when we start syncing
 static int clock_sync_id = 0;
 static o2_time clock_sync_send_time;
 static char *clock_sync_reply_to;
-static o2_time_callback clock_callback;
-static void *clock_callback_data;
+static o2_time_callback time_callback = NULL;
+static void *time_callback_data = NULL;
 static int clock_rate_id = 0;
 // data for clock sync. Each reply results in the computation of the
 // round-trip time and the master-vs-local offset. These results are
@@ -40,14 +40,15 @@ static int ping_reply_count = 0;
 static o2_time round_trip_time[CLOCK_SYNC_HISTORY_LEN];
 static o2_time master_minus_local[CLOCK_SYNC_HISTORY_LEN];
 
+static o2_time time_offset = 0.0; // added to time_callback()
 
 #ifdef __APPLE__
-#include <CoreAudio/HostTime.h>
-static uint64_t start_time;
+    #include "CoreAudio/HostTime.h"
+    static uint64_t start_time;
 #elif __UNIX__
-long start_time;
+    static long start_time;
 #elif WIN32
-long start_time;
+    static long start_time;
 #endif
 
 void o2_time_init()
@@ -72,14 +73,19 @@ void o2_time_init()
 //
 void o2_clock_synchronized(o2_time local_time, o2_time master_time)
 {
+    if (o2_clock_is_synchronized) {
+        return;
+    }
+    o2_clock_is_synchronized = TRUE;
     o2_start_a_scheduler(&o2_gtsched, master_time);
-
-    // do not set local_now or global_now because we could be inside
-    // o2_sched_poll() and we don't want "now" to change, but we can
-    // set up the mapping from local to global time:
-    local_time_base = local_time;
-    global_time_base = master_time;
-    clock_rate = 1.0;
+    if (!is_master) {
+        // do not set local_now or global_now because we could be inside
+        // o2_sched_poll() and we don't want "now" to change, but we can
+        // set up the mapping from local to global time:
+        local_time_base = local_time;
+        global_time_base = master_time;
+        clock_rate = 1.0;
+    }
 }
 
 // catch_up_handler -- handler for "/_o2/cu"
@@ -145,6 +151,7 @@ void set_clock(double local_time, double new_master)
         // TODO: maybe we should try to run clock sync soon since we are
         //       way out of sync and do not know if master time is running
     }
+    O2_DB3(printf("O2: adjust clock to %g, rate %g\n", local_time, clock_rate));
 }
 
 
@@ -158,11 +165,7 @@ int o2_send_clocksync(process_info_ptr process)
     if (!o2_clock_is_synchronized)
         return O2_SUCCESS;
     char address[32];
-#ifndef WIN32 
 	snprintf(address, 32, "!%s/cs/cs", process->name);
-#else
-	_snprintf(address, 32, "!%s/cs/cs", process->name);
-#endif
     return o2_send_cmd(address, 0.0, "s", o2_process.name);
 }
     
@@ -178,6 +181,7 @@ void announce_synchronized()
             o2_send_clocksync(info->u.process_info);
         }
     }
+    O2_DB(printf("O2: obtained clock sync at %g\n", o2_get_time()));
 }
 
 
@@ -227,6 +231,8 @@ int cs_ping_reply_handler(o2_message_ptr msg, const char *types,
     round_trip_time[i] = rtt;
     master_minus_local[i] = master_time - now;
     ping_reply_count++;
+    O2_DB3(printf("O2: got clock reply, master_time %g, rtt %g, count %d\n",
+                  master_time, rtt, ping_reply_count));
     if (ping_reply_count >= CLOCK_SYNC_HISTORY_LEN) {
         // find minimum round trip time
         min_rtt = 9999.0;
@@ -242,10 +248,12 @@ int cs_ping_reply_handler(o2_message_ptr msg, const char *types,
         // best estimate of master_minus_local is stored at i
         //printf("*    %s: time adjust %g\n", debug_prefix,
         //       now + master_minus_local[best_i] - o2_get_time());
-        set_clock(now, now + master_minus_local[best_i]);
+        o2_time new_master = now + master_minus_local[best_i];
         if (!o2_clock_is_synchronized) {
-            o2_clock_is_synchronized = TRUE;
+            o2_clock_synchronized(now, new_master);
             announce_synchronized();
+        } else {
+            set_clock(now, new_master);
         }
     }
     return O2_SUCCESS;
@@ -285,17 +293,9 @@ int o2_ping_send_handler(o2_message_ptr msg, const char *types,
             } else { // record when we started to send clock sync messages
                 start_sync_time = clock_sync_send_time;
                 char path[48]; // enough room for !IP:PORT/cs/get-reply
-#ifndef WIN32 
 				snprintf(path, 48, "!%s/cs/get-reply", o2_process.name);
-#else
-				_snprintf(path, 48, "!%s/cs/get-reply", o2_process.name);
-#endif           
                 o2_add_method(path, "it", &cs_ping_reply_handler, NULL, FALSE, FALSE);
-#ifndef WIN32 
 				snprintf(path, 32, "!%s/cs", o2_process.name);
-#else
-				_snprintf(path, 32, "!%s/cs", o2_process.name);
-#endif
                 clock_sync_reply_to = o2_heapify(path);
             }
         }
@@ -305,6 +305,7 @@ int o2_ping_send_handler(o2_message_ptr msg, const char *types,
     if (found_clock_service) { // found service, but it's non-local
         clock_sync_id++;
         o2_send("!_cs/get", 0, "is", clock_sync_id, clock_sync_reply_to); // TODO: test return?
+        O2_DB3(printf("O2: clock request sent\n"));
         // run every 1/2 second until at least CLOCK_SYNC_HISTORY_LEN pings
         // have been sent to get a fast start, then ping every 10s. Here, we
         // add 1.0 to allow for round-trip time and an extra ping just in case:
@@ -355,46 +356,50 @@ int cs_ping_handler(o2_message_ptr msg, const char *types,
 }
 
 
-int o2_set_clock(o2_time_callback time_callback, void *data)
+int o2_set_clock(o2_time_callback callback, void *data)
 {
-    /*Functions to get time
-     time.h :
-     asctime, ctime --return string
-     gmtime, localtime --return struct tm
-     time --return int (seconds)
-     clock --
-     sys/time.h:
-     gettimeofday --return int
-     gettime
-     */
-    if (is_master) {
-        // fail if clock master has already been set
-        printf("Clock has already been set up.\n");
+    if (!o2_application_name) {
+        O2_DB(printf("O2: o2_set_clock cannot be called before o2_initialize.\n"));
         return O2_FAIL;
     }
-    is_master = TRUE;
-    o2_clock_is_synchronized = TRUE;
-    clock_callback = time_callback;
-    clock_callback_data = data;
-    o2_add_service("_cs");
-    o2_add_method("/_cs/get", "is", &cs_ping_handler, NULL, FALSE, FALSE);
+    // adjust local_start_time to ensure continuity of time:
+    //   new_local_time - new_time_offset == old_local_time - old_time_offset
+    //   new_time_offset = new_local_time - (old_local_time - old_time_offset)
+    o2_time old_local_time = o2_local_time(); // (includes -old_time_offset)
+    time_callback = callback;
+    time_callback_data = data;
+    time_offset = 0.0; // get the time without any offset
+    o2_time new_local_time = o2_local_time();
+    time_offset = new_local_time - old_local_time;
+
+    if (!is_master) {
+        o2_clock_synchronized(new_local_time, new_local_time);
+        o2_add_service("_cs");
+        o2_add_method("/_cs/get", "is", &cs_ping_handler, NULL, FALSE, FALSE);
+        O2_DB(printf("O2: master clock established, time is now %g\n",
+                     o2_local_time()));
+        is_master = TRUE;
+    }
     return O2_SUCCESS;
 }
 
 
 o2_time o2_local_time()
 {
+    if (time_callback) {
+        return (*time_callback)(time_callback_data) - time_offset;
+    }
 #ifdef __APPLE__
     uint64_t clock_time, nsec_time;
     clock_time = AudioGetCurrentHostTime() - start_time;
     nsec_time = AudioConvertHostTimeToNanos(clock_time);
-    return (o2_time) (nsec_time * 1.0E-9);
+    return ((o2_time) (nsec_time * 1.0E-9)) - time_offset;
 #elif __UNIX__
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return (tv.tv_sec - start_time) + (tv.tv_usec * 0.000001);
+    return ((tv.tv_sec - start_time) + (tv.tv_usec * 0.000001)) - time_offset;
 #elif WIN32
-    return (timeGetTime() - start_time) * 0.001;
+    return ((timeGetTime() - start_time) * 0.001) - time_offset;
 #endif
 }
 

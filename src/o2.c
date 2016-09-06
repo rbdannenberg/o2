@@ -111,12 +111,18 @@ number. The remaining arguments are service names.
 #endif
 
 char *debug_prefix = NULL;
+int o2_debug = 0;
 
 void *((*o2_malloc)(size_t size)) = &malloc;
 void ((*o2_free)(void *)) = &free;
 // also used to detect initialization:
 char *o2_application_name = NULL;
 process_info o2_process;
+
+// these times are set when poll is called to avoid the need to
+//   call o2_get_time() repeatedly
+o2_time o2_local_now = 0.0;
+o2_time o2_global_now = 0.0;
 
 
 /**
@@ -153,7 +159,7 @@ int o2_initialize(char *application_name)
         err = O2_NO_MEMORY;
         goto cleanup;
     }
-    init_process(&o2_process, PROCESS_NO_CLOCK, IS_LITTLE_ENDIAN);
+    o2_init_process(&o2_process, PROCESS_NO_CLOCK, IS_LITTLE_ENDIAN);
     
     // Initialize discovery, tcp, and udp sockets.
     if ((err = init_sockets())) goto cleanup;
@@ -165,17 +171,9 @@ int o2_initialize(char *application_name)
     // "/sv/" service messages are sent by tcp as ordinary O2 messages, so they
     // are addressed by full name (IP:PORT). We cannot call them /_o2/sv:
     char address[32];
-#ifndef WIN32 
     snprintf(address, 32, "/%s/sv", o2_process.name);
-#else
-	_snprintf(address, 32, "/%s/sv", o2_process.name);
-#endif
     o2_add_method(address, NULL, &o2_services_handler, NULL, FALSE, FALSE);
-#ifndef WIN32 
 	snprintf(address, 32, "/%s/cs/cs", o2_process.name);
-#else
-	_snprintf(address, 32, "/%s/cs/cs", o2_process.name);
-#endif
     o2_add_method(address, "s", &o2_clocksynced_handler, NULL, FALSE, FALSE);
     o2_add_method("/_o2/ds", NULL, &o2_discovery_send_handler, NULL, FALSE, FALSE);
     o2_time_init();
@@ -213,7 +211,8 @@ int o2_add_service(char *service_name)
     
     // Add a o2_local_service structure for the o2 service.
     DA_EXPAND(o2_process.services, service_table);
-    DA_LAST(o2_process.services, service_table)->name = o2_heapify(service_name);
+    service_name = o2_heapify(service_name);
+    DA_LAST(o2_process.services, service_table)->name = service_name;
     
     if (!tree_insert_node(&path_tree_table, service_name)) {
         return O2_FAIL;
@@ -227,11 +226,7 @@ int o2_add_service(char *service_name)
         if (info->tag == TCP_SOCKET) {
             process_info_ptr process = info->u.process_info;
             char address[32];
-#ifndef WIN32 
 			snprintf(address, 32, "!%s/sv", process->name);
-#else
-			_snprintf(address, 32, "!%s/sv", process->name);
-#endif
             o2_send_cmd(address, 0.0, "ss", o2_process.name, service_name);
         }
     }
@@ -242,6 +237,12 @@ int o2_add_service(char *service_name)
 
 int o2_poll()
 {
+    o2_local_now = o2_local_time();
+    if (o2_gtsched_started) {
+        o2_global_now = o2_local_to_global(o2_local_now);
+    } else {
+        o2_global_now = -1.0;
+    }
     o2_sched_poll(); // deal with the timestamped message
     o2_deliver_pending();
     o2_recv(); // recieve and dispatch messages

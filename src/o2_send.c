@@ -6,6 +6,7 @@
 //  Copyright © 2016 弛张. All rights reserved.
 //
 
+#include "ctype.h"
 #include "o2.h"
 #include "o2_dynamic.h"
 #include "o2_socket.h"
@@ -77,6 +78,15 @@ int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...)
     va_start(ap, typestring);
 
     o2_message_ptr msg = o2_build_message(time, NULL, path, typestring, ap);
+#ifndef O2_NO_DEBUGGING
+    if (o2_debug > 2 || // non-o2-system messages only if o2_debug <= 2
+        (o2_debug > 1 && msg->data.address[1] != '_' &&
+         !isdigit(msg->data.address[1]))) {
+            printf("O2: sending%s ", (tcp_flag ? " cmd" : ""));
+            o2_print_msg(msg);
+            printf("\n");
+        }
+#endif
     return o2_send_message(msg, tcp_flag);
 }
 
@@ -121,15 +131,20 @@ int send_by_tcp_to_process(process_info_ptr proc, o2_message_ptr msg)
     int32_t len = htonl(msg->length);
     SOCKET fd = DA_GET(o2_fds, struct pollfd, proc->tcp_fd_index)->fd;
     if (send(fd, &len, sizeof(int32_t), 0) < 0) {
-        perror("o2_send_message");
-        return O2_FAIL;
+        perror("o2_send_message writing length");
+        goto send_error;
     }
     // Send the message body
     if (send(fd, &(msg->data), msg->length, 0) < 0) {
-        perror("o2_send_message");
-        return O2_FAIL;
+        perror("o2_send_message writing data");
+        goto send_error;
     }
     return O2_SUCCESS;
+  send_error:
+    if (errno != EAGAIN && errno != EINTR) {
+        o2_remove_remote_process(proc);
+    }
+    return O2_FAIL;
 }    
 
 

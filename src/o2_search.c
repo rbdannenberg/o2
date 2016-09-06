@@ -24,9 +24,58 @@ size_t strlcpy(char *dst, const char *src, size_t size)
 }
 #endif
 
-// Declarations.
-generic_entry_ptr enumerate_next(enumerate_ptr enumerator);
-void enumerate_begin(enumerate_ptr enumerator, dyn_array_ptr array);
+void enumerate_begin(enumerate *enumerator, dyn_array_ptr dict)
+{
+    enumerator->dict = dict;
+    enumerator->index = 0;
+    enumerator->entry = NULL;
+}
+
+
+// return next entry from table. Entries can be inserted into
+// a new table because enumerate_next does not depend upon the
+// pointers in each entry once the entry is enumerated.
+//
+generic_entry_ptr enumerate_next(enumerate_ptr enumerator)
+{
+    while (!enumerator->entry) {
+        int i = enumerator->index++;
+        if (i >= enumerator->dict->length) {
+            return NULL; // no more entries
+        }
+        enumerator->entry = *DA_GET(*(enumerator->dict),
+                                    generic_entry_ptr, i);
+    }
+    generic_entry_ptr ret = enumerator->entry;
+    enumerator->entry = enumerator->entry->next;
+    return ret;
+}
+
+
+#define SEARCH_DEBUG
+#ifdef SEARCH_DEBUG
+void show_table(node_entry_ptr node, int indent)
+{
+    enumerate en;
+    enumerate_begin(&en, &(node->children));
+    generic_entry_ptr entry;
+    while ((entry = enumerate_next(&en))) {
+        int i;
+        for (i = 0; i < indent; i++) printf("  ");
+        printf("%s (%d) @ %p\n", entry->key, entry->tag, entry);
+
+        // see if each entry can be found
+        int index;
+        generic_entry_ptr *ptr = lookup(node, entry->key, &index);
+        assert(*ptr == entry);
+
+        if (entry->tag == PATTERN_NODE) {
+            show_table((node_entry_ptr) entry, indent + 1);
+        }
+    }
+}
+#endif
+
 
 #ifndef NEGATE
 #define NEGATE  '!'
@@ -213,8 +262,12 @@ int o2_pattern_match(const char *str, const char *p)
 }
 
 
+#if IS_LITTLE_ENDIAN
 // for little endian machines
 #define STRING_EOS_MASK 0xFF000000
+#else
+#define STRING_EOS_MASK 0x000000FF
+#endif
 #define SCRAMBLE 2686453351680
 
 node_entry master_table;
@@ -252,6 +305,7 @@ generic_entry_ptr *lookup(node_entry_ptr node, const char *key, int *index)
     int n = node->children.length;
     int64_t hash = get_hash(key);
     *index = hash % n;
+    // printf("lookup %s in %s hash %ld index %d\n", key, node->key, hash, *index);
     generic_entry_ptr *ptr = DA_GET(node->children, generic_entry_ptr,
                                     *index);
     while (*ptr) {
@@ -274,6 +328,7 @@ void free_node(node_entry_ptr node)
             e = next;
         }
     }
+    O2_FREE(node->key);
     O2_FREE(node);
 }
 
@@ -299,13 +354,17 @@ void free_node(node_entry_ptr node)
 void free_entry(generic_entry_ptr entry)
 {
     if (entry->tag == PATTERN_NODE) {
-        free_node((node_entry_ptr) entry);
+        return free_node((node_entry_ptr) entry);
     } else if (entry->tag == PATTERN_HANDLER) {
         handler_entry_ptr handler = (handler_entry_ptr) entry;
         // if we remove a leaf node from the tree, remove the
         //  corresponding full path:
         if (handler->full_path) {
             remove_node(&master_table, handler->full_path);
+            handler->full_path = NULL; // this string should be freed
+                // in the previous call to remove_node(); remove the
+                // pointer so if anyone tries to reference it, it will
+                // generate a more obvious and immediate runtime error.
         }
         if (handler->type_string)
             O2_FREE(handler->type_string);
@@ -399,6 +458,10 @@ int remove_node(node_entry_ptr node, const char *key)
 }
 
 
+// create a node in the path tree
+//
+// key is "owned" by caller
+//
 node_entry_ptr create_node(char *key)
 {
     node_entry_ptr node = (node_entry_ptr) O2_MALLOC(sizeof(node_entry));
@@ -406,6 +469,11 @@ node_entry_ptr create_node(char *key)
     return initialize_node(node, key);
 }
 
+
+// set fields for a node in the path tree
+//
+// key is "owned" by the caller
+//
 node_entry_ptr initialize_node(node_entry_ptr node, char *key)
 {
     node->tag = PATTERN_NODE;
@@ -417,34 +485,6 @@ node_entry_ptr initialize_node(node_entry_ptr node, char *key)
     node->num_children = 0;
     initialize_table(&(node->children), 2);
     return node;
-}
-
-
-void enumerate_begin(enumerate *enumerator, dyn_array_ptr dict)
-{
-    enumerator->dict = dict;
-    enumerator->index = 0;
-    enumerator->entry = NULL;
-}
-
-
-// return next entry from table. Entries can be inserted into
-// a new table because enumerate_next does not depend upon the
-// pointers in each entry once the entry is enumerated.
-//
-generic_entry_ptr enumerate_next(enumerate_ptr enumerator)
-{
-    while (!enumerator->entry) {
-        int i = enumerator->index++;
-        if (i >= enumerator->dict->length) {
-            return NULL; // no more entries
-        }
-        enumerator->entry = *DA_GET(*(enumerator->dict),
-                                    generic_entry_ptr, i);
-    }
-    generic_entry_ptr ret = enumerator->entry;
-    enumerator->entry = enumerator->entry->next;
-    return ret;
 }
 
 
@@ -511,6 +551,9 @@ char *o2_heapify(const char *path)
 // entry is another node, then just return a pointer to the node address.
 // Otherwise, if key is a handler, remove it, and then create a new node
 // to represent this key.
+//
+// key is "owned" by caller and must be aligned to 4-byte word boundary
+//
 node_entry_ptr tree_insert_node(node_entry_ptr node, char *key)
 {
     int index; // location returned by lookup
@@ -621,7 +664,7 @@ int o2_remove_method(const char *path)
 
 
 
-void init_process(process_info_ptr process, int status, int is_little_endian)
+void o2_init_process(process_info_ptr process, int status, int is_little_endian)
 {
     process->name = NULL;
     process->status = PROCESS_DISCOVERED;
@@ -629,18 +672,64 @@ void init_process(process_info_ptr process, int status, int is_little_endian)
     process->udp_port = 0;
     memset(&process->udp_sa, 0, sizeof(process->udp_sa));
     process->tcp_fd_index = -1;
-}    
+}
+
+int remove_remote_services(process_info_ptr proc)
+{
+    int i, index;
+    for (i = 0; i < proc->services.length; i++) {
+        char *service = *DA_GET(proc->services, char *, i);
+        generic_entry_ptr *node = lookup(&path_tree_table, service, &index);
+        assert(node && *node);
+        // wait and resize later
+        remove_entry(&path_tree_table, node, FALSE);
+    }
+    proc->services.length = 0;
+    return O2_SUCCESS;
+}
+
+int remove_remote_service(process_info_ptr proc)
+{
+    int index;
+    generic_entry_ptr *child = lookup(&path_tree_table, proc->name, &index);
+    if (!child) return O2_FAIL;
+    return remove_entry(&path_tree_table, child, TRUE);
+    // on return, proc still has it's proc->name entered as a service name
+    // in proc->services, but we rely on the caller,
+    // o2_remove_remote_process(), to remove proc->services.
+}
 
 
-// Add remote service to the path_tree_table
-process_info_ptr add_remote_process(const char *ip_port, int status,
+int o2_remove_remote_process(process_info_ptr proc)
+{
+    o2_remove_socket(proc->tcp_fd_index); // close the TCP socket
+    // remove the remote services provided by the proc
+    remove_remote_services(proc);
+    // remove the remote service associated with the ip_port string
+    remove_remote_service(proc);
+    if (proc->name) O2_FREE(proc->name);
+    O2_FREE(proc);
+    return O2_SUCCESS;
+}
+
+
+// Create a new process descriptor.
+//   Every process can be addressed directly as a "service" named by
+// the ip:port, e.g. o2_send_init can send an init message to
+// address "/192.168.1.27:55693/in". To make this work, we create
+// an ip:port string as a remote service that is served by the
+// new process descriptor.
+//
+// ip_port is "owned" by the caller
+//
+process_info_ptr o2_add_remote_process(const char *ip_port, int status,
                                      int is_little_endian)
 {
     // make an entry for the path_tree_table
     process_info_ptr process = (process_info_ptr)
             O2_MALLOC(sizeof(process_info));
     if (!process) return NULL;
-    init_process(process, status, is_little_endian);
+    o2_init_process(process, status, is_little_endian);
     if (ip_port) {
         process->name = o2_heapify(ip_port);
         // put a remote service entry in the path_tree_table
@@ -652,6 +741,9 @@ process_info_ptr add_remote_process(const char *ip_port, int status,
 
 
 // Add remote service to the path_tree_table
+//
+// service is "owned" by the caller
+//
 int add_remote_service(process_info_ptr process, const char *service)
 {
     // make an entry for the path table
@@ -673,7 +765,8 @@ int add_remote_service(process_info_ptr process, const char *service)
     return O2_SUCCESS;
 }
 
-
+// add a service for OSC
+// path is "owned" by the caller
 int add_local_osc(const char *path, int port, SOCKET tcp_socket)
 {
     // make an entry for the path_tree_table
@@ -700,6 +793,8 @@ int add_local_osc(const char *path, int port, SOCKET tcp_socket)
 
 // insert whole path into master table, insert path nodes into tree
 // if this path exists, then first remove all sub-tree paths
+//
+// path is "owned" by caller (so it is copied here)
 //
 int o2_add_method(const char *path, const char *typespec,
             o2_method_handler h, void *user_data, int coerce, int parse)
@@ -757,7 +852,7 @@ int o2_add_method(const char *path, const char *typespec,
     handler = (handler_entry_ptr) O2_MALLOC(sizeof(handler_entry));
     
     handler->tag = PATTERN_HANDLER;
-    handler->key = key;
+    handler->key = key; // this key has already been copied
     handler->handler = h;
     handler->user_data = user_data;
     handler->full_path = NULL; // only leaf nodes have full_path pointer
@@ -1008,3 +1103,4 @@ void o2_deliver_pending()
         find_and_call_handlers(msg);
     }
 }
+

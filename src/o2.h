@@ -126,6 +126,21 @@ Some major components and concepts of O2 are the following:
 #define FALSE 0
 #endif
 
+/** \defgroup debugging Debugging Support
+ * @{
+ */
+
+/// \brief Enable debugging output.
+/// Unless O2_NO_DEBUG is defined at compile time, O2 is
+/// compiled with debugging code that prints information to
+/// stdout, including network addresses, services discovered,
+/// and clock synchronization status. Enable the debugging
+/// information by setting o2_debug to 1 for basic connection
+/// data, 2 for tracing user messages sent and received, and 3
+/// for tracing clock-sync and (perhaps) discovery messages.
+int o2_debug;
+
+/** @} */
 
 /** \defgroup returncodes Return Codes
  * @{
@@ -631,7 +646,14 @@ typedef o2_time (*o2_time_callback)(void *rock);
  *
  *  Exactly one process per O2 application should provide a master
  *  clock. All other processes synchronize to the master. To become
- *  the master, call o2_set_clock().
+ *  the master, call o2_set_clock(). 
+ *
+ *  The time reported by the gettime function will be offset to 
+ *  match the current local time so that local time continues to 
+ *  increase smoothly. You cannot force O2 time to match an external 
+ *  absolute time, but once o2_set_clock() is called, the difference
+ *  between the time reference and O2's local time (as reported by 
+ *  o2_local_time()) will be fixed.
  *
  *  @param gettime function to get the time in units of seconds. The
  *  reference may be operating system time, audio system time, MIDI

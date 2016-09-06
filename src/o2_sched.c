@@ -193,15 +193,9 @@ void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
 // call this periodically
 void o2_sched_poll()
 {
-    o2_time local_now = o2_local_time();
-    sched_dispatch(&o2_ltsched, local_now);
-    // assert(scheduled_after(&o2_ltsched, local_now));
+    sched_dispatch(&o2_ltsched, o2_local_now);
 
     if (o2_gtsched_started) {
-        double global_now = o2_local_to_global(local_now);
-        sched_dispatch(&o2_gtsched, global_now);
+        sched_dispatch(&o2_gtsched, o2_global_now);
     }
 }
-
-
-

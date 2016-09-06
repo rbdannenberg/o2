@@ -52,5 +52,13 @@ int o2_recv();
 
 int o2_strsize(const char *s);
 
+/**
+ * Print an O2 message to stdout
+ *
+ * @param msg The message to print
+ */
+void o2_print_msg(o2_message_ptr msg);
+
+
 
 #endif /* O2_message_h */

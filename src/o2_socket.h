@@ -152,6 +152,6 @@ void o2_service_free(const char *service_name);
 void o2_application_info();
 
 
-void remove_socket(int i);
+void o2_remove_socket(int i);
 
 #endif /* o2_socket_h */

@@ -39,6 +39,8 @@ int midi_handler(o2_message_ptr msg, const char *types,
 
 int main(int argc, const char * argv[])
 {
+    o2_debug = 2;
+    
     // start portmidi
     Pt_Start(1, 0, 0);
 
@@ -49,13 +51,14 @@ int main(int argc, const char * argv[])
 
     o2_initialize("miditest"); // ideally, this application name should be
     // passed from the command line so we provide service to any application
+
+    // we are the master clock
+    o2_set_clock(NULL, NULL);
+
     o2_add_service("midi");
     
     // add our handler for incoming messages to each server address
     o2_add_method("/midi/midi", "iii", &midi_handler, NULL, TRUE, TRUE);
-    
-    // we are the master clock
-    o2_set_clock(NULL, NULL);
     
     printf("Here we go! ...\ntime is %g.\n", o2_get_time());
     

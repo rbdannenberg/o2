@@ -18,13 +18,27 @@
 #ifndef USE_ANSI_C
 #define USE_ANSI_C
 #endif
-#endif
 
-#ifdef _WIN32
-//#define _CRT_SECURE_NO_WARNINGS         // Preclude warnings for string functions
+// Preclude warnings for string functions
+#define _CRT_SECURE_NO_WARNINGS
+
+// OS X and Linux call it "snprintf":
+#define snprintf _snprintf
+
 #endif   // WIN32
 
 #include "o2_error.h"
+
+#ifndef O2_NO_DEBUGGING
+// macro to surround debug print statements:
+#define O2_DB(x) if (o2_debug) { (x); }
+#define O2_DB2(x) if (o2_debug > 1) { (x); }
+#define O2_DB3(x) if (o2_debug > 2) { (x); }
+#else
+#define O2_DB(x)
+#define O2_DB2(x)
+#define O2_DB3(x)
+#endif
 
 // define IS_BIG_ENDIAN, IS_LITTLE_ENDIAN, and swap64(i),
 // swap32(i), and swap16(i)
@@ -65,6 +79,10 @@
 
 extern char *debug_prefix;
 extern SOCKET local_send_sock; // socket for sending all UDP msgs
+
+extern o2_time o2_local_now;
+extern o2_time o2_global_now;
+extern int o2_gtsched_started;
 
 
 #define O2_ARGS_END O2_MARKER_A, O2_MARKER_B
