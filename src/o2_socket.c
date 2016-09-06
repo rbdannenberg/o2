@@ -512,7 +512,6 @@ int o2_recv()
     return O2_SUCCESS;
 }
 
-#ifdef _WIN32
 
 static struct sockaddr *dupaddr(const sockaddr_gen * src)
 {
@@ -615,63 +614,8 @@ void freeifaddrs(struct ifaddrs *ifp)
 	free(ifp);
 }
 
-#endif
-
-#ifdef OLD_CODE_IS_HERE
-
-// Use select function to receive messages.
-int o2_recv()
-{
-    void *data;
-    size_t size;
-    struct timeval timeout;
-    int uret = 0, tret = 0;
-    SOCKET fd_max = 0;
-    int i;
-    
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 10;
-    
-    // Check the UDP socket
-    FD_ZERO(&rfd);
-    FD_SET(o2_udp_socket, &rfd);
-    fd_max = o2_udp_socket;
-    for (i = 0; i < o2_fds_info.length; i++) {
-        fds_info_ptr info = DA_GET(o2_fds_info, struct fds_info, i);
-        SOCKET sock;
-        if (info->u.process_info.tag == O2_PROCESS) {
-            sock = ((process_info_ptr) info)->tcp_socket;
-        } else {
-            sock = ((osc_entry_ptr) info)->tcp_socket;
-        }
-        if (sock != INVALID_SOCKET) {
-            FD_SET(sock, &rfd);
-            if (sock > fd_max) fd_max = sock;
-        }
-    }
-    uret = select(fd_max + 1, &rfd, NULL, NULL, &timeout);
-    
-    if (uret > 0) {
-        data = o2_recv_raw_package(&size);
-        
-        if (!data) {
-            return O2_FAIL;
-        }
-        uret = dispatch_data(data, size, o2_udp_socket.socketfd.fd);
-        O2_FREE(data);
-        if (uret < 0) {
-            return O2_FAIL;
-        }
-        uret = select(fd_max + 1, &rfd, NULL, NULL, &timeout);
-    }
-    
-    if (uret == -1) {
-        return O2_FAIL;
-    }    
-    return O2_SUCCESS;
-}
-#endif
 #else  // Use poll function to receive messages.
+
 int o2_recv()
 {
     int i;
@@ -681,22 +625,18 @@ int o2_recv()
     for (i = 0; i < o2_fds.length; i++) {
         struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
         // printf("%p:%x ", d, d->revents);
-        if ((d->revents & POLLERR) || (d->revents & POLLHUP)) {
-            // ignore
+        if (d->revents & POLLERR) {
+            printf("d->revents & POLLERR %d, d->revents & POLLHUP %d\n",
+                   d->revents & POLLERR, d->revents & POLLHUP);
+        } else if (d->revents & POLLHUP) {
+            fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
+            o2_remove_remote_process(info->u.process_info);
+            i--; // we moved last into i, so look at i again
         } else if (d->revents) {
             fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
             assert(info->length_got < 5);
-            /* if (i == 2) {
-                printf("%s: got connection request at o2_fds[2]\n", debug_prefix);
-            }
-            if (i == 1) {
-                printf("%s: got o2 msg by udp at o2_fds[1]\n", debug_prefix);
-            } */
             (*(info->handler))(d->fd, info);
         }
-        /* DEBUG: */
-        fds_info_ptr fip = DA_GET(o2_fds_info, fds_info, i);
-        assert(fip->length_got < 5);
     }
   
     return O2_SUCCESS;

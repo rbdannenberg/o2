@@ -707,6 +707,7 @@ int o2_remove_remote_process(process_info_ptr proc)
     remove_remote_services(proc);
     // remove the remote service associated with the ip_port string
     remove_remote_service(proc);
+    O2_DB(printf("O2: removing remote process %s\n", proc->name));
     if (proc->name) O2_FREE(proc->name);
     O2_FREE(proc);
     return O2_SUCCESS;
