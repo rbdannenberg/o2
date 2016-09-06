@@ -73,11 +73,12 @@ add_executable(clockmaster test/clockmaster.c)
 target_include_directories(clockmaster PRIVATE ${CMAKE_SOURCE_DIR}/src) 
 target_link_libraries(clockmaster ${LIBRARIES}) 
 
-# Use PortMidi Library
-set(PORTMIDI_DBG_LIB PORTMIDI_DBG_LIB-NOTFOUND)
-set(PORTMIDI_OPT_LIB PORTMIDI_OPT_LIB-NOTFOUND)
 
 if(UNIX)
+  # Use PortMidi Library
+  set(PORTMIDI_DBG_LIB PORTMIDI_DBG_LIB-NOTFOUND)
+  set(PORTMIDI_OPT_LIB PORTMIDI_OPT_LIB-NOTFOUND)
+
   if(APPLE)
     set(COREMIDI_LIB "${FRAMEWORK_PATH}/CoreMIDI.framework")
     set(EXTRA_NEEDED_LIBS ${COREAUDIO_LIB} ${COREFOUNDATION_LIB}
@@ -94,14 +95,14 @@ if(UNIX)
   # By renaming, we gain confidence as to what is actually being linked.
   #
   # for UNIX...
-endif(UNIX)
-set(PORTMIDI_BASE_PATH ../portmedia/portmidi 
-      CACHE STRING "Where is portmidi?")
-set(PORTMIDI_PATH ${PORTMIDI_BASE_PATH}/pm_common CACHE INTERNAL 
-                    "Where is portmidi.h?" FORCE)
-# message(STATUS "PORTMIDI_BASE_PATH is " ${PORTMIDI_BASE_PATH})
 
-if(USE_STATIC_LIBS)
+  set(PORTMIDI_BASE_PATH ../portmedia/portmidi 
+      CACHE STRING "Where is portmidi?")
+  set(PORTMIDI_PATH ${PORTMIDI_BASE_PATH}/pm_common CACHE INTERNAL 
+                    "Where is portmidi.h?" FORCE)
+  # message(STATUS "PORTMIDI_BASE_PATH is " ${PORTMIDI_BASE_PATH})
+
+  if(USE_STATIC_LIBS)
     if(UNIX)
       find_library(PORTMIDI_DBG_LIB portmidi_s ${PORTMIDI_BASE_PATH}
                    ${PORTMIDI_BASE_PATH}/Debug
@@ -113,22 +114,23 @@ if(USE_STATIC_LIBS)
     endif(UNIX)
 
     message(STATUS "*** in USE_STATIC_LIBS, USE_MIDI ${USE_MIDI} PORTMIDI_DBG_LIB ${PORTMIDI_DBG_LIB}")
-else(USE_STATIC_LIBS)
+  else(USE_STATIC_LIBS)
     find_library(PORTMIDI_DBG_LIB portmidi HINTS
                  ${PORTMIDI_BASE_PATH} ${PORTMIDI_BASE_PATH}/Debug
 		 ${PORTMIDI_BASE_PATH}/x64/Debug
                  ${PORTMIDI_PATH} ${PORTMIDI_PATH}/Debug
 		 ${PORTMIDI_PATH}/x64/Debug)
-endif(USE_STATIC_LIBS)
+  endif(USE_STATIC_LIBS)
 
-add_executable(midiclient test/midiclient.c test/cmtio.c test/cmtio.h) 
-target_include_directories(midiclient PRIVATE ${CMAKE_SOURCE_DIR}/src) 
-target_link_libraries(midiclient ${LIBRARIES})
+  add_executable(midiclient test/midiclient.c test/cmtio.c test/cmtio.h) 
+  target_include_directories(midiclient PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+  target_link_libraries(midiclient ${LIBRARIES})
 
-add_executable(midiserver test/midiserver.c)
-target_include_directories(midiserver PRIVATE ${CMAKE_SOURCE_DIR}/src
+  add_executable(midiserver test/midiserver.c)
+  target_include_directories(midiserver PRIVATE ${CMAKE_SOURCE_DIR}/src
         ${PORTMIDI_PATH} ${PORTMIDI_PATH}/../porttime)
-target_link_libraries(midiserver ${LIBRARIES} ${PORTMIDI_DBG_LIB}) 
+  target_link_libraries(midiserver ${LIBRARIES} ${PORTMIDI_DBG_LIB}) 
+endif(UNIX)
 
 message(STATUS LIBRARIES=${LIBRARIES}) 
 

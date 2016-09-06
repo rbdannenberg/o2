@@ -340,8 +340,10 @@ void tcp_accept_handler(SOCKET sock, struct fds_info *info)
     // printf("%s: accepting a tcp connection\n", debug_prefix);
     SOCKET connection = accept(sock, NULL, NULL);
     int set = 1;
+#ifndef WIN32
     setsockopt(connection, SOL_SOCKET, SO_NOSIGPIPE,
                (void *) &set, sizeof(int));
+#endif
     add_new_socket(connection, TCP_SOCKET, NULL, &tcp_initial_handler);
 }
 
