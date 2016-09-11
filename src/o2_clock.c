@@ -165,7 +165,11 @@ int o2_send_clocksync(process_info_ptr process)
     if (!o2_clock_is_synchronized)
         return O2_SUCCESS;
     char address[32];
+#ifndef WIN32
 	snprintf(address, 32, "!%s/cs/cs", process->name);
+#else
+	_snprintf(address, 32, "!%s/cs/cs", process->name);
+#endif
     return o2_send_cmd(address, 0.0, "s", o2_process.name);
 }
     
@@ -293,9 +297,17 @@ int o2_ping_send_handler(o2_message_ptr msg, const char *types,
             } else { // record when we started to send clock sync messages
                 start_sync_time = clock_sync_send_time;
                 char path[48]; // enough room for !IP:PORT/cs/get-reply
+#ifndef WIN32
 				snprintf(path, 48, "!%s/cs/get-reply", o2_process.name);
+#else
+				_snprintf(path, 48, "!%s/cs/get-reply", o2_process.name);
+#endif				
                 o2_add_method(path, "it", &cs_ping_reply_handler, NULL, FALSE, FALSE);
+#ifndef WIN32
 				snprintf(path, 32, "!%s/cs", o2_process.name);
+#else
+				_snprintf(path, 32, "!%s/cs", o2_process.name);
+#endif	
                 clock_sync_reply_to = o2_heapify(path);
             }
         }

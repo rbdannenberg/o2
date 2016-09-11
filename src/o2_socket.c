@@ -237,7 +237,11 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
         int n = recvfrom(sock, ((char *) &(info->length)) + info->length_got,
                          4 - info->length_got, 0, NULL, NULL);
         if (n <= 0) { /* error: close the socket */
+#ifndef WIN32
             if (errno != EAGAIN && errno != EINTR) {
+#else
+			if (errno != 11 && errno != 4) {
+#endif
                 perror("recvfrom in read_whole_message getting length");
                 tcp_message_cleanup(info);
                 return O2_FAIL;
@@ -260,7 +264,11 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
                          ((char *) &(info->message->data)) + info->message_got,
                          info->length - info->message_got, 0, NULL, NULL);
         if (n <= 0) {
-            if (errno != EAGAIN && errno != EINTR) {
+#ifndef WIN32
+			if (errno != EAGAIN && errno != EINTR) {
+#else
+			if (errno != 11 && errno != 4) {
+#endif
                 perror("recvfrom in read_whole_message getting data");
                 o2_free_message(info->message);
                 tcp_message_cleanup(info);

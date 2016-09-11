@@ -14,8 +14,6 @@
 #include <unistd.h>
 #endif
 
-//#pragma comment(lib,"o2_static.lib")
-
 // this is a handler that polls for current status
 //
 int clockmaster(o2_message_ptr msg, const char *types,
