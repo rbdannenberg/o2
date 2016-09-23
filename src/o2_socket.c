@@ -18,6 +18,7 @@
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <windows.h>
+#include <errno.h>
 #else
 #include "sys/ioctl.h"
 #include <ifaddrs.h>
@@ -115,7 +116,7 @@ void deliver_or_schedule(o2_message_ptr msg)
 
 
 void add_new_socket(SOCKET sock, int tag, process_info_ptr process,
-                    void (*handler)(SOCKET sock, struct fds_info *info))
+                    int (*handler)(SOCKET sock, struct fds_info *info))
 {
     // expand socket arrays for new port
     DA_EXPAND(o2_fds_info, struct fds_info);
@@ -237,16 +238,17 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
         int n = recvfrom(sock, ((char *) &(info->length)) + info->length_got,
                          4 - info->length_got, 0, NULL, NULL);
         if (n <= 0) { /* error: close the socket */
-#ifndef WIN32
-            if (errno != EAGAIN && errno != EINTR) {
-#else
-			if (errno != 11 && errno != 4) {
-#endif
-                perror("recvfrom in read_whole_message getting length");
-                tcp_message_cleanup(info);
-                return O2_FAIL;
+			if ((errno != EAGAIN && errno != EINTR) || (GetLastError() != WSAEWOULDBLOCK && GetLastError() != WSAEINTR)) {
+				if (errno == ECONNRESET || GetLastError() == WSAECONNRESET){
+					return O2_TCP_HUP;
+				}
+				else {
+					perror("recvfrom in read_whole_message getting length");
+					tcp_message_cleanup(info);
+					return O2_FAIL;
+				}
             }
-        }
+		}
         info->length_got += n;
         assert(info->length_got < 5);
         if (info->length_got < 4) {
@@ -264,11 +266,7 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
                          ((char *) &(info->message->data)) + info->message_got,
                          info->length - info->message_got, 0, NULL, NULL);
         if (n <= 0) {
-#ifndef WIN32
 			if (errno != EAGAIN && errno != EINTR) {
-#else
-			if (errno != 11 && errno != 4) {
-#endif
                 perror("recvfrom in read_whole_message getting data");
                 o2_free_message(info->message);
                 tcp_message_cleanup(info);
@@ -286,15 +284,17 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
 }
 
 
-void tcp_recv_handler(SOCKET sock, struct fds_info *info)
+int tcp_recv_handler(SOCKET sock, struct fds_info *info)
 {
-    if (!read_whole_message(sock, info)) return;
+	int n = read_whole_message(sock, info);
+	if (n <= 0) return n;
     
     /* got the message, deliver it */
     // endian corrections are done in handler
     deliver_or_schedule(info->message);
     // info->message is now freed
     tcp_message_cleanup(info);
+	return O2_SUCCESS;
 }
 
 
@@ -497,31 +497,33 @@ struct timeval o2_no_timeout;
 
 int o2_recv()
 {
-    int total;
-    FD_ZERO(&o2_read_set);
-    for (int i = 0; i < o2_fds.length; i++) {
-        struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
-        FD_SET(d->fd, &o2_read_set);
-    }
-    o2_no_timeout.tv_sec = 0;
-    o2_no_timeout.tv_usec = 0;
-    if ((total = select(0, &o2_read_set, NULL, NULL, &o2_no_timeout)) == SOCKET_ERROR) {
-        /* TODO: error handling here */
-        return O2_FAIL; /* TODO: return a specific error code for this */
-    }
-    if (total == 0) { /* no messages waiting */
-        return O2_SUCCESS;
-    }
-    for (int i = 0; i < o2_fds.length; i++) {
-        struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
-        if (FD_ISSET(d->fd, &o2_read_set)) {
-            fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
-            (*(info->handler))(d->fd, info);
-        }
-    }
-    return O2_SUCCESS;
+	int total;
+	FD_ZERO(&o2_read_set);
+	for (int i = 0; i < o2_fds.length; i++) {
+		struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
+		FD_SET(d->fd, &o2_read_set);
+	}
+	o2_no_timeout.tv_sec = 0;
+	o2_no_timeout.tv_usec = 0;
+	if ((total = select(0, &o2_read_set, NULL, NULL, &o2_no_timeout)) == SOCKET_ERROR) {
+		/* TODO: error handling here */
+		return O2_FAIL; /* TODO: return a specific error code for this */
+	}
+	if (total == 0) { /* no messages waiting */
+		return O2_SUCCESS;
+	}
+	for (int i = 0; i < o2_fds.length; i++) {
+		struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
+		if (FD_ISSET(d->fd, &o2_read_set)) {
+			fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
+			if (((*(info->handler))(d->fd, info)) == O2_TCP_HUP) {
+				o2_remove_remote_process(info->u.process_info);
+				i--; // we moved last into i, so look at i again
+			}
+		}
+	}
+	return O2_SUCCESS;
 }
-
 
 static struct sockaddr *dupaddr(const sockaddr_gen * src)
 {

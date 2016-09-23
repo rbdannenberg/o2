@@ -15,6 +15,7 @@
 #include "o2_send.h"
 #include "o2_sched.h"
 #include "o2_message.h"
+#include <errno.h>
 
 //#if defined(WIN32) || defined(_MSC_VER)
 //#else
@@ -141,11 +142,7 @@ int send_by_tcp_to_process(process_info_ptr proc, o2_message_ptr msg)
     }
     return O2_SUCCESS;
   send_error:
-#ifndef WIN32
 	if (errno != EAGAIN && errno != EINTR) {
-#else
-	if (errno != 11 && errno != 4) {
-#endif
         o2_remove_remote_process(proc);
     }
     return O2_FAIL;

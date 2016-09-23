@@ -172,6 +172,9 @@ int o2_debug;
 /// an error return value for o2_initialize(): invalid name parameter.
 #define O2_BAD_NAME (-6)
 
+/// an error return value for o2_initialize(): the socket is closed.
+#define O2_TCP_HUP (-7)
+
 
 // Status return codes for o2_status function:
 
