@@ -15,16 +15,9 @@
 #include "o2_send.h"
 #include "o2_sched.h"
 #include "o2_message.h"
-
-//#if defined(WIN32) || defined(_MSC_VER)
-//#else
-//#include <netdb.h>
-//#include <sys/un.h>
-//#include <net/if.h>
-//#include <sys/ioctl.h>
-//#include <unistd.h>
-//#endif
-
+#ifndef WIN32
+#include <errno.h>
+#endif
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0

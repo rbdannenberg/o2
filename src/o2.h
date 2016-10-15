@@ -179,6 +179,10 @@ extern int o2_debug;
 /// returned by o2_build_message(), o2_send(), o2_send_cmd()
 #define O2_EFORMAT (-8)
 
+/// an error return value for o2_initialize(): the socket is closed.
+#define O2_TCP_HUP (-9)
+
+
 // Status return codes for o2_status function:
 
 /// \brief return value for o2_status() function: this is a local service

@@ -174,9 +174,10 @@ int o2_initialize(char *application_name)
     char address[32];
     snprintf(address, 32, "/%s/sv", o2_process.name);
     o2_add_method(address, NULL, &o2_services_handler, NULL, FALSE, FALSE);
-	snprintf(address, 32, "/%s/cs/cs", o2_process.name);
+    snprintf(address, 32, "/%s/cs/cs", o2_process.name);
     o2_add_method(address, "s", &o2_clocksynced_handler, NULL, FALSE, FALSE);
-    o2_add_method("/_o2/ds", NULL, &o2_discovery_send_handler, NULL, FALSE, FALSE);
+    o2_add_method("/_o2/ds", NULL, &o2_discovery_send_handler,
+                  NULL, FALSE, FALSE);
     o2_time_init();
     o2_sched_init();
     o2_clock_init();
@@ -227,7 +228,7 @@ int o2_add_service(char *service_name)
         if (info->tag == TCP_SOCKET) {
             process_info_ptr process = info->u.process_info;
             char address[32];
-			snprintf(address, 32, "!%s/sv", process->name);
+            snprintf(address, 32, "!%s/sv", process->name);
             o2_send_cmd(address, 0.0, "ss", o2_process.name, service_name);
         }
     }

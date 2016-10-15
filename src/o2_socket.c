@@ -18,14 +18,12 @@
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <windows.h>
+// #include <errno.h>
 #else
 #include "sys/ioctl.h"
 #include <ifaddrs.h>
 #endif
 
-
-//#include <netdb.h>
-//#include <sys/un.h>
 
 char o2_local_ip[24];
 int o2_local_tcp_port = 0;
@@ -115,7 +113,7 @@ void deliver_or_schedule(o2_message_ptr msg)
 
 
 void add_new_socket(SOCKET sock, int tag, process_info_ptr process,
-                    void (*handler)(SOCKET sock, struct fds_info *info))
+                    int (*handler)(SOCKET sock, struct fds_info *info))
 {
     // expand socket arrays for new port
     DA_EXPAND(o2_fds_info, struct fds_info);
@@ -187,7 +185,7 @@ int bind_recv_socket(SOCKET sock, int *port, int tcp_recv_flag)
 }
 
 
-void udp_recv_handler(SOCKET sock, struct fds_info *info)
+int udp_recv_handler(SOCKET sock, struct fds_info *info)
 {
     o2_message_ptr msg;
     int len;
@@ -197,10 +195,10 @@ void udp_recv_handler(SOCKET sock, struct fds_info *info)
     if (ioctlsocket(sock, FIONREAD, &len) == -1) {
 #endif
         perror("udp_recv_handler");
-        return;
+        return O2_FAIL;
     }
     msg = o2_alloc_size_message(len);
-    if (!msg) return;
+    if (!msg) return O2_FAIL;
     int n;
     // coerce to int to avoid compiler warning; len is int, so int is good for n
     if ((n = (int) recvfrom(sock, &(msg->data), len, 0, NULL, NULL)) <= 0) {
@@ -208,11 +206,12 @@ void udp_recv_handler(SOCKET sock, struct fds_info *info)
         // anyway. For now, though, let's at least print errors.
         perror("recvfrom in udp_recv_handler");
         o2_free_message(info->message);
-        return;
+        return O2_FAIL;
     }
     msg->length = n;
     // endian corrections are done in handler
     deliver_or_schedule(msg);
+    return O2_SUCCESS;
 }
 
 
@@ -226,6 +225,10 @@ void tcp_message_cleanup(struct fds_info *info)
 }    
 
 
+// returns O2_SUCCESS if whole message is read.
+//         O2_FAIL if whole message is not read yet.
+//         O2_TCP_HUP if socket is closed
+//
 int read_whole_message(SOCKET sock, struct fds_info *info)
 {
     assert(info->length_got < 5);
@@ -233,14 +236,24 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
     //       debug_prefix, info->length_got, info->length, info->message_got);
     /* first read length if it has not been read yet */
     if (info->length_got < 4) {
-        // coerce to int to avoid compiler warning; requested length is int, so int is ok for n
+        // coerce to int to avoid compiler warning; requested length is
+        // int, so int is ok for n
         int n = (int) recvfrom(sock, PTR(&(info->length)) + info->length_got,
                                4 - info->length_got, 0, NULL, NULL);
         if (n <= 0) { /* error: close the socket */
+#ifdef WIN32
+            if ((errno != EAGAIN && errno != EINTR) ||
+                (GetLastError() != WSAEWOULDBLOCK &&
+                 GetLastError() != WSAEINTR)) {
+                if (errno == ECONNRESET || GetLastError() == WSAECONNRESET) {
+                    return O2_TCP_HUP;
+                }
+#else
             if (errno != EAGAIN && errno != EINTR) {
+#endif
                 perror("recvfrom in read_whole_message getting length");
                 tcp_message_cleanup(info);
-                return O2_FAIL;
+                return O2_TCP_HUP;
             }
         }
         info->length_got += n;
@@ -261,33 +274,45 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
                                PTR(&(info->message->data)) + info->message_got,
                                info->length - info->message_got, 0, NULL, NULL);
         if (n <= 0) {
+#ifdef WIN32
+            if ((errno != EAGAIN && errno != EINTR) ||
+                (GetLastError() != WSAEWOULDBLOCK &&
+                 GetLastError() != WSAEINTR)) {
+                if (errno == ECONNRESET || GetLastError() == WSAECONNRESET) {
+                    return O2_TCP_HUP;
+                }
+#else
             if (errno != EAGAIN && errno != EINTR) {
+#endif
                 perror("recvfrom in read_whole_message getting data");
                 o2_free_message(info->message);
                 tcp_message_cleanup(info);
-                return O2_FAIL;
+                return O2_TCP_HUP;
             }
         }
         info->message_got += n;
         if (info->message_got < info->length) {
-            return FALSE; 
+            return O2_FAIL; 
         }
     }
     info->message->length = info->length;
     // printf("-    %s: received tcp msg %s\n", debug_prefix, info->message->data.address);
-    return TRUE; // we have a full message now
+    return O2_SUCCESS; // we have a full message now
 }
 
 
-void tcp_recv_handler(SOCKET sock, struct fds_info *info)
+int tcp_recv_handler(SOCKET sock, struct fds_info *info)
 {
-    if (!read_whole_message(sock, info)) return;
-    
+    int n = read_whole_message(sock, info);
+    if (n != O2_SUCCESS) {
+        return n;
+    }
     /* got the message, deliver it */
     // endian corrections are done in handler
     deliver_or_schedule(info->message);
     // info->message is now freed
     tcp_message_cleanup(info);
+    return O2_SUCCESS;
 }
 
 
@@ -298,17 +323,20 @@ void tcp_recv_handler(SOCKET sock, struct fds_info *info)
 // We then create a process (if not discovered yet) and associate
 // this socket with the process
 //
-void tcp_initial_handler(SOCKET sock, struct fds_info *info)
+int tcp_initial_handler(SOCKET sock, struct fds_info *info)
 {
-    if (!read_whole_message(sock, info)) return;
+    int n = read_whole_message(sock, info);
+    if (n != O2_SUCCESS) {
+        return n;
+    }
 
     // message should be addressed to !*/in, where * is (hopefully) this
     // process, but we're not going to check that (could also be "!_o2/in")
     char *ptr = info->message->data.address;
-    if (*ptr != '!') return;
+    if (*ptr != '!') return O2_TCP_HUP;
     ptr = strstr(ptr + 1, "/in");
-    if (!ptr) return;
-    if (ptr[3] != 0) return;
+    if (!ptr) return O2_TCP_HUP;
+    if (ptr[3] != 0) return O2_TCP_HUP;
     
     // types will be after "!IP:TCP_PORT/in<0>,"
     // this is tricky: ptr + 3 points to end-of-string after address; there
@@ -328,7 +356,7 @@ void tcp_initial_handler(SOCKET sock, struct fds_info *info)
     //   we need to free the message
     o2_free_message(info->message);
     tcp_message_cleanup(info);
-    return;
+    return O2_SUCCESS;
 }
 
 
@@ -336,7 +364,7 @@ void tcp_initial_handler(SOCKET sock, struct fds_info *info)
 // "readable" this handler is called to accept the connection
 // request.
 //
-void tcp_accept_handler(SOCKET sock, struct fds_info *info)
+int tcp_accept_handler(SOCKET sock, struct fds_info *info)
 {
     // note that this handler does not call read_whole_message()
     // printf("%s: accepting a tcp connection\n", debug_prefix);
@@ -347,6 +375,7 @@ void tcp_accept_handler(SOCKET sock, struct fds_info *info)
                (void *) &set, sizeof(int));
 #endif
     add_new_socket(connection, TCP_SOCKET, NULL, &tcp_initial_handler);
+    return O2_SUCCESS;
 }
 
 
@@ -499,7 +528,8 @@ int o2_recv()
     }
     o2_no_timeout.tv_sec = 0;
     o2_no_timeout.tv_usec = 0;
-    if ((total = select(0, &o2_read_set, NULL, NULL, &o2_no_timeout)) == SOCKET_ERROR) {
+    if ((total = select(0, &o2_read_set, NULL, NULL, &o2_no_timeout)) ==
+        SOCKET_ERROR) {
         /* TODO: error handling here */
         return O2_FAIL; /* TODO: return a specific error code for this */
     }
@@ -510,7 +540,10 @@ int o2_recv()
         struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
         if (FD_ISSET(d->fd, &o2_read_set)) {
             fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
-            (*(info->handler))(d->fd, info);
+            if (((*(info->handler))(d->fd, info)) == O2_TCP_HUP) {
+                o2_remove_remote_process(info->u.process_info);
+                i--; // we moved last into i, so look at i again
+            }
         }
     }
     return O2_SUCCESS;

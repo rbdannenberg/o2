@@ -314,7 +314,7 @@ int o2_discovery_handler(o2_message_ptr msg, const char *types,
     
     char name[32];
     // ip:port + pad with zeros
-	snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp_arg->i32, 0, 0, 0, 0);
+    snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp_arg->i32, 0, 0, 0, 0);
     int index;
     // printf("%s: o2_discovery_handler: lookup %s\n", debug_prefix, name);
     if (lookup(&path_tree_table, name, &index)) {
@@ -387,7 +387,7 @@ int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
     // get process name
     char name[32];
     // ip:port + pad with zeros
-	snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp_port, 0, 0, 0, 0);
+    snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp_port, 0, 0, 0, 0);
     
     // if process does not exist, create it
     int index;
@@ -425,15 +425,15 @@ int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
     assert(udp_port != 0);
 
 #ifndef WIN32
-	process->udp_sa.sin_len = sizeof(process->udp_sa);
+    process->udp_sa.sin_len = sizeof(process->udp_sa);
 #endif
 
     inet_pton(AF_INET, ip, &(process->udp_sa.sin_addr.s_addr));
     process->udp_sa.sin_port = htons(udp_port);
     // printf("%s: finished /in for %s, status %d, udp_port %d\n", debug_prefix, name, status, udp_port);
-    O2_DB(printf("O2: connected from %s (udp port %ld)\n    to local socket %ld process %p\n",
-                 name, (long) udp_port, (long) (DA_GET(o2_fds, struct pollfd,
-                                                process->tcp_fd_index)->fd, process)));
+    O2_DB(printf("O2: connected from %s (udp port %ld)\n   to local socket %ld process %p\n",
+                 name, (long) udp_port,
+                 (long) (DA_GET(o2_fds, struct pollfd, process->tcp_fd_index)->fd), process));
     return O2_SUCCESS;
 }
 

@@ -23,7 +23,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 // OS X and Linux call it "snprintf":
-// #define snprintf _snprintf
+#define snprintf _snprintf
 
 #endif   // WIN32
 
