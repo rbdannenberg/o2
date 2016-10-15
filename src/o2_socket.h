@@ -89,6 +89,7 @@ typedef struct fds_info {
     o2_message_ptr message;     // message data from TCP stream goes here
     int length_got;             // how many bytes of length have been read?
     int message_got;            // how many bytes of message have been read?
+    // int delete_flag;            // set to TRUE to mark for deletion (see o2_recv())
     void (*handler)(SOCKET sock, struct fds_info *info); // handler for socket
     union {
         struct process_info *process_info;  // if not OSC

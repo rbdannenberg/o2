@@ -21,12 +21,9 @@ extern o2_message_ptr message_freelist;
 o2_message_ptr alloc_message();
 
 /* allocate message structure with at least size bytes in the data portion */
-o2_message_ptr alloc_size_message(int size);
+o2_message_ptr o2_alloc_size_message(int size);
 
-/** used by CHECK_MESSAGE_LENGTH to expand message */
-o2_message_ptr alloc_bigger_message(o2_message_ptr msg, int needed);
-
-o2_message_ptr o2_build_message(o2_time timestamp, const char *service_name,
+int o2_build_message(o2_message_ptr *msg, o2_time timestamp, const char *service_name,
                        const char *path, const char *typestring, va_list ap);
 
 
@@ -59,6 +56,8 @@ int o2_strsize(const char *s);
  */
 void o2_print_msg(o2_message_ptr msg);
 
+void o2_initialize_argv();
 
+void o2_finish_argv();
 
 #endif /* O2_message_h */

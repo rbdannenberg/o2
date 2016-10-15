@@ -117,7 +117,6 @@ void *((*o2_malloc)(size_t size)) = &malloc;
 void ((*o2_free)(void *)) = &free;
 // also used to detect initialization:
 char *o2_application_name = NULL;
-process_info o2_process;
 
 // these times are set when poll is called to avoid the need to
 //   call o2_get_time() repeatedly
@@ -149,6 +148,8 @@ int o2_initialize(char *application_name)
     if (o2_application_name) return O2_RUNNING;
     if (!application_name) return O2_BAD_NAME;
 
+    o2_initialize_argv();
+    
     // Initialize the hash tables
     initialize_node(&master_table, "");
     initialize_node(&path_tree_table, "");
@@ -338,6 +339,8 @@ int o2_finish()
     free_node(&path_tree_table);
     free_node(&master_table);
     
+    o2_finish_argv();
+
     if (o2_application_name) O2_FREE(o2_application_name);
     o2_application_name = NULL;
     return O2_SUCCESS;

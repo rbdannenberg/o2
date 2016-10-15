@@ -533,10 +533,11 @@ int add_entry(node_entry_ptr node, generic_entry_ptr entry)
 //   zero-padded to the next word boundary
 char *o2_heapify(const char *path)
 {
-    int len = strlen(path);
+    long len = strlen(path);
     // round up (including eos) to multiple of 4 bytes
     len = (len + 4) & ~0x3;
     char *rslt = (char *) O2_MALLOC(len);
+    if (!rslt) return NULL;
     // zero fill last 4 bytes
     int32_t *end_ptr = (int32_t *) WORD_ALIGN_PTR(rslt + len - 1);
     *end_ptr = 0;
@@ -613,7 +614,7 @@ int remove_method_from_tree(char *remaining, char *name, node_entry_ptr node)
     if (slash) { // we have an internal node name
         *slash = 0; // terminate the string at the "/"
         string_pad(name, remaining, NAME_BUF_LEN);
-        *slash = "/"; // restore the string
+        *slash = '/'; // restore the string
         entry = lookup(node, name, &index);
         if ((!entry) || ((*entry)->tag != PATTERN_NODE)) {
             printf("could not find method\n");
@@ -649,8 +650,9 @@ int remove_method_from_tree(char *remaining, char *name, node_entry_ptr node)
 int o2_remove_method(const char *path)
 {
     // make a zero-padded copy of path
-    int len = strlen(path) + 1;
+    long len = strlen(path) + 1;
     char *path_copy = (char *) alloca(len);
+    if (!path_copy) return O2_FAIL;
     memcpy(path_copy, path, len);
     char name[NAME_BUF_LEN];
     
@@ -708,7 +710,10 @@ int o2_remove_remote_process(process_info_ptr proc)
     // remove the remote service associated with the ip_port string
     remove_remote_service(proc);
     O2_DB(printf("O2: removing remote process %s\n", proc->name));
-    if (proc->name) O2_FREE(proc->name);
+    if (proc->name) {
+        O2_FREE(proc->name);
+        proc->name = NULL;
+    }
     O2_FREE(proc);
     return O2_SUCCESS;
 }
@@ -837,10 +842,19 @@ int o2_add_method(const char *path, const char *typespec,
     handler->handler = h;
     handler->user_data = user_data;
     handler->full_path = key; // key will also be master_table key
-    char *types_copy = (typespec ? o2_heapify(typespec) : NULL);
-    int arg_count = (typespec ? strlen(typespec) : 0);
+    char *types_copy = NULL;
+    int types_len = 0;
+    if (typespec) {
+        types_copy = o2_heapify(typespec);
+        if (!types_copy) {
+            return O2_FAIL;
+        }
+        // coerce to int to avoid compiler warning -- this could overflow but only
+        // in cases where it would be impossible to construct a message
+        types_len = (int) strlen(typespec);
+    }
     handler->type_string = types_copy;
-    handler->argc = arg_count;
+    handler->types_len = types_len;
     handler->coerce_flag = coerce;
     handler->parse_args = parse;
     int ret = add_entry(table, (generic_entry_ptr) handler);
@@ -860,7 +874,7 @@ int o2_add_method(const char *path, const char *typespec,
     // typespec will be freed, so we can't share copies
     if (types_copy) types_copy = o2_heapify(typespec);
     handler->type_string = types_copy;
-    handler->argc = arg_count;
+    handler->types_len = types_len;
     handler->coerce_flag = coerce;
     handler->parse_args = parse;
     
@@ -938,61 +952,31 @@ ssize_t o2_get_length(o2_type type, void *data)
 void call_handler(handler_entry_ptr handler, o2_message_ptr msg,
                   char *types)
 {
-    o2_arg_ptr *argv = NULL;
-    int argc = strlen(types);
-    int free_argv_flag = FALSE; // boolean says that we need to free argv
-    double *coerced; // array for coerced values
+    // coerce to avoid compiler warning -- 2^31 is absurdly big for a type string
+    int types_len = (int) strlen(types);
 
     // type checking
     if (handler->type_string && // mismatch detection needs type_string
-        ((handler->argc != argc) ||  // first check if counts are equal
-         !(handler->coerce_flag ||   // need coercion or exact match
+        ((handler->types_len != types_len) || // first check if counts are equal
+         !(handler->coerce_flag ||  // need coercion or exact match
            (streql(handler->type_string, types))))) {
-        // printf("!!! %s: find_and_call_handlers skipping %s due to type mismatch\n", debug_prefix, msg->data.address);
+        // printf("!!! %s: find_and_call_handlers skipping %s due to type mismatch\n",
+        //        debug_prefix, msg->data.address);
         return; // type mismatch
     }
+
     if (handler->parse_args) {
-        // argv is going to have a pointer per argument, and
-        // if coercion is required, we could need another 64
-        // bits per argument. This may all fit in the remainder
-        // of message, so use that space if there is enough.
-        // Otherwise, allocate one big block conservatively.
-        int needed = argc * sizeof(o2_arg_ptr);
-        if (handler->coerce_flag) {
-            needed += argc * sizeof(double);
-        }
-        if (needed <= msg->allocated - msg->length) {
-            argv = (o2_arg_ptr *) (WORD_ALIGN_PTR(((char *) msg) +
-                    MESSAGE_SIZE_FROM_ALLOCATED(msg->length)));
-        } else {
-            argv = (o2_arg_ptr *) o2_malloc(needed);
-            free_argv_flag = TRUE;
-        }
         o2_start_extract(msg);
-        // double is big enough for any coerced value, so we'll pretend
-        // all coerced values are doubles, even though some could be 
-        coerced = (double *) (argv + argc);
-        char *typ = types;
-        char *desired_type = handler->type_string;
-        int i = 0;
-        for (typ = types; *typ; typ++) {
-            if (*typ == *desired_type) {
-                argv[i] = o2_get_next(*typ);
-            } else { // if no type match, type will be coerced and may
-                // be copied to o2_coerced_value. If this happens, we
-                // must copy from this temporary value to allocated
-                // storage pointed to by coerced.
-                if ((argv[i] = o2_get_next(*desired_type) ==
-                     &o2_coerced_value)) {
-                    *coerced = o2_coerced_value.d;
-                    argv[i] = (o2_arg_ptr) (coerced++);
-                }
+        char *typ;
+        for (typ = handler->type_string; *typ; typ++) {
+            o2_arg_ptr next = o2_get_next(*typ);
+            if (!next) {
+                return; // type mismatch, do not deliver the message
             }
-            desired_type++;
-            i++;
         }
+        types = handler->type_string; // so that handler gets coerced types
     }
-    (*(handler->handler))(msg, types, argv, argc, handler->user_data);
+    (*(handler->handler))(msg, types, o2_argv, o2_argc, handler->user_data);
 }
 
 
@@ -1015,7 +999,7 @@ void find_and_call_handlers_rec(char *remaining, char *name,
 {
     char *slash = strchr(remaining, '/');
     // if (slash) *slash = 0;
-    int pattern = strpbrk(remaining, "*?[{");
+    char *pattern = strpbrk(remaining, "*?[{");
     if (pattern) { // this is a pattern 
         enumerate enumerator;
         enumerate_begin(&enumerator, &(node->children));

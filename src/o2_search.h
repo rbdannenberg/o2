@@ -52,7 +52,7 @@ typedef struct handler_entry {
     // free this pointer -- it will be freed when the master table entry is
     // freed.
     char *type_string; ///< types expected by handler, or NULL to ignore
-    int argc;          ///< number of expected arguments
+    int types_len;     ///< the length of type_string
     int coerce_flag;   ///< boolean - coerce types to match type_string?
                        ///<   The message is not altered, but args will point
                        ///<   to copies of type-coerced data as needed

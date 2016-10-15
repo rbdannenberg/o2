@@ -77,7 +77,8 @@ int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...)
     va_list ap;
     va_start(ap, typestring);
 
-    o2_message_ptr msg = o2_build_message(time, NULL, path, typestring, ap);
+    o2_message_ptr msg;
+    int rslt = o2_build_message(&msg, time, NULL, path, typestring, ap);
 #ifndef O2_NO_DEBUGGING
     if (o2_debug > 2 || // non-o2-system messages only if o2_debug <= 2
         (o2_debug > 1 && msg->data.address[1] != '_' &&
@@ -87,6 +88,9 @@ int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...)
             printf("\n");
         }
 #endif
+    if (rslt != O2_SUCCESS) {
+        return rslt; // could not allocate a message!
+    }
     return o2_send_message(msg, tcp_flag);
 }
 
@@ -179,6 +183,8 @@ int o2_send_message(o2_message_ptr msg, int tcp_flag)
                 perror("o2_send_message");
                 return O2_FAIL;
             }
+            O2_DB4(printf("sent UDP, local_send_sock %d, length %d, proc %p\n",
+                          local_send_sock, msg->length, proc));
         }
     } else if (service->tag == OSC_REMOTE_SERVICE) {
         send_osc(service, msg);

@@ -87,10 +87,12 @@ int o2_send_osc_message_marker(char *service_name, const char *path,
     va_list ap;
     va_start(ap, typestring);
     
-    o2_message_ptr msg = o2_build_message(0.0, service_name, path, typestring, ap);
-    // TODO: send the message
-
-    return O2_SUCCESS;
+    o2_message_ptr msg;
+    int rslt = o2_build_message(&msg, 0.0, service_name, path, typestring, ap);
+    if (rslt == O2_SUCCESS) {
+        // TODO: send the message
+    }
+    return rslt;
 }
 
 int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
@@ -102,7 +104,7 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
     char *key = o2_heapify(service_name);
     entry->key = key;
     // TODO: set up upb_sa
-    strncpy(entry->ip, 20, ip);
+    strncpy(entry->ip, ip, 20);
     entry->port = port_num;
     
     // put the entry in the master table

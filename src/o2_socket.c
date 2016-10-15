@@ -129,11 +129,13 @@ void add_new_socket(SOCKET sock, int tag, process_info_ptr process,
     info->length_got = 0;
     info->message = NULL;
     info->message_got = 0;
+    // info->delete_flag = FALSE;
     pfd->fd = sock;
     pfd->events = POLLIN;
     // printf("%s: added new socket at %d", debug_prefix, o2_fds.length - 1);
     // if (process == &o2_process) printf(" for local process");
     // if (process) printf(" key %s",  process->name);
+    // else printf("\n");
 }
 
 
@@ -162,7 +164,7 @@ static struct sockaddr_in o2_serv_addr;
 
 int bind_recv_socket(SOCKET sock, int *port, int tcp_recv_flag)
 {
-    memset((char *) &o2_serv_addr, 0, sizeof(o2_serv_addr));
+    memset(PTR(&o2_serv_addr), 0, sizeof(o2_serv_addr));
     o2_serv_addr.sin_family = AF_INET;
     o2_serv_addr.sin_addr.s_addr = htonl(INADDR_ANY); // local IP address
     o2_serv_addr.sin_port = htons(*port);
@@ -192,19 +194,16 @@ void udp_recv_handler(SOCKET sock, struct fds_info *info)
 #ifndef WIN32
     if (ioctl(sock, FIONREAD, &len) == -1) {
 #else
-	if (ioctlsocket(sock, FIONREAD, &len) == -1) {
+    if (ioctlsocket(sock, FIONREAD, &len) == -1) {
 #endif
         perror("udp_recv_handler");
         return;
     }
-    if (len <= MESSAGE_SIZE_FROM_ALLOCATED(MESSAGE_DEFAULT_SIZE)) {
-        msg = alloc_message();
-    } else {
-        msg = (o2_message_ptr) o2_malloc(MESSAGE_SIZE_FROM_ALLOCATED(len));
-    }
+    msg = o2_alloc_size_message(len);
     if (!msg) return;
     int n;
-    if ((n = recvfrom(sock, &(msg->data), len, 0, NULL, NULL)) <= 0) {
+    // coerce to int to avoid compiler warning; len is int, so int is good for n
+    if ((n = (int) recvfrom(sock, &(msg->data), len, 0, NULL, NULL)) <= 0) {
         // I think udp errors should be ignored. UDP is not reliable
         // anyway. For now, though, let's at least print errors.
         perror("recvfrom in udp_recv_handler");
@@ -234,8 +233,9 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
     //       debug_prefix, info->length_got, info->length, info->message_got);
     /* first read length if it has not been read yet */
     if (info->length_got < 4) {
-        int n = recvfrom(sock, ((char *) &(info->length)) + info->length_got,
-                         4 - info->length_got, 0, NULL, NULL);
+        // coerce to int to avoid compiler warning; requested length is int, so int is ok for n
+        int n = (int) recvfrom(sock, PTR(&(info->length)) + info->length_got,
+                               4 - info->length_got, 0, NULL, NULL);
         if (n <= 0) { /* error: close the socket */
             if (errno != EAGAIN && errno != EINTR) {
                 perror("recvfrom in read_whole_message getting length");
@@ -250,15 +250,16 @@ int read_whole_message(SOCKET sock, struct fds_info *info)
         }
         // done receiving length bytes
         info->length = htonl(info->length);
-        info->message = alloc_size_message(info->length);
+        info->message = o2_alloc_size_message(info->length);
         info->message_got = 0; // just to make sure
     }
 
     /* read the full message */
     if (info->message_got < info->length) {
-        int n = recvfrom(sock,
-                         ((char *) &(info->message->data)) + info->message_got,
-                         info->length - info->message_got, 0, NULL, NULL);
+        // coerce to int to avoid compiler warning; message length is int, so n can be int
+        int n = (int) recvfrom(sock,
+                               PTR(&(info->message->data)) + info->message_got,
+                               info->length - info->message_got, 0, NULL, NULL);
         if (n <= 0) {
             if (errno != EAGAIN && errno != EINTR) {
                 perror("recvfrom in read_whole_message getting data");
@@ -318,8 +319,9 @@ void tcp_initial_handler(SOCKET sock, struct fds_info *info)
     ptr = WORD_ALIGN_PTR(ptr + 7) + 1; // skip over the ','
     o2_discovery_init_handler(info->message, ptr, NULL, 0, info);
     info->handler = &tcp_recv_handler;
+    // coerce to int to avoid compiler warning; o2 messages can't be that long
     info->u.process_info->tcp_fd_index =
-        info - (struct fds_info *) (o2_fds_info.array);
+            (int) (info - (struct fds_info *) (o2_fds_info.array));
     // printf("%s: tcp_initial_handler completed for %s\n", debug_prefix,
     //       info->u.process_info->name);
     // since we called o2_discovery_init_handler directly,
@@ -358,9 +360,9 @@ int make_udp_recv_socket(int tag, int port)
     int err;
     if ((err = bind_recv_socket(sock, &port, FALSE))) {
 #ifndef WIN32
-		close(sock);
+        close(sock);
 #else
-		closesocket(sock);
+        closesocket(sock);
 #endif
         return err;
     }
@@ -517,103 +519,103 @@ int o2_recv()
 
 static struct sockaddr *dupaddr(const sockaddr_gen * src)
 {
-	sockaddr_gen * d = malloc(sizeof(*d));
-	if (d) {
-		memcpy(d, src, sizeof(*d));
-	}
-	return (struct sockaddr *) d;
+    sockaddr_gen * d = malloc(sizeof(*d));
+    if (d) {
+        memcpy(d, src, sizeof(*d));
+    }
+    return (struct sockaddr *) d;
 }
 
 int getifaddrs(struct ifaddrs **ifpp)
 {
-	SOCKET sock = INVALID_SOCKET;
-	size_t intarray_len = 8192;
-	int ret = -1;
-	INTERFACE_INFO *intarray = NULL;
+    SOCKET sock = INVALID_SOCKET;
+    size_t intarray_len = 8192;
+    int ret = -1;
+    INTERFACE_INFO *intarray = NULL;
 
-	*ifpp = NULL;
+    *ifpp = NULL;
 
-	sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sock == INVALID_SOCKET)
-		return -1;
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock == INVALID_SOCKET)
+        return -1;
 
-	for (;;) {
-		DWORD cbret = 0;
+    for (;;) {
+        DWORD cbret = 0;
 
-		intarray = malloc(intarray_len);
-		if (!intarray)
-			break;
+        intarray = malloc(intarray_len);
+        if (!intarray)
+            break;
 
-		ZeroMemory(intarray, intarray_len);
+        ZeroMemory(intarray, intarray_len);
 
-		if (WSAIoctl(sock, SIO_GET_INTERFACE_LIST, NULL, 0,
-			(LPVOID)intarray, (DWORD)intarray_len, &cbret,
-			NULL, NULL) == 0) {
-			intarray_len = cbret;
-			break;
-		}
+        if (WSAIoctl(sock, SIO_GET_INTERFACE_LIST, NULL, 0,
+            (LPVOID)intarray, (DWORD)intarray_len, &cbret,
+            NULL, NULL) == 0) {
+            intarray_len = cbret;
+            break;
+        }
 
-		free(intarray);
-		intarray = NULL;
+        free(intarray);
+        intarray = NULL;
 
-		if (WSAGetLastError() == WSAEFAULT && cbret > intarray_len) {
-			intarray_len = cbret;
-		}
-		else {
-			break;
-		}
-	}
+        if (WSAGetLastError() == WSAEFAULT && cbret > intarray_len) {
+            intarray_len = cbret;
+        }
+        else {
+            break;
+        }
+    }
 
-	if (!intarray)
-		goto _exit;
+    if (!intarray)
+        goto _exit;
 
-	/* intarray is an array of INTERFACE_INFO structures.  intarray_len has the
-	actual size of the buffer.  The number of elements is
-	intarray_len/sizeof(INTERFACE_INFO) */
+    /* intarray is an array of INTERFACE_INFO structures.  intarray_len has the
+    actual size of the buffer.  The number of elements is
+    intarray_len/sizeof(INTERFACE_INFO) */
 
-	{
-		size_t n = intarray_len / sizeof(INTERFACE_INFO);
-		size_t i;
+    {
+        size_t n = intarray_len / sizeof(INTERFACE_INFO);
+        size_t i;
 
-		for (i = 0; i < n; i++) {
-			struct ifaddrs *ifp;
+        for (i = 0; i < n; i++) {
+            struct ifaddrs *ifp;
 
-			ifp = malloc(sizeof(*ifp));
-			if (ifp == NULL)
-				break;
+            ifp = malloc(sizeof(*ifp));
+            if (ifp == NULL)
+                break;
 
-			ZeroMemory(ifp, sizeof(*ifp));
+            ZeroMemory(ifp, sizeof(*ifp));
 
-			ifp->ifa_next = NULL;
-			ifp->ifa_name = NULL;
-			ifp->ifa_flags = intarray[i].iiFlags;
-			ifp->ifa_addr = dupaddr(&intarray[i].iiAddress);
-			ifp->ifa_netmask = dupaddr(&intarray[i].iiNetmask);
-			ifp->ifa_broadaddr = dupaddr(&intarray[i].iiBroadcastAddress);
-			ifp->ifa_data = NULL;
+            ifp->ifa_next = NULL;
+            ifp->ifa_name = NULL;
+            ifp->ifa_flags = intarray[i].iiFlags;
+            ifp->ifa_addr = dupaddr(&intarray[i].iiAddress);
+            ifp->ifa_netmask = dupaddr(&intarray[i].iiNetmask);
+            ifp->ifa_broadaddr = dupaddr(&intarray[i].iiBroadcastAddress);
+            ifp->ifa_data = NULL;
 
-			*ifpp = ifp;
-			ifpp = &ifp->ifa_next;
-		}
+            *ifpp = ifp;
+            ifpp = &ifp->ifa_next;
+        }
 
-		if (i == n)
-			ret = 0;
-	}
+        if (i == n)
+            ret = 0;
+    }
 
 _exit:
 
-	if (sock != INVALID_SOCKET)
-		closesocket(sock);
+    if (sock != INVALID_SOCKET)
+        closesocket(sock);
 
-	if (intarray)
-		free(intarray);
+    if (intarray)
+        free(intarray);
 
-	return ret;
+    return ret;
 }
 
 void freeifaddrs(struct ifaddrs *ifp)
 {
-	free(ifp);
+    free(ifp);
 }
 
 #else  // Use poll function to receive messages.
@@ -623,17 +625,19 @@ int o2_recv()
     int i;
         
     poll((struct pollfd *) o2_fds.array, o2_fds.length, 0);
-    
-    for (i = 0; i < o2_fds.length; i++) {
+    int len = o2_fds.length; // length can grow while we're looping!
+    for (i = 0; i < len; i++) {
         struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
-        // printf("%p:%x ", d, d->revents);
+        // if (d->revents) printf("%d:%p:%x ", i, d, d->revents);
         if (d->revents & POLLERR) {
             printf("d->revents & POLLERR %d, d->revents & POLLHUP %d\n",
                    d->revents & POLLERR, d->revents & POLLHUP);
         } else if (d->revents & POLLHUP) {
             fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
+            // info->delete_flag = TRUE;
             o2_remove_remote_process(info->u.process_info);
-            i--; // we moved last into i, so look at i again
+            i--; // we moved last array elements to i, so visit i again
+            len--; // length gets smaller when we remove an element
         } else if (d->revents) {
             fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
             assert(info->length_got < 5);

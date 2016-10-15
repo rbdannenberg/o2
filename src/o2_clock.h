@@ -1,6 +1,6 @@
 // o2_clock.h -- header for internally shared clock declarations
 
-int o2_clock_is_synchronized;
+extern int o2_clock_is_synchronized;
 
 void o2_time_init();
 

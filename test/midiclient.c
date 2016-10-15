@@ -23,7 +23,7 @@ int msg_count = 0;
 
 int main(int argc, const char * argv[])
 {
-    o2_debug = 2;
+    o2_debug = 3;
     
     /* establish non-blocking input so we can "type" some notes */
     IOsetup(0); // inputfd: 0 means stdin

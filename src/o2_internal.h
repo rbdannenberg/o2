@@ -34,10 +34,12 @@
 #define O2_DB(x) if (o2_debug) { (x); }
 #define O2_DB2(x) if (o2_debug > 1) { (x); }
 #define O2_DB3(x) if (o2_debug > 2) { (x); }
+#define O2_DB4(x) if (o2_debug > 3) { (x); }
 #else
 #define O2_DB(x)
 #define O2_DB2(x)
 #define O2_DB3(x)
+#define O2_DB4(x)
 #endif
 
 // define IS_BIG_ENDIAN, IS_LITTLE_ENDIAN, and swap64(i),
@@ -130,14 +132,14 @@ static O2_INLINE uint64_t o2_hn64(uint64_t x)
 #undef O2_INLINE
 #endif
 
-// types
+// macro to make a byte pointer
+#define PTR(addr) ((char *) (addr))
 
 /// how many bytes are used by next and length fields before data and by
 /// 4 bytes of zero pad after the data?
 
-#define MESSAGE_EXTRA ((((char *) &((o2_message_ptr) 0)->data.timestamp) - \
-                        ((char *) &((o2_message_ptr) 0)->next)) + \
-                       4)
+#define MESSAGE_EXTRA ((PTR(&((o2_message_ptr) 0)->data.timestamp) - \
+                        PTR(&((o2_message_ptr) 0)->next)) + 4)
 
 /// how big should whole o2_message be to leave len bytes for the data part?
 #define MESSAGE_SIZE_FROM_ALLOCATED(len) ((len) + MESSAGE_EXTRA)
@@ -160,6 +162,8 @@ typedef struct o2_socket {
 
 // global variables
 extern process_info o2_process;
+extern o2_arg_ptr *o2_argv; // arg vector extracted by calls to o2_get_next()
+extern int o2_argc; // length of argv
 
 // shared internal functions
 
@@ -169,11 +173,6 @@ int ping(o2_message_ptr msg, const char *types,
          o2_arg_ptr *argv, int argc, void *user_data);
 
 void o2_sched_init();
-
-// used by o2_get_next() for storage when parameters are coerced.
-// Used in dispatch code (o2_search.c) to detect when coercion
-// has taken place.
-o2_arg o2_coerced_value;
 
 #endif /* O2_INTERNAL_H */
 /// \endcond

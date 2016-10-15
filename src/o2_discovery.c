@@ -100,6 +100,7 @@ int o2_discovery_init()
         perror("Create local discovery send socket");
         return O2_FAIL;
     }
+    O2_DB4(printf("local_send_sock (UDP) %d created\n", local_send_sock));
 
     // Initialize addr for local sending
     local_to_addr.sin_family = AF_INET;
@@ -191,14 +192,15 @@ int o2_discovery_msg_init()
         o2_add_string(o2_local_ip) ||
         o2_add_int32(o2_local_tcp_port) ||
         o2_add_int32(broadcast_recv_port);
-    if (err) return O2_FAIL;
-    o2_message_ptr outmsg = o2_finish_message(0.0, "!_o2/dy");
-    int size = MESSAGE_SIZE_FROM_ALLOCATED(outmsg->length);
+    o2_message_ptr msg;
+    if (err || !(msg = o2_finish_message(0.0, "!_o2/dy")))
+        return O2_FAIL;
+    int size = MESSAGE_SIZE_FROM_ALLOCATED(msg->length);
     if (!((o2_discovery_msg = (o2_message_ptr) o2_malloc(size)))) {
         return O2_FAIL;
     }
-    memcpy(o2_discovery_msg, outmsg, size);
-    o2_free_message(outmsg);
+    memcpy(o2_discovery_msg, msg, size);
+    o2_free_message(msg);
     O2_DB(printf("O2: in o2_initialize,\n    name is %s, local IP is %s, \n"
             "    udp receive port is %d,\n"
             "    tcp connection port is %d,\n    broadcast recv port is %d\n",
@@ -233,8 +235,9 @@ int o2_discovery_send_handler(o2_message_ptr msg, const char *types,
     // global time. Instead, form a message and schedule it:
     int err = o2_start_send();
     if (err) return err;
-    o2_message_ptr outmsg = o2_finish_message(next_time, "!_o2/ds");
-    o2_schedule(&o2_ltsched, outmsg);
+    o2_message_ptr ds_msg = o2_finish_message(next_time, "!_o2/ds");
+    if (!ds_msg) return O2_FAIL;
+    o2_schedule(&o2_ltsched, ds_msg);
     // printf("o2_discovery_send_handler next time %g\n", next_time);
     return O2_SUCCESS;
 }
@@ -253,9 +256,9 @@ int o2_send_init(process_info_ptr process)
     if (err) return err;
     char address[32];
     snprintf(address, 32, "!%s/in", process->name);
-    o2_message_ptr initmsg = o2_finish_message(0.0, address);
-
-    return send_by_tcp_to_process(process, initmsg);
+    o2_message_ptr msg = o2_finish_message(0.0, address);
+    if (!msg) return O2_FAIL;
+    return send_by_tcp_to_process(process, msg);
 }
 
 
@@ -276,7 +279,7 @@ int o2_send_services(process_info_ptr process)
         }
     }
     char address[32];
-	snprintf(address, 32, "!%s/sv", process->name);
+    snprintf(address, 32, "!%s/sv", process->name);
     return o2_finish_send_cmd(0.0, address);
 }
 
@@ -405,8 +408,9 @@ int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
         fds_info_ptr info = (fds_info_ptr) user_data;
         info->u.process_info = process;
         // printf("%s: assigning process to info->u.process_info\n", debug_prefix);
-        // compute index of info relative to the base of the o2_fds_info
-        process->tcp_fd_index = info - (fds_info_ptr) o2_fds_info.array;
+        // compute index of info relative to the base of the o2_fds_info; coerce to int
+        // to avoid compiler warning
+        process->tcp_fd_index = (int) (info - (fds_info_ptr) o2_fds_info.array);
         int err;
         if ((err = o2_send_init(process))) return err;
         if ((err = o2_send_services(process))) return err;
@@ -427,9 +431,9 @@ int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
     inet_pton(AF_INET, ip, &(process->udp_sa.sin_addr.s_addr));
     process->udp_sa.sin_port = htons(udp_port);
     // printf("%s: finished /in for %s, status %d, udp_port %d\n", debug_prefix, name, status, udp_port);
-    O2_DB(printf("O2: connected from %s (udp port %ld) to local socket %ld\n",
+    O2_DB(printf("O2: connected from %s (udp port %ld)\n    to local socket %ld process %p\n",
                  name, (long) udp_port, (long) (DA_GET(o2_fds, struct pollfd,
-                                                process->tcp_fd_index)->fd)));
+                                                process->tcp_fd_index)->fd, process)));
     return O2_SUCCESS;
 }
 

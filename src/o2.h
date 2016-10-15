@@ -138,7 +138,7 @@ Some major components and concepts of O2 are the following:
 /// information by setting o2_debug to 1 for basic connection
 /// data, 2 for tracing user messages sent and received, and 3
 /// for tracing clock-sync and (perhaps) discovery messages.
-int o2_debug;
+extern int o2_debug;
 
 /** @} */
 
@@ -172,6 +172,12 @@ int o2_debug;
 /// an error return value for o2_initialize(): invalid name parameter.
 #define O2_BAD_NAME (-6)
 
+/// an error return value for o2_add_vector(): invalid element type
+#define O2_BAD_TYPE (-7)
+
+/// \brief an error return value: mismatched types and arguments
+/// returned by o2_build_message(), o2_send(), o2_send_cmd()
+#define O2_EFORMAT (-8)
 
 // Status return codes for o2_status function:
 
@@ -252,11 +258,6 @@ int o2_debug;
 
 
 // Macros for o2 protocol
-//#ifdef WIN32
-//#define o2_send o2_send_marker
-//#define o2_send_cmd o2_send_cmd_marker
-//#define o2_send_osc_message o2_send_osc_message_marker
-//#else
 /* an internal value, ignored in transmission but check against O2_MARKER in the
  * argument list. Used to do primitive bounds checking */
 #define O2_MARKER_A (void *) 0xdeadbeefdeadbeefL
@@ -299,21 +300,21 @@ typedef double o2_time;
  *
  */
 typedef struct o2_message {
-  struct o2_message *next; ///< links used for free list and scheduler
-  int allocated;           ///< how many bytes allocated in data part
-  int length;              ///< the length of the message in data part
-  struct {
-    o2_time timestamp;   ///< the message delivery time (0 for immediate)
-    /** \brief the message address string
-     *
-     * Although this field is declared as 4 bytes, actual messages
-     * have variable length, and the address is followed by a
-     * string of type codes and the actual parameters. The length
-     * of the entire message including the timestamp is given by
-     * the `length` field.
-     */
-    char address[4];
-  } data; ///< the message (type string and payload follow address)
+    struct o2_message *next; ///< links used for free list and scheduler
+    int allocated;           ///< how many bytes allocated in data part
+    int length;              ///< the length of the message in data part
+    struct {
+        o2_time timestamp;   ///< the message delivery time (0 for immediate)
+        /** \brief the message address string
+         *
+         * Although this field is declared as 4 bytes, actual messages
+         * have variable length, and the address is followed by a
+         * string of type codes and the actual parameters. The length
+         * of the entire message including the timestamp is given by
+         * the `length` field.
+         */
+        char address[4];
+    } data; ///< the message (type string and payload follow address)
 } o2_message, *o2_message_ptr;
 
 
@@ -333,26 +334,29 @@ typedef struct o2_blob {
  *  \brief An enumeration of the O2 message types.
  */
 typedef enum {
-  // basic O2 types
-  O2_INT32 =     'i',     ///< 32 bit signed integer.
-  O2_FLOAT =     'f',     ///< 32 bit IEEE-754 float.
-  O2_STRING =    's',     ///< NULL terminated string (Standard C).
-  O2_BLOB =      'b',     ///< Binary Large OBject (BLOB) type.
-
-  // extended O2 types
-  O2_INT64 =     'h',     ///< 64 bit signed integer.
-  O2_TIME  =     't',     ///< OSC time type.
-  O2_DOUBLE =    'd',     ///< 64 bit IEEE-754 double.
-  O2_SYMBOL =    'S',     ///< Used in systems distinguish strings and symbols.
-  O2_CHAR =      'c',     ///< 8bit char variable (Standard C).
-  O2_MIDI =      'm',     ///< 4 byte MIDI packet.
-  O2_TRUE =      'T',     ///< Sybol representing the value True.
-  O2_FALSE =     'F',     ///< Sybol representing the value False.
-  O2_NIL =       'N',     ///< Sybol representing the value Nil.
-  O2_INFINITUM = 'I',     ///< Sybol representing the value Infinitum.
-
-  // O2 types
-  O2_BOOL =      'B'      ///< Boolean value returned as either 0 or 1
+    // basic O2 types
+    O2_INT32 =     'i',     ///< 32 bit signed integer.
+    O2_FLOAT =     'f',     ///< 32 bit IEEE-754 float.
+    O2_STRING =    's',     ///< NULL terminated string (Standard C).
+    O2_BLOB =      'b',     ///< Binary Large OBject (BLOB) type.
+    O2_START_ARRAY = '[',   ///< Start array or tuple
+    O2_END_ARRAY = ']',     ///< End array or tuple
+    
+    // extended O2 types
+    O2_INT64 =     'h',     ///< 64 bit signed integer.
+    O2_TIME  =     't',     ///< OSC time type.
+    O2_DOUBLE =    'd',     ///< 64 bit IEEE-754 double.
+    O2_SYMBOL =    'S',     ///< Used in systems distinguish strings and symbols.
+    O2_CHAR =      'c',     ///< 8bit char variable (Standard C).
+    O2_MIDI =      'm',     ///< 4 byte MIDI packet.
+    O2_TRUE =      'T',     ///< Sybol representing the value True.
+    O2_FALSE =     'F',     ///< Sybol representing the value False.
+    O2_NIL =       'N',     ///< Sybol representing the value Nil.
+    O2_INFINITUM = 'I',     ///< Sybol representing the value Infinitum.
+    
+    // O2 types
+    O2_BOOL =      'B',     ///< Boolean value returned as either 0 or 1
+    O2_VECTOR =    'v',     ///< Prefix to indicate a vector
 } o2_type, *o2_type_ptr;
 
 
@@ -377,25 +381,44 @@ typedef enum {
  * o2_add_method().)
  */
 typedef union {
-  int32_t    i32;  ///< 32 bit signed integer.
-  int32_t    i;    ///< an alias for i32
-  int64_t    i64;  ///< 64 bit signed integer.
-  int64_t    h;    ///< an alias for i64
-  float      f;    ///< 32 bit IEEE-754 float.
-  float      f32;  ///< an alias for f
-  double     d;    ///< 64 bit IEEE-754 double.
-  double     f64;  ///< an alias for d
-  char       s[4]; ///< Standard C, NULL terminated string.
-  /** \brief Standard C, NULL terminated, string.
-             Used in systems which distinguish strings and symbols. */
-  char       S[4];
-  int        c;    ///< Standard C, 8 bit, char, stored as int.
-  uint8_t    m[4]; ///< A 4 byte MIDI packet.
-  o2_time    t;    ///< TimeTag value.
-  o2_blob    b;    ///< a blob (unstructured bytes)
-  int32_t    B;    ///< a boolean value, either 0 or 1
+    int32_t    i32;  ///< 32 bit signed integer.
+    int32_t    i;    ///< an alias for i32
+    int64_t    i64;  ///< 64 bit signed integer.
+    int64_t    h;    ///< an alias for i64
+    float      f;    ///< 32 bit IEEE-754 float.
+    float      f32;  ///< an alias for f
+    double     d;    ///< 64 bit IEEE-754 double.
+    double     f64;  ///< an alias for d
+    char       s[4]; ///< Standard C, NULL terminated string.
+    /** \brief Standard C, NULL terminated, string.
+        Used in systems which distinguish strings and symbols. */
+    char       S[4];
+    int        c;    ///< Standard C, 8 bit, char, stored as int.
+    uint8_t    m[4]; ///< A 4 byte MIDI packet.
+    o2_time    t;    ///< TimeTag value.
+    o2_blob    b;    ///< a blob (unstructured bytes)
+    int32_t    B;    ///< a boolean value, either 0 or 1
+    struct {
+        int32_t len; ///< length of vector
+        int32_t typ; ///< type of vector elements
+        union {
+            int32_t    *vi;  ///< vector of 32-bit signed integers
+            int64_t    *vh;  ///< vector of 64-bit signed integers
+            double     *vd;  ///< vector of IEEE-754 doubles
+            float      *vf;  ///< vector of IEEE-754 floats
+            // note that a blob is basically a vector of bytes;
+            // there is no type conversion from blob to vector though,
+            // and no vector of shorts or bytes because if you converted
+            // to a vector of int64_t, it would take 8x the message
+            // space, forcing us to allocate very big buffers to
+            // unpack messages.
+        };
+    } v;
 } o2_arg, *o2_arg_ptr;
 
+
+extern o2_arg_ptr o2_got_start_array;
+extern o2_arg_ptr o2_got_end_array;
 
 /** \brief name of the application
  *
@@ -436,8 +459,18 @@ extern int o2_stop_flag;
  *             first argument of the incoming message is of type 'f' then
  *             the value will be found in argv[0]->f. (If parse_args was
  *             not set in the method creation call, argv will be NULL.)
+ *             For vectors, specified in types by the sequence "vi", "vh", 
+ *             "vf", or "vd", there will be one pointer in argv pointing to
+ *             a vector description (the v field in o2_arg). For arrays,
+ *             there are *no* pointers corresponding to '[' or ']' in the
+ *             types string; but there is one pointer in argv for each array
+ *             element.
  * @param argc The number of arguments received. (This is valid even if
- *             parse_args was not set in the method creation call.)
+ *             parse_args was not set in the method creation call.) This is
+ *             the length of argv. Vectors count as one, array elements count
+ *             as one each, and arrays themselves are not represented. For
+ *             example, an empty array ("[]") in the type string adds
+ *             nothing to the argc count or argv vector.
  * @param user_data This contains the user_data value passed in the call
  *             to the method creation call.
  * @return O2_SUCCESS (0) indicates that the message was succesfully
@@ -693,8 +726,8 @@ int o2_set_clock(o2_time_callback gettime, void *rock);
  *
  */
 /** \hideinitializer */ // turn off Doxygen report on o2_send_marker()
-#define o2_send(path, time, typestring, ...) \
-    o2_send_marker(path, time, FALSE, typestring, __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
+#define o2_send(path, time, ...) \
+    o2_send_marker(path, time, FALSE, __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
 /** \cond INTERNAL */ \
 int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...);
@@ -873,19 +906,87 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * o2_start_extract() to prepare to get parameters from the
  * message. Then call o2_get_next() to get each parameter. If the
  * result is non-null, a parameter of the requested type was obtained
- * and you can read the parameter from the result. Scalar results are only
- * valid until the next call to o2_get_next(), so you should use or
- * copy the value before reading the next one. String values are
- * always in the message and have the same lifetime as the
- * message. o2_get_next() will perform type conversion if possible
+ * and you can read the parameter from the result. Results other than
+ * strings, MIDI, and blobs may only remain valid until the next call
+ * to o2_get_next(), so you should use or copy the value before reading
+ * the next one. Values that are not coerced (requiring a copy) are 
+ * left in the O2 message and have the same lifetime as the message.
+ * You should not reuse this storage because the message may have
+ * multiple destinations; thus, the message content should not be altered.
+ *
+ * A by-product of o2_start_extract() and o2_get_next() is an argument
+ * vector (argv) that can be accessed from o2_argv. (This is the same
+ * argument vector created automatically when a handler is added with
+ * o2_add_method() when the parse parameter is true.) A possible
+ * advantage of using a sequence of o2_get_next() calls rather than
+ * simply setting the parse flag is that you can receive messages with
+ * various types and numbers of parameters. Also, you can check vector
+ * lengths and stop parsing if unacceptable lengths are encountered.
+ * 
+ * o2_get_next() will perform type conversion if possible
  * when the requested type does not match the actual type. You can
  * determine the original type by reading the type string in the
  * message. The number of parameters is determined by the length of
- * the type string. Normally, you should not free the message because
+ * the type string. Vectors can be coerced into arrays, in which case
+ * each element will be coerced as requested. Arrays can be coerced 
+ * into vectors if each element of the array can be coerced into
+ * the expected vector element type. Vector lengths are provided by
+ * the message; there is no way to coerce or limit vector lengths or
+ * check that the length matches an expected value. (You can determine
+ * the length from the return value and of course you can decide to
+ * reject the message if the length is not acceptable.)
+ *
+ * Normally, you should not free the message because
  * normally you are accessing the message in a handler and the message
  * will be freed by the O2 message dispatch code that called the
  * handler.
+ *
+ * Arrays denoted by [...] in the type string are handled in a somewhat
+ * special way:
+ *
+ * If an array is expected, call o2_get_next('['). The return value will be
+ * o2_got_start_array on success, or NULL if there is no array. The actual
+ * value in the message may be an array or a vector. If it is a vector, the
+ * elements of the vector will be coerced to the types requested in 
+ * successive calls to o2_get_next(). After retrieving array elements, call
+ * o2_get_next(']'). The return value should be o2_got_end_array. NULL is
+ * returned if there is an error. For example, suppose you call o2_get_next()
+ * with characters from the type string "[id]" and the actual parameter is
+ * a vector integers ("vi") of length 2. The return values from o2_get_next()
+ * will be o2_got_start_array, an o2_arg_ptr to an integer, an o2_arg_ptr to
+ * a double (coerced from the integer vector), and finally o2_got_end_array.
+ * If the vector length is 1, the third return value will be NULL. If the
+ * vector length is 3 (or more), the fourth return value will be NULL rather
+ * than o2_got_end_array.
+ *
+ * The special values o2_got_start_array and o2_got_end_array are not valid
+ * structures. In other words, fields such as o2_got_start_array->i32 are 
+ * never valid or meaningful. Instead, o2_got_start_array and o2_got_end_array
+ * are just 'tokens' used to indicate success in type checking. These values
+ * are distinct from NULL, which indicates a type incompatibility.
+ *
+ * Note also that vector elements cannot be retrieved directly without
+ * calling o2_get_next('v') or o2_get_next('['). For example, if the actual
+ * argument is a two-element integer vector ("vi"), a call to o2_get_next('i')
+ * will fail unless it is preceded by o2_get_next('v') or o2_get_next('[').
+ *
+ * If a vector is expected, call o2_get_next('v'). The return value will
+ * be a non-null o2_arg_ptr if the next argument in the actual message 
+ * is a vector or array, and otherwise NULL. You should not dereference this
+ * return value yet...
+ *
+ * You *must* then call o2_get_next() with the desired type for vector 
+ * elements. The return value will be an o2_arg_ptr (which will be
+ * the same value previously returned) containing v.typ set to 
+ * the desired type, v.len still set to the number of elements, and v.vi,
+ * v.vh, v.vd, v.vf, or v.vc pointing to the possibly coerced elements.
+ *
+ * Note that the sequence of calling o2_get_next() twice for vectors
+ * corresponds to the two type characters used to encode them, e.g. "vi"
+ * indicates a vector of integers.
+ *
  */
+
 
 /** \addtogroup lowlevelsend
  * @{
@@ -924,21 +1025,23 @@ o2_blob_ptr o2_blob_new(uint32_t size);
  */
 int o2_start_send();
 
-/// \brief add an `int32` to the message (see o2_start_send())
-int o2_add_int32(int32_t i);
 
 /// \brief add a `float` to the message (see o2_start_send())
 int o2_add_float(float f);
 
+/// \brief This function suppports o2_add_symbol() and o2_add_string()
+/// Normally, you should not call this directly.
+int o2_add_string_or_symbol(o2_type tcode, char *s);
+
 /// \brief add a symbol to the message (see o2_start_send())
-int o2_add_symbol(char *s);
+#define o2_add_symbol(s) o2_add_string_or_symbol('S', s)
 
 /// \brief add a string to the message (see o2_start_send())
-int o2_add_string(char *s);
+#define o2_add_string(s) o2_add_string_or_symbol('s', s)
 
 /// \brief add an `o2_blob` to the message (see o2_start_send()), where
 ///        the blob is given as a pointer to an #o2_blob object.
-int o2_add_blob(o2_blob *b);
+int o2_add_blob(o2_blob_ptr b);
 
 /// \brief add an `o2_blob` to the message (see o2_start_send()), where
 ///        the blob is specified by a size and a data address.
@@ -947,32 +1050,65 @@ int o2_add_blob_data(uint32_t size, void *data);
 /// \brief add an `int64` to the message (see o2_start_send())
 int o2_add_int64(int64_t i);
 
-/// \brief add a time (`double`) to the message (see o2_start_send())
-int o2_add_time(o2_time t);
+/// \brief This function supports o2_add_double() and o2_add_time()
+/// Normally, you should not call this directly.
+int o2_add_double_or_time(o2_type tchar, double d);
 
 /// \brief add a `double` to the message (see o2_start_send())
-int o2_add_double(double d);
+#define o2_add_double(d) o2_add_double_or_time('d', d)
+
+/// \brief add a time (`double`) to the message (see o2_start_send())
+#define o2_add_time(t) o2_add_double_or_time('t', t)
+
+/// \brief This function supports o2_add_int32() and o2_add_char()
+/// Normally, you should not call this directly.
+int o2_add_int32_or_char(o2_type tcode, int32_t i);
+
+/// \brief add an `int32` to the message (see o2_start_send())
+#define o2_add_int32(i) o2_add_int32_or_char('i', i)
 
 /// \brief add a `char` to the message (see o2_start_send())
-int o2_add_char(char c);
+#define o2_add_char(c) o2_add_int32_or_char('c', c)
 
 /// \brief add a short midi message to the message (see o2_start_send())
 int o2_add_midi(uint8_t *m);
 
+/// \brief This function supports o2_add_true(), o2_add_false(), o2_add_bool(),
+/// o2_add_nil(), o2_add_infinitum(), and others.
+/// Normally, you should not call this directly.
+int o2_add_only_typecode(o2_type typecode);
+
 /// \brief add "true" to the message (see o2_start_send())
-int o2_add_true();
+#define o2_add_true(b) o2_add_only_typecode(b, 'T');
 
 /// \brief add a "false" to the message (see o2_start_send())
-int o2_add_false();
+#define o2_add_false(b) o2_add_only_typecode(b, 'F');
 
 /// \brief add 0 (false) or 1 (true) to the message (see o2_start_send())
-int o2_add_bool(int i);
+#define o2_add_bool(b, x) o2_add_only_typecode(b, (x ? 'T' : 'F'));
 
 /// \brief add "nil" to the message (see o2_start_send())
-int o2_add_nil();
+#define o2_add_nil(b) o2_add_only_typecode(b, 'N');
 
 /// \brief add "infinitum" to the message (see o2_start_send())
-int o2_add_infinitum();
+#define o2_add_infinitum(b) o2_add_only_typecode(b, 'I');
+
+/// \brief start adding an array
+int o2_add_start_array();
+
+/// \brief finish adding an array
+int o2_add_end_array();
+
+/** \brief add a vector
+ *
+ * @param element_type the type of the vector elements
+ * @param length the number of vector elements
+ * @param data the vector elements; arranged sequentially in memory
+ *             in a format determined by element_type. The element
+ *             type is restricted to a character in "ifhtdc"
+ */
+int o2_add_vector(o2_type element_type,
+                  int length, void *data);
 
 /**
  * \brief finish and return the message.
@@ -985,7 +1121,24 @@ int o2_add_infinitum();
  * The message must be freed using o2_free_message() or by calling
  * o2_send_message().
  */
-o2_message_ptr o2_finish_message(o2_time time, char *address);
+o2_message_ptr o2_finish_message(o2_time time, const char *address);
+
+/**
+ * \brief finish and return a message, prepending service name
+ *
+ * @param time the timestamp for the message (0 for immediate)
+ * @param service a string to prepend to address or NULL
+ * @param address the O2 address pattern for the message
+ *
+ * @return the address of the completed message, or NULL on error
+ *
+ * The message must be freed using o2_free_message() or by calling
+ * o2_send_message(). This function is intended to be used to 
+ * forward OSC messages to a service, but it is the implementation
+ * of o2_finish_message(), which simply passes NULL for service.
+ */
+o2_message_ptr o2_finish_service_message(o2_time time,
+             const char *service, const char *address);
 
 /**
  * \brief free a message allocated by o2_start_send().
@@ -994,6 +1147,7 @@ o2_message_ptr o2_finish_message(o2_time time, char *address);
  * messages take "ownership" of messages and (eventually) free them.
  */
 void o2_free_message(o2_message_ptr msg);
+
 
 /**
  * \brief send a message allocated by o2_start_send().
@@ -1040,7 +1194,7 @@ int o2_finish_send_cmd(o2_time time, char *address);
  * \brief initialize internal state to parse, extract, and coerce
  * message arguments.
  *
- * @return #O2_SUCCESS if success, #O2_FAIL if not.
+ * @return length of the type string in msg
  *
  * To get arguments from a message, call o2_start_extract(), then for
  * each parameter, call o2_get_next().
