@@ -18,7 +18,7 @@
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <windows.h>
-// #include <errno.h>
+#include <errno.h>
 #else
 #include "sys/ioctl.h"
 #include <ifaddrs.h>
