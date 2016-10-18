@@ -25,7 +25,7 @@ int client_test(o2_message_ptr data, const char *types,
 {
     o2_send_cmd(server_addresses[msg_count % N_ADDRS], 0, "i", msg_count);
     if (msg_count % 10000 == 0) {
-        printf("client received %d messages\n", msg_count);
+        printf("client x %d messages\n", msg_count);
     }
     msg_count++;
     return O2_SUCCESS;

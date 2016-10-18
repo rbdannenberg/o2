@@ -337,8 +337,8 @@ int o2_finish()
     DA_FINISH(o2_fds);
     DA_FINISH(o2_fds_info);
     
-    free_node(&path_tree_table);
-    free_node(&master_table);
+    o2_finalize_node(&path_tree_table);
+    o2_finalize_node(&master_table);
     
     o2_finish_argv();
 

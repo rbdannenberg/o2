@@ -24,6 +24,9 @@ size_t strlcpy(char *dst, const char *src, size_t size)
 }
 #endif
 
+void free_entry(generic_entry_ptr entry);
+
+
 void enumerate_begin(enumerate *enumerator, dyn_array_ptr dict)
 {
     enumerator->dict = dict;
@@ -318,7 +321,7 @@ generic_entry_ptr *lookup(node_entry_ptr node, const char *key, int *index)
 }
 
 
-void free_node(node_entry_ptr node)
+void o2_finalize_node(node_entry_ptr node)
 {
     for (int i = 0; i < node->children.length; i++) {
         generic_entry_ptr e = *DA_GET(node->children, generic_entry_ptr, i);
@@ -329,6 +332,12 @@ void free_node(node_entry_ptr node)
         }
     }
     O2_FREE(node->key);
+}
+
+
+void free_node(node_entry_ptr node)
+{
+    o2_finalize_node(node);
     O2_FREE(node);
 }
 
@@ -354,7 +363,8 @@ void free_node(node_entry_ptr node)
 void free_entry(generic_entry_ptr entry)
 {
     if (entry->tag == PATTERN_NODE) {
-        return free_node((node_entry_ptr) entry);
+        free_node((node_entry_ptr) entry);
+        return;
     } else if (entry->tag == PATTERN_HANDLER) {
         handler_entry_ptr handler = (handler_entry_ptr) entry;
         // if we remove a leaf node from the tree, remove the

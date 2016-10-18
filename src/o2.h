@@ -940,6 +940,16 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * the length from the return value and of course you can decide to
  * reject the message if the length is not acceptable.)
  *
+ * When the actual type code in the message is in "TFIN" you should
+ * call o2_get_next() even though there is no corresponding data
+ * stored in the message. The return value, if successful, is a
+ * non-NULL pointer that points within or just after the message, but
+ * you must not dereference this pointer. (NULL indicates failure as
+ * with other type codes. One rationale for calling o2_get_next()
+ * even when there is nothing to "get" is that you can call
+ * o2_get_next('B') to retrieve 'T', 'F', or 'B' types as an int32_t
+ * which is 0 or 1. The 'I' and 'N' types are never coerced.
+ *
  * Normally, you should not free the message because
  * normally you are accessing the message in a handler and the message
  * will be freed by the O2 message dispatch code that called the
@@ -1083,19 +1093,19 @@ int o2_add_midi(uint8_t *m);
 int o2_add_only_typecode(o2_type typecode);
 
 /// \brief add "true" to the message (see o2_start_send())
-#define o2_add_true(b) o2_add_only_typecode(b, 'T');
+#define o2_add_true() o2_add_only_typecode('T');
 
 /// \brief add a "false" to the message (see o2_start_send())
-#define o2_add_false(b) o2_add_only_typecode(b, 'F');
+#define o2_add_false() o2_add_only_typecode('F');
 
 /// \brief add 0 (false) or 1 (true) to the message (see o2_start_send())
-#define o2_add_bool(b, x) o2_add_only_typecode(b, (x ? 'T' : 'F'));
+#define o2_add_bool(x) o2_add_int32_or_char('B', x != 0)
 
 /// \brief add "nil" to the message (see o2_start_send())
-#define o2_add_nil(b) o2_add_only_typecode(b, 'N');
+#define o2_add_nil() o2_add_only_typecode('N');
 
 /// \brief add "infinitum" to the message (see o2_start_send())
-#define o2_add_infinitum(b) o2_add_only_typecode(b, 'I');
+#define o2_add_infinitum() o2_add_only_typecode('I');
 
 /// \brief start adding an array
 int o2_add_start_array();
@@ -1226,10 +1236,9 @@ int o2_start_extract(o2_message_ptr msg);
  * way to detect errors in type strings.)
  *
  * The result points into the message or to a statically allocated
- * buffer if type coercion is required. This storage is only valid
- * until the next call to o2_get_next, so normally, you copy
- * the return value immediately. If the value is a pointer
- * (string, symbol, midi data, blob), then the value was
+ * buffer if type coercion is required. This storage is valid
+ * until the next call to `o2_start_extract`. If the value is a 
+ * pointer (string, symbol, midi data, blob), then the value was
  * not copied and remains in place within the message, so there should
  * never be the need to immediately copy the data pointed to.
  * However, since the storage for the value is the message, and

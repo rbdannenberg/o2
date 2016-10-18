@@ -45,10 +45,14 @@ set(LIBRARIES o2_static ${EXTRA_LIBS} CACHE INTERNAL "")
 
 # EXECUTABLE
 # Create executables 
-add_executable(dispatchtest test/dispatchtest.c) 
-target_include_directories(dispatchtest PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+add_executable(dispatchtest test/dispatchtest.c)  
+target_include_directories(dispatchtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(dispatchtest ${LIBRARIES}) 
-
+ 
+add_executable(typestest test/typestest.c)  
+target_include_directories(typestest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(typestest ${LIBRARIES}) 
+ 
 add_executable(o2client test/o2client.c) 
 target_include_directories(o2client PRIVATE ${CMAKE_SOURCE_DIR}/src) 
 target_link_libraries(o2client ${LIBRARIES}) 

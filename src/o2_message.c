@@ -704,16 +704,21 @@ int o2_build_message(o2_message_ptr *msg, o2_time timestamp, const char *service
           case O2_MIDI:
             o2_add_midi(va_arg(ap, uint8_t *));
             break;
+        
+          case O2_BOOL:
+            o2_add_bool(va_arg(ap, int));
+            break;
 
           case O2_TRUE:
           case O2_FALSE:
           case O2_NIL:
           case O2_INFINITUM:
+            o2_add_type(typestring[-1]);
             break;
 
             // fall through to unknown type
           default: {
-            fprintf(stderr, "o2 warning: unknown type '%c'", *(typestring - 1));
+            fprintf(stderr, "o2 warning: unknown type '%c'\n", *(typestring - 1));
             break;
           }
         }
@@ -834,6 +839,12 @@ o2_arg_ptr convert_int(char to_type, int64_t i, int siz)
       case O2_BOOL:
         ARG_DATA(rslt, int32_t, i != 0);
         break;
+      case O2_TRUE:
+        if (!i) rslt = NULL;
+        break;
+      case O2_FALSE:
+        if (i) rslt = NULL;
+        break;
       default:
         return NULL;
     }
@@ -861,6 +872,12 @@ o2_arg_ptr convert_float(char to_type, double d, int siz)
       case O2_BOOL:
         ARG_DATA(rslt, int32_t, d != 0.0);
         break;
+      case O2_TRUE:
+        if (d == 0.0) rslt = NULL;
+        break;
+      case O2_FALSE:
+        if (d != 0.0) rslt = NULL;
+        break;
       default:
         return NULL;
     }
@@ -868,13 +885,9 @@ o2_arg_ptr convert_float(char to_type, double d, int siz)
 }
 
 
-// create special return values for o2_get_next
-static int32_t sa;
-static int32_t se;
-// These pointer should not be dereferenced; they act as 'tokens'
-// so that we can return special values.
-o2_arg_ptr o2_got_start_array = (o2_arg_ptr) &sa;
-o2_arg_ptr o2_got_end_array = (o2_arg_ptr) &se;
+static o2_arg ea, sa;
+o2_arg_ptr o2_got_end_array = &ea;
+o2_arg_ptr o2_got_start_array = &sa;
 
 
 /// get the next argument from the message. If the to_type
@@ -1034,10 +1047,14 @@ o2_arg_ptr o2_get_next(char to_type)
             mx_data_next += sizeof(int32_t);
             break;
           case O2_TRUE:
-            rslt = convert_int(to_type, 1, sizeof(int32_t));
+            if (to_type != O2_TRUE) {
+                rslt = convert_int(to_type, 1, sizeof(int32_t));
             break;
+            }
           case O2_FALSE:
-            rslt = convert_int(to_type, 0, sizeof(int32_t));
+            if (to_type != O2_TRUE) {
+              rslt = convert_int(to_type, 0, sizeof(int32_t));
+            }
             break;
           case O2_BOOL:
             if (to_type != O2_BOOL) {
@@ -1091,6 +1108,9 @@ o2_arg_ptr o2_get_next(char to_type)
             break;
           case O2_NIL:
           case O2_INFINITUM:
+            if (to_type != mx_type_next[-1]) {
+                rslt = NULL;
+            }
             break;
           case O2_START_ARRAY:
             if (to_type == O2_START_ARRAY) {

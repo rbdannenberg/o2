@@ -209,9 +209,7 @@ int add_remote_service(process_info_ptr process, const char *service);
 node_entry_ptr tree_insert_node(node_entry_ptr node, char *key);
 
 
-void free_node(node_entry_ptr node);
-
-void free_entry(generic_entry_ptr entry);
+void o2_finalize_node(node_entry_ptr node);
 
 
 int add_local_osc(const char *path, int port, int sid);

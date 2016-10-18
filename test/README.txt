@@ -22,3 +22,21 @@ tcpserver.c   run on an unreliable network. These programs do the
 tcppollclient.c - development code exercising poll() to get messages
 tcppollserver.c
 
+midiclient.c - read keys from console and send MIDI via O2 to a server
+midiserver.c   that relays the messages to MIDI using PortMIDI.
+
+dispatchtest.c - test for simple message construction and dispatch
+
+TODO:
+
+typestest.c - send short messages of all types except vectors and
+              arrays.
+
+coercetest.c - send short messages of all types and try all type
+               coercions
+
+longtest.c - send long messages to force special allocation
+
+arraytest.c - send arrays and vectors, receive them with all possible
+              coercions.
+
