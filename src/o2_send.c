@@ -15,9 +15,8 @@
 #include "o2_send.h"
 #include "o2_sched.h"
 #include "o2_message.h"
-#ifndef WIN32
 #include <errno.h>
-#endif
+
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
