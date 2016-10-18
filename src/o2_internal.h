@@ -25,7 +25,8 @@
 // OS X and Linux call it "snprintf":
 #define snprintf _snprintf
 #define index strchr
-
+#define ioctl ioctlsocket
+#define close closesocket
 #endif   // WIN32
 
 #include "o2_error.h"
