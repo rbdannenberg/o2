@@ -62,7 +62,6 @@
 #include "o2_internal.h"
 #include "o2_message.h"
 #include "o2_discovery.h"
-#include <string.h>
 
 // --------- PART 1 : SCRATCH AREAS FOR MESSAGE CONSTRUCTION --------
 // Construct messages by writing type string to msg_types and data to
@@ -292,11 +291,7 @@ int o2_add_midi(uint8_t *m)
 
 int o2_add_vector(o2_type element_type, int32_t length, void *data)
 {
-#ifndef WIN32
     if (!index("ihfdt", element_type)) {
-#else
-	if (!strchr("ihfdt", element_type)) {
-#endif	
         return O2_BAD_TYPE;
     }
     int size = (element_type == 'd' || element_type == 't') ?

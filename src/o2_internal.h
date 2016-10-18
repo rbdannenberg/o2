@@ -24,6 +24,7 @@
 
 // OS X and Linux call it "snprintf":
 #define snprintf _snprintf
+#define index strchr
 
 #endif   // WIN32
 
