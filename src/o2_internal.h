@@ -15,6 +15,7 @@
 
 /** Note: No struct literals in MSVC. */
 #ifdef _MSC_VER
+
 #ifndef USE_ANSI_C
 #define USE_ANSI_C
 #endif
@@ -25,9 +26,13 @@
 // OS X and Linux call it "snprintf":
 #define snprintf _snprintf
 #define index strchr
-#define ioctl ioctlsocket
-#define close closesocket
-#endif   // WIN32
+
+#else    // Linux or OS X
+
+#define ioctlsocket ioctl
+#define closesocket close
+
+#endif   // _MSC_VER
 
 #include "o2_error.h"
 

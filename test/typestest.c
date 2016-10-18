@@ -212,7 +212,7 @@ int service_many(const o2_message_ptr data, const char *types,
     arg = o2_get_next('B');
     assert(arg->B == TRUE);
     arg = o2_get_next('h');
-    assert(arg->h == 12345);
+    assert(arg->h == 12345LL);
     arg = o2_get_next('f');
     assert(arg->f == 1234.5);
     arg = o2_get_next('d');
@@ -284,7 +284,7 @@ int main(int argc, const char * argv[])
     send_the_message();
     o2_send("/one/B", 0, "B", TRUE);
     send_the_message();
-    o2_send("/one/h", 0, "h", 12345);
+    o2_send("/one/h", 0, "h", 12345LL);
     send_the_message();
     o2_send("/one/f", 0, "f", 1234.5);
     send_the_message();
@@ -308,7 +308,7 @@ int main(int argc, const char * argv[])
     send_the_message();
     o2_send("/one/N", 0, "N");
     send_the_message();
-    o2_send("/one/many", 0, "icBhfdtsSbmTFINi", 1234, 'Q', TRUE, 12345,
+    o2_send("/one/many", 0, "icBhfdtsSbmTFINi", 1234, 'Q', TRUE, 12345LL,
             1234.5, 1234.56, 1234.567, "1234", "123456",
             a_blob, &(a_midi_msg[0]), 1234);
     send_the_message();
