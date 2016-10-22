@@ -1,4 +1,4 @@
-//  dispatchtest.c -- dispatch messages between local services
+//  typestest.c -- send messages of all (but vector and array) types
 //
 
 #include <stdio.h>
