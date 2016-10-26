@@ -239,8 +239,7 @@ int main(int argc, const char * argv[])
 		o2_send("/one/F", 0, send_char[current_send], 0.0);
 		send_the_message();
 	}
-	int a;
-	scanf("%d", &a);
+
     printf("DONE\n");
     o2_finish();
     return 0;
