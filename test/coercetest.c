@@ -14,7 +14,7 @@ int got_the_message = FALSE;
 o2_blob_ptr a_blob;
 char a_midi_msg[4];
 char* send_char[5] = {"i","h","f","d","t"};
-int current_send = 0;//change this to change the sended string 
+int current_send = 1;//change this to change the sended string 
 
 // receive float as int
 int service_i(const o2_message_ptr data, const char *types,
@@ -24,7 +24,7 @@ int service_i(const o2_message_ptr data, const char *types,
     assert(strcmp(types, send_char[current_send]) == 0);
     o2_arg_ptr arg = o2_get_next('i');
     assert(arg);
-    if(arg->i != 1234)
+    if(arg->i != 12345)
         printf("error:send:%s    service_i  arg->i=%d\n", send_char[current_send], arg->i);
     //assert(arg->i == 1234);
     printf("service_i types=%s int=%d\n", types, arg->i);
@@ -58,7 +58,7 @@ int service_h(const o2_message_ptr data, const char *types,
     assert(strcmp(types, send_char[current_send]) == 0);
     o2_arg_ptr arg = o2_get_next('h');
     assert(arg);
-    if(arg->h != 12345)
+    if(arg->h != 12345LL)
         printf("error:send:%s    service_h  arg->h=%d\n", send_char[current_send], arg->h);
     //assert(arg->h == 12345);
     printf("service_h types=%s int64=%ld\n", types, arg->h);
@@ -186,13 +186,13 @@ int main(int argc, const char * argv[])
         o2_add_method("/one/F", send_char[i], &service_F, NULL, FALSE, FALSE);
     //}   
 
-	//for (current_send = 0; current_send<2; current_send++)
-    //{
+	if (current_send == 0)
+	{ 
         o2_send("/one/i", 0, send_char[current_send], 1234);
         send_the_message();
         o2_send("/one/B", 0, send_char[current_send], 1234);
         send_the_message();
-        o2_send("/one/h", 0, send_char[current_send], 12345);
+		o2_send("/one/h", 0, send_char[current_send], 12345);
         send_the_message();
         o2_send("/one/f", 0, send_char[current_send], 1234);
         send_the_message();
@@ -204,8 +204,43 @@ int main(int argc, const char * argv[])
         send_the_message();
         o2_send("/one/F", 0, send_char[current_send], 0);
         send_the_message();
-    //}
-	
+	} else if (current_send == 1) {	
+		o2_send("/one/i", 0, send_char[current_send], 12345LL);
+		send_the_message();
+		o2_send("/one/B", 0, send_char[current_send], 12345LL);
+		send_the_message();
+		o2_send("/one/h", 0, send_char[current_send], 12345LL);
+		send_the_message();
+		o2_send("/one/f", 0, send_char[current_send], 1234LL);
+		send_the_message();
+		o2_send("/one/d", 0, send_char[current_send], 1234LL);
+		send_the_message();
+		o2_send("/one/t", 0, send_char[current_send], 1234LL);
+		send_the_message();
+		o2_send("/one/T", 0, send_char[current_send], 1111LL);
+		send_the_message();
+		o2_send("/one/F", 0, send_char[current_send], 0LL);
+		send_the_message();
+	} else if (current_send == 2 || current_send == 3 || current_send == 4) {
+		o2_send("/one/i", 0, send_char[current_send], 1234.0);
+		send_the_message();
+		o2_send("/one/B", 0, send_char[current_send], 1234.0);
+		send_the_message();
+		o2_send("/one/h", 0, send_char[current_send], 12345.0);
+		send_the_message();
+		o2_send("/one/f", 0, send_char[current_send], 1234.0);
+		send_the_message();
+		o2_send("/one/d", 0, send_char[current_send], 1234.0);
+		send_the_message();
+		o2_send("/one/t", 0, send_char[current_send], 1234.0);
+		send_the_message();
+		o2_send("/one/T", 0, send_char[current_send], 1111.0);
+		send_the_message();
+		o2_send("/one/F", 0, send_char[current_send], 0.0);
+		send_the_message();
+	}
+	int a;
+	scanf("%d", &a);
     printf("DONE\n");
     o2_finish();
     return 0;
