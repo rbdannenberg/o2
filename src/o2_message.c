@@ -1090,6 +1090,7 @@ o2_arg_ptr o2_get_next(char to_type)
           case O2_INT64:
             if (to_type != O2_INT64) {
                 rslt = convert_int(to_type, rd_int64(), sizeof(int64_t));
+                //rd_int64() in last line will add an extra size of int64_t to mx_data_next
                 mx_data_next -= sizeof(int64_t);
             }
             mx_data_next += sizeof(int64_t);
