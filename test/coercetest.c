@@ -155,10 +155,14 @@ int service_many(const o2_message_ptr data, const char *types,
     arg = o2_get_next('h');
     if (arg->h != 12345LL)
         printf("error:send:h2    service_h  arg->h=%d\n", arg->h);
-    arg = o2_get_next('f');
+    /*arg = o2_get_next('f');
     if (arg->f != 1234.56)
         printf("error:send:f    service_f  arg->i=%g\n", arg->f);
-    assert(strcmp(types, "hhf") == 0);
+    assert(strcmp(types, "hhf") == 0);*/
+    arg = o2_get_next('d');
+    id (arg->d != 1234.56)
+        printf("error:send:d    service_d  arg->i=%g\n", arg->d);
+    assert(strcmp(types, "hhd") == 0);
     printf("service_N types=%s\n", types);
     got_the_message = TRUE;
     return O2_SUCCESS;
@@ -206,6 +210,9 @@ int main(int argc, const char * argv[])
     //} 
     o2_add_method("/one/many", "hhf", &service_many,
             NULL, FALSE, FALSE);  
+
+    //o2_send("/one/many", 0, "hhf",  1234, 1234LL, 123.456);
+    o2_send("/one/many", 0, "hhd",  1234, 1234LL, 123.456);
 
 	if (current_send == 0)
 	{ 
