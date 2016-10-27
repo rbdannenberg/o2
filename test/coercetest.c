@@ -145,6 +145,25 @@ int service_F(const o2_message_ptr data, const char *types,
     return O2_SUCCESS;
 }
 
+int service_many(const o2_message_ptr data, const char *types,
+    o2_arg_ptr *argv, int argc, void *user_data)
+{
+    o2_start_extract(data);
+    o2_arg_ptr arg = o2_get_next('h');
+    if (arg->h != 12345LL)
+        printf("error:send:h1    service_h  arg->h=%d\n", arg->h);
+    arg = o2_get_next('h');
+    if (arg->h != 12345LL)
+        printf("error:send:h2    service_h  arg->h=%d\n", arg->h);
+    arg = o2_get_next('f');
+    if (arg->f != 1234.56)
+        printf("error:send:f    service_f  arg->i=%g\n", arg->f);
+    assert(strcmp(types, "hhf") == 0);
+    printf("service_N types=%s\n", types);
+    got_the_message = TRUE;
+    return O2_SUCCESS;
+}
+
 
 // TO DO: NEED TO ADD TESTS WHERE WE SEND int_64, float, double and time
 // types and receive them in all possible forms
@@ -176,15 +195,17 @@ int main(int argc, const char * argv[])
 
 	//for (int i = 0; i<2; i++)
     //{
-        o2_add_method("/one/i", send_char[i], &service_i, NULL, FALSE, FALSE);
-        o2_add_method("/one/B", send_char[i], &service_B, NULL, FALSE, FALSE);
-        o2_add_method("/one/h", send_char[i], &service_h, NULL, FALSE, FALSE);
-        o2_add_method("/one/f", send_char[i], &service_f, NULL, FALSE, FALSE);
-        o2_add_method("/one/d", send_char[i], &service_d, NULL, FALSE, FALSE);
-        o2_add_method("/one/t", send_char[i], &service_t, NULL, FALSE, FALSE);
-        o2_add_method("/one/T", send_char[i], &service_T, NULL, FALSE, FALSE);
-        o2_add_method("/one/F", send_char[i], &service_F, NULL, FALSE, FALSE);
-    //}   
+    o2_add_method("/one/i", send_char[i], &service_i, NULL, FALSE, FALSE);
+    o2_add_method("/one/B", send_char[i], &service_B, NULL, FALSE, FALSE);
+    o2_add_method("/one/h", send_char[i], &service_h, NULL, FALSE, FALSE);
+    o2_add_method("/one/f", send_char[i], &service_f, NULL, FALSE, FALSE);
+    o2_add_method("/one/d", send_char[i], &service_d, NULL, FALSE, FALSE);
+    o2_add_method("/one/t", send_char[i], &service_t, NULL, FALSE, FALSE);
+    o2_add_method("/one/T", send_char[i], &service_T, NULL, FALSE, FALSE);
+    o2_add_method("/one/F", send_char[i], &service_F, NULL, FALSE, FALSE);
+    //} 
+    o2_add_method("/one/many", "hhf", &service_many,
+            NULL, FALSE, FALSE);  
 
 	if (current_send == 0)
 	{ 
