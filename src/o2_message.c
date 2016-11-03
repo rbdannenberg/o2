@@ -1092,7 +1092,7 @@ o2_arg_ptr o2_get_next(char to_type)
             break;
           case O2_INT64:
             if (to_type != O2_INT64) {
-                rslt = convert_int(to_type, rd_int64(), sizeof(int64_t));
+                rslt = convert_int(to_type, MX_INT64, sizeof(int64_t));
             }
             mx_data_next += sizeof(int64_t);
             break;

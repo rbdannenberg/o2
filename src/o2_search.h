@@ -18,7 +18,7 @@
 #define OSC_REMOTE_SERVICE 4
 #define O2_PROCESS 5
 #define OSC_LOCAL_SERVICE 6 // TODO: is this used?
-
+#define index strchr
 /**
  *  Structures for hash look up.
  */
