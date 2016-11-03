@@ -116,8 +116,8 @@ void o2_add_type(char type_char)
 // is also storage pointed to by the argv pointers. When types
 // are converted, we often need to copy from the message into
 // this storage, but if possible we avoid copies by pointing
-// into the message itself. argv_data is a dynamic array for
-// o2_argv, and arg_data is a dynamic array for type-converted
+// into the message itself. o2_argv_data is a dynamic array for
+// o2_argv, and o2_arg_data is a dynamic array for type-converted
 // message data. Because of the pointers, it's very messy to
 // reallocate the dynamic arrays. Instead, we precompute the 
 // worst case based on the length of the message type string
@@ -127,25 +127,27 @@ void o2_add_type(char type_char)
 o2_arg_ptr *o2_argv; // arg vector extracted by calls to o2_get_next()
 int o2_argc; // length of argv
 
-// argv_data is used to create the argv for handlers. It is expanded as
+// o2_argv_data is used to create the argv for handlers. It is expanded as
 // needed to handle the largest message and is reused.
-static dyn_array argv_data;
+dyn_array o2_argv_data;
 
-// arg_data holds parameters that are coerced from message data
-// It is referenced by argv_data and expanded as needed.
-static dyn_array arg_data;
+// o2_arg_data holds parameters that are coerced from message data
+// It is referenced by o2_argv_data and expanded as needed.
+dyn_array o2_arg_data;
 
 // make sure enough memory is allocated and initialize o2_argv and o2_argc
 //
 void o2_need_argv(int argv_needed, int arg_needed)
 {
-    while (argv_data.allocated < argv_needed) {
-        o2_da_expand(&argv_data, 1);
+    while (o2_argv_data.allocated < argv_needed) {
+        o2_da_expand(&o2_argv_data, 1);
     }
-    while (arg_data.allocated < arg_needed) {
-        o2_da_expand(&arg_data, 1);
+    while (o2_arg_data.allocated < arg_needed) {
+        o2_da_expand(&o2_arg_data, 1);
     }
-    o2_argv = DA_GET(argv_data, o2_arg_ptr, 0);
+    o2_argv_data.length = 0; // initialize arrays to empty
+    o2_arg_data.length = 0;
+    o2_argv = DA_GET(o2_argv_data, o2_arg_ptr, 0);
     o2_argc = 0;
 }
 
@@ -153,8 +155,8 @@ void o2_need_argv(int argv_needed, int arg_needed)
 // call this once when o2 is initialized
 void o2_initialize_argv()
 {
-    DA_INIT(argv_data, o2_arg_ptr, 16);
-    DA_INIT(arg_data, char, 96);
+    DA_INIT(o2_argv_data, o2_arg_ptr, 16);
+    DA_INIT(o2_arg_data, char, 96);
     DA_INIT(msg_types, char, 16);
     DA_INIT(msg_data, char, 96);
 }
@@ -163,8 +165,8 @@ void o2_initialize_argv()
 // call this when o2 is finalized
 void o2_finish_argv()
 {
-    DA_FINISH(argv_data);
-    DA_FINISH(arg_data);
+    DA_FINISH(o2_argv_data);
+    DA_FINISH(o2_arg_data);
     DA_FINISH(msg_types);
     DA_FINISH(msg_data);
 }
@@ -172,15 +174,15 @@ void o2_finish_argv()
 
 
 
-// update arg_data to indicate the something has been appended
-#define ARG_DATA_USED(data_type) arg_data.length += sizeof(data_type)
+// update o2_arg_data to indicate the something has been appended
+#define ARG_DATA_USED(data_type) o2_arg_data.length += sizeof(data_type)
 
-// write a data item into arg_data as part of message construction
+// write a data item into o2_arg_data as part of message construction
 #define ARG_DATA(rslt, data_type, data) \
     *((data_type *) (rslt)) = (data); \
     ARG_DATA_USED(data_type);
 
-#define ARG_NEXT ((o2_arg_ptr) (arg_data.array + arg_data.length))
+#define ARG_NEXT ((o2_arg_ptr) (o2_arg_data.array + o2_arg_data.length))
 
 
 
@@ -326,7 +328,6 @@ o2_message_ptr o2_finish_service_message(o2_time time,
     o2_message_ptr msg = o2_alloc_size_message(msg_size);
     if (!msg) return NULL;
     msg->next = NULL;
-    msg->allocated = msg_size;
     msg->length = msg_size;
     msg->data.timestamp = time;
     char *dst = msg->data.address;
@@ -468,8 +469,7 @@ void o2_free_message(o2_message_ptr msg)
     if (msg->allocated == MESSAGE_ALLOCATED_FROM_SIZE(MESSAGE_DEFAULT_SIZE)) {
         msg->next = message_freelist;
         message_freelist = msg;
-    }
-    else {
+    } else {
         o2_free(msg);
     }
 }
@@ -482,7 +482,10 @@ o2_message_ptr o2_alloc_size_message(int size)
         return alloc_message();
     }
     else {
-        return (o2_message_ptr)o2_malloc(MESSAGE_SIZE_FROM_ALLOCATED(size));
+        o2_message_ptr msg = (o2_message_ptr)
+                o2_malloc(MESSAGE_SIZE_FROM_ALLOCATED(size));
+        msg->allocated = size;
+        return msg;
     }
 }
 
@@ -800,7 +803,7 @@ int o2_start_extract(o2_message_ptr msg)
     // add 2 for safety
     int argv_needed = types_len * 4 + msg_data_len * 2 + 2;
 
-    // arg_data needs at most 24/3 times type string and at most 24/4
+    // o2_arg_data needs at most 24/3 times type string and at most 24/4
     // times remaining data.
     int arg_needed = types_len * 8;
     if (arg_needed > msg_data_len * 6) arg_needed = msg_data_len * 6;
@@ -854,7 +857,7 @@ o2_arg_ptr convert_int(char to_type, int64_t i, int siz)
 
 o2_arg_ptr convert_float(char to_type, double d, int siz)
 {
-    o2_arg_ptr rslt = (o2_arg_ptr) (arg_data.array + arg_data.length);
+    o2_arg_ptr rslt = (o2_arg_ptr) (o2_arg_data.array + o2_arg_data.length);
     switch (to_type) {
       case O2_INT32:
         ARG_DATA(rslt, int32_t, d);
@@ -914,7 +917,7 @@ o2_arg_ptr o2_get_next(char to_type)
     if (*mx_type_next == 0) return NULL; // no more args, end of type string
     if (mx_vector_to_vector_pending) {
         // returns pointer to a vector descriptor with typ, len, and vector
-        //   address; this descriptor is always allocated in arg_data
+        //   address; this descriptor is always allocated in o2_arg_data
         // mx_data_next points to vector in message
         // allowed types for target are i, h, f, t, d
         o2_arg_ptr rslt = ARG_NEXT;
@@ -1157,12 +1160,19 @@ o2_arg_ptr o2_get_next(char to_type)
     // This is equivalent to DA_APPEND, but since we've already allocated the
     // space, we don't need to check for space, and it would be an error if
     // we did expand the space because pointers would be wrong
-    argv_data.length++;
-    o2_argv[o2_argc++] = rslt; // note: o2_argv is argv_data.array as o2_arg_ptr.
+    o2_argv_data.length++;
+    o2_argv[o2_argc++] = rslt; // note: o2_argv is o2_argv_data.array as o2_arg_ptr.
     return rslt;
 }
 
 
+// o2_print_msg - print message as text to stdout
+//
+// It would be most convenient to use o2_start_extract() and o2_get_next()
+// here, but this would overwrite extracted parameters if called from a
+// message handler, so here we duplicate some code to pull parameters from
+// messages (although the code is simple since there's no coercion).
+//
 void o2_print_msg(o2_message_ptr msg)
 {
     int i;
@@ -1174,54 +1184,70 @@ void o2_print_msg(o2_message_ptr msg)
             printf("(%gs late)", o2_global_now - msg->data.timestamp);
         }
     }
-    o2_start_extract(msg);
-    char *types = mx_types;
+    
+    char *types = WORD_ALIGN_PTR(msg->data.address +
+                                 strlen(msg->data.address) + 4) + 1;
+    int types_len = (int) strlen(types);
+    char *data_next = WORD_ALIGN_PTR(mx_types + types_len + 4);
+    
     while (*types) {
-        o2_arg_ptr arg = o2_get_next(*types);
         switch (*types) {
           case O2_INT32:
-            printf(" %d", arg->i32);
+            printf(" %d", *((int32_t *) data_next));
+            data_next += sizeof(int32_t);
             break;
           case O2_FLOAT:
-            printf(" %f", arg->f);
+            printf(" %gf", *((float *) data_next));
+            data_next += sizeof(float);
             break;
           case O2_STRING:
-            printf(" \"%s\"", arg->s);
+            printf(" \"%s\"", data_next);
+            data_next += ((strlen(data_next) + 4) & ~3);
             break;
-          case O2_BLOB:
-            printf(" <");
-            if (arg->b.size > 12) {
-                printf("%d byte blob", arg->b.size);
+          case O2_BLOB: {
+            int size = *((int32_t *) data_next);
+            data_next += sizeof(int32_t);
+            if (size > 12) {
+                printf(" (%d byte blob)", size);
             } else {
-                for (i = 0; i < arg->b.size; i++) {
+                printf(" (");
+                for (i = 0; i < size; i++) {
                     if (i > 0) printf(" ");
-                    printf("%#02x", *((unsigned char *)(arg->b.data)+4 + i));
+                    printf("%#02x", (unsigned char) (data_next[i]));
                 }
-                printf(">");
+                printf(")");
             }
+            data_next += ((size + 3) & ~3);
             break;
+          }
           case O2_INT64:
-            printf(" %lld", arg->i64);
-            break;
-          case O2_TIME:
-            printf(" %g", arg->d);
+            printf(" %lld", *((int64_t *) data_next));
+            data_next += sizeof(int64_t);
             break;
           case O2_DOUBLE:
-            printf(" %g", arg->d);
+            printf(" %g", *((double *) data_next));
+            data_next += sizeof(double);
+            break;
+          case O2_TIME:
+            printf(" %gs", *((double *) data_next));
+            data_next += sizeof(double);
             break;
           case O2_SYMBOL:
-            printf(" '%s", arg->s);
+            printf(" '%s", data_next);
+            data_next += ((strlen(data_next) + 4) & ~3);
             break;
           case O2_CHAR:
-            printf(" '%c'", arg->c);
+            printf(" '%c'", *((int32_t *) data_next));
+            data_next += sizeof(int32_t);
             break;
           case O2_MIDI:
             printf(" <MIDI: ");
             for (i = 0; i < 4; i++) {
                 if (i > 0) printf(" "); 
-                printf("0x%02x", arg->m[i]);
+                printf("0x%02x", data_next[i]);
             }
             printf(">");
+            data_next += 4;
             break;
           case O2_TRUE:
             printf(" #T");
@@ -1236,11 +1262,37 @@ void o2_print_msg(o2_message_ptr msg)
             printf(" Infinitum");
             break;
           case O2_START_ARRAY:
-              printf(" [");
-              break;
+            printf(" [");
+            break;
           case O2_END_ARRAY:
-              printf(" ]");
-              break;
+            printf(" ]");
+            break;
+          case O2_VECTOR: {
+            int len = *((int32_t *) data_next);
+            data_next += sizeof(int32_t);
+            printf(" <");
+            char vtype = *types++;
+            for (i = 0; i < len; i++) {
+                if (i > 0) printf(" ");
+                if (vtype == O2_INT32) {
+                    printf(" %d", *((int32_t *) data_next));
+                    data_next += sizeof(int32_t);
+                } else if (vtype == O2_INT64) {
+                    printf(" %lld", *((int64_t *) data_next));
+                    data_next += sizeof(int64_t);
+                } else if (vtype == O2_FLOAT) {
+                    printf(" %gf", *((float *) data_next));
+                    data_next += sizeof(float);
+                } else if (vtype == O2_DOUBLE) {
+                    printf(" %g", *((double *) data_next));
+                    data_next += sizeof(double);
+                } else if (vtype == O2_TIME) {
+                    printf(" %gs", *((double *) data_next));
+                    data_next += sizeof(double);
+                }
+            }
+            break;
+          }
           default:
             printf(" O2 WARNING: unhandled type: %c\n", *types);
             break;

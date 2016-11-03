@@ -985,6 +985,10 @@ void call_handler(handler_entry_ptr handler, o2_message_ptr msg,
             }
         }
         types = handler->type_string; // so that handler gets coerced types
+        extern dyn_array o2_argv_data;   // these are (mostly) private
+        extern dyn_array o2_arg_data;    //     to o2_message.c
+        assert(o2_arg_data.allocated >= o2_arg_data.length);
+        assert(o2_argv_data.allocated >= o2_argv_data.length);
     }
     (*(handler->handler))(msg, types, o2_argv, o2_argc, handler->user_data);
 }

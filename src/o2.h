@@ -1108,10 +1108,10 @@ int o2_add_only_typecode(o2_type typecode);
 #define o2_add_infinitum() o2_add_only_typecode('I');
 
 /// \brief start adding an array
-int o2_add_start_array();
+#define o2_add_start_array() o2_add_only_typecode('[');
 
 /// \brief finish adding an array
-int o2_add_end_array();
+#define o2_add_end_array() o2_add_only_typecode(']');
 
 /** \brief add a vector
  *

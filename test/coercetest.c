@@ -51,7 +51,7 @@ int service_h(const o2_message_ptr data, const char *types,
     o2_arg_ptr arg = o2_get_next('h');
     assert(arg);
     assert(arg->h == 12345);
-    printf("service_h types=%s int64=%ld\n", types, arg->h);
+    printf("service_h types=%s int64=%lld\n", types, arg->h);
     got_the_message = TRUE;
     return O2_SUCCESS;
 }
