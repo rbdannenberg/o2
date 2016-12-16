@@ -989,6 +989,9 @@ void call_handler(handler_entry_ptr handler, o2_message_ptr msg,
         extern dyn_array o2_arg_data;    //     to o2_message.c
         assert(o2_arg_data.allocated >= o2_arg_data.length);
         assert(o2_argv_data.allocated >= o2_argv_data.length);
+    } else {
+        o2_argv = NULL;
+        o2_argc = 0;
     }
     (*(handler->handler))(msg, types, o2_argv, o2_argc, handler->user_data);
 }

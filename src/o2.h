@@ -931,7 +931,9 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * when the requested type does not match the actual type. You can
  * determine the original type by reading the type string in the
  * message. The number of parameters is determined by the length of
- * the type string. Vectors can be coerced into arrays, in which case
+ * the type string, with some exceptions.
+ *
+ * Vectors can be coerced into arrays, in which case
  * each element will be coerced as requested. Arrays can be coerced 
  * into vectors if each element of the array can be coerced into
  * the expected vector element type. Vector lengths are provided by
@@ -939,6 +941,25 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * check that the length matches an expected value. (You can determine
  * the length from the return value and of course you can decide to
  * reject the message if the length is not acceptable.)
+ *
+ * When a vector is returned, the argument vector has a single element
+ * that points to a vector descriptor (the "v" field), which contains
+ * the vector element types and the length of the vector (>= 0).
+ *
+ * When an array is returned, the argument vector contains the value
+ * o2_got_start_array followed by an o2_arg_ptr for each element of 
+ * the array, followed by o2_got_end_array.
+ *
+ * When types T (True), F (False), I (Infinitum), or N (Nil) are in 
+ * the message, there is an entry in the argument vector; however, 
+ * there is no data associated with these types (other than the type
+ * itself), so the pointers point to zero bytes and therefore should
+ * not be used.
+ *
+ * In all other cases, the argument vector contains data
+ * corresponding to the data item in the message. This may be a pointer
+ * into the actual message or a pointer to a temporary location in case
+ * the element was coerced to a different type.
  *
  * When the actual type code in the message is in "TFIN" you should
  * call o2_get_next() even though there is no corresponding data
@@ -999,6 +1020,31 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * corresponds to the two type characters used to encode them, e.g. "vi"
  * indicates a vector of integers.
  *
+ * Coercion is supported as follows. If coercion is provided from
+ * the type indicated on the left on some row to the types corresponding
+ * to columns where an "x" appears ("*" indicates special consideration
+ * described below.
+ * 
+ *      i h f d t s S T F B b m c N I
+ *    i x x x x x     * * x            32-bit int
+ *    h x x x x x     * * x            64-bit int
+ *    f x x x x x     * * x            float
+ *    d x x x x x     * * x            double
+ *    t x x x x x                      time
+ *    s           x x                  String
+ *    S           x x                  Symbol
+ *    T x x x x       x   x            True
+ *    F x x x x         x x            False
+ *    B x x x x       * * x            Boolean
+ *    b                     x          blob
+ *    m                       x        MIDI
+ *    c                         x      character
+ *    N                           x    Nil
+ *    I                             x  Infinitum
+ *
+ *    *Entries marked with "*": Coercion succeeds 
+ *    from 0 to False and from non-zero to True,
+ *    otherwise coercion fails.
  */
 
 

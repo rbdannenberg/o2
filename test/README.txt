@@ -27,16 +27,15 @@ midiserver.c   that relays the messages to MIDI using PortMIDI.
 
 dispatchtest.c - test for simple message construction and dispatch
 
-TODO:
-
 typestest.c - send short messages of all types except vectors and
               arrays.
 
 coercetest.c - send short messages of all types and try all type
                coercions
 
+arraytest.c - send arrays and vectors, receive them with all possible  
+              coercions.  
+
 longtest.c - send long messages to force special allocation
 
-arraytest.c - send arrays and vectors, receive them with all possible
-              coercions.
 

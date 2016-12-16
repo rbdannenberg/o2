@@ -103,10 +103,10 @@ void o2_add_type(char type_char)
 }
 
 
-#define ADD_DATA(data_type, code, data) \
-    message_check_length(sizeof(data_type)); \
+#define ADD_DATA(data_type, code, data)      \
+    message_check_length(sizeof(data_type));                      \
     *((data_type *) (msg_data.array + msg_data.length)) = (data); \
-    msg_data.length += sizeof(data_type); \
+    msg_data.length += sizeof(data_type);                         \
     DA_APPEND(msg_types, char, code);
 
 
@@ -178,8 +178,8 @@ void o2_finish_argv()
 #define ARG_DATA_USED(data_type) o2_arg_data.length += sizeof(data_type)
 
 // write a data item into o2_arg_data as part of message construction
-#define ARG_DATA(rslt, data_type, data) \
-    *((data_type *) (rslt)) = (data); \
+#define ARG_DATA(rslt, data_type, data)         \
+    *((data_type *) (rslt)) = (data);           \
     ARG_DATA_USED(data_type);
 
 #define ARG_NEXT ((o2_arg_ptr) (o2_arg_data.array + o2_arg_data.length))
@@ -293,12 +293,13 @@ int o2_add_midi(uint8_t *m)
 
 int o2_add_vector(o2_type element_type, int32_t length, void *data)
 {
-    if (!index("ihfdt", element_type)) {
+    if (!index("ihfd", element_type)) {
         return O2_BAD_TYPE;
     }
-    int size = (element_type == 'd' || element_type == 't') ?
-                sizeof(int32_t) : sizeof(double);
+    int size = (element_type == 'd' || element_type == 'h') ?
+               sizeof(double) : sizeof(int32_t);
     length *= size; // length is now the vector length in bytes
+    // the message contains the number of bytes in the vector data
     message_check_length(sizeof(int32_t) + length);
     o2_add_int32_or_char('v', length);
     o2_add_type(element_type);
@@ -316,7 +317,7 @@ o2_message_ptr o2_finish_message(o2_time time, const char *address)
 
 
 o2_message_ptr o2_finish_service_message(o2_time time,
-        const char *service, const char *address)
+                                         const char *service, const char *address)
 {
     int addr_len = (int) strlen(address);
     int service_len = (service ? (int) strlen(service) : 0);
@@ -416,18 +417,18 @@ static char *mx_type_next = NULL;    // pointer to the next type code
 static char *mx_data_next = NULL;    // pointer to the next data item in mx_msg
 static char *mx_barrier = NULL;      // pointer to end of message
 static int mx_vector_to_vector_pending = FALSE; // expecting vector element
-        // type code, will return a whole vector
+// type code, will return a whole vector
 static int mx_array_to_vector_pending = FALSE;  // expecting vector element
-        // type code, will return whole vector from array elements
+// type code, will return whole vector from array elements
 static int mx_vector_to_array = FALSE;   // when non-zero, we are extracting vector
-        // elements as array elements. The value will be one of "ihfd" depending
-        // on the vector element type
+// elements as array elements. The value will be one of "ihfd" depending
+// on the vector element type
 static int mx_vector_remaining = 0;  // when mx_vector_to_array is set, this
-        // counts how many vector elements remain to be retrieved
+// counts how many vector elements remain to be retrieved
 
 // macros to extract data:
 // define functions to read different types from mx_data_next and increment it
-#define MX_TYPE(fn, typ) typ fn() { typ x = *((typ *) mx_data_next); \
+#define MX_TYPE(fn, typ) typ fn() { typ x = *((typ *) mx_data_next);    \
         mx_data_next += sizeof(typ); return x; }
 
 MX_TYPE(rd_float, float)
@@ -483,7 +484,7 @@ o2_message_ptr o2_alloc_size_message(int size)
     }
     else {
         o2_message_ptr msg = (o2_message_ptr)
-                o2_malloc(MESSAGE_SIZE_FROM_ALLOCATED(size));
+            o2_malloc(MESSAGE_SIZE_FROM_ALLOCATED(size));
         msg->allocated = size;
         return msg;
     }
@@ -523,7 +524,7 @@ ssize_t o2_validate_string(void *data, ssize_t size)
 {
     ssize_t i = 0, len = 0;
     char *pos = data;
-
+    
     if (size < 0) {
         return -O2_ESIZE;       // invalid size
     }
@@ -552,7 +553,7 @@ ssize_t o2_validate_blob(void *data, ssize_t size)
     ssize_t i, end, len;
     uint32_t dsize;
     char *pos = (char *)data;
-
+    
     if (size < 0) {
         return -O2_ESIZE;       // invalid size
     }
@@ -587,14 +588,14 @@ ssize_t o2_validate_bundle(void *data, ssize_t size)
     }
     pos += len;
     remain -= len;
-
+    
     // time tag
     if (remain < 8) {
         return -O2_ESIZE;
     }
     pos += 8;
     remain -= 8;
-
+    
     while (remain >= 4) {
         elem_len = ntohl(*((uint32_t *)pos));
         pos += 4;
@@ -616,124 +617,124 @@ ssize_t o2_validate_bundle(void *data, ssize_t size)
 void o2_arg_swap_endian(o2_type type, void *data)
 {
     switch (type) {
-    case O2_INT32:
-    case O2_FLOAT:
-    case O2_BLOB:
-    case O2_CHAR: {
-        int32_t i = *(int32_t *)data;
-        *(int32_t *)data = swap32(i);
-        break;
-    }
-    case O2_TIME:
-    case O2_INT64:
-    case O2_DOUBLE: {
-        int64_t i = *(int64_t *)data;
-        *(int64_t *)data = swap64(i);
-        break;
-    }
-    case O2_STRING:
-    case O2_SYMBOL:
-    case O2_MIDI:
-    case O2_TRUE:
-    case O2_FALSE:
-    case O2_NIL:
-    case O2_INFINITUM:
-        /* these are fine */
-        break;
-
-    default:
-        fprintf(stderr,
-            "O2 warning: unhandled type '%c' at %s:%d\n", type,
-            __FILE__, __LINE__);
-        break;
+        case O2_INT32:
+        case O2_FLOAT:
+        case O2_BLOB:
+        case O2_CHAR: {
+            int32_t i = *(int32_t *)data;
+            *(int32_t *)data = swap32(i);
+            break;
+        }
+        case O2_TIME:
+        case O2_INT64:
+        case O2_DOUBLE: {
+            int64_t i = *(int64_t *)data;
+            *(int64_t *)data = swap64(i);
+            break;
+        }
+        case O2_STRING:
+        case O2_SYMBOL:
+        case O2_MIDI:
+        case O2_TRUE:
+        case O2_FALSE:
+        case O2_NIL:
+        case O2_INFINITUM:
+            /* these are fine */
+            break;
+            
+        default:
+            fprintf(stderr,
+                    "O2 warning: unhandled type '%c' at %s:%d\n", type,
+                    __FILE__, __LINE__);
+            break;
     }
 }
 
 
 int o2_build_message(o2_message_ptr *msg, o2_time timestamp, const char *service_name,
-                                const char *path, const char *typestring, va_list ap)
+                     const char *path, const char *typestring, va_list ap)
 {
     o2_start_send();
-
+    
     // add data
     while (typestring && *typestring) {
         switch (*typestring++) {
-          case O2_INT32: // get int in case int32 was promoted to int64
-            o2_add_int32(va_arg(ap, int));
-            break;
-
-          case O2_FLOAT:
-            o2_add_float((float) va_arg(ap, double));
-            break;
-
-          case O2_SYMBOL:
-            o2_add_symbol(va_arg(ap, char *));
-            break;
-
-          case O2_STRING: {
-            char *string = va_arg(ap, char *);
-            o2_add_string(string);
+            case O2_INT32: // get int in case int32 was promoted to int64
+                o2_add_int32(va_arg(ap, int));
+                break;
+                
+            case O2_FLOAT:
+                o2_add_float((float) va_arg(ap, double));
+                break;
+                
+            case O2_SYMBOL:
+                o2_add_symbol(va_arg(ap, char *));
+                break;
+                
+            case O2_STRING: {
+                char *string = va_arg(ap, char *);
+                o2_add_string(string);
 #ifndef USE_ANSI_C
-            if (string == (char *) O2_MARKER_A) {
-                fprintf(stderr,
-                    "o2 error: o2_send or o2_message_add called with "
-                    "invalid string pointer, probably arg mismatch.\n");
-            }
+                if (string == (char *) O2_MARKER_A) {
+                    fprintf(stderr,
+                            "o2 error: o2_send or o2_message_add called with "
+                            "invalid string pointer, probably arg mismatch.\n");
+                }
 #endif
-            break;
-          }
-
-          case O2_BLOB:
-            // argument should be a pointer to an o2_blob!
-            o2_add_blob(va_arg(ap, o2_blob_ptr));
-            break;
-
-          case O2_INT64:
-            o2_add_int64(va_arg(ap, int64_t));
-            break;
-
-          case O2_TIME:
-            o2_add_time(va_arg(ap, double));
-            break;
-
-          case O2_DOUBLE:
-            o2_add_double(va_arg(ap, double));
-            break;
-
-          case O2_CHAR:
-            o2_add_char(va_arg(ap, int));
-            break;
-
-          case O2_MIDI:
-            o2_add_midi(va_arg(ap, uint8_t *));
-            break;
-        
-          case O2_BOOL:
-            o2_add_bool(va_arg(ap, int));
-            break;
-
-          case O2_TRUE:
-          case O2_FALSE:
-          case O2_NIL:
-          case O2_INFINITUM:
-            o2_add_type(typestring[-1]);
-            break;
-
-            // fall through to unknown type
-          default: {
-            fprintf(stderr, "o2 warning: unknown type '%c'\n", *(typestring - 1));
-            break;
-          }
+                break;
+            }
+                
+            case O2_BLOB:
+                // argument should be a pointer to an o2_blob!
+                o2_add_blob(va_arg(ap, o2_blob_ptr));
+                break;
+                
+            case O2_INT64:
+                o2_add_int64(va_arg(ap, int64_t));
+                break;
+                
+            case O2_TIME:
+                o2_add_time(va_arg(ap, double));
+                break;
+                
+            case O2_DOUBLE:
+                o2_add_double(va_arg(ap, double));
+                break;
+                
+            case O2_CHAR:
+                o2_add_char(va_arg(ap, int));
+                break;
+                
+            case O2_MIDI:
+                o2_add_midi(va_arg(ap, uint8_t *));
+                break;
+                
+            case O2_BOOL:
+                o2_add_bool(va_arg(ap, int));
+                break;
+                
+            case O2_TRUE:
+            case O2_FALSE:
+            case O2_NIL:
+            case O2_INFINITUM:
+                o2_add_type(typestring[-1]);
+                break;
+                
+                // fall through to unknown type
+            default: {
+                fprintf(stderr, "o2 warning: unknown type '%c'\n", *(typestring - 1));
+                break;
+            }
         }
     }
-
+    
 #ifndef USE_ANSI_C
     void *i = va_arg(ap, void *);
     if ((((unsigned long) i) & 0xFFFFFFFFUL) !=
         (((unsigned long) O2_MARKER_A) & 0xFFFFFFFFUL)) {
         // bad format/args
         fprintf(stderr,
-            "o2 error: o2_send, o2_message_add, or o2_message_add_varargs called with mismatching types and data at\n exiting.\n");
+                "o2 error: o2_send, o2_message_add, or o2_message_add_varargs called with mismatching types and data at\n exiting.\n");
         va_end(ap);
         return O2_EFORMAT;
     }
@@ -741,7 +742,7 @@ int o2_build_message(o2_message_ptr *msg, o2_time timestamp, const char *service
     if ((((unsigned long) i) & 0xFFFFFFFFUL) !=
         (((unsigned long) O2_MARKER_B) & 0xFFFFFFFFUL)) {
         fprintf(stderr,
-            "o2 error: o2_send, o2_message_add, or o2_message_add_varargs called with mismatching types and data at\n exiting.\n");
+                "o2 error: o2_send, o2_message_add, or o2_message_add_varargs called with mismatching types and data at\n exiting.\n");
         return O2_EFORMAT;
     }
 #endif
@@ -787,9 +788,9 @@ int o2_start_extract(o2_message_ptr msg)
     // point temp_type_end to the first type code byte.
     // skip over padding and ','
     mx_types = WORD_ALIGN_PTR(msg->data.address +
-            strlen(msg->data.address) + 4) + 1;
+                              strlen(msg->data.address) + 4) + 1;
     mx_type_next = mx_types;
-
+    
     // argv needs 4 * type string length + 2 * remaining length
     // coerce to int to avoid compiler warning; o2 messages can't be that long
     int types_len = (int) strlen(mx_types);
@@ -802,21 +803,21 @@ int o2_start_extract(o2_message_ptr msg)
     int msg_data_len = (int) ((PTR(&(msg->data)) + msg->length) - mx_data_next);
     // add 2 for safety
     int argv_needed = types_len * 4 + msg_data_len * 2 + 2;
-
+    
     // o2_arg_data needs at most 24/3 times type string and at most 24/4
     // times remaining data.
     int arg_needed = types_len * 8;
     if (arg_needed > msg_data_len * 6) arg_needed = msg_data_len * 6;
     arg_needed += 16; // add some space for safety
     o2_need_argv(argv_needed, arg_needed);
-
+    
     mx_barrier = WORD_ALIGN_PTR(PTR(&(msg->data)) + msg->length);
     // use WR_ macros to write coerced parameters
-
+    
     mx_vector_to_array = FALSE;
     mx_vector_remaining = 0;
     mx_vector_to_vector_pending = FALSE;
-
+    
     return types_len;
 }
 
@@ -825,31 +826,31 @@ o2_arg_ptr convert_int(char to_type, int64_t i, int siz)
 {
     o2_arg_ptr rslt = ARG_NEXT;
     switch (to_type) {
-      case O2_INT32:
-        // coerce to int to avoid compiler warning; o2 messages can't be that long
-        ARG_DATA(rslt, int32_t, (int32_t) i);
-        break;
-      case O2_INT64:
-        ARG_DATA(rslt, int64_t, i);
-        break;
-      case O2_FLOAT:
-        ARG_DATA(rslt, float, i);
-        break;
-      case O2_DOUBLE:
-      case O2_TIME:
-        ARG_DATA(rslt, double, i);
-        break;
-      case O2_BOOL:
-        ARG_DATA(rslt, int32_t, i != 0);
-        break;
-      case O2_TRUE:
-        if (!i) rslt = NULL;
-        break;
-      case O2_FALSE:
-        if (i) rslt = NULL;
-        break;
-      default:
-        return NULL;
+        case O2_INT32:
+            // coerce to int to avoid compiler warning; o2 messages can't be that long
+            ARG_DATA(rslt, int32_t, (int32_t) i);
+            break;
+        case O2_INT64:
+            ARG_DATA(rslt, int64_t, i);
+            break;
+        case O2_FLOAT:
+            ARG_DATA(rslt, float, i);
+            break;
+        case O2_DOUBLE:
+        case O2_TIME:
+            ARG_DATA(rslt, double, i);
+            break;
+        case O2_BOOL:
+            ARG_DATA(rslt, int32_t, i != 0);
+            break;
+        case O2_TRUE:
+            if (!i) rslt = NULL;
+            break;
+        case O2_FALSE:
+            if (i) rslt = NULL;
+            break;
+        default:
+            return NULL;
     }
     return rslt;
 }
@@ -859,30 +860,30 @@ o2_arg_ptr convert_float(char to_type, double d, int siz)
 {
     o2_arg_ptr rslt = (o2_arg_ptr) (o2_arg_data.array + o2_arg_data.length);
     switch (to_type) {
-      case O2_INT32:
-        ARG_DATA(rslt, int32_t, d);
-        break;
-      case O2_INT64:
-        ARG_DATA(rslt, int64_t, d);
-        break;
-      case O2_FLOAT:
-        ARG_DATA(rslt, float, d);
-        break;
-      case O2_DOUBLE:
-      case O2_TIME:
-        ARG_DATA(rslt, double, d);
-        break;
-      case O2_BOOL:
-        ARG_DATA(rslt, int32_t, d != 0.0);
-        break;
-      case O2_TRUE:
-        if (d == 0.0) rslt = NULL;
-        break;
-      case O2_FALSE:
-        if (d != 0.0) rslt = NULL;
-        break;
-      default:
-        return NULL;
+        case O2_INT32:
+            ARG_DATA(rslt, int32_t, d);
+            break;
+        case O2_INT64:
+            ARG_DATA(rslt, int64_t, d);
+            break;
+        case O2_FLOAT:
+            ARG_DATA(rslt, float, d);
+            break;
+        case O2_DOUBLE:
+        case O2_TIME:
+            ARG_DATA(rslt, double, d);
+            break;
+        case O2_BOOL:
+            ARG_DATA(rslt, int32_t, d != 0.0);
+            break;
+        case O2_TRUE:
+            if (d == 0.0) rslt = NULL;
+            break;
+        case O2_FALSE:
+            if (d != 0.0) rslt = NULL;
+            break;
+        default:
+            return NULL;
     }
     return rslt;
 }
@@ -916,11 +917,12 @@ o2_arg_ptr o2_get_next(char to_type)
     if (mx_type_next >= mx_barrier) return NULL; // overrun
     if (*mx_type_next == 0) return NULL; // no more args, end of type string
     if (mx_vector_to_vector_pending) {
+        mx_vector_to_vector_pending = FALSE;
         // returns pointer to a vector descriptor with typ, len, and vector
         //   address; this descriptor is always allocated in o2_arg_data
         // mx_data_next points to vector in message
         // allowed types for target are i, h, f, t, d
-        o2_arg_ptr rslt = ARG_NEXT;
+        rslt = ARG_NEXT;
         ARG_DATA_USED(o2_arg);
         // get pointer to the vector (pointed to type doesn't actually matter)
         // so this code is common to all the different type cases
@@ -929,51 +931,63 @@ o2_arg_ptr o2_get_next(char to_type)
         } else {
             rslt->v.vi = (int32_t *) ARG_NEXT;
         }
+        if (mx_data_next + rslt->v.len > mx_barrier) {
+            mx_vector_to_vector_pending = FALSE;
+            return NULL; // bad message
+        }
         switch (*mx_type_next++) { // switch on actual (in message) type
-          case O2_INT32:
-            if (to_type != O2_INT32) {
-                for (int i = 0; i < rslt->v.len; i++) {
-                    if (!convert_int(to_type, rd_int32(), sizeof(int32_t))) {
-                        return NULL;
+            case O2_INT32:
+                rslt->v.len >>= 2; // byte count / 4
+                if (to_type != O2_INT32) {
+                    for (int i = 0; i < rslt->v.len; i++) {
+                        if (!convert_int(to_type, MX_INT32, sizeof(int32_t)))
+                            return NULL;
+                        mx_data_next += sizeof(int32_t);
                     }
+                } else {
+                    MX_SKIP(sizeof(int32_t) * rslt->v.len);
                 }
-            }
-            MX_SKIP(sizeof(int32_t) * rslt->v.len);
-            break;
-          case O2_INT64:
-            if (to_type != O2_INT64) {
-                // we'll need len int64s of free space
-                for (int i = 0; i < rslt->v.len; i++) {
-                    if (!convert_int(to_type, rd_int64(), sizeof(int32_t))) {
-                        return NULL;
+                break;
+            case O2_INT64:
+                rslt->v.len >>= 3; // byte count / 8
+                if (to_type != O2_INT64) {
+                    // we'll need len int64s of free space
+                    for (int i = 0; i < rslt->v.len; i++) {
+                        if (!convert_int(to_type, MX_INT64, sizeof(int32_t)))
+                            return NULL;
+                        mx_data_next += sizeof(int64_t);
                     }
+                } else {
+                    MX_SKIP(sizeof(int64_t) * rslt->v.len);
                 }
-            }
-            MX_SKIP(sizeof(int64_t) * rslt->v.len);
-            break;
-          case O2_FLOAT:
-            if (to_type != O2_FLOAT) {
-                for (int i = 0; i < rslt->v.len; i++) {
-                    if (!convert_float(to_type, rd_float(), sizeof(float))) {
-                        return NULL;
+                break;
+            case O2_FLOAT:
+                rslt->v.len >>= 2; // byte count / 4
+                if (to_type != O2_FLOAT) {
+                    for (int i = 0; i < rslt->v.len; i++) {
+                        if (!convert_float(to_type, MX_FLOAT, sizeof(float)))
+                            return NULL;
+                        mx_data_next += sizeof(float);
                     }
+                } else {
+                    MX_SKIP(sizeof(float) * rslt->v.len);
                 }
-            }
-            MX_SKIP(sizeof(float) * rslt->v.len);
-            break;
-          case O2_DOUBLE:
-            if (to_type != O2_DOUBLE) {
-                for (int i = 0; i < rslt->v.len; i++) {
-                    if (!convert_float(to_type, rd_double(), sizeof(double))) {
-                        return NULL;
+                break;
+            case O2_DOUBLE:
+                rslt->v.len >>= 3; // byte count / 8
+                if (to_type != O2_DOUBLE) {
+                    for (int i = 0; i < rslt->v.len; i++) {
+                        if (!convert_float(to_type, MX_DOUBLE, sizeof(double)))
+                            return NULL;
+                        mx_data_next += sizeof(double);
                     }
+                } else {
+                    MX_SKIP(sizeof(double) * rslt->v.len);
                 }
-            }
-            MX_SKIP(sizeof(double) * rslt->v.len);
-            break;
-          default:
-            return NULL;
-            break;
+                break;
+            default:
+                return NULL;
+                break;
         }
         o2_argc--; // argv already has pointer to vector
     } else if (mx_vector_to_array) {
@@ -985,172 +999,209 @@ o2_arg_ptr o2_get_next(char to_type)
             } else {
                 return NULL;
             }
-        } else if (mx_vector_remaining-- <= 0) {
-            return NULL;
+        } else {
+            int siz = ((mx_vector_to_array == 'h' ||
+                        mx_vector_to_array == 'd') ? 8 : 4);
+            mx_vector_remaining -= siz;
+            if (mx_vector_remaining < 0) {
+                return NULL; // perhaps message was invalid
+            }
         }
         switch (mx_vector_to_array) {
-          case O2_INT32:
-            if (to_type != O2_INT32) {
-                rslt = convert_int(to_type, MX_INT32, sizeof(int32_t));
-            }
-            mx_data_next += sizeof(int32_t);
-            break;
-          case O2_INT64:
-            if (to_type != O2_INT64) {
-                rslt = convert_int(to_type, MX_INT64, sizeof(int64_t));
-            }
-            mx_data_next += sizeof(int64_t);
-            break;
-          case O2_FLOAT:
-            if (to_type != O2_FLOAT) {
-                rslt = convert_int(to_type, MX_FLOAT, sizeof(float));
-            }
-            mx_data_next += sizeof(float);
-            break;
-          case O2_DOUBLE:
-            if (to_type != O2_DOUBLE) {
-                rslt = convert_int(to_type, MX_DOUBLE, sizeof(double));
-            }
-            mx_data_next += sizeof(double);
-            break;
-          default: // this should never happen
-            return NULL;
+            case O2_INT32:
+                if (to_type != O2_INT32) {
+                    rslt = convert_int(to_type, MX_INT32, sizeof(int32_t));
+                }
+                mx_data_next += sizeof(int32_t);
+                break;
+            case O2_INT64:
+                if (to_type != O2_INT64) {
+                    rslt = convert_int(to_type, MX_INT64, sizeof(int64_t));
+                }
+                mx_data_next += sizeof(int64_t);
+                break;
+            case O2_FLOAT:
+                if (to_type != O2_FLOAT) {
+                    rslt = convert_float(to_type, MX_FLOAT, sizeof(float));
+                }
+                mx_data_next += sizeof(float);
+                break;
+            case O2_DOUBLE:
+                if (to_type != O2_DOUBLE) {
+                    rslt = convert_float(to_type, MX_DOUBLE, sizeof(double));
+                }
+                mx_data_next += sizeof(double);
+                break;
+            default: // this happens when we reach the end of the vector
+                break;
+        }
+        if (mx_data_next > mx_barrier) {
+            mx_vector_to_array = FALSE;
+            return NULL; // badly formatted message
         }
     } else if (mx_array_to_vector_pending) { // to_type is desired vector type
         // array types are in mx_type_next
-        o2_arg_ptr rslt = (o2_arg_ptr) ARG_NEXT;
-        ARG_DATA_USED(o2_arg);
+        rslt = ((o2_arg_ptr) ARG_NEXT) - 1; // already allocated the vector header
+        o2_argv_data.length--; // "vi" should get just one element in the arg vector
+        //     we already added one and will add another (below), so decrement length
+        //     so that rslt will not be written to a new location
+        // of size sizeof(o2_arg), so -1 gets us back to the address of the header
         rslt->v.vi = (int32_t *) ARG_NEXT;
+        rslt->v.typ = to_type; // now we know what the element type will be
         while (*mx_type_next != O2_END_ARRAY) {
             switch (*mx_type_next++) {
-              case O2_INT32:
-                convert_int(to_type, rd_int32(), sizeof(int32_t));
-                break;
-              case O2_INT64:
-                convert_int(to_type, rd_int64(), sizeof(int64_t));
-                break;
-              case O2_FLOAT:
-                convert_int(to_type, rd_float(), sizeof(float));
-                break;
-              case O2_DOUBLE:
-                convert_int(to_type, rd_double(), sizeof(double));
-                break;
-              default:
-                return NULL; // could be bad type string (no ']')or bad types
+                case O2_INT32:
+                    convert_int(to_type, MX_INT32, sizeof(int32_t));
+                    mx_data_next += sizeof(int32_t);
+                    break;
+                case O2_INT64:
+                    convert_int(to_type, MX_INT64, sizeof(int64_t));
+                    mx_data_next += sizeof(int64_t);
+                    break;
+                case O2_FLOAT:
+                    convert_float(to_type, MX_FLOAT, sizeof(float));
+                    mx_data_next += sizeof(float);
+                    break;
+                case O2_DOUBLE:
+                    convert_float(to_type, MX_DOUBLE, sizeof(double));
+                    mx_data_next += sizeof(double);
+                    break;
+                default:
+                    return NULL; // bad type string (no ']') or bad types
             }
             rslt->v.len++;
+            if (mx_data_next > mx_barrier) {
+                mx_array_to_vector_pending = FALSE;
+                return NULL; // badly formatted message
+            }
         }
         mx_array_to_vector_pending = FALSE;
     } else {
         switch (*mx_type_next++) {
-          case O2_INT32:
-            if (to_type != O2_INT32) {
-                rslt = convert_int(to_type, MX_INT32, sizeof(int32_t));
-            }
-            mx_data_next += sizeof(int32_t);
-            break;
-          case O2_TRUE:
-            if (to_type != O2_TRUE) {
-                rslt = convert_int(to_type, 1, sizeof(int32_t));
-            break;
-            }
-          case O2_FALSE:
-            if (to_type != O2_TRUE) {
-              rslt = convert_int(to_type, 0, sizeof(int32_t));
-            }
-            break;
-          case O2_BOOL:
-            if (to_type != O2_BOOL) {
-                rslt = convert_int(to_type, MX_INT32, sizeof(int32_t));
-            }
-            mx_data_next += sizeof(int32_t);
-            break;
-          case O2_FLOAT:
-            if (to_type != O2_FLOAT) {
-                rslt = convert_float(to_type, MX_FLOAT, sizeof(float));
-            }
-            mx_data_next += sizeof(float);
-            break;
-          case O2_SYMBOL:
-          case O2_STRING:
-            if (to_type != O2_SYMBOL && to_type != O2_STRING) {
-                rslt = NULL; // type error
-            } // otherwise the requested type is suitable
-            MX_SKIP(strlen(mx_data_next) + 1); // add one for end-of-string
-            break;
-          case O2_CHAR:
-            if (to_type != O2_CHAR) {
-                rslt = NULL;
-            }
-            mx_data_next += sizeof(int32_t); // char stored as int32_t
-            break;
-          case O2_BLOB:
-            if (to_type != O2_BLOB) {
-                rslt = NULL; // type mismatch
-            }
-            MX_SKIP(sizeof(uint32_t) + rslt->b.size);
-            break;
-          case O2_INT64:
-            if (to_type != O2_INT64) {
-                rslt = convert_int(to_type, MX_INT64, sizeof(int64_t));
-            }
-            mx_data_next += sizeof(int64_t);
-            break;
-          case O2_DOUBLE:
-          case O2_TIME:
-            if (to_type != O2_DOUBLE && to_type != O2_TIME) {
-                rslt = convert_float(to_type, MX_DOUBLE, sizeof(double));
-            } // otherwise the requested type is suitable
-            mx_data_next += sizeof(double);
-            break;
-          case O2_MIDI:
-            if (to_type != O2_MIDI) {
-                rslt = NULL; // type mismatch
-            }
-            MX_SKIP(4);
-            break;
-          case O2_NIL:
-          case O2_INFINITUM:
-            if (to_type != mx_type_next[-1]) {
-                rslt = NULL;
-            }
-            break;
-          case O2_START_ARRAY:
-            if (to_type == O2_START_ARRAY) {
-                rslt = o2_got_start_array;
-            } else if (to_type == O2_VECTOR) {
-                // see if we can extract a vector next time
-                // when we get an element type
-                mx_array_to_vector_pending = TRUE;
-                rslt = (o2_arg_ptr) ARG_NEXT;
-                ARG_DATA_USED(o2_arg);
-                rslt->v.typ = *mx_type_next; // TODO: Check this
-                rslt->v.len = 0; // unkknown
-                rslt->v.vi = NULL; // pointer to data is not valid yet
-            } else {
-                rslt = NULL;
-            }
-            break;
-          case O2_VECTOR:
-            if (to_type == O2_START_ARRAY) {
-                // extract the vector as array elements
-                mx_vector_to_array = O2_VECTOR;
-                mx_vector_remaining = rd_int32();
-                rslt = o2_got_start_array;
-            } else if (to_type == O2_VECTOR) {
-                mx_vector_to_vector_pending = TRUE;
-                rslt = (o2_arg_ptr) ARG_NEXT;
-                rslt->v.typ = *mx_type_next;
-                rslt->v.len = rd_int32();
-                rslt->v.vi = NULL; // pointer to data is not valid yet
-            } else {
-                rslt = NULL;
-            }
-            break;
-          default: // could be O2_END_ARRAY or EOS among others
-            fprintf(stderr, "O2 warning: unhandled OSC type '%c'\n",
-                    *mx_type_next);
-            return NULL;
+            case O2_INT32:
+                if (to_type != O2_INT32) {
+                    rslt = convert_int(to_type, MX_INT32, sizeof(int32_t));
+                }
+                mx_data_next += sizeof(int32_t);
+                break;
+            case O2_TRUE:
+                if (to_type != O2_TRUE) {
+                    rslt = convert_int(to_type, 1, sizeof(int32_t));
+                }
+                break;
+            case O2_FALSE:
+                if (to_type != O2_TRUE) {
+                    rslt = convert_int(to_type, 0, sizeof(int32_t));
+                }
+                break;
+            case O2_BOOL:
+                if (to_type != O2_BOOL) {
+                    rslt = convert_int(to_type, MX_INT32, sizeof(int32_t));
+                }
+                mx_data_next += sizeof(int32_t);
+                break;
+            case O2_FLOAT:
+                if (to_type != O2_FLOAT) {
+                    rslt = convert_float(to_type, MX_FLOAT, sizeof(float));
+                }
+                mx_data_next += sizeof(float);
+                break;
+            case O2_SYMBOL:
+            case O2_STRING:
+                if (to_type != O2_SYMBOL && to_type != O2_STRING) {
+                    rslt = NULL; // type error
+                } // otherwise the requested type is suitable
+                MX_SKIP(strlen(mx_data_next) + 1); // add one for end-of-string
+                break;
+            case O2_CHAR:
+                if (to_type != O2_CHAR) {
+                    rslt = NULL;
+                }
+                mx_data_next += sizeof(int32_t); // char stored as int32_t
+                break;
+            case O2_BLOB:
+                if (to_type != O2_BLOB) {
+                    rslt = NULL; // type mismatch
+                }
+                MX_SKIP(sizeof(uint32_t) + rslt->b.size);
+                break;
+            case O2_INT64:
+                if (to_type != O2_INT64) {
+                    rslt = convert_int(to_type, MX_INT64, sizeof(int64_t));
+                }
+                mx_data_next += sizeof(int64_t);
+                break;
+            case O2_DOUBLE:
+            case O2_TIME:
+                if (to_type != O2_DOUBLE && to_type != O2_TIME) {
+                    rslt = convert_float(to_type, MX_DOUBLE, sizeof(double));
+                } // otherwise the requested type is suitable
+                mx_data_next += sizeof(double);
+                break;
+            case O2_MIDI:
+                if (to_type != O2_MIDI) {
+                    rslt = NULL; // type mismatch
+                }
+                MX_SKIP(4);
+                break;
+            case O2_NIL:
+            case O2_INFINITUM:
+                if (to_type != mx_type_next[-1]) {
+                    rslt = NULL;
+                }
+                break;
+            case O2_START_ARRAY:
+                if (to_type == O2_START_ARRAY) {
+                    rslt = o2_got_start_array;
+                } else if (to_type == O2_VECTOR) {
+                    // see if we can extract a vector next time
+                    // when we get an element type
+                    mx_array_to_vector_pending = TRUE;
+                    rslt = (o2_arg_ptr) ARG_NEXT;
+                    ARG_DATA_USED(o2_arg);
+                    // initially, the vector type is the type of the first element
+                    // in the array, or double if the array is empty
+                    rslt->v.typ = *mx_type_next;
+                    if (rslt->v.typ == ']') rslt->v.typ = 'd';
+                    rslt->v.len = 0; // unkknown
+                    rslt->v.vi = NULL; // pointer to data is not valid yet
+                } else {
+                    rslt = NULL;
+                }
+                break;
+            case O2_END_ARRAY:
+                if (to_type == O2_END_ARRAY) {
+                    rslt = o2_got_end_array;
+                } else {
+                    rslt = NULL;
+                }
+                break;
+            case O2_VECTOR:
+                if (to_type == O2_START_ARRAY) {
+                    // extract the vector as array elements
+                    mx_vector_to_array = *mx_type_next++;
+                    mx_vector_remaining = rd_int32();
+                    // assuming 'v' was followed by a type, we have a vector
+                    rslt = mx_vector_to_array && o2_got_start_array;
+                } else if (to_type == O2_VECTOR) {
+                    // next call to o2_get_next() will get special processing
+                    mx_vector_to_vector_pending = TRUE;
+                    rslt = (o2_arg_ptr) ARG_NEXT;
+                    // do not call ARG_DATA_USED() because we will get
+                    //    this address again on next call to o2_get_next()
+                    rslt->v.typ = *mx_type_next;
+                    // do not increment mx_type_next because we will use
+                    //    it again (and increment on next call to o2_get_next()
+                    rslt->v.len = rd_int32();
+                    rslt->v.vi = NULL; // pointer to data is not valid yet
+                } else {
+                    rslt = NULL;
+                }
+                break;
+            default: // could be O2_END_ARRAY or EOS among others
+                fprintf(stderr, "O2 warning: unhandled OSC type '%c'\n",
+                        *mx_type_next);
+                return NULL;
         }
         if (mx_data_next > mx_barrier) {
             mx_data_next = mx_barrier; // which points to 4 zero bytes at end
@@ -1161,7 +1212,7 @@ o2_arg_ptr o2_get_next(char to_type)
     // space, we don't need to check for space, and it would be an error if
     // we did expand the space because pointers would be wrong
     o2_argv_data.length++;
-    o2_argv[o2_argc++] = rslt; // note: o2_argv is o2_argv_data.array as o2_arg_ptr.
+    o2_argv[o2_argc++] = rslt; // o2_argv is o2_argv_data.array as o2_arg_ptr.
     return rslt;
 }
 
@@ -1192,110 +1243,110 @@ void o2_print_msg(o2_message_ptr msg)
     
     while (*types) {
         switch (*types) {
-          case O2_INT32:
-            printf(" %d", *((int32_t *) data_next));
-            data_next += sizeof(int32_t);
-            break;
-          case O2_FLOAT:
-            printf(" %gf", *((float *) data_next));
-            data_next += sizeof(float);
-            break;
-          case O2_STRING:
-            printf(" \"%s\"", data_next);
-            data_next += ((strlen(data_next) + 4) & ~3);
-            break;
-          case O2_BLOB: {
-            int size = *((int32_t *) data_next);
-            data_next += sizeof(int32_t);
-            if (size > 12) {
-                printf(" (%d byte blob)", size);
-            } else {
-                printf(" (");
-                for (i = 0; i < size; i++) {
+            case O2_INT32:
+                printf(" %d", *((int32_t *) data_next));
+                data_next += sizeof(int32_t);
+                break;
+            case O2_FLOAT:
+                printf(" %gf", *((float *) data_next));
+                data_next += sizeof(float);
+                break;
+            case O2_STRING:
+                printf(" \"%s\"", data_next);
+                data_next += ((strlen(data_next) + 4) & ~3);
+                break;
+            case O2_BLOB: {
+                int size = *((int32_t *) data_next);
+                data_next += sizeof(int32_t);
+                if (size > 12) {
+                    printf(" (%d byte blob)", size);
+                } else {
+                    printf(" (");
+                    for (i = 0; i < size; i++) {
+                        if (i > 0) printf(" ");
+                        printf("%#02x", (unsigned char) (data_next[i]));
+                    }
+                    printf(")");
+                }
+                data_next += ((size + 3) & ~3);
+                break;
+            }
+            case O2_INT64:
+                printf(" %lld", *((int64_t *) data_next));
+                data_next += sizeof(int64_t);
+                break;
+            case O2_DOUBLE:
+                printf(" %g", *((double *) data_next));
+                data_next += sizeof(double);
+                break;
+            case O2_TIME:
+                printf(" %gs", *((double *) data_next));
+                data_next += sizeof(double);
+                break;
+            case O2_SYMBOL:
+                printf(" '%s", data_next);
+                data_next += ((strlen(data_next) + 4) & ~3);
+                break;
+            case O2_CHAR:
+                printf(" '%c'", *((int32_t *) data_next));
+                data_next += sizeof(int32_t);
+                break;
+            case O2_MIDI:
+                printf(" <MIDI: ");
+                for (i = 0; i < 4; i++) {
+                    if (i > 0) printf(" "); 
+                    printf("0x%02x", data_next[i]);
+                }
+                printf(">");
+                data_next += 4;
+                break;
+            case O2_TRUE:
+                printf(" #T");
+                break;
+            case O2_FALSE:
+                printf(" #F");
+                break;
+            case O2_NIL:
+                printf(" Nil");
+                break;
+            case O2_INFINITUM:
+                printf(" Infinitum");
+                break;
+            case O2_START_ARRAY:
+                printf(" [");
+                break;
+            case O2_END_ARRAY:
+                printf(" ]");
+                break;
+            case O2_VECTOR: {
+                int len = *((int32_t *) data_next);
+                data_next += sizeof(int32_t);
+                printf(" <");
+                char vtype = *types++;
+                for (i = 0; i < len; i++) {
                     if (i > 0) printf(" ");
-                    printf("%#02x", (unsigned char) (data_next[i]));
+                    if (vtype == O2_INT32) {
+                        printf(" %d", *((int32_t *) data_next));
+                        data_next += sizeof(int32_t);
+                    } else if (vtype == O2_INT64) {
+                        printf(" %lld", *((int64_t *) data_next));
+                        data_next += sizeof(int64_t);
+                    } else if (vtype == O2_FLOAT) {
+                        printf(" %gf", *((float *) data_next));
+                        data_next += sizeof(float);
+                    } else if (vtype == O2_DOUBLE) {
+                        printf(" %g", *((double *) data_next));
+                        data_next += sizeof(double);
+                    } else if (vtype == O2_TIME) {
+                        printf(" %gs", *((double *) data_next));
+                        data_next += sizeof(double);
+                    }
                 }
-                printf(")");
+                break;
             }
-            data_next += ((size + 3) & ~3);
-            break;
-          }
-          case O2_INT64:
-            printf(" %lld", *((int64_t *) data_next));
-            data_next += sizeof(int64_t);
-            break;
-          case O2_DOUBLE:
-            printf(" %g", *((double *) data_next));
-            data_next += sizeof(double);
-            break;
-          case O2_TIME:
-            printf(" %gs", *((double *) data_next));
-            data_next += sizeof(double);
-            break;
-          case O2_SYMBOL:
-            printf(" '%s", data_next);
-            data_next += ((strlen(data_next) + 4) & ~3);
-            break;
-          case O2_CHAR:
-            printf(" '%c'", *((int32_t *) data_next));
-            data_next += sizeof(int32_t);
-            break;
-          case O2_MIDI:
-            printf(" <MIDI: ");
-            for (i = 0; i < 4; i++) {
-                if (i > 0) printf(" "); 
-                printf("0x%02x", data_next[i]);
-            }
-            printf(">");
-            data_next += 4;
-            break;
-          case O2_TRUE:
-            printf(" #T");
-            break;
-          case O2_FALSE:
-             printf(" #F");
-             break;
-          case O2_NIL:
-            printf(" Nil");
-            break;
-          case O2_INFINITUM:
-            printf(" Infinitum");
-            break;
-          case O2_START_ARRAY:
-            printf(" [");
-            break;
-          case O2_END_ARRAY:
-            printf(" ]");
-            break;
-          case O2_VECTOR: {
-            int len = *((int32_t *) data_next);
-            data_next += sizeof(int32_t);
-            printf(" <");
-            char vtype = *types++;
-            for (i = 0; i < len; i++) {
-                if (i > 0) printf(" ");
-                if (vtype == O2_INT32) {
-                    printf(" %d", *((int32_t *) data_next));
-                    data_next += sizeof(int32_t);
-                } else if (vtype == O2_INT64) {
-                    printf(" %lld", *((int64_t *) data_next));
-                    data_next += sizeof(int64_t);
-                } else if (vtype == O2_FLOAT) {
-                    printf(" %gf", *((float *) data_next));
-                    data_next += sizeof(float);
-                } else if (vtype == O2_DOUBLE) {
-                    printf(" %g", *((double *) data_next));
-                    data_next += sizeof(double);
-                } else if (vtype == O2_TIME) {
-                    printf(" %gs", *((double *) data_next));
-                    data_next += sizeof(double);
-                }
-            }
-            break;
-          }
-          default:
-            printf(" O2 WARNING: unhandled type: %c\n", *types);
-            break;
+            default:
+                printf(" O2 WARNING: unhandled type: %c\n", *types);
+                break;
         }
         types++;
     }
