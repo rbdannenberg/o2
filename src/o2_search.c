@@ -13,6 +13,7 @@
 #include "o2_internal.h"
 #include "o2_message.h"
 #include "o2_discovery.h"
+#include "o2_send.h"
 
 #ifdef WIN32
 #include "malloc.h"
@@ -1061,7 +1062,7 @@ static o2_message_ptr pending_tail = NULL;
 
 // dispatch msg to all matching handlers
 //
-void find_and_call_handlers(o2_message_ptr msg)
+void find_and_call_handlers(o2_message_ptr msg, generic_entry_ptr service)
 {
     if (in_find_and_call_handlers) { // enqueue the message and return
         if (pending_tail) {
@@ -1079,14 +1080,28 @@ void find_and_call_handlers(o2_message_ptr msg)
         generic_entry_ptr *handler = lookup(&master_table, address, &index);
         address[0] = '!'; // restore address for no particular reason
         if (handler && (*handler)->tag == PATTERN_HANDLER) {
-            char *path_end = address;
-            while (path_end[3]) path_end += 4; // find end of path
-            call_handler((handler_entry_ptr) (*handler), msg, path_end + 5);
+            while (address[3]) address += 4; // find end of path
+            call_handler((handler_entry_ptr) (*handler), msg, address + 5);
         }
+        goto finish;
+    }
+    if (!service) {
+        service = o2_find_service(address + 1);
+    }
+    // if you o2_add_message("/service", ...) then the service entry is a
+    // pattern handler, and the handler is selected for ALL messages to the service
+    if (service->tag == PATTERN_HANDLER) {
+        while (address[3]) address += 4; // find end of path
+        call_handler((handler_entry_ptr) service, msg, address + 5);
     } else {
         char name[NAME_BUF_LEN];
-        find_and_call_handlers_rec(address + 1, name, &path_tree_table, msg);
+        address = strchr(address + 1, '/'); // search for end of service name
+        if (!address) {
+            return; // address is "/service", but "/service" is not a PATTERN_HANDLER
+        }
+        find_and_call_handlers_rec(address + 1, name, service, msg);
     }
+  finish:
     o2_free_message(msg);
     in_find_and_call_handlers = FALSE;
     return;
@@ -1102,7 +1117,7 @@ void o2_deliver_pending()
         } else {
             pending_head = pending_head->next;
         }
-        find_and_call_handlers(msg);
+        find_and_call_handlers(msg, NULL);
     }
 }
 

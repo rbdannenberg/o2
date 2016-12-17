@@ -12,6 +12,28 @@ int got_the_message = FALSE;
 o2_blob_ptr a_blob;
 char a_midi_msg[4];
 
+int service_none(const o2_message_ptr data, const char *types,
+                 o2_arg_ptr *argv, int argc, void *user_data)
+{
+    o2_start_extract(data);
+    assert(strcmp(types, "") == 0);
+    printf("service_none types=%s\n", types);
+    got_the_message = TRUE;
+    return O2_SUCCESS;
+}
+
+
+int service_nonep(const o2_message_ptr data, const char *types,
+                  o2_arg_ptr *argv, int argc, void *user_data)
+{
+    assert(strcmp(types, "") == 0);
+    assert(argc == 0);
+    printf("service_ip types=%s\n", types);
+    got_the_message = TRUE;
+    return O2_SUCCESS;
+}
+
+
 int service_i(const o2_message_ptr data, const char *types,
               o2_arg_ptr *argv, int argc, void *user_data)
 {
@@ -306,7 +328,7 @@ int service_Tp(const o2_message_ptr data, const char *types,
                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "T") == 0);
-    assert(argc == 0);
+    assert(argc == 1);
     printf("service_Tp types=%s\n", types);
     got_the_message = TRUE;
     return O2_SUCCESS;
@@ -328,7 +350,7 @@ int service_Fp(const o2_message_ptr data, const char *types,
                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "F") == 0);
-    assert(argc == 0);
+    assert(argc == 1);
     printf("service_Fp types=%s\n", types);
     got_the_message = TRUE;
     return O2_SUCCESS;
@@ -350,7 +372,7 @@ int service_Ip(const o2_message_ptr data, const char *types,
                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "I") == 0);
-    assert(argc == 0);
+    assert(argc == 1);
     printf("service_Ip types=%s\n", types);
     got_the_message = TRUE;
     return O2_SUCCESS;
@@ -372,7 +394,7 @@ int service_Np(const o2_message_ptr data, const char *types,
                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "N") == 0);
-    assert(argc == 0);
+    assert(argc == 1);
     printf("service_Np types=%s\n", types);
     got_the_message = TRUE;
     return O2_SUCCESS;
@@ -406,8 +428,16 @@ int service_many(const o2_message_ptr data, const char *types,
            memcmp(arg->b.data, a_blob->data, 15) == 0);
     arg = o2_get_next('m');
     assert(memcmp(arg->m, &(a_midi_msg[0]), 3) == 0);
-    o2_start_extract(data);
+    arg = o2_get_next('T');
+    assert(arg);
+    arg = o2_get_next('F');
+    assert(arg);
+    arg = o2_get_next('I');
+    assert(arg);
+    arg = o2_get_next('N');
+    assert(arg);
     arg = o2_get_next('i');
+    assert(arg->i == 1234);
 
     assert(strcmp(types, "icBhfdtsSbmTFINi") == 0);
     printf("service_many types=%s\n", types);
@@ -419,7 +449,7 @@ int service_many(const o2_message_ptr data, const char *types,
 int service_manyp(const o2_message_ptr data, const char *types,
                   o2_arg_ptr *argv, int argc, void *user_data)
 {
-    assert(argc == 12);
+    assert(argc == 16);
     assert(argv[0]->i == 1234);
     assert(argv[1]->c == 'Q');
     assert(argv[2]->B == TRUE);
@@ -432,8 +462,87 @@ int service_manyp(const o2_message_ptr data, const char *types,
     assert(argv[9]->b.size = a_blob->size &&
            memcmp(argv[9]->b.data, a_blob->data, 15) == 0);
     assert(memcmp(argv[10]->m, &(a_midi_msg[0]), 3) == 0);
+    assert(argv[15]->i == 1234);
     assert(strcmp(types, "icBhfdtsSbmTFINi") == 0);
     printf("service_manyp types=%s\n", types);
+    got_the_message = TRUE;
+    return O2_SUCCESS;
+}
+
+
+// this handles every message to service_two
+//    we'll support two things: /two/i and /two/id
+int service_two(const o2_message_ptr msg, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
+{
+    o2_start_extract(msg);
+    if (strcmp(msg->data.address + 1, "two/i") == 0) {
+        o2_arg_ptr arg = o2_get_next('i');
+        assert(arg && arg->i == 1234);
+        printf("service_two types=%s arg=%d\n", types, arg->i);
+    } else if (strcmp(msg->data.address + 1, "two/id") == 0) {
+        o2_arg_ptr arg = o2_get_next('i');
+        int i;
+        assert(arg && arg->i == 1234);
+        i = arg->i;
+        arg = o2_get_next('d');
+        assert(arg->d == 1234.56);
+        printf("service_two types=%s args=%d %g\n", types, i, arg->d);
+    } else {
+        assert(FALSE);
+    }
+    got_the_message = TRUE;
+    return O2_SUCCESS;
+}
+
+
+// this handles every message to service_two
+//    we'll support two things: /two/i and /two/id
+int service_three(const o2_message_ptr msg, const char *types,
+                  o2_arg_ptr *argv, int argc, void *user_data)
+{
+    o2_start_extract(msg);
+    if (strcmp(msg->data.address + 1, "three/i") == 0) {
+        o2_arg_ptr arg = o2_get_next('i');
+        assert(arg->i == 1234);
+        printf("service_three types=%s arg=%d\n", types, arg->i);
+    } else if (strcmp(msg->data.address + 1, "three/id") == 0) {
+        o2_arg_ptr arg = o2_get_next('i');
+        int i;
+        assert(arg && arg->i == 1234);
+        i = arg->i;
+        arg = o2_get_next('d');
+        assert(arg->d == 1234.56);
+        printf("service_three types=%s args=%d %g\n", types, i, arg->d);
+    } else {
+        assert(FALSE);
+    }
+    got_the_message = TRUE;
+    return O2_SUCCESS;
+}
+
+
+// this handles every message to service_two
+//    we'll support two things: /two/i and /two/id
+int service_four(const o2_message_ptr msg, const char *types,
+                 o2_arg_ptr *argv, int argc, void *user_data)
+{
+    o2_start_extract(msg);
+    if (strcmp(msg->data.address + 1, "four/i") == 0) {
+        o2_arg_ptr arg = o2_get_next('i');
+        assert(arg->i == 1234);
+        printf("service_four types=%s arg=%d\n", types, arg->i);
+    } else if (strcmp(msg->data.address + 1, "four/id") == 0) {
+        o2_arg_ptr arg = o2_get_next('i');
+        int i;
+        assert(arg && arg->i == 1234);
+        i = arg->i;
+        arg = o2_get_next('d');
+        assert(arg->d == 1234.56);
+        printf("service_four types=%s args=%d %g\n", types, i, arg->d);
+    } else {
+        assert(FALSE);
+    }
     got_the_message = TRUE;
     return O2_SUCCESS;
 }
@@ -461,6 +570,11 @@ int main(int argc, const char * argv[])
 
     o2_initialize("test");    
     o2_add_service("one");
+    o2_add_service("two");
+    o2_add_service("three");
+    o2_add_service("four");
+    o2_add_method("/one/none", "", &service_none, NULL, FALSE, FALSE);
+    o2_add_method("/one/nonep", "", &service_nonep, NULL, FALSE, TRUE);
     o2_add_method("/one/i", "i", &service_i, NULL, FALSE, FALSE);
     o2_add_method("/one/ip", "i", &service_ip, NULL, FALSE, TRUE);
     o2_add_method("/one/c", "c", &service_c, NULL, FALSE, FALSE);
@@ -495,6 +609,9 @@ int main(int argc, const char * argv[])
                   NULL, FALSE, FALSE);
     o2_add_method("/one/manyp", "icBhfdtsSbmTFINi", &service_manyp,
                   NULL, FALSE, TRUE);
+    o2_add_method("/two", NULL, &service_two, NULL, FALSE, FALSE);
+    o2_add_method("/three", "i", &service_three, NULL, FALSE, TRUE);
+    o2_add_method("/four", "i", &service_four, NULL, TRUE, TRUE);
 
     o2_send("/one/i", 0, "i", 1234);
     send_the_message();
@@ -563,6 +680,14 @@ int main(int argc, const char * argv[])
     o2_send("/one/manyp", 0, "icBhfdtsSbmTFINi", 1234, 'Q', TRUE, 12345LL,
             1234.5, 1234.56, 1234.567, "1234", "123456",
             a_blob, &(a_midi_msg[0]), 1234);
+    send_the_message();
+    o2_send("/two/i", 0, "i", 1234);
+    send_the_message();
+    o2_send("/two/id", 0, "id", 1234, 1234.56);
+    send_the_message();
+    o2_send("/three/i", 0, "i", 1234);
+    send_the_message();
+    o2_send("/four/i", 0, "d", 1234.0);
     send_the_message();
     printf("DONE\n");
     o2_finish();

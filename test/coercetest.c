@@ -18,7 +18,7 @@ int got_the_message = FALSE;
 //
 char *send_types = "";
 
-// receive float as int
+// receive send type as int
 int service_i(const o2_message_ptr data, const char *types,
               o2_arg_ptr *argv, int argc, void *user_data)
 {
@@ -27,7 +27,9 @@ int service_i(const o2_message_ptr data, const char *types,
     o2_arg_ptr arg = o2_get_next('i');
     assert(arg);
     printf("service_i types=%s int=%d\n", types, arg->i);
-    assert(arg->i == 12345);
+    assert(arg->i == ((strcmp(send_types, "T") == 0) ||
+                      strcmp(send_types, "B") == 0) ? 1 :
+           ((strcmp(send_types, "F") == 0) ? 0 : 12345));
     got_the_message = TRUE;
     return O2_SUCCESS;
 }
@@ -57,7 +59,7 @@ int service_B(const o2_message_ptr data, const char *types,
     o2_arg_ptr arg = o2_get_next('B');
     assert(arg);
     printf("service_B types=%s bool=%d\n", types, arg->B);
-    assert(arg->B == TRUE);
+    assert(arg->B == (strcmp(send_types, "F") != 0));
     got_the_message = TRUE;
     return O2_SUCCESS;
 }
@@ -85,7 +87,9 @@ int service_h(const o2_message_ptr data, const char *types,
     o2_arg_ptr arg = o2_get_next('h');
     assert(arg);
     printf("service_h types=%s int64=%lld\n", types, arg->h);
-    assert(arg->h == 12345LL);
+    assert(arg->h == ((strcmp(send_types, "T") == 0) ||
+                       strcmp(send_types, "B") == 0) ? 1 :
+                      ((strcmp(send_types, "F") == 0) ? 0 : 12345LL));
     got_the_message = TRUE;
     return O2_SUCCESS;
 }
@@ -115,7 +119,10 @@ int service_f(const o2_message_ptr data, const char *types,
     o2_arg_ptr arg = o2_get_next('f');
     assert(arg);
     printf("service_f types=%s float=%g\n", types, arg->f);
-    assert(arg->f == 1234.0);
+    assert(arg->i == ((strcmp(send_types, "T") == 0) ||
+                       strcmp(send_types, "B") == 0) ? 1 :
+                      ((strcmp(send_types, "F") == 0) ? 0 : 1234.0));
+
     got_the_message = TRUE;
     return O2_SUCCESS;
 }
@@ -145,7 +152,10 @@ int service_d(const o2_message_ptr data, const char *types,
     o2_arg_ptr arg = o2_get_next('d');
     assert(arg);
     printf("service_d types=%s double=%g\n", types, arg->d);
-    assert(arg->d == 1234.0);
+    assert(arg->i == ((strcmp(send_types, "T") == 0) ||
+                       strcmp(send_types, "B") == 0) ? 1 :
+                     ((strcmp(send_types, "F") == 0) ? 0 : 1234.0));
+
     got_the_message = TRUE;
     return O2_SUCCESS;
 }
@@ -366,8 +376,8 @@ int main(int argc, const char * argv[])
     o2_add_service("one");
 
     char address[32];
-    for (int i = 0; i < 5; i++) {
-        char send_type = ("ihfdt")[i];
+    for (int i = 0; i < 8; i++) {
+        char send_type = ("ihfdtTFB")[i];
         char send_types[4];
         send_types[0] = send_type;
         send_types[1] = 0;
@@ -414,204 +424,267 @@ int main(int argc, const char * argv[])
 
     o2_send("/one/many", 0, "hifdt", 12345LL, 1234,
             123.456, 123.456, 123.456);
+    send_the_message();
     o2_send("/one/manyp", 0, "hifdt", 12345LL, 1234,
             123.456, 123.456, 123.456);
+    send_the_message();
 
     send_types = "i";
     o2_send("/one/ii", 0, "i", 12345);
+    send_the_message();
     o2_send("/one/ip", 0, "i", 12345);
     send_the_message();
     o2_send("/one/iB", 0, "i", 1234);
+    send_the_message();
     o2_send("/one/Bp", 0, "i", 1234);
     send_the_message();
     o2_send("/one/ih", 0, "i", 12345);
+    send_the_message();
     o2_send("/one/hp", 0, "i", 12345);
     send_the_message();
     o2_send("/one/if", 0, "i", 1234);
+    send_the_message();
     o2_send("/one/fp", 0, "i", 1234);
     send_the_message();
     o2_send("/one/id", 0, "i", 1234);
+    send_the_message();
     o2_send("/one/dp", 0, "i", 1234);
     send_the_message();
     o2_send("/one/it", 0, "i", 1234);
+    send_the_message();
     o2_send("/one/tp", 0, "i", 1234);
     send_the_message();
     o2_send("/one/iT", 0, "i", 1111);
+    send_the_message();
     o2_send("/one/Tp", 0, "i", 1111);
     send_the_message();
     o2_send("/one/iF", 0, "i", 0);
+    send_the_message();
     o2_send("/one/Fp", 0, "i", 0);
     send_the_message();
 
     send_types = "h";
     o2_send("/one/hi", 0, "h", 12345LL);
+    send_the_message();
     o2_send("/one/ip", 0, "h", 12345LL);
     send_the_message();
     o2_send("/one/hB", 0, "h", 12345LL);
+    send_the_message();
     o2_send("/one/Bp", 0, "h", 12345LL);
     send_the_message();
     o2_send("/one/hh", 0, "h", 12345LL);
+    send_the_message();
     o2_send("/one/hp", 0, "h", 12345LL);
     send_the_message();
     o2_send("/one/hf", 0, "h", 1234LL);
+    send_the_message();
     o2_send("/one/fp", 0, "h", 1234LL);
     send_the_message();
     o2_send("/one/hd", 0, "h", 1234LL);
+    send_the_message();
     o2_send("/one/dp", 0, "h", 1234LL);
     send_the_message();
     o2_send("/one/ht", 0, "h", 1234LL);
+    send_the_message();
     o2_send("/one/tp", 0, "h", 1234LL);
     send_the_message();
     o2_send("/one/hT", 0, "h", 1111LL);
+    send_the_message();
     o2_send("/one/Tp", 0, "h", 1111LL);
     send_the_message();
     o2_send("/one/hF", 0, "h", 0LL);
+    send_the_message();
     o2_send("/one/Fp", 0, "h", 0LL);
     send_the_message();
 
     send_types = "f";
     o2_send("/one/fi", 0, "f", 12345.0);
+    send_the_message();
     o2_send("/one/ip", 0, "f", 12345.0);
     send_the_message();
     o2_send("/one/fB", 0, "f", 1234.0);
+    send_the_message();
     o2_send("/one/Bp", 0, "f", 1234.0);
     send_the_message();
     o2_send("/one/fh", 0, "f", 12345.0);
+    send_the_message();
     o2_send("/one/hp", 0, "f", 12345.0);
     send_the_message();
     o2_send("/one/ff", 0, "f", 1234.0);
+    send_the_message();
     o2_send("/one/fp", 0, "f", 1234.0);
     send_the_message();
     o2_send("/one/fd", 0, "f", 1234.0);
+    send_the_message();
     o2_send("/one/dp", 0, "f", 1234.0);
     send_the_message();
     o2_send("/one/ft", 0, "f", 1234.0);
+    send_the_message();
     o2_send("/one/tp", 0, "f", 1234.0);
     send_the_message();
     o2_send("/one/fT", 0, "f", 1111.0);
+    send_the_message();
     o2_send("/one/Tp", 0, "f", 1111.0);
     send_the_message();
     o2_send("/one/fF", 0, "f", 0.0);
+    send_the_message();
     o2_send("/one/Fp", 0, "f", 0.0);
     send_the_message();
 
     send_types = "d";
     o2_send("/one/di", 0, "d", 12345.0);
+    send_the_message();
     o2_send("/one/ip", 0, "d", 12345.0);
     send_the_message();
     o2_send("/one/dB", 0, "d", 1234.0);
+    send_the_message();
     o2_send("/one/Bp", 0, "d", 1234.0);
     send_the_message();
     o2_send("/one/dh", 0, "d", 12345.0);
+    send_the_message();
     o2_send("/one/hp", 0, "d", 12345.0);
     send_the_message();
     o2_send("/one/df", 0, "d", 1234.0);
+    send_the_message();
     o2_send("/one/fp", 0, "d", 1234.0);
     send_the_message();
     o2_send("/one/dd", 0, "d", 1234.0);
+    send_the_message();
     o2_send("/one/dp", 0, "d", 1234.0);
     send_the_message();
     o2_send("/one/dt", 0, "d", 1234.0);
+    send_the_message();
     o2_send("/one/tp", 0, "d", 1234.0);
     send_the_message();
     o2_send("/one/dT", 0, "d", 1111.0);
+    send_the_message();
     o2_send("/one/Tp", 0, "d", 1111.0);
     send_the_message();
     o2_send("/one/dF", 0, "d", 0.0);
+    send_the_message();
     o2_send("/one/Fp", 0, "d", 0.0);
     send_the_message();
 
     send_types = "t";
     o2_send("/one/ti", 0, "t", 12345.0);
+    send_the_message();
     o2_send("/one/ip", 0, "t", 12345.0);
     send_the_message();
     o2_send("/one/th", 0, "t", 12345.0);
+    send_the_message();
     o2_send("/one/hp", 0, "t", 12345.0);
     send_the_message();
     o2_send("/one/tf", 0, "t", 1234.0);
+    send_the_message();
     o2_send("/one/fp", 0, "t", 1234.0);
     send_the_message();
     o2_send("/one/td", 0, "t", 1234.0);
+    send_the_message();
     o2_send("/one/dp", 0, "t", 1234.0);
     send_the_message();
     o2_send("/one/tt", 0, "t", 1234.0);
+    send_the_message();
     o2_send("/one/tp", 0, "t", 1234.0);
     send_the_message();
 
 
     send_types = "T";
     o2_send("/one/Ti", 0, "T");
+    send_the_message();
     o2_send("/one/ip", 0, "T");
     send_the_message();
     o2_send("/one/TB", 0, "T");
+    send_the_message();
     o2_send("/one/Bp", 0, "T");
     send_the_message();
     o2_send("/one/Th", 0, "T");
+    send_the_message();
     o2_send("/one/hp", 0, "T");
     send_the_message();
     o2_send("/one/Tf", 0, "T");
+    send_the_message();
     o2_send("/one/fp", 0, "T");
     send_the_message();
     o2_send("/one/Td", 0, "T");
+    send_the_message();
     o2_send("/one/dp", 0, "T");
     send_the_message();
     o2_send("/one/TT", 0, "T");
+    send_the_message();
     o2_send("/one/Tp", 0, "T");
     send_the_message();
 
     send_types = "F";
     o2_send("/one/Fi", 0, "F");
+    send_the_message();
     o2_send("/one/ip", 0, "F");
     send_the_message();
     o2_send("/one/FB", 0, "F");
+    send_the_message();
     o2_send("/one/Bp", 0, "F");
     send_the_message();
     o2_send("/one/Fh", 0, "F");
+    send_the_message();
     o2_send("/one/hp", 0, "F");
     send_the_message();
     o2_send("/one/Ff", 0, "F");
+    send_the_message();
     o2_send("/one/fp", 0, "F");
     send_the_message();
     o2_send("/one/Fd", 0, "F");
+    send_the_message();
     o2_send("/one/dp", 0, "F");
     send_the_message();
     o2_send("/one/FF", 0, "F");
+    send_the_message();
     o2_send("/one/Fp", 0, "F");
     send_the_message();
 
     send_types = "B";
     o2_send("/one/Bi", 0, "B", TRUE);
+    send_the_message();
     o2_send("/one/ip", 0, "B", TRUE);
     send_the_message();
     o2_send("/one/BB", 0, "B", TRUE);
+    send_the_message();
     o2_send("/one/Bp", 0, "B", TRUE);
     send_the_message();
     o2_send("/one/Bh", 0, "B", TRUE);
+    send_the_message();
     o2_send("/one/hp", 0, "B", TRUE);
     send_the_message();
     o2_send("/one/Bf", 0, "B", TRUE);
+    send_the_message();
     o2_send("/one/fp", 0, "B", TRUE);
     send_the_message();
     o2_send("/one/Bd", 0, "B", TRUE);
+    send_the_message();
     o2_send("/one/dp", 0, "B", TRUE);
     send_the_message();
     o2_send("/one/BB", 0, "B", TRUE);
+    send_the_message();
     o2_send("/one/Bp", 0, "B", TRUE);
     send_the_message();
     o2_send("/one/BF", 0, "B", FALSE);
+    send_the_message();
     o2_send("/one/Fp", 0, "B", FALSE);
     send_the_message();
     o2_send("/one/BT", 0, "B", TRUE);
+    send_the_message();
     o2_send("/one/Tp", 0, "B", TRUE);
     send_the_message();
     
     send_types = "S";
     o2_send("/one/Ss", 0, "S", "aSymbol");
+    send_the_message();
     o2_send("/one/sp", 0, "S", "aSymbol");
+    send_the_message();
     
     send_types = "s";
     o2_send("/one/sS", 0, "s", "aString");
+    send_the_message();
     o2_send("/one/Sp", 0, "s", "aString");
+    send_the_message();
 
     printf("DONE\n");
     o2_finish();

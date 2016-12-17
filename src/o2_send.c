@@ -55,6 +55,7 @@ generic_entry_ptr o2_find_service(const char *service_name)
     }
     // TODO: can anything else be in the path_tree_table? I guess /o2_ and IP addresses
     if ((*entry)->tag == PATTERN_NODE ||
+        (*entry)->tag == PATTERN_HANDLER ||
         (*entry)->tag == O2_REMOTE_SERVICE ||
         (*entry)->tag == OSC_REMOTE_SERVICE) {
         return *entry;
@@ -153,13 +154,13 @@ int o2_send_message(o2_message_ptr msg, int tcp_flag)
         return O2_FAIL;
     }
     // Local delivery?
-    if (service->tag == PATTERN_NODE) {
+    if (service->tag <= PATTERN_HANDLER) {
         // TODO: test if o2_get_time() is operational?
         // future?
         if (msg->data.timestamp > o2_get_time()) {
-            o2_schedule(&o2_ltsched, msg);
+            o2_schedule_on(&o2_ltsched, msg, service);
         } else { // send it now
-            find_and_call_handlers(msg);
+            find_and_call_handlers(msg, service);
         }
         return O2_SUCCESS;
     } else if (service->tag == O2_REMOTE_SERVICE) { // send the message to remote process

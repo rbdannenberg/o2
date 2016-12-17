@@ -53,6 +53,7 @@
 #include "o2_message.h"
 #include "o2_sched.h"
 #include "o2_clock.h"
+#include "o2_send.h"
 
 
 #define SCHED_BIN(time) ((int64_t) ((time) * 100))
@@ -109,7 +110,10 @@ int scheduled_for(o2_sched_ptr s, double when)
 }
 DEBUG*/
 
-void o2_schedule(o2_sched_ptr s, o2_message_ptr m)
+// Schedule a message for a particular service (saves doing a service lookup
+//  if the lookup has already taken place)
+//
+void o2_schedule_on(o2_sched_ptr s, o2_message_ptr m, generic_entry_ptr service)
 {
     // don't let time go backward:
     o2_time m_t = m->data.timestamp;
@@ -117,7 +121,7 @@ void o2_schedule(o2_sched_ptr s, o2_message_ptr m)
     // send the message immediately. No need to schedule it, and
     // scheduling with an expired timestamp would not work.
     if (m_t < s->last_time) {
-        find_and_call_handlers(m);
+        find_and_call_handlers(m, service);
         return;
     }
     int64_t index = SCHED_INDEX(m_t);
@@ -131,6 +135,12 @@ void o2_schedule(o2_sched_ptr s, o2_message_ptr m)
     m->next = *m_ptr;
     *m_ptr = m;
     // assert(scheduled_for(s, m->data.timestamp));
+}
+
+
+void o2_schedule(o2_sched_ptr s, o2_message_ptr m)
+{
+    o2_schedule_on(s, m, NULL);
 }
 
 
@@ -181,7 +191,7 @@ void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
             // careful: this can call schedule and change the table
             //printf("find_and_call_handlers at %g actual %g\n",
             //       m->data.timestamp, run_until_time);
-            find_and_call_handlers(m);
+            find_and_call_handlers(m, NULL);
         }
         s->last_bin++;
     }

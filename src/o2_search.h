@@ -228,10 +228,13 @@ int o2_remove_method(const char *path);
  *  When we get a new message and want to dispatch it to certain method handlers.
  *  We need to use this function.
  *  Note: as the path is included in the message, we don't need to pass in the path.
+ *  Note 2: since we had to look up the service in order to know the service was
+ *    local, we pass in the service to save a duplicate lookup here. However, in
+ *    some cases, the service is not known at the time of the call
  *
  *  @param msg The message structure.
  */
-void find_and_call_handlers(o2_message_ptr msg);
+void find_and_call_handlers(o2_message_ptr msg, generic_entry_ptr service);
 
 void o2_deliver_pending();
 

@@ -548,7 +548,12 @@ int o2_add_service(char *service_name);
 /**
  * \brief Add a handler for an address.
  *
- * @param path      the address including the service name
+ * @param path      the address including the service name. If the address
+ *                      is only the service name with no trailing slash,
+ *                      the handler will match any message to the service.
+ *                      Addresses should not conflict: An address should
+ *                      not match another address, and for every pair of
+ *                      addresses X and Y, X/ should not be a prefix of Y.
  * @param typespec  the types of parameters, use "" for no parameters and
  *                      NULL for no type checking
  * @param h         the handler

@@ -103,11 +103,11 @@ void deliver_or_schedule(o2_message_ptr msg)
             if (msg->data.timestamp > o2_global_now) {
                 o2_schedule(&o2_gtsched, msg);
             } else {
-                find_and_call_handlers(msg);
+                find_and_call_handlers(msg, NULL);
             }
         } // else drop the message, no timestamps allowed before clock sync
     } else {
-        find_and_call_handlers(msg);
+        find_and_call_handlers(msg, NULL);
     }
 }
 
