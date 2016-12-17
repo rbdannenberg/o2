@@ -683,6 +683,8 @@ int main(int argc, const char * argv[])
     send_the_message();
     o2_send("/two/i", 0, "i", 1234);
     send_the_message();
+    o2_send("!two/i", 0, "i", 1234);
+    send_the_message();
     o2_send("/two/id", 0, "id", 1234, 1234.56);
     send_the_message();
     o2_send("/three/i", 0, "i", 1234);

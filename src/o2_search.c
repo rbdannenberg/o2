@@ -1074,17 +1074,6 @@ void find_and_call_handlers(o2_message_ptr msg, generic_entry_ptr service)
     }
     in_find_and_call_handlers = TRUE;
     char *address = msg->data.address;
-    if ((address[0]) == '!') { // do full path lookup
-        int index;
-        address[0] = '/'; // must start with '/' to get consistent hash value
-        generic_entry_ptr *handler = lookup(&master_table, address, &index);
-        address[0] = '!'; // restore address for no particular reason
-        if (handler && (*handler)->tag == PATTERN_HANDLER) {
-            while (address[3]) address += 4; // find end of path
-            call_handler((handler_entry_ptr) (*handler), msg, address + 5);
-        }
-        goto finish;
-    }
     if (!service) {
         service = o2_find_service(address + 1);
     }
@@ -1093,6 +1082,15 @@ void find_and_call_handlers(o2_message_ptr msg, generic_entry_ptr service)
     if (service->tag == PATTERN_HANDLER) {
         while (address[3]) address += 4; // find end of path
         call_handler((handler_entry_ptr) service, msg, address + 5);
+    } else if ((address[0]) == '!') { // do full path lookup
+        int index;
+        address[0] = '/'; // must start with '/' to get consistent hash value
+        generic_entry_ptr *handler = lookup(&master_table, address, &index);
+        address[0] = '!'; // restore address for no particular reason
+        if (handler && (*handler)->tag == PATTERN_HANDLER) {
+            while (address[3]) address += 4; // find end of path
+            call_handler((handler_entry_ptr) (*handler), msg, address + 5);
+        }
     } else {
         char name[NAME_BUF_LEN];
         address = strchr(address + 1, '/'); // search for end of service name
@@ -1101,7 +1099,6 @@ void find_and_call_handlers(o2_message_ptr msg, generic_entry_ptr service)
         }
         find_and_call_handlers_rec(address + 1, name, service, msg);
     }
-  finish:
     o2_free_message(msg);
     in_find_and_call_handlers = FALSE;
     return;
