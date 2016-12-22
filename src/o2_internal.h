@@ -49,6 +49,8 @@
 #define O2_DB4(x)
 #endif
 
+#define RETURN_IF_ERROR(expr) { int err = (expr); if (err) return err; }
+
 // define IS_BIG_ENDIAN, IS_LITTLE_ENDIAN, and swap64(i),
 // swap32(i), and swap16(i)
 #if WIN32
@@ -168,7 +170,7 @@ typedef struct o2_socket {
 } o2_socket;
 
 // global variables
-extern process_info o2_process;
+extern fds_info_ptr o2_process;
 extern o2_arg_ptr *o2_argv; // arg vector extracted by calls to o2_get_next()
 extern int o2_argc; // length of argv
 

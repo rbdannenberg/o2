@@ -85,11 +85,19 @@ add_executable(clockslave test/clockslave.c)
 target_include_directories(clockslave PRIVATE ${CMAKE_SOURCE_DIR}/src) 
 target_link_libraries(clockslave ${LIBRARIES}) 
 
-add_executable(clockmaster test/clockmaster.c) 
-target_include_directories(clockmaster PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+add_executable(clockmaster test/clockmaster.c)  
+target_include_directories(clockmaster PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(clockmaster ${LIBRARIES}) 
 
-
+add_executable(oscsendtest test/oscsendtest.c)  
+target_include_directories(oscsendtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(oscsendtest ${LIBRARIES}) 
+ 
+add_executable(oscrecvtest test/oscrecvtest.c)  
+target_include_directories(oscrecvtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(oscrecvtest ${LIBRARIES}) 
+ 
+ 
 if(UNIX)
   # Use PortMidi Library
   set(PORTMIDI_DBG_LIB PORTMIDI_DBG_LIB-NOTFOUND)

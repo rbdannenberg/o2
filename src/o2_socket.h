@@ -50,11 +50,13 @@ typedef int SOCKET;     // In O2, we'll use SOCKET to denote the type of a socke
  * In fds_info, we have the socket, a handler for the socket, and buffer info
  * to store incoming data, and the service the socket is attached to.
  */
-#define UDP_SOCKET          0
-#define TCP_SOCKET          1
-#define OSC_SOCKET          2
-#define DISCOVER_SOCKET     3
-#define TCP_SERVER_SOCKET   4
+#define UDP_SOCKET 0
+#define TCP_SOCKET 1
+#define OSC_SOCKET 2
+#define DISCOVER_SOCKET 3
+#define TCP_SERVER_SOCKET 4
+#define OSC_TCP_SERVER_SOCKET 5
+#define OSC_TCP_SOCKET 6
 
 struct process_info;
 
@@ -66,8 +68,7 @@ typedef struct ifaddrs
     unsigned int     ifa_flags;   /* Flags from SIOCGIFFLAGS */
     struct sockaddr *ifa_addr;    /* Address of interface */
     struct sockaddr *ifa_netmask; /* Netmask of interface */
-    union
-    {
+    union {
         struct sockaddr *ifu_broadaddr; /* Broadcast address of interface */
         struct sockaddr *ifu_dstaddr; /* Point-to-point destination address */
     } ifa_ifu;
@@ -79,20 +80,45 @@ typedef struct ifaddrs
 
 #endif
 
+struct fds_info; // recursive declarations o2_socket_handler and fds_info
+
+typedef int (*o2_socket_handler)(SOCKET sock, struct fds_info *info);
+
 typedef struct fds_info {
-    int tag;                    // UDP_SOCKET, TCP_SOCKET, OSC_SOCKET, DISCOVER_SOCKET,
-    // TCP_SERVER_SOCKET
-    //int port;                   // Record the port number of the socket.
+    int tag;  // UDP_SOCKET, TCP_SOCKET, DISCOVER_SOCKET, TCP_SERVER_SOCKET
+              // OSC_SOCKET, OSC_TCP_SERVER_SOCKET,
+              // OSC_TCP_SOCKET, OSC_TCP_CLIENT
+
     uint32_t length;            // message length
     o2_message_ptr message;     // message data from TCP stream goes here
     int length_got;             // how many bytes of length have been read?
     int message_got;            // how many bytes of message have been read?
-    int (*handler)(SOCKET sock, struct fds_info *info); // handler for socket
+    o2_socket_handler handler;  // handler for socket
+
     union {
-        struct process_info *process_info;  // if not OSC
-        char *osc_service_name;           // for incoming OSC port
-    } u;
+        struct {
+            char *name; // e.g. "128.2.1.100:55765", this is used so that when
+            // we add a service, we can enumerate all the processes and send
+            // them updates. Updates are addressed using this name field. Also,
+            // when a new process is connected, we send an /in message to this
+            // name. name is "owned" by the process_info struct and will be
+            // deleted when the struct is freed
+            int status; // PROCESS_DISCOVERED through PROCESS_OK
+            dyn_array services; // these are the keys of remote_service_entry
+                        // objects, owned by the service entries (do not free)
+            int little_endian;  // true if the host is little-endian
+            // port numbers are here so that in discovery, we can check for
+            // any changes
+            int udp_port;       // current udp port number
+            struct sockaddr_in udp_sa;  // address for sending UDP messages
+        } proc;
+        char *osc_service_name; // if this forwards messages to an OSC server
+    };        
 } fds_info, *fds_info_ptr;
+
+
+#define INFO_TO_INDEX(info) ((info) - (fds_info_ptr) o2_fds_info.array)
+#define INFO_TO_FD(info) ((DA_GET(o2_fds, struct pollfd, INFO_TO_INDEX(info)))->fd)
 
 extern char o2_local_ip[24];
 extern int o2_local_tcp_port;
@@ -117,11 +143,11 @@ int getifaddrs(struct ifaddrs **ifpp);
 void freeifaddrs(struct ifaddrs *ifp);
 #endif
 
+int o2_init_process(fds_info_ptr info, const char *name, int status,
+                    int is_little_endian);
 int init_sockets();
-int make_udp_recv_socket(int tag, int port /* , int reuse_flag */);
-// TODO: does process_info_ptr work?
-int make_tcp_recv_socket(int tag, struct process_info *process);
-
+int make_udp_recv_socket(int tag, int *port, fds_info_ptr *info);
+int make_tcp_recv_socket(int tag, o2_socket_handler handler, fds_info_ptr *info);
 /**
  *  When we get the raw data from the socket, we call this function. This function
  *  will first serialize the data into o2_message and then pass the message to
@@ -149,7 +175,15 @@ void o2_service_free(const char *service_name);
  */
 void o2_application_info();
 
+fds_info_ptr o2_add_new_socket(SOCKET sock, int tag, o2_socket_handler handler);
 
 void o2_remove_socket(int i);
+
+
+int o2_tcp_initial_handler(SOCKET sock, fds_info_ptr info);
+int o2_osc_tcp_accept_handler(SOCKET sock, fds_info_ptr info);
+int o2_osc_delegate_handler(SOCKET sock, fds_info_ptr info);
+
+
 
 #endif /* o2_socket_h */

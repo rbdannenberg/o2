@@ -8,7 +8,7 @@ void o2_clock_init();
 
 o2_time o2_local_to_global(o2_time local);
 
-int o2_send_clocksync(process_info_ptr process);
+int o2_send_clocksync(fds_info_ptr process);
 
 int o2_ping_send_handler(o2_message_ptr msg, const char *types,
                          o2_arg_ptr *argv, int argc, void *user_data);

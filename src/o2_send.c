@@ -15,6 +15,7 @@
 #include "o2_send.h"
 #include "o2_sched.h"
 #include "o2_message.h"
+#include "o2_interoperation.h"
 #include <errno.h>
 
 
@@ -121,12 +122,12 @@ osc_entry_ptr o2_find_remote_osc(const char *service_name)
 size_t o2_arg_size(o2_type type, void *data);
 
 
-int send_by_tcp_to_process(process_info_ptr proc, o2_message_ptr msg)
+int send_by_tcp_to_process(fds_info_ptr info, o2_message_ptr msg)
 {
     // printf("+    %s send by tcp %s\n", debug_prefix, msg->data.address);
     // Send the length of the message
     int32_t len = htonl(msg->length);
-    SOCKET fd = DA_GET(o2_fds, struct pollfd, proc->tcp_fd_index)->fd;
+    SOCKET fd = INFO_TO_FD(info);
     if (send(fd, &len, sizeof(int32_t), 0) < 0) {
         perror("o2_send_message writing length");
         goto send_error;
@@ -139,7 +140,7 @@ int send_by_tcp_to_process(process_info_ptr proc, o2_message_ptr msg)
     return O2_SUCCESS;
   send_error:
     if (errno != EAGAIN && errno != EINTR) {
-        o2_remove_remote_process(proc);
+        o2_remove_remote_process(info);
     }
     return O2_FAIL;
 }    
@@ -165,22 +166,22 @@ int o2_send_message(o2_message_ptr msg, int tcp_flag)
         return O2_SUCCESS;
     } else if (service->tag == O2_REMOTE_SERVICE) { // send the message to remote process
         remote_service_entry_ptr rse = (remote_service_entry_ptr) service;
-        process_info_ptr proc = rse->parent;
+        fds_info_ptr info = DA_GET(o2_fds_info, fds_info, rse->process_index);
         if (tcp_flag) {
-            send_by_tcp_to_process(proc, msg);
+            send_by_tcp_to_process(info, msg);
         } else { // send via UDP
             // printf(" +    %s normal udp msg to %s, port %d, ip %x\n", debug_prefix, msg->data.address, ntohs(proc->udp_sa.sin_port), ntohl(proc->udp_sa.sin_addr.s_addr));
             if (sendto(local_send_sock, &(msg->data), msg->length,
-                       0, (struct sockaddr *) &(proc->udp_sa),
-                       sizeof(proc->udp_sa)) < 0) {
+                       0, (struct sockaddr *) &(info->proc.udp_sa),
+                       sizeof(info->proc.udp_sa)) < 0) {
                 perror("o2_send_message");
                 return O2_FAIL;
             }
             O2_DB4(printf("sent UDP, local_send_sock %d, length %d, proc %p\n",
-                          local_send_sock, msg->length, proc));
+                          local_send_sock, msg->length, info));
         }
     } else if (service->tag == OSC_REMOTE_SERVICE) {
-        send_osc(service, msg);
+        o2_send_osc((osc_entry_ptr) service, msg);
     } else {
         assert(FALSE);
     }
@@ -244,8 +245,4 @@ static unsigned char *slip_encode(const unsigned char *data,
 
 #endif
 
-void send_osc(generic_entry_ptr service, o2_message_ptr msg)
-{
-    // TODO: finish
-    printf("ERROR! send_osc\n");
-}
+

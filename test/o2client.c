@@ -48,7 +48,7 @@ int main(int argc, const char * argv[]) {
         server_addresses[i] = (char *) O2_MALLOC(strlen(path));
         strcpy(server_addresses[i], path);
     }
-    
+
     while (o2_status("server") < O2_LOCAL) {
         o2_poll();
         usleep(2000); // 2ms

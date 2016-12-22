@@ -1182,7 +1182,7 @@ o2_arg_ptr o2_get_next(char to_type)
                     mx_vector_to_array = *mx_type_next++;
                     mx_vector_remaining = rd_int32();
                     // assuming 'v' was followed by a type, we have a vector
-                    rslt = mx_vector_to_array && o2_got_start_array;
+                    rslt = mx_vector_to_array ? o2_got_start_array : NULL;
                 } else if (to_type == O2_VECTOR) {
                     // next call to o2_get_next() will get special processing
                     mx_vector_to_vector_pending = TRUE;
@@ -1239,7 +1239,7 @@ void o2_print_msg(o2_message_ptr msg)
     char *types = WORD_ALIGN_PTR(msg->data.address +
                                  strlen(msg->data.address) + 4) + 1;
     int types_len = (int) strlen(types);
-    char *data_next = WORD_ALIGN_PTR(mx_types + types_len + 4);
+    char *data_next = WORD_ALIGN_PTR(types + types_len + 4);
     
     while (*types) {
         switch (*types) {

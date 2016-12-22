@@ -53,6 +53,6 @@ void find_empty_buffer();
 
 void send_osc(generic_entry_ptr service, o2_message_ptr msg);
 
-int send_by_tcp_to_process(process_info_ptr proc, o2_message_ptr msg);
+int send_by_tcp_to_process(fds_info_ptr proc, o2_message_ptr msg);
 
 #endif /* o2_send_h */

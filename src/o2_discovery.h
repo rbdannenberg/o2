@@ -75,8 +75,11 @@ int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
 int o2_services_handler(o2_message_ptr msg, const char *types,
                         o2_arg_ptr *argv, int argc, void *user_data);
 
-int make_tcp_connection(process_info_ptr process, char *ip, int tcp_port);
+int make_tcp_connection(char *ip, int tcp_port,
+                        o2_socket_handler handler, fds_info_ptr *info);
 
+int o2_send_init(fds_info_ptr process);
+int o2_send_services(fds_info_ptr process);
 
 
 #endif /* O2_discovery_h */

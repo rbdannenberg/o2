@@ -182,6 +182,13 @@ extern int o2_debug;
 /// an error return value for o2_initialize(): the socket is closed.
 #define O2_TCP_HUP (-9)
 
+// an error return value indicating inet_pton() failed to convert a
+// string to an IP address
+#define O2_HOSTNAME_TO_NETADDR (-10)
+
+// an error return value: attempt to make a TCP connection failed
+#define O2_TCP_CONNECT (-11)
+
 
 // Status return codes for o2_status function:
 
@@ -777,7 +784,7 @@ int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...)
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  *
  * After the call, the `msg` parameter is "owned" by O2, which will
- * free it.
+ * free it. Therefore, do *not* free msg after calling o2_send_message().
  */
 int o2_send_message(o2_message_ptr msg, int tcp_flag);
 
@@ -835,10 +842,11 @@ int o2_finish();
  *
  *  @param service_name The name of the service to which messages are delivered
  *  @param port_num     Port number.
+ *  @param tcp_flag     Be a TCP server for remote clients. Otherwise, use UDP
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_create_osc_port(const char *service_name, int port_num, int udp_flag);
+int o2_create_osc_port(const char *service_name, int port_num, int tcp_flag);
 
 
 /**

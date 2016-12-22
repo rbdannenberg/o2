@@ -31,9 +31,11 @@
 #include "o2_message.h"
 #include "o2_sched.h"
 #include "o2_send.h"
+#include "o2_search.h"
+#include "o2_interoperation.h"
 
-/* create a port to receive OSC messages. 
- * Messages are directed to service_name. 
+/* create a port to receive OSC messages.
+ * Messages are directed to service_name.
  *
  * Algorithm: Create 
  */
@@ -43,34 +45,15 @@ int o2_create_osc_port(const char *service_name, int port_num, int udp_flag)
     osc_entry->tag = OSC_LOCAL_SERVICE;
     osc_entry->key = o2_heapify(service_name);
     osc_entry->port = port_num;
+    osc_entry->fds_index = -1;
+    fds_info_ptr info;
     if (udp_flag) {
-        // TODO: set osc_entry->udp_sa for sending messages
+        RETURN_IF_ERROR(make_tcp_recv_socket(OSC_TCP_SERVER_SOCKET,
+                                             &o2_osc_tcp_accept_handler, &info));
     } else {
-        assert(FALSE); // need to implement TCP
-        DA_EXPAND(o2_fds, struct pollfd);
-        struct pollfd *fdptr = DA_LAST(o2_fds, struct pollfd);
-        /* TODO: 
-        fdptr->fd = sock;
-        fdptr->events = POLLIN;
-        if (o2_bind(sock, port_num) == -1) {
-            perror("Bind udp socket");
-            return O2_FAIL;
-        }
-        */
-        DA_EXPAND(o2_fds_info, struct fds_info);
-        struct fds_info *info = DA_LAST(o2_fds_info, struct fds_info);
-        info->tag = OSC_SOCKET;
-        // info->port = port_num;
-        info->length = 0;
-        info->length_got = 0;
-        info->u.osc_service_name = o2_heapify(service_name);
+        RETURN_IF_ERROR(make_udp_recv_socket(OSC_SOCKET, &port_num, &info));
     }
-    // TODO: what happens to o2_osc_service that we created above?
-    // TODO: What does this do?
-    //     add_local_osc_to_hash(path, port_num, o2_osc_service_num);
-    // TODO: this implies there's an o2_socket table; probably wrong:
-    //     o2_socket_num++;
-    
+    info->osc_service_name = o2_heapify(service_name);
     return O2_SUCCESS;
 }
 
@@ -95,20 +78,157 @@ int o2_send_osc_message_marker(char *service_name, const char *path,
     return rslt;
 }
 
+
+// messages to this service are forwarded as OSC messages
 int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
 {
+    int ret = O2_SUCCESS;
+    if (streql(ip, "")) ip = "localhost";
+    char port[24]; // can't overflow even with 64-bit int
+    sprintf(port, "%d", port_num);
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = PF_INET;
+    struct addrinfo *aiptr = NULL;
+    struct sockaddr_in remote_addr;
+
     // make a description for fds_info
     osc_entry_ptr entry = O2_MALLOC(sizeof(osc_entry));
-    
     entry->tag = OSC_REMOTE_SERVICE;
     char *key = o2_heapify(service_name);
     entry->key = key;
-    // TODO: set up upb_sa
-    strncpy(entry->ip, ip, 20);
     entry->port = port_num;
-    
+
+    if (tcp_flag) {
+        fds_info_ptr info;
+        RETURN_IF_ERROR(make_tcp_recv_socket(OSC_TCP_SOCKET,
+                                             o2_osc_delegate_handler, &info));
+        // make the connection
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = IPPROTO_TCP;
+        if (getaddrinfo(ip, port, &hints, &aiptr)) {;
+            goto hostname_to_netaddr_fail;
+        }
+        memcpy(&remote_addr, aiptr->ai_addr, sizeof(remote_addr));
+        remote_addr.sin_port = htons((short) port_num);
+        SOCKET sock = DA_LAST(o2_fds, struct pollfd)->fd;
+        entry->fds_index = o2_fds_info.length - 1; // info is in last entry
+        if (connect(sock, (struct sockaddr *) &remote_addr,
+                    sizeof(remote_addr)) == -1) {
+            perror("OSC Server connect error!");
+            o2_fds_info.length--;
+            o2_fds.length--;
+            ret = O2_TCP_CONNECT;
+            goto fail_and_exit;
+        }
+    } else {
+        hints.ai_socktype = SOCK_DGRAM;
+        hints.ai_protocol = IPPROTO_UDP;
+        if (getaddrinfo(ip, port, &hints, &aiptr)) {
+            goto hostname_to_netaddr_fail;
+        }
+        memcpy(&remote_addr, aiptr->ai_addr, sizeof(remote_addr));
+        if (remote_addr.sin_port == 0) {
+            remote_addr.sin_port = htons((short) port_num);
+        }
+        memcpy(&entry->udp_sa, &remote_addr, sizeof(entry->udp_sa));
+        entry->fds_index = -1; // UDP
+    }
     // put the entry in the master table
-    // add_entry(&path_tree_table, entry);
-    return O2_SUCCESS;
+    o2_add_entry(&path_tree_table, (generic_entry_ptr) entry);
+    ret = O2_SUCCESS;
+    goto just_exit;
+  hostname_to_netaddr_fail:
+    ret = O2_HOSTNAME_TO_NETADDR;
+  fail_and_exit:
+    O2_FREE(entry);
+  just_exit:
+    if (aiptr) freeaddrinfo(aiptr);
+    return ret;
 }
 
+int o2_deliver_osc(o2_message_ptr msg, fds_info_ptr info)
+{
+    // osc message has the form: address, types, data
+    // o2 message has the form: timestamp, address, types, data
+    // o2 address must have a info->u.osc_service_name prefix
+    // since we need more space, allocate a new message for o2 and
+    // copy the data to it
+
+    int service_len = (int) strlen(info->osc_service_name);
+    // length in data part will be timestamp + slash (1) + service name +
+    //    o2 data; add another 7 bytes for padding after address
+    int o2len = sizeof(double) + 8 + service_len + msg->length;
+    o2_message_ptr o2msg = o2_alloc_size_message(o2len);
+    o2msg->data.timestamp = 0.0;  // deliver immediately
+    o2msg->data.address[0] = '/'; // slash before service name
+    strcpy(o2msg->data.address + 1, info->osc_service_name);
+    // how many bytes in OSC address?
+    char *msg_data = (char *) &(msg->data); // OSC address starts here
+    int addr_len = (int) strlen(msg_data);
+    // compute address of byte after the O2 address string
+    char *o2_ptr = o2msg->data.address + 1 + service_len;
+    // zero fill to word boundary
+    int32_t *fill_ptr = (int32_t *) WORD_ALIGN_PTR(o2_ptr + addr_len);
+    *fill_ptr = 0;
+    // copy in OSC address string, possibly overwriting some of the fill
+    memcpy(o2_ptr, msg_data, addr_len);
+    o2_ptr = (char *) (fill_ptr + 1); // get location after O2 address
+    // copy type string and OSC message data
+    char *osc_ptr = WORD_ALIGN_PTR(msg_data + addr_len + 4);
+    o2len = msg_data + msg->length - osc_ptr; // how much payload to copy
+    memcpy(o2_ptr, osc_ptr, o2len);
+    o2msg->length = o2_ptr + o2len - (char *) &(o2msg->data);
+    // now we have an O2 message to send
+    o2_free_message(msg);
+    return o2_send_message(o2msg, FALSE);
+}
+
+
+// forward an O2 message to an OSC server
+void o2_send_osc(osc_entry_ptr service, o2_message_ptr msg)
+{
+    // we need to strip off the service from the address,
+    // ignore the timestampe
+    // and send the msg to OSC server.
+    // The message will start at msg->data.address (note that when
+    // we receive OSC messages, the OSC message starts at
+    // msg->data.timestamp even though there is no timestamp
+    // Unlike o2_deliver_osc(), we do not allocate new message.
+    // Begin by moving address:
+    int addr_len = (int) strlen(msg->data.address) + 1;  // include EOS
+    int service_len = (int) strlen(service->key) + 1; // include slash
+    // remove the service name
+    memmove(msg->data.address, msg->data.address + service_len,
+            addr_len - service_len);
+    // now we probably have to move the rest of the message since we
+    // removed the service name from the address
+    // First, let's get the address of the rest of the message:
+    char *ptr = msg->data.address + addr_len;
+    char *types_ptr = WORD_ALIGN_PTR(ptr + 3);
+    // now ptr is address after EOS after original address
+    //     types_ptr points to beginning of type string in original msg
+    ptr -= service_len;
+    // now ptr is address after EOS after removing service name
+    // fill zeros after address that we just moved:
+    while (((size_t) ptr) & 3) *ptr++ = 0;
+    // now ptr is address where type string should start
+    if (ptr != types_ptr) {
+        memmove(ptr, types_ptr, (((char *) &(msg->data)) + msg->length) - types_ptr);
+    }
+    // shorten length by the number of bytes by which content was shifted
+    msg->length -= (types_ptr - ptr);
+
+    // Now we have an OSC message at msg->data.address. Send it.
+    if (service->fds_index < 0) { // must be UDP
+        if (sendto(local_send_sock, msg->data.address,
+                   msg->length - sizeof(double), // we're not sending timestamp
+                   0, (struct sockaddr *) &(service->udp_sa),
+                   sizeof(service->udp_sa)) < 0) {
+            perror("o2_send_osc");
+        }
+    } else { // send by TCP
+        // if (send(service->tcp_socket, you are here
+        assert(FALSE); // fix this
+    }
+}

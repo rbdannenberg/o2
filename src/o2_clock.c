@@ -160,13 +160,13 @@ void reset_clock_rate()
 }
 
 
-int o2_send_clocksync(process_info_ptr process)
+int o2_send_clocksync(fds_info_ptr info)
 {
     if (!o2_clock_is_synchronized)
         return O2_SUCCESS;
     char address[32];
-    snprintf(address, 32, "!%s/cs/cs", process->name);
-    return o2_send_cmd(address, 0.0, "s", o2_process.name);
+    snprintf(address, 32, "!%s/cs/cs", info->proc.name);
+    return o2_send_cmd(address, 0.0, "s", o2_process->proc.name);
 }
     
 
@@ -178,7 +178,7 @@ void announce_synchronized()
     for (int i = 0; i < o2_fds_info.length; i++) {
         fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
         if (info->tag == TCP_SOCKET) {
-            o2_send_clocksync(info->u.process_info);
+            o2_send_clocksync(info);
         }
     }
     O2_DB(printf("O2: obtained clock sync at %g\n", o2_get_time()));
@@ -197,8 +197,9 @@ int o2_clocksynced_handler(o2_message_ptr msg, const char *types,
     if (entry) {
         assert((*entry)->tag == O2_REMOTE_SERVICE);
         remote_service_entry_ptr service = (remote_service_entry_ptr) *entry;
-        process_info_ptr process = service->parent;
-        process->status = PROCESS_OK;
+        fds_info_ptr process_info = DA_GET(o2_fds_info, fds_info,
+                                           service->process_index);
+        process_info->proc.status = PROCESS_OK;
         return O2_SUCCESS;
     }
     return O2_FAIL;
@@ -293,10 +294,11 @@ int o2_ping_send_handler(o2_message_ptr msg, const char *types,
             } else { // record when we started to send clock sync messages
                 start_sync_time = clock_sync_send_time;
                 char path[48]; // enough room for !IP:PORT/cs/get-reply
-                snprintf(path, 48, "!%s/cs/get-reply", o2_process.name);
+                snprintf(path, 48, "!%s/cs/get-reply",
+                         o2_process->proc.name);
                 o2_add_method(path, "it", &cs_ping_reply_handler,
                               NULL, FALSE, FALSE);
-                snprintf(path, 32, "!%s/cs", o2_process.name);
+                snprintf(path, 32, "!%s/cs", o2_process->proc.name);
                 clock_sync_reply_to = o2_heapify(path);
             }
         }
@@ -314,8 +316,7 @@ int o2_ping_send_handler(o2_message_ptr msg, const char *types,
         if (clock_sync_send_time - start_sync_time > t1) when += 9.5;
     }
     // schedule another call to o2_ping_send_handler
-    int err;
-    if ((err = o2_start_send())) return err;
+    RETURN_IF_ERROR(o2_start_send());
     msg = o2_finish_message(when, "!_o2/ps");
     // printf("*    schedule ping_send at %g, now is %g\n", when, o2_local_time());
     o2_schedule(&o2_ltsched, msg);

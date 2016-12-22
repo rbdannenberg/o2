@@ -59,7 +59,7 @@ int main(int argc, const char * argv[])
         client_addresses[i] = (char *) O2_MALLOC(strlen(path));
         strcpy(client_addresses[i], path);
     }
-    
+
     // we are the master clock
     o2_set_clock(NULL, NULL);
     

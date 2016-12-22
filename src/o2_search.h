@@ -61,21 +61,23 @@ typedef struct handler_entry {
 } handler_entry, *handler_entry_ptr;
 
 
-/* process_info status values */
+/* info->proc.status values */
+#define PROCESS_LOCAL 0       // process is the local process
 #define PROCESS_DISCOVERED 1  // process created from discovery message
 #define PROCESS_CONNECTING 2  // we called connect to this process
 #define PROCESS_CONNECTED 3   // connect call returned
 #define PROCESS_NO_CLOCK 4    // process initial message received, not clock synced
 #define PROCESS_OK 5          // process is clock synced
 
-// used for both remote and local process
+/*
+// used for remote and local process and osc forwarding
 typedef struct process_info {
     char *name; // e.g. "128.2.1.100:55765", this is used so that when we
         // add a service, we can enumerate all the processes and send them
         // updates. Updates are addressed using this name field. Also, when
         // a new process is connected, we send an /in message to this name.
         // name is "owned" by the process_info struct and will be deleted
-        //   when the struct is freed
+        //   when the struct is freed
     int status; // PROCESS_DISCOVERED through PROCESS_OK
     dyn_array services; // these are the keys of remote_service_entry objects,
                         //    owned by the service entries (do not free)
@@ -85,14 +87,14 @@ typedef struct process_info {
     struct sockaddr_in udp_sa;  // address for sending UDP messages
     int tcp_fd_index;   // index in o2_fds of tcp socket
 } process_info, *process_info_ptr;
-
+*/
 
 // Hash table's entry for a remote service
 typedef struct remote_service_entry {
     int tag;   // must be O2_REMOTE_SERVICE
     char *key; // key is "owned" by this remote_service_entry struct
     generic_entry_ptr next;
-    process_info_ptr parent;   // points to its host process for the service
+    int process_index;   // points to its host process for the service
 } remote_service_entry, *remote_service_entry_ptr;
 
 
@@ -105,7 +107,7 @@ typedef struct osc_entry {
     struct sockaddr_in udp_sa; // address for sending UDP messages
     char ip[20];
     int port;
-    SOCKET tcp_socket; // socket connection for sending TCP messages
+    int fds_index; // points to fds and fds_info entries for TCP socket
 } osc_entry, *osc_entry_ptr;
 
 
@@ -184,12 +186,10 @@ node_entry_ptr initialize_node(node_entry_ptr node, char *key);
 generic_entry_ptr *lookup(node_entry_ptr dict, const char *key, int *index);
 
 
-void o2_init_process(process_info_ptr process, int status, int is_little_endian);
-      
-process_info_ptr o2_add_remote_process(const char *ip_port, int status,
+fds_info_ptr o2_add_remote_process(const char *ip_port, int status,
                                      int is_little_endian);
 
-int o2_remove_remote_process(process_info_ptr proc);
+int o2_remove_remote_process(fds_info_ptr proc);
 
 
 /**
@@ -203,7 +203,7 @@ int o2_remove_remote_process(process_info_ptr proc);
  *
  *  @return If succeed, return O2_SUCCESS. If not, return O2_FAIL.
  */
-int add_remote_service(process_info_ptr process, const char *service);
+int add_remote_service(fds_info_ptr info, const char *service);
 
 
 node_entry_ptr tree_insert_node(node_entry_ptr node, char *key);
@@ -241,5 +241,7 @@ void o2_deliver_pending();
 int dispatch_osc_message(void *msg);
 
 int remove_node(node_entry_ptr dict, const char *key);
+
+int o2_add_entry(node_entry_ptr node, generic_entry_ptr entry);
 
 #endif /* o2_search_h */
