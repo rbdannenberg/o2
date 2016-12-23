@@ -102,7 +102,7 @@ int main(int argc, const char * argv[])
 {
     const int N = 100;
     char address[32];
-    char types[N * 2];
+    char types[200];
     o2_initialize("test");    
     o2_add_service("one");
 

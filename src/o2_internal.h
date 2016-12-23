@@ -20,12 +20,14 @@
 #define USE_ANSI_C
 #endif
 
+#ifndef _CRT_SECURE_NO_WARNINGS
 // Preclude warnings for string functions
 #define _CRT_SECURE_NO_WARNINGS
+#endif
 
 // OS X and Linux call it "snprintf":
-#define snprintf _snprintf
-#define index strchr
+// snprintf seems to be defined Visual Studio now,
+//#define snprintf _snprintf
 
 #else    // Linux or OS X
 

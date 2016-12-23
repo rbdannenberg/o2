@@ -293,7 +293,7 @@ int o2_add_midi(uint8_t *m)
 
 int o2_add_vector(o2_type element_type, int32_t length, void *data)
 {
-    if (!index("ihfd", element_type)) {
+    if (!strchr("ihfd", element_type)) {
         return O2_BAD_TYPE;
     }
     int size = (element_type == 'd' || element_type == 'h') ?
