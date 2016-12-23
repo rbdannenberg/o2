@@ -116,7 +116,7 @@ int main(int argc, const char * argv[])
         o2_add_method(address, types, &service_f, NULL, FALSE, FALSE);
         o2_start_send();
         for (int j = 0; j < i; j++) {
-            o2_add_float(j + 123);
+            o2_add_float(j + 123.0F);
         }
         arg_count = i;
         o2_finish_send(0, address);
@@ -152,7 +152,7 @@ int main(int argc, const char * argv[])
         o2_add_method(address, types, &service_fc, NULL, TRUE, TRUE);
         o2_start_send();
         for (int j = 0; j < i; j++) {
-            o2_add_float(j + 123);
+            o2_add_float(j + 123.0F);
         }
         arg_count = i;
         o2_finish_send(0, address);

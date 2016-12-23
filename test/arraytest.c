@@ -261,7 +261,7 @@ int service_2arrays(const o2_message_ptr data, const char *types,
     zcheck(*types++);
 
     acheck(*types++);
-    fcheck(*types++, 1234.56);
+    fcheck(*types++, 1234.56F);
     dcheck(*types++, 1234.567);
     tcheck(*types++, 2345.678);
     zcheck(*types++);
@@ -332,7 +332,7 @@ int service_vf(const o2_message_ptr data, const char *types,
     assert(arg->v.len == arg_count);
     assert(arg->v.typ == 'f');
     for (int i = 0; i < arg_count; i++) {
-        float correct = 123.456 + i;
+        float correct = 123.456F + i;
         assert(arg->v.vf);
         assert(arg->v.vf[i] == correct);
     }
@@ -399,7 +399,7 @@ int service_ifvxif(const o2_message_ptr data, const char *types,
 {
     o2_start_extract(data);
     icheck(*types++, 2345);
-    fcheck(*types++, 345.67);
+    fcheck(*types++, 345.67F);
     
     assert(*types++ == 'v');
     o2_arg_ptr arg = o2_get_next('v');
@@ -436,7 +436,7 @@ int service_ifvxif(const o2_message_ptr data, const char *types,
     }
 
     icheck(*types++, 4567);
-    fcheck(*types++, 567.89);
+    fcheck(*types++, 567.89F);
     assert(*types == 0); // got all of typestring
     got_the_message = TRUE;
     return O2_SUCCESS;
@@ -531,7 +531,7 @@ int service_coerce2(const o2_message_ptr data, const char *types,
 {
     o2_start_extract(data);
     icheck(*types++, 5678);
-    fcheck(*types++, 567.89);
+    fcheck(*types++, 567.89F);
     assert(*types++ == 'v');
     assert(*types++ == xtype);
     o2_arg_ptr arg = o2_get_next('[');
@@ -574,7 +574,7 @@ int service_coerce2(const o2_message_ptr data, const char *types,
     arg = o2_get_next(']');
     assert(arg == o2_got_end_array);
     icheck(*types++, 6789);
-    fcheck(*types++, 567.89);
+    fcheck(*types++, 567.89F);
     assert(*types == 0); // got all of typestring
     got_the_message = TRUE;
     return O2_SUCCESS;
@@ -603,7 +603,7 @@ void add_x_parameter()
             o2_add_int64(12345);
             break;
         case O2_FLOAT:
-            o2_add_float(1234.56);
+            o2_add_float(1234.56F);
             break;
         case O2_DOUBLE:
             o2_add_double(1234.567);
@@ -741,7 +741,7 @@ int main(int argc, const char * argv[])
     o2_add_int64(12345);
     o2_add_end_array();
     o2_add_start_array();
-    o2_add_float(1234.56);
+    o2_add_float(1234.56F);
     o2_add_double(1234.567);
     o2_add_time(2345.678);
     o2_add_end_array();
@@ -782,7 +782,7 @@ int main(int argc, const char * argv[])
     // 8. sending typestring vf (with length 0 to 100)
     float fvec[102];
     for (int j = 0; j < 102; j++) {
-        fvec[j] = 123.456 + j;
+        fvec[j] = 123.456F + j;
     }
     for (int i = 0; i < 101; i++) {
         arg_count = i;
@@ -830,7 +830,7 @@ int main(int argc, const char * argv[])
         for (int i = 0; i < 101; i++) {
             o2_start_send();
             o2_add_int32(2345);
-            o2_add_float(345.67);
+            o2_add_float(345.67F);
             arg_count = i;
             switch (xtype) {
                 case 'i': o2_add_vector('i', i, ivec); break;
@@ -840,7 +840,7 @@ int main(int argc, const char * argv[])
                 default: assert(FALSE);
             }
             o2_add_int32(4567);
-            o2_add_float(567.89);
+            o2_add_float(567.89F);
             o2_finish_send(0, "/one/service_ifvxif");
             send_the_message();
         }
@@ -873,7 +873,7 @@ int main(int argc, const char * argv[])
                     switch (xtype) {
                         case 'i': o2_add_int32(543 + j); break;
                         case 'h': o2_add_int64(543 + j); break;
-                        case 'f': o2_add_float(543.21 + j); break;
+                        case 'f': o2_add_float(543.21F + j); break;
                         case 'd': o2_add_double(543.21 + j); break;
                         default: assert(FALSE);
                     }
@@ -896,7 +896,7 @@ int main(int argc, const char * argv[])
             for (int i = 0; i < 101; i++) {
                 o2_start_send();
                 o2_add_int32(5678);
-                o2_add_float(567.89);
+                o2_add_float(567.89F);
                 arg_count = i;
                 switch (xtype) {
                     case 'i': o2_add_vector('i', i, ivec); break;
@@ -906,7 +906,7 @@ int main(int argc, const char * argv[])
                     default: assert(FALSE);
                 }
                 o2_add_int32(6789);
-                o2_add_float(567.89);
+                o2_add_float(567.89F);
                 o2_finish_send(0, "/one/service_coerce2");
                 send_the_message();
             }

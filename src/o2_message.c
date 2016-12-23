@@ -506,7 +506,8 @@ o2_blob_ptr o2_blob_new(uint32_t size)
     if (needed > 0xFFFFFF00) { // allow almost 2^32 byte blobs
         return NULL; // but leave a little extra room
     }
-    o2_blob_ptr blob = (o2_blob_ptr) O2_MALLOC(needed);
+    // int64_t could be bigger than size_t. Avoid compiler warning by coercing:
+    o2_blob_ptr blob = (o2_blob_ptr) O2_MALLOC((size_t) needed);
     if (blob) {
         // coerce to avoid compiler warning; we tested so this will not overflow
         blob->size = (int) needed;
@@ -913,18 +914,23 @@ o2_arg_ptr convert_int(char to_type, int64_t i, int siz)
     o2_arg_ptr rslt = ARG_NEXT;
     switch (to_type) {
         case O2_INT32:
-            // coerce to int to avoid compiler warning; o2 messages can't be that long
+            // coerce to int to avoid compiler warning; O2 can in fact lose
+            // data coercing from type O2_INT64 to O2_INT32
             ARG_DATA(rslt, int32_t, (int32_t) i);
             break;
         case O2_INT64:
             ARG_DATA(rslt, int64_t, i);
             break;
         case O2_FLOAT:
-            ARG_DATA(rslt, float, i);
+            // coerce to float to avoid compiler warning; O2 can in fact lose
+            // data coercing from type O2_INT64 to O2_FLOAT
+            ARG_DATA(rslt, float, (float) i);
             break;
         case O2_DOUBLE:
         case O2_TIME:
-            ARG_DATA(rslt, double, i);
+            // coerce to double to avoid compiler warning; O2 can in fact lose
+            // data coercing from type O2_INT64 to O2_DOUBLE:
+            ARG_DATA(rslt, double, (double) i);
             break;
         case O2_BOOL:
             ARG_DATA(rslt, int32_t, i != 0);
@@ -947,13 +953,19 @@ o2_arg_ptr convert_float(char to_type, double d, int siz)
     o2_arg_ptr rslt = (o2_arg_ptr) (o2_arg_data.array + o2_arg_data.length);
     switch (to_type) {
         case O2_INT32:
-            ARG_DATA(rslt, int32_t, d);
+            // coerce to int32_t to avoid compiler warning; O2 can in fact lose
+            // data coercing from type O2_DOUBLE to O2_INT32
+            ARG_DATA(rslt, int32_t, (int32_t) d);
             break;
         case O2_INT64:
+            // coerce to int64_t to avoid compiler warning; O2 can in fact lose
+            // data coercing from type O2_DOUBLE to O2_INT64
             ARG_DATA(rslt, int64_t, d);
             break;
         case O2_FLOAT:
-            ARG_DATA(rslt, float, d);
+            // coerce to float to avoid compiler warning; O2 can in fact lose
+            // data coercing from type O2_DOUBLE to O2_FLOAT
+            ARG_DATA(rslt, float, (float) d);
             break;
         case O2_DOUBLE:
         case O2_TIME:

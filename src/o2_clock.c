@@ -312,7 +312,7 @@ int o2_ping_send_handler(o2_message_ptr msg, const char *types,
         // run every 1/2 second until at least CLOCK_SYNC_HISTORY_LEN pings
         // have been sent to get a fast start, then ping every 10s. Here, we
         // add 1.0 to allow for round-trip time and an extra ping just in case:
-        int t1 = CLOCK_SYNC_HISTORY_LEN * 0.5 + 1.0;
+        o2_time t1 = CLOCK_SYNC_HISTORY_LEN * 0.5 + 1.0;
         if (clock_sync_send_time - start_sync_time > t1) when += 9.5;
     }
     // schedule another call to o2_ping_send_handler

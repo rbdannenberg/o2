@@ -18,11 +18,6 @@
 #ifdef WIN32
 #include "malloc.h"
 #define allloca _alloca
-
-size_t strlcpy(char *dst, const char *src, size_t size)
-{
-    strncpy(dst, src, size);
-}
 #endif
 
 void free_entry(generic_entry_ptr entry);
@@ -588,12 +583,18 @@ node_entry_ptr tree_insert_node(node_entry_ptr node, char *key)
     return new_entry;
 }
 
+#define O2_MAX_NODE_NAME_LEN 1020
+#define NAME_BUF_LEN ((O2_MAX_NODE_NAME_LEN) + 4)
 
-void string_pad(char *dst, char *src, int maxlen)
+// string_pad -- copy src to dst, adding zero padding to word boundary
+//
+// dst MUST point to a buffer of size NAME_BUF_LEN or bigger
+//
+void string_pad(char *dst, char *src)
 {
     size_t len = strlen(src);
-    if (len >= maxlen) {
-        len = maxlen - 1;
+    if (len >= NAME_BUF_LEN) {
+        len = NAME_BUF_LEN - 1;
     }
     // first fill last 32-bit word with zeros so the final word will be zero-padded
     int32_t *last_32 = (int32_t *)(dst + WORD_OFFSET(len)); // round down to word boundary
@@ -602,8 +603,6 @@ void string_pad(char *dst, char *src, int maxlen)
     strncpy(dst, src, len);
 }
 
-#define O2_MAX_NODE_NAME_LEN 1024
-#define NAME_BUF_LEN ((O2_MAX_NODE_NAME_LEN) + 4)
 
 // recursive function to remove path from tree. Follow links to the leaf
 // node, remove it, then as the stack unwinds, remove empty nodes.
@@ -620,7 +619,7 @@ int remove_method_from_tree(char *remaining, char *name, node_entry_ptr node)
     generic_entry_ptr *entry; // another return value from lookup
     if (slash) { // we have an internal node name
         *slash = 0; // terminate the string at the "/"
-        string_pad(name, remaining, NAME_BUF_LEN);
+        string_pad(name, remaining);
         *slash = '/'; // restore the string
         entry = lookup(node, name, &index);
         if ((!entry) || ((*entry)->tag != PATTERN_NODE)) {
@@ -638,7 +637,7 @@ int remove_method_from_tree(char *remaining, char *name, node_entry_ptr node)
     }
     // now table is where we find the final path name with the handler
     // remaining points to the final segment of the path
-    string_pad(name, remaining, NAME_BUF_LEN);
+    string_pad(name, remaining);
     entry = lookup(node, name, &index);
     // there should be an entry, remove it
     if (entry) {
@@ -815,7 +814,7 @@ int o2_add_method(const char *path, const char *typespec,
     
     while ((slash = strchr(remaining, '/'))) {
         *slash = 0; // terminate the string at the "/"
-        string_pad(name, remaining, NAME_BUF_LEN);
+        string_pad(name, remaining);
         *slash = '/'; // restore the string
         remaining = slash + 1;
         // if necessary, allocate a new entry for name
@@ -826,7 +825,7 @@ int o2_add_method(const char *path, const char *typespec,
     
     // now table is where we should put the final path name with the handler
     // remaining points to the final segment of the path
-    string_pad(name, remaining, NAME_BUF_LEN);
+    string_pad(name, remaining);
     
     // entry is now a valid location. Insert a new node:
     handler_entry_ptr handler = (handler_entry_ptr) O2_MALLOC(sizeof(handler_entry));
@@ -1020,7 +1019,7 @@ void find_and_call_handlers_rec(char *remaining, char *name,
     } else { // no pattern characters so do hash lookup
         int index;
         if (slash) *slash = 0;
-        string_pad(name, remaining, NAME_BUF_LEN);
+        string_pad(name, remaining);
         if (slash) *slash = '/';
         generic_entry_ptr *entry_ptr = lookup((node_entry_ptr) node, name, &index);
         if (entry_ptr) {

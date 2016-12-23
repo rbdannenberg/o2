@@ -583,7 +583,8 @@ int make_tcp_recv_socket(int tag, o2_socket_handler handler, fds_info_ptr *info)
     }
     *info = o2_add_new_socket(sock, tag, handler);
     if (tag == TCP_SERVER_SOCKET) {
-        RETURN_IF_ERROR(o2_init_process(*info, name, PROCESS_LOCAL, LITTLE_ENDIAN));
+        RETURN_IF_ERROR(o2_init_process(*info, name, PROCESS_LOCAL, 
+                                        IS_LITTLE_ENDIAN));
         freeifaddrs(ifap);
     }
     return O2_SUCCESS;
@@ -618,7 +619,7 @@ int o2_recv()
         if (FD_ISSET(d->fd, &o2_read_set)) {
             fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
             if (((*(info->handler))(d->fd, info)) == O2_TCP_HUP) {
-                o2_remove_remote_process(info->proc_info);
+                o2_remove_remote_process(info);
                 i--; // we moved last into i, so look at i again
             }
         }

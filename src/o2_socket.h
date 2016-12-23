@@ -89,7 +89,7 @@ typedef struct fds_info {
               // OSC_SOCKET, OSC_TCP_SERVER_SOCKET,
               // OSC_TCP_SOCKET, OSC_TCP_CLIENT
 
-    uint32_t length;            // message length
+    int32_t length;             // message length
     o2_message_ptr message;     // message data from TCP stream goes here
     int length_got;             // how many bytes of length have been read?
     int message_got;            // how many bytes of message have been read?
