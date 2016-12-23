@@ -148,7 +148,7 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
 }
 
 
-int o2_deliver_osc(o2_message_ptr msg, fds_info_ptr info)
+int o2_deliver_osc(fds_info_ptr info)
 {
     // osc message has the form: address, types, data
     // o2 message has the form: timestamp, address, types, data
@@ -159,13 +159,13 @@ int o2_deliver_osc(o2_message_ptr msg, fds_info_ptr info)
     int service_len = (int) strlen(info->osc_service_name);
     // length in data part will be timestamp + slash (1) + service name +
     //    o2 data; add another 7 bytes for padding after address
-    int o2len = sizeof(double) + 8 + service_len + msg->length;
+    int o2len = sizeof(double) + 8 + service_len + info->message->length;
     o2_message_ptr o2msg = o2_alloc_size_message(o2len);
     o2msg->data.timestamp = 0.0;  // deliver immediately
     o2msg->data.address[0] = '/'; // slash before service name
     strcpy(o2msg->data.address + 1, info->osc_service_name);
     // how many bytes in OSC address?
-    char *msg_data = (char *) &(msg->data); // OSC address starts here
+    char *msg_data = (char *) &(info->message->data); // OSC address starts here
     int addr_len = (int) strlen(msg_data);
     // compute address of byte after the O2 address string
     char *o2_ptr = o2msg->data.address + 1 + service_len;
@@ -177,11 +177,11 @@ int o2_deliver_osc(o2_message_ptr msg, fds_info_ptr info)
     o2_ptr = (char *) (fill_ptr + 1); // get location after O2 address
     // copy type string and OSC message data
     char *osc_ptr = WORD_ALIGN_PTR(msg_data + addr_len + 4);
-    o2len = msg_data + msg->length - osc_ptr; // how much payload to copy
+    o2len = msg_data + info->message->length - osc_ptr; // how much payload to copy
     memcpy(o2_ptr, osc_ptr, o2len);
     o2msg->length = o2_ptr + o2len - (char *) &(o2msg->data);
     // now we have an O2 message to send
-    o2_free_message(msg);
+    o2_free_message(info->message);
     if (o2_process->proc.little_endian) {
         o2_msg_swap_endian(o2msg, FALSE);
     }

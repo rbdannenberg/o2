@@ -90,27 +90,32 @@ static int detect_windows_service_2003_or_later()
 #endif
 
 
-void deliver_or_schedule(o2_message_ptr msg)
+void deliver_or_schedule(fds_info_ptr info)
 {
+    // make sure endian is compatible
+    if (info->proc.little_endian) {
+        o2_msg_swap_endian(info->message, FALSE);
+    }
+
 #ifndef O2_NO_DEBUGGING
     if (o2_debug > 2 || // non-o2-system messages only if o2_debug <= 2
-        (o2_debug > 1 && msg->data.address[1] != '_' &&
-                         !isdigit(msg->data.address[1]))) {
+        (o2_debug > 1 && info->message->data.address[1] != '_' &&
+                         !isdigit(info->message->data.address[1]))) {
             printf("O2: received ");
-            o2_print_msg(msg);
+            o2_print_msg(info->message);
             printf("\n");
     }
 #endif
-    if (msg->data.timestamp > 0.0) {
+    if (info->message->data.timestamp > 0.0) {
         if (o2_gtsched_started) {
-            if (msg->data.timestamp > o2_global_now) {
-                o2_schedule(&o2_gtsched, msg);
+            if (info->message->data.timestamp > o2_global_now) {
+                o2_schedule(&o2_gtsched, info->message);
             } else {
-                find_and_call_handlers(msg, NULL);
+                find_and_call_handlers(info->message, NULL);
             }
         } // else drop the message, no timestamps allowed before clock sync
     } else {
-        find_and_call_handlers(msg, NULL);
+        find_and_call_handlers(info->message, NULL);
     }
 }
 
@@ -192,33 +197,33 @@ int bind_recv_socket(SOCKET sock, int *port, int tcp_recv_flag)
 
 int udp_recv_handler(SOCKET sock, struct fds_info *info)
 {
-    o2_message_ptr msg;
     int len;
     if (ioctlsocket(sock, FIONREAD, &len) == -1) {
         perror("udp_recv_handler");
         return O2_FAIL;
     }
-    msg = o2_alloc_size_message(len);
-    if (!msg) return O2_FAIL;
+    info->message = o2_alloc_size_message(len);
+    if (!info->message) return O2_FAIL;
     int n;
     // coerce to int to avoid compiler warning; len is int, so int is good for n
-    if ((n = (int) recvfrom(sock, &(msg->data), len, 0, NULL, NULL)) <= 0) {
+    if ((n = (int) recvfrom(sock, &(info->message->data), len, 0, NULL, NULL)) <= 0) {
         // I think udp errors should be ignored. UDP is not reliable
         // anyway. For now, though, let's at least print errors.
         perror("recvfrom in udp_recv_handler");
-        o2_free_message(msg);
+        o2_free_message(info->message);
         return O2_FAIL;
     }
-    msg->length = n;
+    info->message->length = n;
     // endian corrections are done in handler
     if (info->tag == UDP_SOCKET || info->tag == DISCOVER_SOCKET) {
-        deliver_or_schedule(msg);
+        deliver_or_schedule(info);
     } else if (info->tag == OSC_SOCKET) {
-        o2_deliver_osc(msg, info);
+        o2_deliver_osc(info);
     } else {
         assert(FALSE); // unexpected tag in fd_info
         return O2_FAIL;
     }
+    info->message = NULL; // message is deleted by now
     return O2_SUCCESS;
 }
 
@@ -316,9 +321,9 @@ int tcp_recv_handler(SOCKET sock, struct fds_info *info)
     if (n != O2_SUCCESS) {
         return n;
     }
-    /* got the message, deliver it */
-    // endian corrections are done in handler
-    deliver_or_schedule(info->message);
+
+    // endian fixup is included in this handler:
+    deliver_or_schedule(info);
     // info->message is now freed
     tcp_message_cleanup(info);
     return O2_SUCCESS;
@@ -334,7 +339,7 @@ int osc_tcp_handler(SOCKET sock, struct fds_info *info)
     }
     /* got the message, deliver it */
     // endian corrections are done in handler
-    RETURN_IF_ERROR(o2_deliver_osc(info->message, info));
+    RETURN_IF_ERROR(o2_deliver_osc(info));
     // info->message is now freed
     tcp_message_cleanup(info);
     return O2_SUCCESS;
