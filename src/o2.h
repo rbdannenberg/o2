@@ -329,6 +329,15 @@ typedef struct o2_message {
 } o2_message, *o2_message_ptr;
 
 
+/** \brief get the type string of a message
+ *
+ * Type strings begin with the comma (",") character, which is skipped
+ */
+#define WORD_ALIGN_PTR(p) ((char *) (((size_t) (p)) & ~3))
+#define O2_MSG_TYPES(msg) \
+    WORD_ALIGN_PTR((msg)->data.address + strlen((msg)->data.address) + 4) + 1;
+
+
 /**
  *  \brief The structure for binary large object.
  *

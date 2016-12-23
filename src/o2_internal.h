@@ -76,7 +76,6 @@
 #define O2_DEF_TYPE_SIZE 8
 #define O2_DEF_DATA_SIZE 8
 
-#define WORD_ALIGN_PTR(p) ((char *) (((size_t) (p)) & ~3))
 #define WORD_OFFSET(i) ((i) & ~3)
 
 #define streql(a, b) (strcmp(a, b) == 0)

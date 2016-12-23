@@ -37,15 +37,15 @@
 /* create a port to receive OSC messages.
  * Messages are directed to service_name.
  *
- * Algorithm: Create 
+ * Algorithm: Add a socket, put service name in info
  */
 int o2_create_osc_port(const char *service_name, int port_num, int udp_flag)
 {
-    osc_entry_ptr osc_entry = O2_MALLOC(sizeof(osc_entry));
-    osc_entry->tag = OSC_LOCAL_SERVICE;
-    osc_entry->key = o2_heapify(service_name);
-    osc_entry->port = port_num;
-    osc_entry->fds_index = -1;
+    //osc_entry_ptr osc_entry = O2_MALLOC(sizeof(osc_entry));
+    //osc_entry->tag = OSC_LOCAL_SERVICE;
+    //osc_entry->key = o2_heapify(service_name);
+    //osc_entry->port = port_num;
+    //osc_entry->fds_index = -1;
     fds_info_ptr info;
     if (udp_flag) {
         RETURN_IF_ERROR(make_tcp_recv_socket(OSC_TCP_SERVER_SOCKET,
@@ -147,6 +147,7 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
     return ret;
 }
 
+
 int o2_deliver_osc(o2_message_ptr msg, fds_info_ptr info)
 {
     // osc message has the form: address, types, data
@@ -154,7 +155,7 @@ int o2_deliver_osc(o2_message_ptr msg, fds_info_ptr info)
     // o2 address must have a info->u.osc_service_name prefix
     // since we need more space, allocate a new message for o2 and
     // copy the data to it
-
+    
     int service_len = (int) strlen(info->osc_service_name);
     // length in data part will be timestamp + slash (1) + service name +
     //    o2 data; add another 7 bytes for padding after address
@@ -181,6 +182,10 @@ int o2_deliver_osc(o2_message_ptr msg, fds_info_ptr info)
     o2msg->length = o2_ptr + o2len - (char *) &(o2msg->data);
     // now we have an O2 message to send
     o2_free_message(msg);
+    if (o2_process->proc.little_endian) {
+        o2_msg_swap_endian(o2msg, FALSE);
+    }
+    
     return o2_send_message(o2msg, FALSE);
 }
 
@@ -189,18 +194,24 @@ int o2_deliver_osc(o2_message_ptr msg, fds_info_ptr info)
 void o2_send_osc(osc_entry_ptr service, o2_message_ptr msg)
 {
     // we need to strip off the service from the address,
-    // ignore the timestampe
+    // ignore the timestamp
     // and send the msg to OSC server.
     // The message will start at msg->data.address (note that when
     // we receive OSC messages, the OSC message starts at
     // msg->data.timestamp even though there is no timestamp
     // Unlike o2_deliver_osc(), we do not allocate new message.
-    // Begin by moving address:
+
+    // Begin by converting to network byte order:
+    if (o2_process->proc.little_endian) {
+        o2_msg_swap_endian(msg, TRUE);
+    }
+
+    // Move address to eliminate service name prefix
     int addr_len = (int) strlen(msg->data.address) + 1;  // include EOS
     int service_len = (int) strlen(service->key) + 1; // include slash
-    // remove the service name
     memmove(msg->data.address, msg->data.address + service_len,
             addr_len - service_len);
+
     // now we probably have to move the rest of the message since we
     // removed the service name from the address
     // First, let's get the address of the rest of the message:

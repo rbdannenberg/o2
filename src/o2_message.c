@@ -651,6 +651,93 @@ void o2_arg_swap_endian(o2_type type, void *data)
 }
 
 
+/* convert endianness of a message */
+void o2_msg_swap_endian(o2_message_ptr msg, int is_host_order)
+{
+    char *types = O2_MSG_TYPES(msg);
+    int types_len = (int) strlen(types);
+    char *data_next = WORD_ALIGN_PTR(types + types_len + 4);
+
+    int64_t i64_time = *(int64_t *)(&(msg->data.timestamp));
+    i64_time = swap64(i64_time);
+    msg->data.timestamp = *(o2_time *)(&i64_time);
+    
+    while (*types) {
+        switch (*types) {
+            case O2_INT32:
+            case O2_FLOAT:
+            case O2_CHAR: {
+                int32_t i = *(int32_t *)data_next;
+                *(int32_t *)data_next = swap32(i);
+                data_next += sizeof(int32_t);
+                break;
+            }
+            case O2_BLOB: {
+                // this is a bit tricky: increment data_next by the
+                // blob length field either before swapping or after
+                // swapping, depending on whether the message starts
+                // out in host order or not.
+                int32_t *len_ptr = (int32_t *) data_next;
+                if (is_host_order) data_next += *len_ptr;
+                *len_ptr = swap32(*len_ptr);
+                if (!is_host_order) data_next += *len_ptr;
+                break;
+            }
+            case O2_TIME:
+            case O2_INT64:
+            case O2_DOUBLE: {
+                int64_t i = *(int64_t *)data_next;
+                *(int64_t *)data_next = swap64(i);
+                break;
+            }
+            case O2_STRING:
+            case O2_SYMBOL:
+                data_next += ((strlen(data_next) + 4) & ~3);
+                break;
+            case O2_MIDI:
+                data_next += 4;
+                break;
+            case O2_TRUE:
+            case O2_FALSE:
+            case O2_NIL:
+            case O2_INFINITUM:
+                /* these are fine, no data to modify */
+                break;
+            case O2_VECTOR: {
+                int32_t *len_ptr = (int32_t *) data_next;
+                int len;
+                if (is_host_order) len = *len_ptr;
+                *len_ptr = swap32(*len_ptr);
+                if (!is_host_order) len = *len_ptr;
+                data_next += sizeof(int32_t);
+                len /= 4;
+                char vtype = *types++;
+                if (vtype == O2_DOUBLE || vtype == O2_INT64) {
+                    len /= 2;
+                }
+                for (int i = 0; i < len; i++) {
+                    if (i > 0) printf(" ");
+                    if (vtype == O2_INT32 || vtype == O2_FLOAT) {
+                        *(int32_t *)data_next = swap32(*(int32_t *)data_next);
+                        data_next += sizeof(int32_t);
+                    } else if (vtype == O2_INT64 || vtype == O2_DOUBLE) {
+                        *(int64_t *)data_next = swap64(*(int64_t *)data_next);
+                        data_next += sizeof(int64_t);
+                    }
+                }
+                break;
+            }
+            default:
+                fprintf(stderr,
+                        "O2 warning: unhandled type '%c' at %s:%d\n", *types,
+                        __FILE__, __LINE__);
+                break;
+        }
+        types++;
+    }
+}
+
+
 int o2_build_message(o2_message_ptr *msg, o2_time timestamp, const char *service_name,
                      const char *path, const char *typestring, va_list ap)
 {
@@ -787,8 +874,7 @@ int o2_start_extract(o2_message_ptr msg)
     mx_msg = msg;
     // point temp_type_end to the first type code byte.
     // skip over padding and ','
-    mx_types = WORD_ALIGN_PTR(msg->data.address +
-                              strlen(msg->data.address) + 4) + 1;
+    mx_types = O2_MSG_TYPES(msg);
     mx_type_next = mx_types;
     
     // argv needs 4 * type string length + 2 * remaining length
@@ -1236,8 +1322,7 @@ void o2_print_msg(o2_message_ptr msg)
         }
     }
     
-    char *types = WORD_ALIGN_PTR(msg->data.address +
-                                 strlen(msg->data.address) + 4) + 1;
+    char *types = O2_MSG_TYPES(msg);
     int types_len = (int) strlen(types);
     char *data_next = WORD_ALIGN_PTR(types + types_len + 4);
     
@@ -1337,10 +1422,8 @@ void o2_print_msg(o2_message_ptr msg)
                     } else if (vtype == O2_DOUBLE) {
                         printf(" %g", *((double *) data_next));
                         data_next += sizeof(double);
-                    } else if (vtype == O2_TIME) {
-                        printf(" %gs", *((double *) data_next));
-                        data_next += sizeof(double);
                     }
+                    // note: vector of O2_TIME is not valid
                 }
                 break;
             }

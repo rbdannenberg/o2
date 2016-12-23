@@ -47,6 +47,14 @@ int o2_recv();
  */
 /*void o2_arg_swap_endian(o2_type type, void *data);*/
 
+
+/**
+ * Convert endianness of a message
+ *
+ * @param msg The message
+ */
+void o2_msg_swap_endian(o2_message_ptr msg, int is_host_order);
+
 int o2_strsize(const char *s);
 
 /**

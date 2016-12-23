@@ -1,0 +1,13 @@
+# oscsendtest.srp - send OSC messages (for testing O2)
+
+require "debug"
+
+def main()
+    var addr = osc_create_address("", "8100", false)
+    for n = 0 to 20
+        osc_send_start()
+        osc_add_int32(1234)
+        osc_send(addr, "/i")
+        time_sleep(2.0)
+
+main()

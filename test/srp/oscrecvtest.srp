@@ -1,0 +1,20 @@
+# oscrecvtest.srp - receive OSC messages (for testing O2)
+
+message_count = 0
+
+def osc_handler(path, rest parameters)
+    display "osc_handler", path, parameters
+    message_count = message_count + 1
+    if parameters[0] != 1234 or len(parameters) != 1
+        print "ERROR: received incorrect value (expected 1234)"
+        exit()
+
+
+def main()
+    osc_server_init("8100", t)
+    osc_server_method("/i", "i", nil, 'osc_handler')
+    while message_count < 10
+        osc_server_poll()
+        time_sleep(0.01)
+
+main()
