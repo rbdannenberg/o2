@@ -212,7 +212,7 @@ node_entry_ptr tree_insert_node(node_entry_ptr node, char *key);
 void o2_finalize_node(node_entry_ptr node);
 
 
-int add_local_osc(const char *path, int port, int sid);
+int add_local_osc(const char *path, int port, SOCKET tcp_socket);
 
 /**
  *  When the method is no longer exist, or the method conflict with a new one.

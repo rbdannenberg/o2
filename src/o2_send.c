@@ -128,12 +128,12 @@ int send_by_tcp_to_process(fds_info_ptr info, o2_message_ptr msg)
     // Send the length of the message
     int32_t len = htonl(msg->length);
     SOCKET fd = INFO_TO_FD(info);
-    if (send(fd, &len, sizeof(int32_t), 0) < 0) {
+    if (send(fd, (char *) &len, sizeof(int32_t), 0) < 0) {
         perror("o2_send_message writing length");
         goto send_error;
     }
     // Send the message body
-    if (send(fd, &(msg->data), msg->length, 0) < 0) {
+    if (send(fd, (char *) &(msg->data), msg->length, 0) < 0) {
         perror("o2_send_message writing data");
         goto send_error;
     }
@@ -171,7 +171,7 @@ int o2_send_message(o2_message_ptr msg, int tcp_flag)
             send_by_tcp_to_process(info, msg);
         } else { // send via UDP
             // printf(" +    %s normal udp msg to %s, port %d, ip %x\n", debug_prefix, msg->data.address, ntohs(proc->udp_sa.sin_port), ntohl(proc->udp_sa.sin_addr.s_addr));
-            if (sendto(local_send_sock, &(msg->data), msg->length,
+            if (sendto(local_send_sock, (char *) &(msg->data), msg->length,
                        0, (struct sockaddr *) &(info->proc.udp_sa),
                        sizeof(info->proc.udp_sa)) < 0) {
                 perror("o2_send_message");

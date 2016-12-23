@@ -206,7 +206,8 @@ int udp_recv_handler(SOCKET sock, struct fds_info *info)
     if (!info->message) return O2_FAIL;
     int n;
     // coerce to int to avoid compiler warning; len is int, so int is good for n
-    if ((n = (int) recvfrom(sock, &(info->message->data), len, 0, NULL, NULL)) <= 0) {
+    if ((n = (int) recvfrom(sock, (char *) &(info->message->data), len, 
+                            0, NULL, NULL)) <= 0) {
         // I think udp errors should be ignored. UDP is not reliable
         // anyway. For now, though, let's at least print errors.
         perror("recvfrom in udp_recv_handler");

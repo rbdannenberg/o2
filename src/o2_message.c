@@ -960,7 +960,7 @@ o2_arg_ptr convert_float(char to_type, double d, int siz)
         case O2_INT64:
             // coerce to int64_t to avoid compiler warning; O2 can in fact lose
             // data coercing from type O2_DOUBLE to O2_INT64
-            ARG_DATA(rslt, int64_t, d);
+            ARG_DATA(rslt, int64_t, (int64_t) d);
             break;
         case O2_FLOAT:
             // coerce to float to avoid compiler warning; O2 can in fact lose

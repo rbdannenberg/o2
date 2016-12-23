@@ -122,9 +122,9 @@ void o2_broadcast_message(int port, SOCKET sock, o2_message_ptr message)
     // broadcast the message
     if (o2_found_network) {
         // printf("+    %s: sending broadcast message to %d\n", debug_prefix, port);
-        if (sendto(broadcast_sock, &message->data, message->length, 0,
-               (struct sockaddr *) &broadcast_to_addr,
-               sizeof(broadcast_to_addr)) < 0) {
+        if (sendto(broadcast_sock, (char *) &message->data, message->length, 0,
+                   (struct sockaddr *) &broadcast_to_addr,
+                   sizeof(broadcast_to_addr)) < 0) {
             perror("Error attempting to broadcast discovery message");
         }
     }
@@ -134,7 +134,7 @@ void o2_broadcast_message(int port, SOCKET sock, o2_message_ptr message)
     if (port != broadcast_recv_port) {
         local_to_addr.sin_port = broadcast_to_addr.sin_port; // copy the port number
         // printf("+    %s: sending local discovery message to %d\n", debug_prefix, port);
-        if (sendto(local_send_sock, &message->data, message->length, 0,
+        if (sendto(local_send_sock, (char *) &message->data, message->length, 0,
                    (struct sockaddr *) &local_to_addr,
                    sizeof(local_to_addr)) < 0) {
             perror("Error attempting to send discovery message locally");
@@ -327,9 +327,9 @@ int o2_discovery_handler(o2_message_ptr msg, const char *types,
         // directly.
         // printf("+    sending discovery msg to %s to encourage connection\n", debug_prefix);
         local_to_addr.sin_port = htons(udp);
-        if (sendto(local_send_sock, &o2_discovery_msg->data,
-                   o2_discovery_msg->length, 0,
-                   (struct sockaddr *) &local_to_addr,
+        if (sendto(local_send_sock, (char *) &o2_discovery_msg->data,
+                   o2_discovery_msg->length, 0, 
+                   (struct sockaddr *) &local_to_addr, 
                    sizeof(local_to_addr)) < 0) {
             perror("Error attepting to send discovery message directly");
         }
