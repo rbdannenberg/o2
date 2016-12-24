@@ -414,7 +414,7 @@ int tcp_accept_handler(SOCKET sock, fds_info_ptr info)
     // printf("%s: accepting a tcp connection\n", debug_prefix);
     SOCKET connection = accept(sock, NULL, NULL);
     int set = 1;
-#ifndef WIN32
+#ifdef __APPLE__
     setsockopt(connection, SOL_SOCKET, SO_NOSIGPIPE,
                (void *) &set, sizeof(int));
 #endif

@@ -128,12 +128,12 @@ int send_by_tcp_to_process(fds_info_ptr info, o2_message_ptr msg)
     // Send the length of the message
     int32_t len = htonl(msg->length);
     SOCKET fd = INFO_TO_FD(info);
-    if (send(fd, (char *) &len, sizeof(int32_t), 0) < 0) {
+    if (send(fd, (char *) &len, sizeof(int32_t), MSG_NOSIGNAL) < 0) {
         perror("o2_send_message writing length");
         goto send_error;
     }
     // Send the message body
-    if (send(fd, (char *) &(msg->data), msg->length, 0) < 0) {
+    if (send(fd, (char *) &(msg->data), msg->length, MSG_NOSIGNAL) < 0) {
         perror("o2_send_message writing data");
         goto send_error;
     }

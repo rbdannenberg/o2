@@ -397,7 +397,7 @@ int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
     info->proc.udp_port = udp_port;
     assert(udp_port != 0);
 
-#ifndef WIN32
+#ifdef __APPLE__
     info->proc.udp_sa.sin_len = sizeof(info->proc.udp_sa);
 #endif
 
