@@ -11,8 +11,8 @@
 int s = 0;
 int w = 1;
 
-int service_one(const o2_message_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+void service_one(o2_msg_data_ptr data, const char *types,
+                 o2_arg_ptr *argv, int argc, void *user_data)
 {
     char p[100];
     sprintf(p, "/two/benchmark/%d", s % N_ADDRS);
@@ -21,11 +21,10 @@ int service_one(const o2_message_ptr data, const char *types,
         printf("Service one received %d messages\n", s);
     }
     s++;
-    return O2_SUCCESS;
 }
 
-int service_two(const o2_message_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+void service_two(o2_msg_data_ptr data, const char *types,
+                 o2_arg_ptr *argv, int argc, void *user_data)
 {
     char p[100];
     sprintf(p, "/one/benchmark/%d", w % N_ADDRS);
@@ -34,7 +33,6 @@ int service_two(const o2_message_ptr data, const char *types,
         printf("Service two received %d messages\n", w);
     }
     w++;
-    return O2_SUCCESS;
 }
 
 

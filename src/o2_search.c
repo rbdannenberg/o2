@@ -14,6 +14,7 @@
 #include "o2_message.h"
 #include "o2_discovery.h"
 #include "o2_send.h"
+#include "o2_sched.h"
 
 #ifdef WIN32
 #include "malloc.h"
@@ -798,7 +799,7 @@ int add_local_osc(const char *path, int port, SOCKET tcp_socket)
 // path is "owned" by caller (so it is copied here)
 //
 int o2_add_method(const char *path, const char *typespec,
-            o2_method_handler h, void *user_data, int coerce, int parse)
+                  o2_method_handler h, void *user_data, int coerce, int parse)
 {
     char *key = o2_heapify(path);
     *key = '/'; // force key's first character to be '/', not '!'
@@ -944,10 +945,10 @@ ssize_t o2_get_length(o2_type type, void *data)
 // over the whole address (4 bytes at a time) to find types in order
 // to pass it in.
 //
-void call_handler(handler_entry_ptr handler, o2_message_ptr msg,
-                  char *types)
+void call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg, char *types)
 {
-    // coerce to avoid compiler warning -- 2^31 is absurdly big for a type string
+    // coerce to avoid compiler warning -- even 2^31 is absurdly big
+    //     for the type string length
     int types_len = (int) strlen(types);
 
     // type checking
@@ -997,7 +998,7 @@ void call_handler(handler_entry_ptr handler, o2_message_ptr msg,
 // msg is message to be dispatched
 //
 void find_and_call_handlers_rec(char *remaining, char *name,
-                                generic_entry_ptr node, o2_message_ptr msg)
+        generic_entry_ptr node, o2_msg_data_ptr msg, char *types)
 {
     char *slash = strchr(remaining, '/');
     // if (slash) *slash = 0;
@@ -1009,7 +1010,7 @@ void find_and_call_handlers_rec(char *remaining, char *name,
         while ((entry = enumerate_next(&enumerator))) {
             if (slash && (entry->tag == PATTERN_NODE) &&
                 (o2_pattern_match(entry->key, remaining) == O2_SUCCESS)) {
-                find_and_call_handlers_rec(slash + 1, name, entry, msg);
+                find_and_call_handlers_rec(slash + 1, name, entry, msg, types);
             } else if (!slash && (entry->tag == PATTERN_HANDLER)) {
                 char *path_end = remaining + strlen(remaining);
                 path_end = WORD_ALIGN_PTR(path_end);
@@ -1024,7 +1025,8 @@ void find_and_call_handlers_rec(char *remaining, char *name,
         generic_entry_ptr *entry_ptr = lookup((node_entry_ptr) node, name, &index);
         if (entry_ptr) {
             if (slash && ((*entry_ptr)->tag == PATTERN_NODE)) {
-                find_and_call_handlers_rec(slash + 1, name, *entry_ptr, msg);
+                find_and_call_handlers_rec(slash + 1, name, *entry_ptr,
+                                           msg, types);
             } else if (!slash && ((*entry_ptr)->tag == PATTERN_HANDLER)) {
                 char *path_end = remaining + strlen(remaining);
                 path_end = WORD_ALIGN_PTR(path_end);
@@ -1032,7 +1034,6 @@ void find_and_call_handlers_rec(char *remaining, char *name,
             }
         }
     }
-    // if (slash) *slash = '/';
 }
 
 
@@ -1042,9 +1043,59 @@ static int in_find_and_call_handlers = FALSE;
 static o2_message_ptr pending_head = NULL;
 static o2_message_ptr pending_tail = NULL;
 
-// dispatch msg to all matching handlers
+// delivery is recursive due to bundles. Here's an overview of the structure:
+// 
+// o2_schedule_or_deliver_msg(o2_sched_ptr sched, o2_message_ptr msg,
+//                            generic_entry_ptr service)
+//         (Defined in o2_sched.c)
+//         Assumes msg is addressed to a *local* service.
+//         deliver or schedule a message or bundle. Used by o2_send() and
+//         o2_schedule() and when message is received from a socket. Passes
+//         message or bundle to o2_deliver_msg() to dispatch the message.
+//         This function "owns" the message and is responsible for freeing it.
+// o2_deliver_msg(o2_message_ptr msg, generic_entry_ptr service)
+//         deliver a message or bundle. If called reentrantly, this queues the
+//         message for delivery later. Calls find_and_call_handlers() to do the
+//         work if this is a message, or calls deliver_embedded_msg if this is
+//         a bundle. Frees message before returning.
+// deliver_embedded_msg()
+//         Deliver or schedule a bundle or an element from a bundle
+//         (recursively). Calls find_and_call_handlers() to deliver an actual
+//         message, or copies the element into an o2_message and schedules it
+//         if the timestamp is in the future. (The copy is needed because the
+//         scheduler "owns" and frees the message, whereas
+//         deliver_embedded_msg() does not own the message data passed to it.
+// find_and_call_handlers()
+//         Find the handler(s) for a message and call them. Uses
+//         find_and_call_handlers_rec() to recursively find handlers when
+//         the message address has patterns.
+
+int deliver_embedded_msg(o2_msg_data_ptr msg, generic_entry_ptr service)
+{
+    if (msg->address[0] != '#') { // normal delivery if not a bundle
+        return find_and_call_handlers(msg, service);
+    }
+    char *end_of_msg = msg->address + MSG_DATA_LENGTH(msg);
+    for (o2_msg_data_ptr embedded = (o2_msg_data_ptr) (msg->address + 12); PTR(msg) < end_of_msg;
+         msg = (o2_msg_data_ptr) (PTR(msg) + MSG_DATA_LENGTH(embedded) + sizeof(int32_t))) {
+        if (msg->timestamp <= 0 || msg->timestamp < o2_gtsched.last_time) {
+            return deliver_embedded_msg(embedded, service);
+        } else if (o2_gtsched_started) {
+            int len = MSG_DATA_LENGTH(msg);
+            o2_message_ptr submsg = o2_alloc_size_message(len);
+            memcpy((char *) &(submsg->data), &msg, len);
+            submsg->length = len;
+            o2_schedule_or_deliver_msg(&o2_gtsched, submsg, service);
+        } // else ignore the message: no clock so can't schedule it
+    }
+    return O2_SUCCESS;
+}
+
+
+// dispatch msg to all matching handlers. This is the top-level entry point
+// to deliver messages or bundles. It owns and frees the message or bundle.
 //
-void find_and_call_handlers(o2_message_ptr msg, generic_entry_ptr service)
+void o2_deliver_msg(o2_message_ptr msg, generic_entry_ptr service)
 {
     if (in_find_and_call_handlers) { // enqueue the message and return
         if (pending_tail) {
@@ -1056,34 +1107,52 @@ void find_and_call_handlers(o2_message_ptr msg, generic_entry_ptr service)
     }
     in_find_and_call_handlers = TRUE;
     char *address = msg->data.address;
-    if (!service) {
-        service = o2_find_service(address + 1);
+    if (*address == '#') { // a bundle
+        deliver_embedded_msg(&msg->data, service);
+    } else {
+        find_and_call_handlers(&msg->data, service);
     }
+    o2_free_message(msg);
+    in_find_and_call_handlers = FALSE;
+}
+
+
+int find_and_call_handlers(o2_msg_data_ptr msg, generic_entry_ptr service)
+{
+    char *address = msg->address;
+    char *types = address;
+    if (!service) {
+        service = o2_find_service(types + 1);
+    }
+    while (types[3]) types += 4; // find end of path
+    // types[3] is the zero marking the end of the address,
+    // types[4] is the "," that starts the type string, so
+    // types + 5 is the first type char
+    types += 5; // now types points to first type char
     // if you o2_add_message("/service", ...) then the service entry is a
-    // pattern handler, and the handler is selected for ALL messages to the service
+    // pattern handler used for ALL messages to the service
     if (service->tag == PATTERN_HANDLER) {
-        while (address[3]) address += 4; // find end of path
-        call_handler((handler_entry_ptr) service, msg, address + 5);
+        call_handler((handler_entry_ptr) service, msg, types);
     } else if ((address[0]) == '!') { // do full path lookup
         int index;
         address[0] = '/'; // must start with '/' to get consistent hash value
         generic_entry_ptr *handler = lookup(&master_table, address, &index);
         address[0] = '!'; // restore address for no particular reason
         if (handler && (*handler)->tag == PATTERN_HANDLER) {
-            while (address[3]) address += 4; // find end of path
-            call_handler((handler_entry_ptr) (*handler), msg, address + 5);
+            call_handler((handler_entry_ptr) (*handler), msg, types);
+        } else {
+            return O2_NO_HANDLER;
         }
     } else {
         char name[NAME_BUF_LEN];
         address = strchr(address + 1, '/'); // search for end of service name
         if (!address) {
-            return; // address is "/service", but "/service" is not a PATTERN_HANDLER
+            // address is "/service", but "/service" is not a PATTERN_HANDLER
+            return O2_NO_HANDLER;
         }
-        find_and_call_handlers_rec(address + 1, name, service, msg);
+        find_and_call_handlers_rec(address + 1, name, service, msg, types);
     }
-    o2_free_message(msg);
-    in_find_and_call_handlers = FALSE;
-    return;
+    return O2_SUCCESS;
 }
 
 
@@ -1096,7 +1165,8 @@ void o2_deliver_pending()
         } else {
             pending_head = pending_head->next;
         }
-        find_and_call_handlers(msg, NULL);
+        find_and_call_handlers(&(msg->data), NULL);
+        o2_free_message(msg);
     }
 }
 

@@ -16,8 +16,8 @@
 
 // this is a handler that polls for current status
 //
-int clockmaster(o2_message_ptr msg, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+void clockmaster(o2_msg_data_ptr msg, const char *types,
+                 o2_arg_ptr *argv, int argc, void *user_data)
 {
     int ss = o2_status("server");
     int cs = o2_status("client");
@@ -25,7 +25,6 @@ int clockmaster(o2_message_ptr msg, const char *types,
            "server status %d client status %d\n",
            o2_local_time(), o2_get_time(), ss, cs);
     o2_send("!server/clockmaster", o2_get_time() + 1, "");
-    return O2_SUCCESS;
 }
 
 

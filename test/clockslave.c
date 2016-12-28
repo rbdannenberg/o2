@@ -15,8 +15,8 @@
 
 #pragma comment(lib,"o2_static.lib")
 
-int clockslave(o2_message_ptr msg, const char *types,
-               o2_arg ** argv, int argc, void *user_data)
+void clockslave(o2_msg_data_ptr msg, const char *types,
+                o2_arg ** argv, int argc, void *user_data)
 {
     int ss = o2_status("server");
     int cs = o2_status("client");
@@ -29,9 +29,8 @@ int clockslave(o2_message_ptr msg, const char *types,
     // due to there being no global time reference, we will schedule
     // messages directly on the local scheduler
     o2_start_send();
-    msg = o2_finish_message(o2_local_time() + 1, "!client/clockslave");
-    o2_schedule(&o2_ltsched, msg);
-    return O2_SUCCESS;
+    o2_message_ptr m = o2_finish_message(o2_local_time() + 1, "!client/clockslave");
+    o2_schedule(&o2_ltsched, m);
 }
 
 

@@ -78,7 +78,7 @@ int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...)
         (o2_debug > 1 && msg->data.address[1] != '_' &&
          !isdigit(msg->data.address[1]))) {
             printf("O2: sending%s ", (tcp_flag ? " cmd" : ""));
-            o2_print_msg(msg);
+            o2_print_msg(&(msg->data));
             printf("\n");
         }
 #endif
@@ -156,21 +156,18 @@ int o2_send_message(o2_message_ptr msg, int tcp_flag)
     }
     // Local delivery?
     if (service->tag <= PATTERN_HANDLER) {
-        // TODO: test if o2_get_time() is operational?
-        // future?
-        if (msg->data.timestamp > o2_get_time()) {
-            o2_schedule_on(&o2_ltsched, msg, service);
-        } else { // send it now
-            find_and_call_handlers(msg, service);
-        }
-        return O2_SUCCESS;
-    } else if (service->tag == O2_REMOTE_SERVICE) { // send the message to remote process
+        return o2_schedule_or_deliver_msg(&o2_gtsched, msg, service);
+    } else if (service->tag == O2_REMOTE_SERVICE) {
+        // send the message to remote process
         remote_service_entry_ptr rse = (remote_service_entry_ptr) service;
         fds_info_ptr info = DA_GET(o2_fds_info, fds_info, rse->process_index);
         if (tcp_flag) {
             send_by_tcp_to_process(info, msg);
         } else { // send via UDP
-            // printf(" +    %s normal udp msg to %s, port %d, ip %x\n", debug_prefix, msg->data.address, ntohs(proc->udp_sa.sin_port), ntohl(proc->udp_sa.sin_addr.s_addr));
+            // printf(" +    %s normal udp msg to %s, port %d, ip %x\n",
+            //        debug_prefix, msg->data.address,
+            //        ntohs(proc->udp_sa.sin_port),
+            //        ntohl(proc->udp_sa.sin_addr.s_addr));
             if (sendto(local_send_sock, (char *) &(msg->data), msg->length,
                        0, (struct sockaddr *) &(info->proc.udp_sa),
                        sizeof(info->proc.udp_sa)) < 0) {

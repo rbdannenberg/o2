@@ -189,6 +189,14 @@ extern int o2_debug;
 // an error return value: attempt to make a TCP connection failed
 #define O2_TCP_CONNECT (-11)
 
+// an error return value: message was not scheduled or delivered because
+// the current time is not available
+#define O2_NO_CLOCK (-12)
+
+// an error return value: no handler for an address
+#define O2_NO_HANDLER (-13)
+
+
 
 // Status return codes for o2_status function:
 
@@ -307,35 +315,77 @@ void *o2_calloc(size_t n, size_t s);
 typedef double o2_time;
 
 
-/** \brief an O2 message
+/** \brief data part of an O2 message
  *
+ * This data type is used to pass o2 message data to message handlers.
+ * It appears many other times in the code. You should NEVER allocate
+ * or free an o2_msg_data struct. Instead, create a message using 
+ * o2_start_send(), o2_add_*(), and o2_finish_message() to get an 
+ * o2_message_ptr. Within the o2_message, the data field is an
+ * o2_msg_data structure. We would use o2_message everywhere instead
+ * of o2_msg_data, but bundles can contain multiple o2_msg_data 
+ * structures without the extra baggage contained in an o2_message.
+ *
+ * Note: it is assumed that an o2_msg_data struct is always preceded
+ * by a 32-bit length. Ideally, length should therefore be in this
+ * struct, but then the compiler might add padding to put the timestamp
+ * on an 8-byte alignment. This could be solved with a pack pragma, but
+ * that is not standard C. To be safe and portable, I decided to just 
+ * leave length out of the struct. The macro MSG_DATA_LENGTH can be used
+ * to access the length field.
  */
-typedef struct o2_message {
-    struct o2_message *next; ///< links used for free list and scheduler
-    int allocated;           ///< how many bytes allocated in data part
-    int length;              ///< the length of the message in data part
-    struct {
-        o2_time timestamp;   ///< the message delivery time (0 for immediate)
-        /** \brief the message address string
-         *
-         * Although this field is declared as 4 bytes, actual messages
-         * have variable length, and the address is followed by a
-         * string of type codes and the actual parameters. The length
-         * of the entire message including the timestamp is given by
-         * the `length` field.
-         */
-        char address[4];
-    } data; ///< the message (type string and payload follow address)
-} o2_message, *o2_message_ptr;
+typedef struct o2_msg_data {
+    o2_time timestamp;   ///< the message delivery time (0 for immediate)
+    /** \brief the message address string
+     *
+     * Although this field is declared as 4 bytes, actual messages
+     * have variable length, and the address is followed by a
+     * string of type codes and the actual parameters. The length
+     * of the entire message including the timestamp is given by
+     * the `length` field.
+     */
+    char address[4];
+} o2_msg_data, *o2_msg_data_ptr;
+
+// get the length from a pointer to an o2_msg_data. This macro dereferences
+// the o2_msg_data pointer to impose some mild typechecking. Not just any
+// pointer will work.
+#define MSG_DATA_LENGTH(m) (((int32_t *) &((m)->timestamp))[-1])
 
 
-/** \brief get the type string of a message
+/** \brief get the type string from o2_msg_data_ptr
  *
  * Type strings begin with the comma (",") character, which is skipped
  */
 #define WORD_ALIGN_PTR(p) ((char *) (((size_t) (p)) & ~3))
 #define O2_MSG_TYPES(msg) \
-    WORD_ALIGN_PTR((msg)->data.address + strlen((msg)->data.address) + 4) + 1;
+    WORD_ALIGN_PTR((msg)->address + strlen((msg)->address) + 4) + 1;
+
+
+/** \brief an O2 message container
+ *
+ * Note: This struct represents an O2 message that is stored on the heap.
+ * The length field must preceded data with no padding (see o2_msg_data
+ * declaration and the note that precedes it). To make sure there is no
+ * padding between length and data, we force the next pointer to occupy
+ * 8 bytes even if this is a 32-bit machine by making it part of a union
+ * with an 8-byte int64_t field named "pad_if_needed."
+ *
+ * Note that o2_messages are on the heap and can be allocated, scheduled,
+ * sent, and freed.  In contrast, o2_msg_data structures are contained 
+ * within o2_messages and are passed to method handlers, but cannot be
+ * allocated, scheduled, sent, or freed. They are always the data field
+ * of a containing o2_message.
+ */
+typedef struct o2_message {
+    union {
+        struct o2_message *next; ///< links used for free list and scheduler
+        int64_t pad_if_needed;   ///< make sure allocated is 8-byte aligned
+    };
+    int32_t allocated;       ///< how many bytes allocated in data part
+    int32_t length;          ///< the length of the message in data part
+    o2_msg_data data;
+} o2_message, *o2_message_ptr;
 
 
 /**
@@ -497,8 +547,8 @@ extern int o2_stop_flag;
  *         handled. This value is currently ignored.
  *
  */
-typedef int (*o2_method_handler)(const o2_message_ptr msg, const char *types,
-                                 o2_arg_ptr *argv, int argc, void *user_data);
+typedef void (*o2_method_handler)(const o2_msg_data_ptr msg, const char *types,
+                                  o2_arg_ptr *argv, int argc, void *user_data);
 
 
 /**
@@ -1281,7 +1331,7 @@ int o2_finish_send_cmd(o2_time time, char *address);
  * To get arguments from a message, call o2_start_extract(), then for
  * each parameter, call o2_get_next().
  */
-int o2_start_extract(o2_message_ptr msg);
+int o2_start_extract(o2_msg_data_ptr msg);
 
 /**
  * \brief get the next message parameter
@@ -1455,7 +1505,7 @@ extern o2_sched_ptr o2_active_sched; // the scheduler that should be used
  * messages scheduled within handlers are appended to a "pending
  * messages" queue and delivered after the handler returns.
  */
-void o2_schedule(o2_sched_ptr scheduler, o2_message_ptr msg);
+int o2_schedule(o2_sched_ptr scheduler, o2_message_ptr msg);
 
 /** @} */ // end of a basics group
 

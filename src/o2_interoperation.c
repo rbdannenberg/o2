@@ -174,16 +174,16 @@ int o2_deliver_osc(fds_info_ptr info)
     *fill_ptr = 0;
     // copy in OSC address string, possibly overwriting some of the fill
     memcpy(o2_ptr, msg_data, addr_len);
-    o2_ptr = (char *) (fill_ptr + 1); // get location after O2 address
+    o2_ptr = PTR(fill_ptr + 1); // get location after O2 address
     // copy type string and OSC message data
     char *osc_ptr = WORD_ALIGN_PTR(msg_data + addr_len + 4);
     o2len = msg_data + info->message->length - osc_ptr; // how much payload to copy
     memcpy(o2_ptr, osc_ptr, o2len);
-    o2msg->length = o2_ptr + o2len - (char *) &(o2msg->data);
+    o2msg->length = o2_ptr + o2len - PTR(&(o2msg->data));
     // now we have an O2 message to send
     o2_free_message(info->message);
     if (o2_process->proc.little_endian) {
-        o2_msg_swap_endian(o2msg, FALSE);
+        o2_msg_swap_endian(&(o2msg->data), FALSE);
     }
     
     return o2_send_message(o2msg, FALSE);
@@ -203,7 +203,7 @@ void o2_send_osc(osc_entry_ptr service, o2_message_ptr msg)
 
     // Begin by converting to network byte order:
     if (o2_process->proc.little_endian) {
-        o2_msg_swap_endian(msg, TRUE);
+        o2_msg_swap_endian(&(msg->data), TRUE);
     }
 
     // Move address to eliminate service name prefix

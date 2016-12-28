@@ -4,4 +4,5 @@ void o2_start_a_scheduler(o2_sched_ptr s, o2_time start_time);
 void o2_sched_poll();
 int o2_check_clock();
 void o2_schedule_on(o2_sched_ptr s, o2_message_ptr m, generic_entry_ptr service);
-
+int o2_schedule_or_deliver_msg(o2_sched_ptr s, o2_message_ptr m,
+                               generic_entry_ptr service);

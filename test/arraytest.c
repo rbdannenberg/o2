@@ -42,8 +42,8 @@ int arg_count = 0; // used to tell handler how many is correct
 
 // 1. sending typestring [i] (an array with one integer)
 // 
-int service_ai(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_ai(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
 
@@ -61,13 +61,12 @@ int service_ai(const o2_message_ptr data, const char *types,
 
     assert(*types == 0);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 // 2. sending typestring [] (an array with no integers)
 // 
-int service_a(const o2_message_ptr data, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+void service_a(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
 
@@ -81,14 +80,13 @@ int service_a(const o2_message_ptr data, const char *types,
 
     assert(*types == 0);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // 3. sending typestring [ii] (an array with 2 integers)
 // 
-int service_aii(const o2_message_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+void service_aii(o2_msg_data_ptr data, const char *types,
+                 o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
 
@@ -110,7 +108,6 @@ int service_aii(const o2_message_ptr data, const char *types,
 
     assert(*types == 0);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
@@ -227,8 +224,8 @@ void zcheck(char typ)
 //    (just in case a mix of sizes causes problems); the global
 //    char xtype; provides the value of x
 // 
-int service_xixdx(const o2_message_ptr data, const char *types,
-                  o2_arg_ptr *argv, int argc, void *user_data)
+void service_xixdx(o2_msg_data_ptr data, const char *types,
+                   o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
 
@@ -242,14 +239,13 @@ int service_xixdx(const o2_message_ptr data, const char *types,
 
     assert(*types == 0);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // 5. sending typestring i[ih][fdt]d to test multiple arrays
 //
-int service_2arrays(const o2_message_ptr data, const char *types,
-                    o2_arg_ptr *argv, int argc, void *user_data)
+void service_2arrays(o2_msg_data_ptr data, const char *types,
+                     o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
 
@@ -270,14 +266,13 @@ int service_2arrays(const o2_message_ptr data, const char *types,
 
     assert(*types == 0);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // 6. sending typestring [ddddd...] where there are 1 to 100 d's
 //
-int service_bigarray(const o2_message_ptr data, const char *types,
-                     o2_arg_ptr *argv, int argc, void *user_data)
+void service_bigarray(o2_msg_data_ptr data, const char *types,
+                      o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     acheck(*types++);
@@ -287,14 +282,13 @@ int service_bigarray(const o2_message_ptr data, const char *types,
     zcheck(*types++);
     assert(*types == 0); // got all of typestring
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // 7. sending typestring vi (with length 0 to 100)
 //
-int service_vi(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_vi(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(*types++ == 'v');
@@ -312,14 +306,13 @@ int service_vi(const o2_message_ptr data, const char *types,
     }
     assert(*types == 0); // got all of typestring
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // 8. sending typestring vf (with length 0 to 100)
 //
-int service_vf(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_vf(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(*types++ == 'v');
@@ -338,13 +331,12 @@ int service_vf(const o2_message_ptr data, const char *types,
     }
     assert(*types == 0); // got all of typestring
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // 9. sending typestring vh (with length 0 to 100)
-int service_vh(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_vh(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(*types++ == 'v');
@@ -363,13 +355,12 @@ int service_vh(const o2_message_ptr data, const char *types,
     }
     assert(*types == 0); // got all of typestring
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // 10. sending typestring vd (with length 0 to 100)
-int service_vd(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_vd(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(*types++ == 'v');
@@ -388,14 +379,13 @@ int service_vd(const o2_message_ptr data, const char *types,
     }
     assert(*types == 0); // got all of typestring
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // 12. sending typestring ifv?if (with vector length 0 to 100)
 //     (this last test is an extra check for embedded vectors)
-int service_ifvxif(const o2_message_ptr data, const char *types,
-                   o2_arg_ptr *argv, int argc, void *user_data)
+void service_ifvxif(o2_msg_data_ptr data, const char *types,
+                    o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     icheck(*types++, 2345);
@@ -439,15 +429,14 @@ int service_ifvxif(const o2_message_ptr data, const char *types,
     fcheck(*types++, 567.89F);
     assert(*types == 0); // got all of typestring
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // 13. sending typestring vivd (with lenghts 0 to 100)
 //     (another test to look for bugs in allocation, receiving multiple
 //      vectors in one message)
-int service_vivd(const o2_message_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+void service_vivd(o2_msg_data_ptr data, const char *types,
+                  o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(*types++ == 'v');
@@ -478,14 +467,13 @@ int service_vivd(const o2_message_ptr data, const char *types,
     }
     assert(*types == 0); // got all of typestring
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // 14. sending i[xxxx...]i where x is in ihfdt and there are 0 to 100
 //     of them AND the data is received as a vector using coercion
-int service_coerce(const o2_message_ptr data, const char *types,
-                   o2_arg_ptr *argv, int argc, void *user_data)
+void service_coerce(o2_msg_data_ptr data, const char *types,
+                    o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     icheck(*types++, 5678);
@@ -520,14 +508,13 @@ int service_coerce(const o2_message_ptr data, const char *types,
     icheck(*types++, 6789);
     assert(*types == 0); // got all of typestring
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // 15. sending ivxi where x is in ihfdt and there are 0 to 100
 //     of them AND the data is received as an array using coercion
-int service_coerce2(const o2_message_ptr data, const char *types,
-                   o2_arg_ptr *argv, int argc, void *user_data)
+void service_coerce2(o2_msg_data_ptr data, const char *types,
+                    o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     icheck(*types++, 5678);
@@ -577,7 +564,6 @@ int service_coerce2(const o2_message_ptr data, const char *types,
     fcheck(*types++, 567.89F);
     assert(*types == 0); // got all of typestring
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 

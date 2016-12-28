@@ -20,15 +20,15 @@
 char *server_addresses[N_ADDRS];
 int msg_count = 0;
 
-int client_test(o2_message_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+void client_test(o2_msg_data_ptr data, const char *types,
+                 o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_send(server_addresses[msg_count % N_ADDRS], 0, "i", msg_count);
     if (msg_count % 10000 == 0) {
         printf("client received %d messages\n", msg_count);
     }
     msg_count++;
-    return O2_SUCCESS;
+    return;
 }
 
 
@@ -45,7 +45,7 @@ int main(int argc, const char * argv[]) {
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "!server/benchmark/%d", i);
-        server_addresses[i] = (char *) O2_MALLOC(strlen(path));
+        server_addresses[i] = (char *) (O2_MALLOC(strlen(path)));
         strcpy(server_addresses[i], path);
     }
 

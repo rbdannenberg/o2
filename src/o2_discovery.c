@@ -211,15 +211,13 @@ int o2_discovery_msg_init()
 //    message args are: "b" or "l" for big- or little-endian,
 //    o2_process_ip (as a string), udp port (int), tcp port (int)
 //
-int o2_discovery_send_handler(o2_message_ptr msg, const char *types,
-                              o2_arg_ptr *argv, int argc, void *user_data)
+void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
+                               o2_arg_ptr *argv, int argc, void *user_data)
 {
     next_discovery_index = (next_discovery_index + 1) % PORT_MAX;
     o2_broadcast_message(o2_port_map[next_discovery_index],
             DA_GET(o2_fds, struct pollfd, next_discovery_index)->fd,
                          o2_discovery_msg);
-    //printf("Discovery broadcasts %p to port %d\n",
-    //       outmsg, o2_port_map[next_discovery_index]);
     o2_time next_time = o2_local_time() + o2_discovery_send_interval;
     // back off rate by 10% until we're sending every 4s:
     o2_discovery_send_interval *= 1.1;
@@ -230,12 +228,10 @@ int o2_discovery_send_handler(o2_message_ptr msg, const char *types,
     // want to schedule another call to send again. Do not use send()
     // because we are operating off of local time, not synchronized
     // global time. Instead, form a message and schedule it:
-    RETURN_IF_ERROR(o2_start_send());
+    if (o2_start_send()) return;
     o2_message_ptr ds_msg = o2_finish_message(next_time, "!_o2/ds");
-    if (!ds_msg) return O2_FAIL;
+    if (!ds_msg) return;
     o2_schedule(&o2_ltsched, ds_msg);
-    // printf("o2_discovery_send_handler next time %g\n", next_time);
-    return O2_SUCCESS;
 }
 
 
@@ -282,8 +278,8 @@ int o2_send_services(fds_info_ptr process)
 
 // /o2_/dy handler, parameters are: big/little endian, application name, ip, tcp, and upd
 // 
-int o2_discovery_handler(o2_message_ptr msg, const char *types,
-                         o2_arg_ptr *argv, int argc, void *user_data)
+void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
+                          o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_arg_ptr endian_arg, app_arg, ip_arg, tcp_arg, udp_arg;
     // get the arguments: endian, application name, ip as string,
@@ -294,7 +290,7 @@ int o2_discovery_handler(o2_message_ptr msg, const char *types,
         !(ip_arg = o2_get_next('s')) ||
         !(tcp_arg = o2_get_next('i')) ||
         !(udp_arg = o2_get_next('i'))) { // the discovery port
-        return O2_FAIL;
+        return;
     }
     char *ip = ip_arg->s;
     int is_little_endian = (endian_arg->s[0] == 'l');
@@ -305,22 +301,18 @@ int o2_discovery_handler(o2_message_ptr msg, const char *types,
         udp = swap32(udp);
     }
     
-    if (!streql(app_arg->s, o2_application_name))
-        return O2_FAIL;
+    if (!streql(app_arg->s, o2_application_name)) return;
     
     char name[32];
     // ip:port + pad with zeros
     snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp_arg->i32, 0, 0, 0, 0);
     int index;
     // printf("%s: o2_discovery_handler: lookup %s\n", debug_prefix, name);
-    if (lookup(&path_tree_table, name, &index)) {
-        // printf("%s: discovery handler: %s exists\n", debug_prefix, name);
-        return O2_SUCCESS;
-    }
+    if (lookup(&path_tree_table, name, &index)) return;
     int compare = strcmp(o2_process->proc.name, name);
     // printf("%s: o2_discovery_handler name %s local name %s\n", debug_prefix, name, o2_process.name);
-    if (compare == 0) { // the "discovered process" is this one
-        return O2_SUCCESS;
+    if (compare == 0) {
+        return; // the "discovered process" is this one
     } else if (compare > 0) { // we are server, the other party should connect
         // send a discover message back to sender
         // sender's IP and port are known, so we can send a UDP message
@@ -335,12 +327,10 @@ int o2_discovery_handler(o2_message_ptr msg, const char *types,
         }
     } else {
         fds_info_ptr info;
-        RETURN_IF_ERROR(make_tcp_connection(ip, tcp, &o2_tcp_initial_handler, &info));
-        RETURN_IF_ERROR(o2_init_process(info, name, PROCESS_CONNECTED,
-                                        is_little_endian));
+        if (make_tcp_connection(ip, tcp, &o2_tcp_initial_handler, &info)) return;
+        if (o2_init_process(info, name, PROCESS_CONNECTED, is_little_endian)) return;
         O2_DB(printf("O2: discovered and connecting to %s\n", name));
     }
-    return O2_SUCCESS;
 }
 
 
@@ -350,8 +340,8 @@ int o2_discovery_handler(o2_message_ptr msg, const char *types,
 // this is a server that only accepted a connection but has no info,
 // so the path_tree_table has no entry yet.
 //
-int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
-                              o2_arg_ptr *argv, int argc, void *user_data)
+void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
+                               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_arg_ptr endian_arg, ip_arg, tcp_arg, udp_arg, clocksync_arg;
     // get the arguments: endian, application name, ip as string,
@@ -363,7 +353,7 @@ int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
         !(udp_arg = o2_get_next('i')) ||
         !(clocksync_arg = o2_get_next('i'))) {
         printf("**** error in o2_tcp_initial_handler -- code incomplete ****\n");
-        return O2_FAIL;
+        return;
     }
     int is_little_endian = (endian_arg->s[0] == 'l');
     int tcp_port = tcp_arg->i32;
@@ -387,7 +377,7 @@ int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
     // printf("%s: in o2_discovery_init_handler, user_data %p, entry is %p\n", debug_prefix, user_data, entry);
     if (!entry) {
         info = (fds_info_ptr) user_data;
-        RETURN_IF_ERROR(o2_init_process(info, name, status, is_little_endian));
+        if (o2_init_process(info, name, status, is_little_endian)) return;
     } else {
         remote_service_entry_ptr service = (remote_service_entry_ptr) *entry;
         info = DA_GET(o2_fds_info, fds_info, service->process_index);
@@ -407,19 +397,19 @@ int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
     O2_DB(printf("O2: connected from %s (udp port %ld)\n   to local socket %ld fds_info %p\n",
                  name, (long) udp_port,
                  (long) INFO_TO_FD(info), info));
-    return O2_SUCCESS;
+    return;
 }
 
 
 // /ip:port/sv: called to announce services available. Arguments are
 //     process name, service1, service2, ...
 //
-int o2_services_handler(o2_message_ptr msg, const char *types,
-                        o2_arg_ptr *argv, int argc, void *user_data)
+void o2_services_handler(o2_msg_data_ptr msg, const char *types,
+                         o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(msg);
     o2_arg_ptr arg = o2_get_next('s');
-    if (!arg) return O2_FAIL;
+    if (!arg) return;
     char *name = arg->s;
     int i;
     // note that name is padded with zeros to 32-bit boundary
@@ -436,6 +426,5 @@ int o2_services_handler(o2_message_ptr msg, const char *types,
             add_remote_service(info, service_name);
         }
     }
-    return O2_SUCCESS;
 }
         

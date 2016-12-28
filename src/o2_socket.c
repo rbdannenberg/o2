@@ -94,7 +94,7 @@ void deliver_or_schedule(fds_info_ptr info)
 {
     // make sure endian is compatible
     if (info->proc.little_endian) {
-        o2_msg_swap_endian(info->message, FALSE);
+        o2_msg_swap_endian(&(info->message->data), FALSE);
     }
 
 #ifndef O2_NO_DEBUGGING
@@ -102,21 +102,11 @@ void deliver_or_schedule(fds_info_ptr info)
         (o2_debug > 1 && info->message->data.address[1] != '_' &&
                          !isdigit(info->message->data.address[1]))) {
             printf("O2: received ");
-            o2_print_msg(info->message);
+            o2_print_msg(&info->message->data);
             printf("\n");
     }
 #endif
-    if (info->message->data.timestamp > 0.0) {
-        if (o2_gtsched_started) {
-            if (info->message->data.timestamp > o2_global_now) {
-                o2_schedule(&o2_gtsched, info->message);
-            } else {
-                find_and_call_handlers(info->message, NULL);
-            }
-        } // else drop the message, no timestamps allowed before clock sync
-    } else {
-        find_and_call_handlers(info->message, NULL);
-    }
+    o2_schedule_or_deliver_msg(&o2_gtsched, info->message, NULL);
 }
 
 
@@ -212,6 +202,7 @@ int udp_recv_handler(SOCKET sock, struct fds_info *info)
         // anyway. For now, though, let's at least print errors.
         perror("recvfrom in udp_recv_handler");
         o2_free_message(info->message);
+        info->message = NULL;
         return O2_FAIL;
     }
     info->message->length = n;
@@ -392,7 +383,7 @@ int o2_tcp_initial_handler(SOCKET sock, fds_info_ptr info)
     // next word, which is where types begin, then add 1 to skip the ',' that
     // begins the type string
     ptr = WORD_ALIGN_PTR(ptr + 7) + 1; // skip over the ','
-    o2_discovery_init_handler(info->message, ptr, NULL, 0, info);
+    o2_discovery_init_handler(&info->message->data, ptr, NULL, 0, info);
     info->handler = &tcp_recv_handler;
     // printf("%s: o2_tcp_initial_handler completed for %s\n", debug_prefix,
     //       info->proc_info->name);

@@ -61,19 +61,19 @@ int o2_add_remote_services(char *m);
  *
  *  @return 0 if succeed, 1 if there is some error.
  */
-int o2_discovery_send_handler(o2_message_ptr msg, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data);
+void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
+                               o2_arg_ptr *argv, int argc, void *user_data);
 
 
 // callback for discovery messages
-int o2_discovery_handler(o2_message_ptr msg, const char *types,
+void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
+                          o2_arg_ptr *argv, int argc, void *user_data);
+
+void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
+                               o2_arg_ptr *argv, int argc, void *user_data);
+
+void o2_services_handler(o2_msg_data_ptr msg, const char *types,
                          o2_arg_ptr *argv, int argc, void *user_data);
-
-int o2_discovery_init_handler(o2_message_ptr msg, const char *types,
-                              o2_arg_ptr *argv, int argc, void *user_data);
-
-int o2_services_handler(o2_message_ptr msg, const char *types,
-                        o2_arg_ptr *argv, int argc, void *user_data);
 
 int make_tcp_connection(char *ip, int tcp_port,
                         o2_socket_handler handler, fds_info_ptr *info);

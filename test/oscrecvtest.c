@@ -16,15 +16,14 @@
 int message_count = 0;
 
 
-int osc_i_handler(o2_message_ptr data, const char *types,
-                  o2_arg_ptr *argv, int argc, void *user_data)
+void osc_i_handler(o2_msg_data_ptr data, const char *types,
+                   o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(argv);
     assert(argc == 1);
     assert(argv[0]->i == 1234);
     message_count++;
     printf("osc_i_handler receieved 1234 at /osc/i\n");
-    return O2_SUCCESS;
 }
 
 

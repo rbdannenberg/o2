@@ -27,7 +27,7 @@ int msg_count = 0;
 // this is a handler for incoming messages. It simply sends a message
 // back to one of the client addresses
 //
-int server_test(o2_message_ptr msg, const char *types,
+void server_test(o2_msg_data_ptr msg, const char *types,
                 o2_arg ** argv, int argc, void *user_data)
 {
     o2_send(client_addresses[msg_count % N_ADDRS], 0, "i", msg_count);
@@ -35,7 +35,6 @@ int server_test(o2_message_ptr msg, const char *types,
         printf("server received %d messages\n", msg_count);
     }
     msg_count++;
-    return O2_SUCCESS;
 }
 
 
@@ -56,7 +55,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "!client/benchmark/%d", i);
-        client_addresses[i] = (char *) O2_MALLOC(strlen(path));
+        client_addresses[i] = (char *) (O2_MALLOC(strlen(path)));
         strcpy(client_addresses[i], path);
     }
 

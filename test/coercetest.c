@@ -19,8 +19,8 @@ int got_the_message = FALSE;
 char *send_types = "";
 
 // receive send type as int
-int service_i(const o2_message_ptr data, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+void service_i(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(strcmp(types, send_types) == 0);
@@ -31,12 +31,11 @@ int service_i(const o2_message_ptr data, const char *types,
                       strcmp(send_types, "B") == 0) ? 1 :
            ((strcmp(send_types, "F") == 0) ? 0 : 12345));
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
-int service_ip(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_ip(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "i") == 0);
     assert(argc == 1);
@@ -46,13 +45,12 @@ int service_ip(const o2_message_ptr data, const char *types,
                            strcmp(send_types, "B") == 0) ? 1 :
                           ((strcmp(send_types, "F") == 0) ? 0 : 12345)));
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive int as bool
-int service_B(const o2_message_ptr data, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+void service_B(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(strcmp(types, send_types) == 0);
@@ -61,12 +59,11 @@ int service_B(const o2_message_ptr data, const char *types,
     printf("service_B types=%s bool=%d\n", types, arg->B);
     assert(arg->B == (strcmp(send_types, "F") != 0));
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
-int service_Bp(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_Bp(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "B") == 0);
     assert(argc == 1);
@@ -74,13 +71,12 @@ int service_Bp(const o2_message_ptr data, const char *types,
     printf("service_Bp types=%s bool=%d\n", types, argv[0]->B);
     assert(argv[0]->B == (strcmp(send_types, "F") != 0));
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive int32 as int64
-int service_h(const o2_message_ptr data, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+void service_h(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(strcmp(types, send_types) == 0);
@@ -91,12 +87,11 @@ int service_h(const o2_message_ptr data, const char *types,
                        strcmp(send_types, "B") == 0) ? 1 :
                       ((strcmp(send_types, "F") == 0) ? 0 : 12345LL));
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
-int service_hp(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_hp(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "h") == 0);
     assert(argc == 1);
@@ -106,13 +101,12 @@ int service_hp(const o2_message_ptr data, const char *types,
                            strcmp(send_types, "B") == 0) ? 1 :
                           ((strcmp(send_types, "F") == 0) ? 0 : 12345)));
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive int32 as float
-int service_f(const o2_message_ptr data, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+void service_f(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(strcmp(types, send_types) == 0);
@@ -124,12 +118,11 @@ int service_f(const o2_message_ptr data, const char *types,
                       ((strcmp(send_types, "F") == 0) ? 0 : 1234.0));
 
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
-int service_fp(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_fp(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "f") == 0);
     assert(argc == 1);
@@ -139,13 +132,12 @@ int service_fp(const o2_message_ptr data, const char *types,
                            strcmp(send_types, "B") == 0) ? 1 :
                           ((strcmp(send_types, "F") == 0) ? 0 : 1234.0)));
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive int32 as double
-int service_d(const o2_message_ptr data, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+void service_d(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(strcmp(types, send_types) == 0);
@@ -157,12 +149,11 @@ int service_d(const o2_message_ptr data, const char *types,
                      ((strcmp(send_types, "F") == 0) ? 0 : 1234.0));
 
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
-int service_dp(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_dp(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "d") == 0);
     assert(argc == 1);
@@ -172,13 +163,12 @@ int service_dp(const o2_message_ptr data, const char *types,
                            strcmp(send_types, "B") == 0) ? 1 :
                           ((strcmp(send_types, "F") == 0) ? 0 : 1234.0)));
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive int32 as time
-int service_t(const o2_message_ptr data, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+void service_t(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(strcmp(types, send_types) == 0);
@@ -187,13 +177,12 @@ int service_t(const o2_message_ptr data, const char *types,
     printf("service_t types=%s time=%g\n", types, arg->t);
     assert(arg->t == 1234.0);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive int32 as time
-int service_tp(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_tp(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "t") == 0);
     assert(argc == 1);
@@ -201,13 +190,12 @@ int service_tp(const o2_message_ptr data, const char *types,
     printf("service_tp types=%s time=%g\n", types, argv[0]->t);
     assert(argv[0]->t == 1234.0);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive a string as a Symbol
-int service_S(const o2_message_ptr data, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+void service_S(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(strcmp(types, send_types) == 0);
@@ -216,13 +204,12 @@ int service_S(const o2_message_ptr data, const char *types,
     printf("service_S types=%s symbol=%s\n", types, arg->S);
     assert(strcmp(arg->S, "aString") == 0);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive string as "S" coerced into argv
-int service_Sp(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_Sp(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "S") == 0);
     assert(argc == 1);
@@ -230,13 +217,12 @@ int service_Sp(const o2_message_ptr data, const char *types,
     printf("service_Sp types=%s symbol=%s\n", types, argv[0]->S);
     assert(strcmp(argv[0]->S, "aString") == 0);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive sent Symbol as s
-int service_s(const o2_message_ptr data, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+void service_s(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(strcmp(types, send_types) == 0);
@@ -245,13 +231,12 @@ int service_s(const o2_message_ptr data, const char *types,
     printf("service_S types=%s symbol=%s\n", types, arg->s);
     assert(strcmp(arg->s, "aSymbol") == 0);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive Symbol coerced to "s" string in argv
-int service_sp(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_sp(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "s") == 0);
     assert(argc == 1);
@@ -259,14 +244,13 @@ int service_sp(const o2_message_ptr data, const char *types,
     printf("service_Sp types=%s string=%s\n", types, argv[0]->s);
     assert(strcmp(argv[0]->s, "aSymbol") == 0);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 
 // receive different sent types as True
-int service_T(const o2_message_ptr data, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+void service_T(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(strcmp(types, send_types) == 0);
@@ -274,24 +258,22 @@ int service_T(const o2_message_ptr data, const char *types,
     printf("service_T types=%s\n", types);
     assert(arg);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
-int service_Tp(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_Tp(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "T") == 0);
     assert(argc == 1);
     printf("service_Tp types=%s\n", types);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive int32 as FALSE
-int service_F(const o2_message_ptr data, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+void service_F(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     assert(strcmp(types, send_types) == 0);
@@ -299,27 +281,23 @@ int service_F(const o2_message_ptr data, const char *types,
     assert(arg);
     printf("service_F types=%s\n", types);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
-int service_Fp(const o2_message_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+void service_Fp(o2_msg_data_ptr data, const char *types,
+                o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(strcmp(types, "F") == 0);
     assert(argc == 1);
     printf("service_Fp types=%s\n", types);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
-
-
 
 
 // expects hifdt, but receives them as ihdff
 //
-int service_many(const o2_message_ptr data, const char *types,
-    o2_arg_ptr *argv, int argc, void *user_data)
+void service_many(o2_msg_data_ptr data, const char *types,
+                  o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     o2_arg_ptr arg = o2_get_next('i');
@@ -338,12 +316,11 @@ int service_many(const o2_message_ptr data, const char *types,
     assert(strcmp(types, "hifdt") == 0);
     printf("service_many types=%s\n", types);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
-int service_manyp(const o2_message_ptr data, const char *types,
-                  o2_arg_ptr *argv, int argc, void *user_data)
+void service_manyp(o2_msg_data_ptr data, const char *types,
+                   o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(argc == 5);
     assert(argv[0]->i == 12345);
@@ -357,7 +334,6 @@ int service_manyp(const o2_message_ptr data, const char *types,
     assert(strcmp(types, "ihdff") == 0);
     printf("service_manyp types=%s\n", types);
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 

@@ -185,12 +185,12 @@ void announce_synchronized()
 }
 
 
-int o2_clocksynced_handler(o2_message_ptr msg, const char *types,
-                           o2_arg_ptr *argv, int argc, void *user_data)
+void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
+                            o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(msg);
     o2_arg_ptr arg = o2_get_next('s');
-    if (!arg) return O2_FAIL;
+    if (!arg) return;
     char *name = arg->s;
     int i;
     generic_entry_ptr *entry = lookup(&path_tree_table, name, &i);
@@ -200,9 +200,8 @@ int o2_clocksynced_handler(o2_message_ptr msg, const char *types,
         fds_info_ptr process_info = DA_GET(o2_fds_info, fds_info,
                                            service->process_index);
         process_info->proc.status = PROCESS_OK;
-        return O2_SUCCESS;
+        return;
     }
-    return O2_FAIL;
 }
 
 
@@ -210,19 +209,15 @@ static double mean_rtt = 0;
 static double min_rtt = 0;
 
 
-int cs_ping_reply_handler(o2_message_ptr msg, const char *types,
-                          o2_arg_ptr *argv, int argc, void *user_data)
+void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
+                           o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_arg_ptr arg;
     o2_start_extract(msg);
-    if (!(arg = o2_get_next('i'))) {
-        return O2_FAIL;
-    }
+    if (!(arg = o2_get_next('i'))) return;
     // if this is not a reply to the most recent message, ignore it
-    if (arg->i32 != clock_sync_id) return O2_SUCCESS;
-    if (!(arg = o2_get_next('t'))) {
-        return O2_FAIL;
-    }
+    if (arg->i32 != clock_sync_id) return;
+    if (!(arg = o2_get_next('t'))) return;
     o2_time master_time = arg->t;
     o2_time now = o2_local_time();
     o2_time rtt = now - clock_sync_send_time;
@@ -257,7 +252,6 @@ int cs_ping_reply_handler(o2_message_ptr msg, const char *types,
             set_clock(now, new_master);
         }
     }
-    return O2_SUCCESS;
 }
 
 
@@ -274,16 +268,16 @@ int o2_roundtrip(double *mean, double *min)
 //   wait for clock sync service to be established,
 //   then send ping every 0.5s for 5s, then every 10s
 //
-int o2_ping_send_handler(o2_message_ptr msg, const char *types,
-                         o2_arg_ptr *argv, int argc, void *user_data)
+void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
+                          o2_arg_ptr *argv, int argc, void *user_data)
 {
     // printf("*    ping_send called at %g\n", o2_local_time());
     if (is_master) {
         o2_clock_is_synchronized = TRUE;
         announce_synchronized();
-        return O2_SUCCESS; // no clock sync; we're the master
+        return; // no clock sync; we're the master
     }
-    if (types[0]) return O2_FAIL; // not expecting any arguments
+    if (types[0]) return; // not expecting any arguments
     clock_sync_send_time = o2_local_time();
     if (!found_clock_service) {
         int status = o2_status("_cs");
@@ -316,11 +310,10 @@ int o2_ping_send_handler(o2_message_ptr msg, const char *types,
         if (clock_sync_send_time - start_sync_time > t1) when += 9.5;
     }
     // schedule another call to o2_ping_send_handler
-    RETURN_IF_ERROR(o2_start_send());
-    msg = o2_finish_message(when, "!_o2/ps");
+    if (o2_start_send()) return;
+    o2_message_ptr m = o2_finish_message(when, "!_o2/ps");
     // printf("*    schedule ping_send at %g, now is %g\n", when, o2_local_time());
-    o2_schedule(&o2_ltsched, msg);
-    return O2_SUCCESS;
+    o2_schedule(&o2_ltsched, m);
 }
 
 
@@ -333,28 +326,26 @@ void o2_clock_init()
 
 // cs_ping_handler -- handler for /_cs/get
 //   return the master clock time
-int cs_ping_handler(o2_message_ptr msg, const char *types,
-                    o2_arg_ptr *argv, int argc, void *user_data)
+void cs_ping_handler(o2_msg_data_ptr msg, const char *types,
+                     o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_arg_ptr serial_no_arg, reply_to_arg;
     o2_start_extract(msg);
     if (!(serial_no_arg = o2_get_next('i')) ||
         !(reply_to_arg = o2_get_next('s'))) {
-        return O2_FAIL;
+        return;
     }
     int serial_no = serial_no_arg->i32;
     char *replyto = reply_to_arg->s;
-    // replyto is the last thing in msg, so we'll just append to it
-    // in place to construct the full reply path. First, check that
-    // we have space. If not, assume sender is trying to attack us
-    // because ordinarily, the address should be fairly short. 16
-    // is the length of a padded "/get-reply" with bytes to spare:
-    if (msg->allocated < msg->length + 16) {
-        return O2_FAIL;
+    int len = (int) strlen(replyto);
+    if (len > 1000) {
+        fprintf(stderr, "cs_ping_handler ignoring /_cs/get message with long reply_to argument\n");
+        return; // address too long - ignore it
     }
-    strcat(replyto, "/get-reply");
-    o2_send(replyto, 0, "it", serial_no, o2_get_time());
-    return O2_SUCCESS;
+    char address[1024];
+    memcpy(address, replyto, len);
+    memcpy(address + len, "/get-reply", 11); // include EOS
+    o2_send(address, 0, "it", serial_no, o2_get_time());
 }
 
 

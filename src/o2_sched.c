@@ -85,6 +85,8 @@ void o2_start_a_scheduler(o2_sched_ptr s, o2_time start_time)
     s->last_bin = SCHED_BIN(start_time);
     if (s == &o2_gtsched) {
         o2_gtsched_started = TRUE;
+        // set last_time so that all messages seem to be in the future
+        o2_gtsched.last_time = -1.0;
     }
     s->last_time = start_time;
 }
@@ -111,18 +113,24 @@ int scheduled_for(o2_sched_ptr s, double when)
 DEBUG*/
 
 // Schedule a message for a particular service (saves doing a service lookup
-//  if the lookup has already taken place)
+//  if the lookup has already taken place). Assumes that the service is local.
+// Use o2_send_message() if you do not know if the service is local or not.
 //
-void o2_schedule_on(o2_sched_ptr s, o2_message_ptr m, generic_entry_ptr service)
+int o2_schedule_or_deliver_msg(o2_sched_ptr s, o2_message_ptr m,
+                               generic_entry_ptr service)
 {
     // don't let time go backward:
     o2_time m_t = m->data.timestamp;
     // If the most recent dispatch time is past the message time,
     // send the message immediately. No need to schedule it, and
     // scheduling with an expired timestamp would not work.
-    if (m_t < s->last_time) {
-        find_and_call_handlers(m, service);
-        return;
+    if (m_t <= 0 || m_t < s->last_time) {
+        o2_deliver_msg(m, service);
+        return O2_SUCCESS;
+    } else if (s == &o2_gtsched && !o2_gtsched_started) {
+        // cannot schedule in the future until there is a valid clock
+        o2_free_message(m);
+        return O2_NO_CLOCK;
     }
     int64_t index = SCHED_INDEX(m_t);
     o2_message_ptr *m_ptr = &(s->table[index]);
@@ -135,12 +143,13 @@ void o2_schedule_on(o2_sched_ptr s, o2_message_ptr m, generic_entry_ptr service)
     m->next = *m_ptr;
     *m_ptr = m;
     // assert(scheduled_for(s, m->data.timestamp));
+    return O2_SUCCESS;
 }
 
 
-void o2_schedule(o2_sched_ptr s, o2_message_ptr m)
+int o2_schedule(o2_sched_ptr s, o2_message_ptr m)
 {
-    o2_schedule_on(s, m, NULL);
+    return o2_schedule_or_deliver_msg(s, m, NULL);
 }
 
 
@@ -191,7 +200,8 @@ void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
             // careful: this can call schedule and change the table
             //printf("find_and_call_handlers at %g actual %g\n",
             //       m->data.timestamp, run_until_time);
-            find_and_call_handlers(m, NULL);
+            find_and_call_handlers(&(m->data), NULL);
+            o2_free_message(m);
         }
         s->last_bin++;
     }

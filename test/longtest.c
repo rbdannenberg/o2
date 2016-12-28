@@ -16,8 +16,8 @@ char a_midi_msg[4];
 int arg_count = 0;
 
 // receive arg_count floats
-int service_f(const o2_message_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+void service_f(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     for (int i = 0; i < arg_count; i++) {
@@ -29,13 +29,12 @@ int service_f(const o2_message_ptr data, const char *types,
     }
     assert(*types == 0); // end of string, got arg_count floats
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive arg_count doubles
-int service_d(const o2_message_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+void service_d(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_start_extract(data);
     for (int i = 0; i < arg_count; i++) {
@@ -47,12 +46,11 @@ int service_d(const o2_message_ptr data, const char *types,
     }
     assert(*types == 0); // end of string, got arg_count floats
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive arg_count floats, coerced to ints, with parsing
-int service_fc(const o2_message_ptr data, const char *types,
+void service_fc(o2_msg_data_ptr data, const char *types,
                 o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(argc == arg_count);
@@ -66,12 +64,11 @@ int service_fc(const o2_message_ptr data, const char *types,
     }
     assert(*types == 0); // end of string, got arg_count floats
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 
 // receive arg_count doubles, coerced to ints, with parsing
-int service_dc(const o2_message_ptr data, const char *types,
+void service_dc(o2_msg_data_ptr data, const char *types,
                 o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(argc == arg_count);
@@ -85,7 +82,6 @@ int service_dc(const o2_message_ptr data, const char *types,
     }
     assert(*types == 0); // end of string, got arg_count floats
     got_the_message = TRUE;
-    return O2_SUCCESS;
 }
 
 

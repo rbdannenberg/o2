@@ -23,8 +23,9 @@ o2_message_ptr alloc_message();
 /* allocate message structure with at least size bytes in the data portion */
 o2_message_ptr o2_alloc_size_message(int size);
 
-int o2_build_message(o2_message_ptr *msg, o2_time timestamp, const char *service_name,
-                       const char *path, const char *typestring, va_list ap);
+int o2_build_message(o2_message_ptr *msg, o2_time timestamp,
+                     const char *service_name,
+                     const char *path, const char *typestring, va_list ap);
 
 
 /**
@@ -53,7 +54,7 @@ int o2_recv();
  *
  * @param msg The message
  */
-void o2_msg_swap_endian(o2_message_ptr msg, int is_host_order);
+void o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order);
 
 int o2_strsize(const char *s);
 
@@ -62,7 +63,7 @@ int o2_strsize(const char *s);
  *
  * @param msg The message to print
  */
-void o2_print_msg(o2_message_ptr msg);
+void o2_print_msg(o2_msg_data_ptr msg);
 
 void o2_initialize_argv();
 

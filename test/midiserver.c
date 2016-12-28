@@ -25,15 +25,14 @@ PmStream *midi_out = NULL; // MIDI output stream
 // this is a handler for incoming messages. It simply builds a
 // MIDI message and sends it using portmidi
 //
-int midi_handler(o2_message_ptr msg, const char *types,
-                 o2_arg ** argv, int argc, void *user_data)
+void midi_handler(o2_msg_data_ptr msg, const char *types,
+                  o2_arg ** argv, int argc, void *user_data)
 {
     int status = argv[0]->i32;
     int data1 = argv[1]->i32;
     int data2 = argv[2]->i32;
     Pm_WriteShort(midi_out, 0, Pm_Message(status, data1, data2));
     printf("Pm_WriteShort(%2x %2x %2x at %g\n", status, data1, data2, o2_get_time());
-    return O2_SUCCESS;
 }
 
 

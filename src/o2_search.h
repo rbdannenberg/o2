@@ -234,7 +234,11 @@ int o2_remove_method(const char *path);
  *
  *  @param msg The message structure.
  */
-void find_and_call_handlers(o2_message_ptr msg, generic_entry_ptr service);
+int find_and_call_handlers(o2_msg_data_ptr msg, generic_entry_ptr service);
+
+// A top-level delivery point to immediately deliver messages or bundles to
+// a local service.
+void o2_deliver_msg(o2_message_ptr msg, generic_entry_ptr service);
 
 void o2_deliver_pending();
 
