@@ -9,50 +9,30 @@
 #ifndef o2_send_h
 #define o2_send_h
 
-#include "o2_internal.h"
-#include "o2_message.h"
-#include "o2_discovery.h"
+// if MSG_NOSIGNAL is an option for send(), then use it;
+// otherwise, give it a legal innocuous value as a flag:
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
+
+void o2_deliver_pending();
 
 /**
- *  Use the name to find the pointer to the o2_service. This function uses
- *  hash table.
+ *  Use initial part of an O2 address to find an o2_service using
+ *  a hash table lookup.
  *
- *  @param name The name of the service.
+ *  @param name points to the service name (do not include the
+ *              initial '!' or '/' from the O2 address).
  *
- *  @return The pointer to the service.
+ *  @return The pointer to the service or NULL if none found. 
  */
 generic_entry_ptr o2_find_service(const char *name);
 
+int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag);
 
-/**
- *  When we get the va_list, we should pass all the parameters to this function and
- *  use this function to send message.
- *  The function will create a new o2_message and add all the parameters into the
- *  o2_message, then call the o2_send_message to send the o2_message.
- *
- *  @param service_name The service's name you want to send the message to.
- *  @param time         The timestamp of the message.
- *  @param path         The path of the destination handler.
- *  @param typestring   The types of the parameters in string form.
- *  @param ap           The va_list.
- *  @param protocol     O2_UDP or O2_TCP.
- *
- *  @return O2_SUCCESS if succeed, O2_FAIL if not.
- */
-int o2_send_internal(const char *service_name, o2_time time, char *path,
-                     char *typestring, va_list ap, int protocol);
+int o2_send_remote(o2_msg_data_ptr msg, int tcp_flag,
+                     generic_entry_ptr service);
 
-
-
-int send_data(const char *service_name, char *data, const size_t data_len, int protocol);
-
-int o2_add_data(char *ptr, const char *typestring, va_list ap);
-
-int check_buffer_size(int i);
-void find_empty_buffer();
-
-void send_osc(generic_entry_ptr service, o2_message_ptr msg);
-
-int send_by_tcp_to_process(fds_info_ptr proc, o2_message_ptr msg);
+int send_by_tcp_to_process(fds_info_ptr proc, o2_msg_data_ptr msg);
 
 #endif /* o2_send_h */

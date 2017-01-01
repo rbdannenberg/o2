@@ -77,7 +77,6 @@ o2_fds_info is a parallel array of additional information
     If the tag is TCP_SOCKET or TCP_SERVER_SOCKET, fields are:
         key - the ip address
         services - an dynamic array of local service names
-        little_endian - true if this is on a little endian host
         tcp_port number
         udp_port number
         udp_sa - a sockaddr_in structure for sending udp to this process
@@ -100,7 +99,6 @@ Discovery
 
 Discovery messages are sent to 5 discovery ports.
 The address is !_o2/dy, and the arguments are:
-    big-/littl-endian ("b" or "l"),
     application name (string)
     local ip (string)
     tcp (int32)
@@ -132,7 +130,7 @@ Process Creation: Remote Process As Server
 Make a tcp socket.
 Put IP:Port in path_tree_table with index of socket info.
 Connect socket to the remote process.
-Send init message with endian-ness, IP, port #s, and clock status.
+Send init message with IP, port #s, and clock status.
 Send list of local services.
 Start clocksync protocol.
 
@@ -163,7 +161,7 @@ directly (without a normal O2 message dispatch), and passes
 the socket's fds_info record as user_data. This allows us to
 initialize the fds_info and create an entry in path_tree_table.
 
-Send init message with endian-ness, IP, port #s, and clock status.
+Send init message with IP, port #s, and clock status.
 Send list of local services.
 Start clocksync protocol.
 
@@ -185,6 +183,14 @@ and update the index to fds (and fds_info).
 
 The list of service names is also used to remove services
 when the socket connecting to the process is closed.
+
+Byte Order
+----------
+Messages are constructed and delivered in local host byte order.
+When messages are sent to another process, the bytes are swapped
+if necessary to be in network byte order. Messages arriving by
+TCP or UDP are therefore in network byte order and are converted
+to host byte order if necessary.
 
 */
 
@@ -256,11 +262,11 @@ int o2_initialize(char *application_name)
     if (o2_application_name) return O2_RUNNING;
     if (!application_name) return O2_BAD_NAME;
 
-    o2_initialize_argv();
+    o2_argv_initialize();
     
     // Initialize the hash tables
-    initialize_node(&master_table, "");
-    initialize_node(&path_tree_table, "");
+    o2_node_initialize(&master_table, "");
+    o2_node_initialize(&path_tree_table, "");
     
     // Initialize the application name.
     o2_application_name = o2_heapify(application_name);
@@ -270,11 +276,11 @@ int o2_initialize(char *application_name)
     }
     
     // Initialize discovery, tcp, and udp sockets.
-    if ((err = init_sockets())) goto cleanup;
+    if ((err = o2_sockets_initialize())) goto cleanup;
     
     o2_add_service("_o2");
-    o2_add_method("/_o2/dy", "sssii", &o2_discovery_handler, NULL, FALSE, FALSE);
-    o2_add_method("/_o2/in", "ssiii", &o2_discovery_init_handler,
+    o2_add_method("/_o2/dy", "ssii", &o2_discovery_handler, NULL, FALSE, FALSE);
+    o2_add_method("/_o2/in", "siii", &o2_discovery_init_handler,
                   NULL, FALSE, FALSE);
     // "/sv/" service messages are sent by tcp as ordinary O2 messages, so they
     // are addressed by full name (IP:PORT). We cannot call them /_o2/sv:
@@ -285,9 +291,9 @@ int o2_initialize(char *application_name)
     o2_add_method(address, "s", &o2_clocksynced_handler, NULL, FALSE, FALSE);
     o2_add_method("/_o2/ds", NULL, &o2_discovery_send_handler,
                   NULL, FALSE, FALSE);
-    o2_time_init();
-    o2_sched_init();
-    o2_clock_init();
+    o2_time_initialize();
+    o2_sched_initialize();
+    o2_clock_initialize();
     
     o2_discovery_send_handler(NULL, "", NULL, 0, NULL); // start sending discovery messages
     o2_ping_send_handler(NULL, "", NULL, 0, NULL); // start sending clock sync messages
@@ -307,6 +313,15 @@ int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)))
 }
 
 
+o2_time o2_set_discovery_period(o2_time period)
+{
+    o2_time old = o2_discovery_period;
+    if (period < 0.1) period = 0.1;
+    o2_discovery_period = period;
+    return old;
+}
+
+
 int o2_add_service(char *service_name)
 {
     // Calloc memory for the o2_service_ptr.
@@ -323,7 +338,7 @@ int o2_add_service(char *service_name)
     service_name = o2_heapify(service_name);
     DA_LAST(o2_process->proc.services, service_table)->name = service_name;
     
-    if (!tree_insert_node(&path_tree_table, service_name)) {
+    if (!o2_tree_insert_node(&path_tree_table, service_name)) {
         return O2_FAIL;
     }
 
@@ -352,7 +367,6 @@ int o2_poll()
         o2_global_now = -1.0;
     }
     o2_sched_poll(); // deal with the timestamped message
-    o2_deliver_pending();
     o2_recv(); // recieve and dispatch messages
     o2_deliver_pending();
     return O2_SUCCESS;
@@ -445,10 +459,13 @@ int o2_finish()
     DA_FINISH(o2_fds);
     DA_FINISH(o2_fds_info);
     
-    o2_finalize_node(&path_tree_table);
-    o2_finalize_node(&master_table);
+    o2_node_finish(&path_tree_table);
+    o2_node_finish(&master_table);
     
-    o2_finish_argv();
+    o2_argv_finish();
+    o2_sched_finish(&o2_gtsched);
+    o2_sched_finish(&o2_ltsched);
+    o2_discovery_finish();
 
     if (o2_application_name) O2_FREE(o2_application_name);
     o2_application_name = NULL;

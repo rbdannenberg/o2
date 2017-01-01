@@ -69,25 +69,6 @@ typedef struct handler_entry {
 #define PROCESS_NO_CLOCK 4    // process initial message received, not clock synced
 #define PROCESS_OK 5          // process is clock synced
 
-/*
-// used for remote and local process and osc forwarding
-typedef struct process_info {
-    char *name; // e.g. "128.2.1.100:55765", this is used so that when we
-        // add a service, we can enumerate all the processes and send them
-        // updates. Updates are addressed using this name field. Also, when
-        // a new process is connected, we send an /in message to this name.
-        // name is "owned" by the process_info struct and will be deleted
-        //   when the struct is freed
-    int status; // PROCESS_DISCOVERED through PROCESS_OK
-    dyn_array services; // these are the keys of remote_service_entry objects,
-                        //    owned by the service entries (do not free)
-    int little_endian;  // true if the host is little-endian
-    // port numbers are here so that in discovery, we can check for any changes
-    int udp_port;       // current udp port number
-    struct sockaddr_in udp_sa;  // address for sending UDP messages
-    int tcp_fd_index;   // index in o2_fds of tcp socket
-} process_info, *process_info_ptr;
-*/
 
 // Hash table's entry for a remote service
 typedef struct remote_service_entry {
@@ -131,65 +112,10 @@ typedef struct enumerate {
 extern node_entry path_tree_table;
 extern node_entry master_table;
 
-/** copy a string into the heap  */
-char *o2_heapify(const char *path);
-
 /**
- * robust glob pattern matcher
- *
- *  @param str oringinal string
- *  @param p   the string with pattern
- *
- *  @return Iff match, return TRUE.
- *
- * glob patterns:
- *  *   matches zero or more characters
- *  ?   matches any single character
- *  [set]   matches any character in the set
- *  [^set]  matches any character NOT in the set
- *      where a set is a group of characters or ranges. a range
- *      is written as two characters seperated with a hyphen: a-z denotes
- *      all characters between a to z inclusive.
- *  [-set]  set matches a literal hypen and any character in the set
- *  []set]  matches a literal close bracket and any character in the set
- *
- *  char    matches itself except where char is '*' or '?' or '['
- *  \char   matches char, including any pattern character
- *
- * examples:
- *  a*c     ac abc abbc ...
- *  a?c     acc abc aXc ...
- *  a[a-z]c     aac abc acc ...
- *  a[-a-z]c    a-c aac abc ...
+ * add an entry to a hash table
  */
-int o2_pattern_match(const char *str, const char *p);
-
-/**
- *  When we want to initialize or want to create a table. We need to call this
- *  function.
- *
- *  @param locations The locations you want in the table.
- *
- *  @return O2_SUCCESS or O2_FAIL
- */
-node_entry_ptr initialize_node(node_entry_ptr node, char *key);
-
-/**
- *  Look up the key in certain table and return the pointer to the entry.
- *
- *  @param dict  The table that the entry is supposed to be in.
- *  @param key   The key.
- *  @param index The position in the hash table.
- *
- *  @return The pointer to the entry.
- */
-generic_entry_ptr *lookup(node_entry_ptr dict, const char *key, int *index);
-
-
-fds_info_ptr o2_add_remote_process(const char *ip_port, int status,
-                                     int is_little_endian);
-
-int o2_remove_remote_process(fds_info_ptr proc);
+int o2_add_entry(node_entry_ptr node, generic_entry_ptr entry);
 
 
 /**
@@ -203,49 +129,54 @@ int o2_remove_remote_process(fds_info_ptr proc);
  *
  *  @return If succeed, return O2_SUCCESS. If not, return O2_FAIL.
  */
-int add_remote_service(fds_info_ptr info, const char *service);
+int o2_add_remote_service(fds_info_ptr info, const char *service);
 
 
-node_entry_ptr tree_insert_node(node_entry_ptr node, char *key);
-
-
-void o2_finalize_node(node_entry_ptr node);
-
-
-int add_local_osc(const char *path, int port, SOCKET tcp_socket);
+int o2_deliver_embedded_msgs(o2_msg_data_ptr msg, int tcp_flag);
 
 /**
- *  When the method is no longer exist, or the method conflict with a new one.
- *  we need to call this function to delete the old one.
+ * Deliver a message immediately and locally. If service is given,
+ * the caller must check to see if this is a bundle and call 
+ * deliver_embedded_msgs() if so.
  *
- *  @param path The path of the method
- *
- *  @return If succeed, return O2_SUCCESS. If not, return O2_FAIL.
+ * @param msg the message data to deliver
+ * @param tcp_flag tells whether to send via tcp; this is only used
+ *                 when the message is a bundle and elements of the
+ *                 bundle are addressed to remote services
+ * @param service is the service to which the message is addressed.
+ *                If the service is unknown, pass NULL.
  */
-int o2_remove_method(const char *path);
+void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
+                         generic_entry_ptr service);
+
+void o2_node_finish(node_entry_ptr node);
+
+char *o2_heapify(const char *path);
 
 /**
- *  When we get a new message and want to dispatch it to certain method handlers.
- *  We need to use this function.
- *  Note: as the path is included in the message, we don't need to pass in the path.
- *  Note 2: since we had to look up the service in order to know the service was
- *    local, we pass in the service to save a duplicate lookup here. However, in
- *    some cases, the service is not known at the time of the call
+ *  When we want to initialize or want to create a table. We need to call this
+ *  function.
  *
- *  @param msg The message structure.
+ *  @param locations The locations you want in the table.
+ *
+ *  @return O2_SUCCESS or O2_FAIL
  */
-int find_and_call_handlers(o2_msg_data_ptr msg, generic_entry_ptr service);
+node_entry_ptr o2_node_initialize(node_entry_ptr node, char *key);
 
-// A top-level delivery point to immediately deliver messages or bundles to
-// a local service.
-void o2_deliver_msg(o2_message_ptr msg, generic_entry_ptr service);
+/**
+ *  Look up the key in certain table and return the pointer to the entry.
+ *
+ *  @param dict  The table that the entry is supposed to be in.
+ *  @param key   The key.
+ *  @param index The position in the hash table.
+ *
+ *  @return The pointer to the entry.
+ */
+generic_entry_ptr *o2_lookup(node_entry_ptr dict, const char *key, int *index);
 
-void o2_deliver_pending();
+int o2_remove_remote_process(fds_info_ptr info);
 
-int dispatch_osc_message(void *msg);
+node_entry_ptr o2_tree_insert_node(node_entry_ptr node, char *key);
 
-int remove_node(node_entry_ptr dict, const char *key);
-
-int o2_add_entry(node_entry_ptr node, generic_entry_ptr entry);
 
 #endif /* o2_search_h */

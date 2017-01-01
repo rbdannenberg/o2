@@ -106,7 +106,6 @@ typedef struct fds_info {
             int status; // PROCESS_DISCOVERED through PROCESS_OK
             dyn_array services; // these are the keys of remote_service_entry
                         // objects, owned by the service entries (do not free)
-            int little_endian;  // true if the host is little-endian
             // port numbers are here so that in discovery, we can check for
             // any changes
             int udp_port;       // current udp port number
@@ -132,58 +131,44 @@ extern dyn_array o2_fds;///< pre-constructed fds parameter for poll()
 //#endif
 
 /**
- *  In windows, before we want to use the socket to transport, we need to initialize
- *  the socket first. Call this function.
+ * In windows, before we want to use the socket to transport, we need 
+ * to initialize the socket first. Call this function.
  *
  *  @returns: return the state of the socket
  */
 #ifdef WIN32
-int initWSock();
-int getifaddrs(struct ifaddrs **ifpp);
-void freeifaddrs(struct ifaddrs *ifp);
+int o2_initWSock();
 #endif
-
-int o2_init_process(fds_info_ptr info, const char *name, int status,
-                    int is_little_endian);
-int init_sockets();
-int make_udp_recv_socket(int tag, int *port, fds_info_ptr *info);
-int make_tcp_recv_socket(int tag, o2_socket_handler handler, fds_info_ptr *info);
-/**
- *  When we get the raw data from the socket, we call this function. This function
- *  will first serialize the data into o2_message and then pass the message to
- *  the method handler according to the path in o2_message.
- *
- *  @param data The raw data of the message.
- *  @param size The size of the data
- *
- *  @return Return the size.
- */
-int dispatch_data(void *data, size_t size);
-
-/**
- *  When we finish our working or need to delete a service, call this function to
- *  free the service.
- *
- *  @param service_name The name of the service.
- */
-void o2_service_free(const char *service_name);
-
-/**
- *  Print the information of the application.
- *  Including IP, UDP port number, TCP server port number and all the services's
- *  names.
- */
-void o2_application_info();
 
 fds_info_ptr o2_add_new_socket(SOCKET sock, int tag, o2_socket_handler handler);
 
-void o2_remove_socket(int i);
+int o2_process_initialize(fds_info_ptr info, const char *name, int status);
 
+int o2_sockets_initialize();
 
-int o2_tcp_initial_handler(SOCKET sock, fds_info_ptr info);
-int o2_osc_tcp_accept_handler(SOCKET sock, fds_info_ptr info);
+int o2_make_tcp_recv_socket(int tag, o2_socket_handler handler,
+                            fds_info_ptr *info);
+
+int o2_make_udp_recv_socket(int tag, int *port, fds_info_ptr *info);
+
 int o2_osc_delegate_handler(SOCKET sock, fds_info_ptr info);
 
+/**
+ *  o2_recv will check all the set up sockets of the local process,
+ *  including the udp socket and all the tcp sockets. The message will be
+ *  dispatched to a matching method if one is found.
+ *  Note: the recv will not set up new socket, as o2_discover will do that
+ *  for the local process.
+ *
+ *  @return O2_SUCESS if succeed, O2_FAIL if not.
+ */
+int o2_recv();
 
+
+void o2_remove_socket(int i);
+
+int o2_tcp_initial_handler(SOCKET sock, fds_info_ptr info);
+
+int o2_osc_tcp_accept_handler(SOCKET sock, fds_info_ptr info);
 
 #endif /* o2_socket_h */

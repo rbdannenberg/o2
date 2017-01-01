@@ -1,8 +1,8 @@
 /* o2_dynamic.c -- generic dynamic arrays */
-#include "o2_dynamic.h"
 #include "assert.h"
 #include "o2.h"
 #include "string.h"
+#include "o2_dynamic.h"
 
 void o2_da_expand(dyn_array_ptr array, int siz)
 {

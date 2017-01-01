@@ -45,10 +45,6 @@
  
  */
 
-#include "o2.h"
-#include "o2_dynamic.h"
-#include "o2_socket.h"
-#include "o2_search.h"
 #include "o2_internal.h"
 #include "o2_message.h"
 #include "o2_sched.h"
@@ -79,7 +75,16 @@ int o2_gtsched_started = FALSE;  // cannot use o2_gtsched until clock is in sync
  */
 
 
-void o2_start_a_scheduler(o2_sched_ptr s, o2_time start_time)
+void o2_sched_finish(o2_sched_ptr s)
+{
+    for (int i = 0; i < O2_SCHED_TABLE_LEN; i++) {
+        o2_message_list_free(s->table[i]);
+    }
+    o2_gtsched_started = FALSE;
+}
+
+
+void o2_sched_start(o2_sched_ptr s, o2_time start_time)
 {
     memset(s->table, 0, sizeof(s->table));
     s->last_bin = SCHED_BIN(start_time);
@@ -91,10 +96,10 @@ void o2_start_a_scheduler(o2_sched_ptr s, o2_time start_time)
     s->last_time = start_time;
 }
 
-void o2_sched_init()
+void o2_sched_initialize()
 {
     // TODO: is start_time right?
-    o2_start_a_scheduler(&o2_ltsched, o2_local_time());
+    o2_sched_start(&o2_ltsched, o2_local_time());
     o2_gtsched_started = FALSE;
 }
 
@@ -112,34 +117,32 @@ int scheduled_for(o2_sched_ptr s, double when)
 }
 DEBUG*/
 
-// Schedule a message for a particular service (saves doing a service lookup
-//  if the lookup has already taken place). Assumes that the service is local.
-// Use o2_send_message() if you do not know if the service is local or not.
+// Schedule a message for a particular service. Assumes that the service is local.
+// Use o2_message_send() if you do not know if the service is local or not.
 //
-int o2_schedule_or_deliver_msg(o2_sched_ptr s, o2_message_ptr m,
-                               generic_entry_ptr service)
+int o2_schedule(o2_sched_ptr s, o2_message_ptr m)
 {
-    // don't let time go backward:
-    o2_time m_t = m->data.timestamp;
-    // If the most recent dispatch time is past the message time,
-    // send the message immediately. No need to schedule it, and
-    // scheduling with an expired timestamp would not work.
-    if (m_t <= 0 || m_t < s->last_time) {
-        o2_deliver_msg(m, service);
+    o2_time mt = m->data.timestamp;
+    if (mt <= 0 || mt < s->last_time) {
+        // it was probably a mistake to schedule the message when the timestamp
+        // is not in the future, but we'll try a local delivery anyway
+        o2_msg_data_deliver(&m->data, m->tcp_flag, NULL);
+        o2_messge_free(m);
         return O2_SUCCESS;
-    } else if (s == &o2_gtsched && !o2_gtsched_started) {
+    }
+    if (s == &o2_gtsched && !o2_gtsched_started) {
         // cannot schedule in the future until there is a valid clock
-        o2_free_message(m);
+        o2_messge_free(m);
         return O2_NO_CLOCK;
     }
-    int64_t index = SCHED_INDEX(m_t);
+    int64_t index = SCHED_INDEX(mt);
     o2_message_ptr *m_ptr = &(s->table[index]);
     
     // find insertion point in list so that messages are sorted
-    while (*m_ptr && ((*m_ptr)->data.timestamp <= m_t)) {
+    while (*m_ptr && ((*m_ptr)->data.timestamp <= mt)) {
         m_ptr = &((*m_ptr)->next);
     }
-    // either *m_ptr is null or it points to a time > m->time
+    // either *m_ptr is null or it points to a time > mt
     m->next = *m_ptr;
     *m_ptr = m;
     // assert(scheduled_for(s, m->data.timestamp));
@@ -147,35 +150,9 @@ int o2_schedule_or_deliver_msg(o2_sched_ptr s, o2_message_ptr m,
 }
 
 
-int o2_schedule(o2_sched_ptr s, o2_message_ptr m)
-{
-    return o2_schedule_or_deliver_msg(s, m, NULL);
-}
-
-
-/*DEBUG
-int scheduled_after(o2_sched_ptr s, double when)
-{
-    for (int i = 0; i < O2_SCHED_TABLE_LEN; i++) {
-        o2_message_ptr msg = s->table[i];
-        while (msg) {
-            if (msg->data.timestamp <= when) {
-                printf("*** scheduled_after when=%g found msg %s (%p) at %g in bin %d, last_bin %lld, last_bin %% 128 = %lld, macro %lld\n",
-                       when, msg->data.address, msg, msg->data.timestamp, i, s->last_bin, s->last_bin % 128, SCHED_BIN_TO_INDEX(s->last_bin));
-                return FALSE;
-            }
-            msg = msg->next;
-        }
-    }
-    return TRUE;
-}
-DEBUG*/
-
-
-
 // This looks for messages <= now and delivers them
 //
-void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
+static void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
 {
     // examine slots between last_bin and bin, inclusive
     // this is tricky: if time has advanced more than SCHED_TABLE_LEN,
@@ -198,10 +175,10 @@ void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
             o2_active_sched = s; // if we recursively schedule another message, use
             // this same scheduler.
             // careful: this can call schedule and change the table
-            //printf("find_and_call_handlers at %g actual %g\n",
+            //printf("o2_msg_data_deliver at %g actual %g\n",
             //       m->data.timestamp, run_until_time);
-            find_and_call_handlers(&(m->data), NULL);
-            o2_free_message(m);
+            o2_msg_data_deliver(&m->data, m->tcp_flag, NULL);
+            o2_messge_free(m);
         }
         s->last_bin++;
     }

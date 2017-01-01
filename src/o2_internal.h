@@ -10,6 +10,11 @@
 #ifndef o2_INTERNAL_H
 #define o2_INTERNAL_H
 
+#include "o2.h"
+#include "o2_dynamic.h"
+#include "o2_socket.h"
+#include "o2_search.h"
+
 // Configuration:
 #define IP_ADDRESS_LEN 32
 
@@ -36,7 +41,7 @@
 
 #endif   // _MSC_VER
 
-#include "o2_error.h"
+//TODO REMOVE #include "o2_error.h"
 
 #ifndef O2_NO_DEBUGGING
 // macro to surround debug print statements:
@@ -96,6 +101,8 @@ extern o2_time o2_local_now;
 extern o2_time o2_global_now;
 extern int o2_gtsched_started;
 
+#define DEFAULT_DISCOVERY_PERIOD 4.0
+extern o2_time o2_discovery_period;
 
 #define O2_ARGS_END O2_MARKER_A, O2_MARKER_B
 /** Default max send and recieve buffer. */
@@ -104,43 +111,6 @@ extern int o2_gtsched_started;
 /* \brief Maximum length of UDP messages in bytes
  */
 #define O2_MAX_MSG_SIZE 32768
-
-/* \brief A set of macros to represent different communications transports
- */
-#define O2_DEFAULT 0x0
-#define O2_UDP     0x1
-#define O2_UNIX    0x2
-#define O2_TCP     0x4
-
-#ifdef SWAP64
-/**
- *  Endian part.
- */
-typedef union {
-    uint64_t all;
-    struct {
-        uint32_t a;
-        uint32_t b;
-    } part;
-} o2_split64;
-
-#ifdef _MSC_VER
-#define O2_INLINE __inline
-#else
-#define O2_INLINE inline
-#endif
-static O2_INLINE uint64_t o2_hn64(uint64_t x)
-{
-    o2_split64 in, out;
-    
-    in.all = x;
-    out.part.a = htonl(in.part.b);
-    out.part.b = htonl(in.part.a);
-    
-    return out.all;
-}
-#undef O2_INLINE
-#endif
 
 // macro to make a byte pointer
 #define PTR(addr) ((char *) (addr))
@@ -164,25 +134,12 @@ typedef struct service_table {
     char *name;
 } service_table;
 
-
-/// used for discover, udp and tcp sockets
-typedef struct o2_socket {
-	char c;
-} o2_socket;
-
 // global variables
 extern fds_info_ptr o2_process;
 extern o2_arg_ptr *o2_argv; // arg vector extracted by calls to o2_get_next()
 extern int o2_argc; // length of argv
 
 // shared internal functions
-
-o2_time o2_local_time();
-
-int ping(o2_message_ptr msg, const char *types,
-         o2_arg_ptr *argv, int argc, void *user_data);
-
-void o2_sched_init();
 
 #endif /* O2_INTERNAL_H */
 /// \endcond

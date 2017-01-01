@@ -7,6 +7,7 @@
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
+#include "assert.h"
 
 #ifdef WIN32
 #include <windows.h> 
@@ -21,24 +22,36 @@
 //
 #define N_ADDRS 20
 
+#define MAX_MSG_COUNT 50000
+
 char *client_addresses[N_ADDRS];
 int msg_count = 0;
+int running = TRUE;
 
 // this is a handler for incoming messages. It simply sends a message
 // back to one of the client addresses
 //
 void server_test(o2_msg_data_ptr msg, const char *types,
-                o2_arg ** argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, void *user_data)
 {
+    assert(argc == 1);
+    msg_count++;
     o2_send(client_addresses[msg_count % N_ADDRS], 0, "i", msg_count);
     if (msg_count % 10000 == 0) {
         printf("server received %d messages\n", msg_count);
     }
-    msg_count++;
+    if (msg_count < 100) {
+        printf("server message %d is %d\n", msg_count, argv[0]->i32);
+    }
+    if (argv[0]->i32 == -1) {
+        running = FALSE;
+    } else {
+        assert(msg_count == argv[0]->i32);
+    }
 }
 
 
-int main(int argc, const char * argv[])
+int main(int argc, const char *argv[])
 {
     o2_initialize("test");
     o2_add_service("server");
@@ -47,7 +60,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/server/benchmark/%d", i);
-        o2_add_method(path, "i", &server_test, NULL, FALSE, FALSE);
+        o2_add_method(path, "i", &server_test, NULL, FALSE, TRUE);
     }
     
     // create an address for each destination so we do not have to
@@ -72,18 +85,19 @@ int main(int argc, const char * argv[])
     
     // delay 5 seconds
     double now = o2_get_time();
-    while (o2_get_time() < now + 5) {
+    while (o2_get_time() < now + 1) {
         o2_poll();
         usleep(2000);
     }
     
     printf("Here we go! ...\ntime is %g.\n", o2_get_time());
     
-    while (TRUE) {
+    while (running) {
         o2_poll();
         //usleep(2000); // 2ms // as fast as possible
     }
 
     o2_finish();
+    printf("SERVER DONE\n");
     return 0;
 }

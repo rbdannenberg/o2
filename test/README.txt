@@ -20,8 +20,9 @@ o2client.c - performance test; send messages back and forth between
 o2server.c   client and server. Only expected to work on localhost.
              To test, run both processes on the same host. After about
              10s, they should start sending messages back and forth, 
-             printing how many messages have been sent. They run
-             forever, so terminate them manually.
+             printing how many messages have been sent. They run only
+             a short time unless you pass a message count to o2client:
+               o2client 10000000
 
 tcpclient.c - o2client/o2server will eventually drop a message if
 tcpserver.c   run on an unreliable network. These programs do the

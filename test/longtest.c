@@ -19,7 +19,7 @@ int arg_count = 0;
 void service_f(o2_msg_data_ptr data, const char *types,
                o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
         assert(*types ==  'f');
         o2_arg_ptr arg = o2_get_next('f');
@@ -36,7 +36,7 @@ void service_f(o2_msg_data_ptr data, const char *types,
 void service_d(o2_msg_data_ptr data, const char *types,
                o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
         assert(*types ==  'd');
         o2_arg_ptr arg = o2_get_next('d');
@@ -54,7 +54,7 @@ void service_fc(o2_msg_data_ptr data, const char *types,
                 o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(argc == arg_count);
-    o2_start_extract(data);
+    o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
         assert(*types == 'i');
         assert(argv[i]);
@@ -72,7 +72,7 @@ void service_dc(o2_msg_data_ptr data, const char *types,
                 o2_arg_ptr *argv, int argc, void *user_data)
 {
     assert(argc == arg_count);
-    o2_start_extract(data);
+    o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
         assert(*types ==  'h');
         assert(argv[i]);
@@ -110,12 +110,12 @@ int main(int argc, const char * argv[])
         }
         types[i] = 0;
         o2_add_method(address, types, &service_f, NULL, FALSE, FALSE);
-        o2_start_send();
+        o2_send_start();
         for (int j = 0; j < i; j++) {
             o2_add_float(j + 123.0F);
         }
         arg_count = i;
-        o2_finish_send(0, address);
+        o2_send_finish(0, address, TRUE);
         send_the_message();
     }
     printf("DONE sending 0 to %d floats\n", N - 1);
@@ -128,12 +128,12 @@ int main(int argc, const char * argv[])
         }
         types[i] = 0;
         o2_add_method(address, types, &service_d, NULL, FALSE, FALSE);
-        o2_start_send();
+        o2_send_start();
         for (int j = 0; j < i; j++) {
             o2_add_double(j + 1234);
         }
         arg_count = i;
-        o2_finish_send(0, address);
+        o2_send_finish(0, address, TRUE);
         send_the_message();
     }
     printf("DONE sending 0 to %d doubles\n", N - 1);
@@ -146,12 +146,12 @@ int main(int argc, const char * argv[])
         }
         types[i] = 0;
         o2_add_method(address, types, &service_fc, NULL, TRUE, TRUE);
-        o2_start_send();
+        o2_send_start();
         for (int j = 0; j < i; j++) {
             o2_add_float(j + 123.0F);
         }
         arg_count = i;
-        o2_finish_send(0, address);
+        o2_send_finish(0, address, TRUE);
         send_the_message();
     }
     printf("DONE sending 0 to %d floats coerced to ints with parsing\n",
@@ -165,12 +165,12 @@ int main(int argc, const char * argv[])
         }
         types[i] = 0;
         o2_add_method(address, types, &service_dc, NULL, TRUE, TRUE);
-        o2_start_send();
+        o2_send_start();
         for (int j = 0; j < i; j++) {
             o2_add_double(j + 1234);
         }
         arg_count = i;
-        o2_finish_send(0, address);
+        o2_send_finish(0, address, TRUE);
         send_the_message();
     }
     printf("DONE sending 0 to %d doubles coerced to int64_t with parsing\n",

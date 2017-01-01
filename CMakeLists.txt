@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.2.2)
 
 project(o2)
 
+set(BUILD_TESTS_WITH_LIBLO OFF CACHE BOOL "Compile tests that use liblo,
+requiring liblo library")
+
+set(BUILD_MIDI_EXAMPLE OFF CACHE BOOL "Compile midiclient & midiserver,
+requiring portmidi library")
+
 if(WIN32)
   add_definitions("-D_CRT_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -DIS_BIG_ENDIAN=0")
   set(EXTRA_LIBS winmm.lib ws2_32.lib Iphlpapi.lib)
@@ -97,54 +103,53 @@ add_executable(oscrecvtest test/oscrecvtest.c)
 target_include_directories(oscrecvtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(oscrecvtest ${LIBRARIES}) 
  
+add_executable(bundletest test/bundletest.c)  
+target_include_directories(bundletest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(bundletest ${LIBRARIES}) 
  
 if(UNIX)
-  # Use PortMidi Library
-  set(PORTMIDI_DBG_LIB PORTMIDI_DBG_LIB-NOTFOUND)
-  set(PORTMIDI_OPT_LIB PORTMIDI_OPT_LIB-NOTFOUND)
+  if(BUILD_MIDI_EXAMPLE)
+    # Use PortMidi Library
+    set(PORTMIDI_DBG_LIB PORTMIDI_DBG_LIB-NOTFOUND)
+    set(PORTMIDI_OPT_LIB PORTMIDI_OPT_LIB-NOTFOUND)
 
-  if(APPLE)
-    set(COREMIDI_LIB "${FRAMEWORK_PATH}/CoreMIDI.framework")
-    set(EXTRA_NEEDED_LIBS ${COREAUDIO_LIB} ${COREFOUNDATION_LIB}
-                       ${COREMIDI_LIB} ${CORESERVICES_LIB})
-  else(APPLE)
-    # LINUX
-    set(PTHREAD_LIB pthread)
-    set(EXTRA_NEEDED_LIBS asound ${PTHREAD_LIB})
-  endif(APPLE)
-  # using ../../liblo/liblo_s.a. The builder must explicitly make a 
-  # static liblo library with --enable-static and copy the result,
-  # ../../liblo/src/.libs/liblo.a, to ../../liblo/liblo_s.a. Otherwise,
-  # at least XCode might try to link with /usr/local/lib/liblo.dylib
-  # By renaming, we gain confidence as to what is actually being linked.
-  #
-  # for UNIX...
+    if(APPLE)
+      set(COREMIDI_LIB "${FRAMEWORK_PATH}/CoreMIDI.framework")
+      set(EXTRA_NEEDED_LIBS ${COREAUDIO_LIB} ${COREFOUNDATION_LIB}
+                            ${COREMIDI_LIB} ${CORESERVICES_LIB})
+    else(APPLE)
+      # LINUX
+      set(PTHREAD_LIB pthread)
+      set(EXTRA_NEEDED_LIBS asound ${PTHREAD_LIB})
+    endif(APPLE)
 
-  set(PORTMIDI_BASE_PATH ../portmedia/portmidi 
-      CACHE STRING "Where is portmidi?")
-  set(PORTMIDI_PATH ${PORTMIDI_BASE_PATH}/pm_common CACHE INTERNAL 
-                    "Where is portmidi.h?" FORCE)
-  # message(STATUS "PORTMIDI_BASE_PATH is " ${PORTMIDI_BASE_PATH})
+    set(PORTMIDI_BASE_PATH ../portmedia/portmidi 
+        CACHE STRING "Where is portmidi?")
+    set(PORTMIDI_PATH ${PORTMIDI_BASE_PATH}/pm_common CACHE INTERNAL 
+                      "Where is portmidi.h?" FORCE)
+    message(STATUS "PORTMIDI_BASE_PATH is " ${PORTMIDI_BASE_PATH})
+  
+    if(USE_STATIC_LIBS)
+      if(UNIX)
+        find_library(PORTMIDI_DBG_LIB portmidi_s ${PORTMIDI_BASE_PATH}
+                     ${PORTMIDI_BASE_PATH}/Debug
+                     ${PORTMIDI_PATH} ${PORTMIDI_PATH}/Debug)
+      else(UNIX) # always use dll for windows debug
+        find_library(PORTMIDI_DBG_LIB portmidi HINTS
+                     ${PORTMIDI_BASE_PATH} ${PORTMIDI_BASE_PATH}/Debug
+                     ${PORTMIDI_PATH} ${PORTMIDI_PATH}/Debug)
+      endif(UNIX)
 
-  if(USE_STATIC_LIBS)
-    if(UNIX)
-      find_library(PORTMIDI_DBG_LIB portmidi_s ${PORTMIDI_BASE_PATH}
-                   ${PORTMIDI_BASE_PATH}/Debug
-                   ${PORTMIDI_PATH} ${PORTMIDI_PATH}/Debug)
-    else(UNIX) # always use dll for windows debug
+      message(STATUS "*** in USE_STATIC_LIBS, USE_MIDI ${USE_MIDI} PORTMIDI_DBG_LIB ${PORTMIDI_DBG_LIB}")
+
+    else(USE_STATIC_LIBS)
       find_library(PORTMIDI_DBG_LIB portmidi HINTS
                    ${PORTMIDI_BASE_PATH} ${PORTMIDI_BASE_PATH}/Debug
-                   ${PORTMIDI_PATH} ${PORTMIDI_PATH}/Debug)
-    endif(UNIX)
-
-    message(STATUS "*** in USE_STATIC_LIBS, USE_MIDI ${USE_MIDI} PORTMIDI_DBG_LIB ${PORTMIDI_DBG_LIB}")
-  else(USE_STATIC_LIBS)
-    find_library(PORTMIDI_DBG_LIB portmidi HINTS
-                 ${PORTMIDI_BASE_PATH} ${PORTMIDI_BASE_PATH}/Debug
-		 ${PORTMIDI_BASE_PATH}/x64/Debug
-                 ${PORTMIDI_PATH} ${PORTMIDI_PATH}/Debug
-		 ${PORTMIDI_PATH}/x64/Debug)
-  endif(USE_STATIC_LIBS)
+	           ${PORTMIDI_BASE_PATH}/x64/Debug
+                   ${PORTMIDI_PATH} ${PORTMIDI_PATH}/Debug
+                   ${PORTMIDI_PATH}/x64/Debug)
+    endif(USE_STATIC_LIBS)
+  endif(BUILD_MIDI_EXAMPLE) 
 
   add_executable(midiclient test/midiclient.c test/cmtio.c test/cmtio.h) 
   target_include_directories(midiclient PRIVATE ${CMAKE_SOURCE_DIR}/src) 
@@ -158,6 +163,7 @@ endif(UNIX)
 
 message(STATUS LIBRARIES=${LIBRARIES}) 
 
+# this is some networking test code, not part of O2
 #add_executable(broadcastclient test/broadcastclient.c) 
 #add_executable(broadcastserver test/broadcastserver.c) 
 #add_executable(tcppollclient test/tcppollclient.c) 
@@ -179,21 +185,23 @@ message(STATUS LIBRARIES=${LIBRARIES})
 # library dependencies from this CMakeLists.txt file 
 ##########################################################
 
-#set(LO_LIB LO_LIB-NOTFOUND) 
-# where to find library: lo_s64 
+if(BUILD_TESTS_WITH_LIBLO)
+  set(LIBLO_PATH "${CMAKE_SOURCE_DIR}/../liblo-0.28" CACHE PATH
+                 "Where to find liblo_64s.a, the liblo library.") 
+  set(LIBLO_LIB LIBLO_LIB-NOTFOUND CACHE FILEPATH
+             "The liblo library; should be set automatically if LIBLO_PATH is correct and liblo_64s.a exists.") 
+  find_library(LIBLO_LIB lo_s64 ${LIBLO_PATH})
+  # where to find liblo include files:
+  set(LIBLO_INCLUDE_PATH ${LIBLO_PATH} CACHE PATH "where to find liblo include files") 
 
-#set(LIBLO_PATH ${CMAKE_SOURCE_DIR}/../../liblo) 
-#find_library(LO_LIB lo_s64 ${LIBLO_PATH}) 
-# where to find liblo include files:
-#set(LO_PATH ${LIBLO_PATH} CACHE PATH "where to find liblo include files") 
+  message(STATUS "LIBLO_LIB is ${LIBLO_LIB}") 
 
-#message(STATUS "LO_LIB is ${LO_LIB}") 
+  # Create executables 
+  add_executable(lo_benchmk_server  test/lo_benchmk_server.c) 
+  target_include_directories(lo_benchmk_server PRIVATE ${LIBLO_INCLUDE_PATH})
+  target_link_libraries(lo_benchmk_server ${LO_LIB} ${EXTRA_NEEDED_LIBS}) 
 
-# Create executables 
-#add_executable(lo_benchmk_server  test/lo_benchmk_server.c) 
-#target_include_directories(lo_benchmk_server PRIVATE ${LO_PATH})
-#target_link_libraries(lo_benchmk_server ${LO_LIB} ${EXTRA_NEEDED_LIBS}) 
-
-#add_executable(lo_benchmk_client  test/lo_benchmk_client.c) 
-#target_include_directories(lo_benchmk_client PRIVATE ${LO_PATH})
-#target_link_libraries(lo_benchmk_client ${LO_LIB}  ${EXTRA_NEEDED_LIBS})
+  add_executable(lo_benchmk_client  test/lo_benchmk_client.c) 
+  target_include_directories(lo_benchmk_client PRIVATE ${LIBLO_INCLUDE_PATH})
+  target_link_libraries(lo_benchmk_client ${LO_LIB}  ${EXTRA_NEEDED_LIBS})
+endif(BUILD_TESTS_WITH_LIBLO)

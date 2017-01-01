@@ -17,36 +17,53 @@ extern o2_message_ptr message_freelist;
 #define ssize_t long long
 #endif
 
-/** get a free message */
-o2_message_ptr alloc_message();
+/* MESSAGE EXTRACTION */
+void o2_argv_initialize();
+
+void o2_argv_finish();
+
+/* MESSAGE CONSTRUCTION */
+int o2_add_bundle_head(int64_t time);
+
+int32_t *o2_msg_len_ptr();
+
+int o2_set_msg_length(int32_t *msg_len_ptr);
+
+int o2_add_raw_bytes(int32_t len, char *bytes);
+
+char *o2_msg_data_get(int32_t *len_ptr);
+
+
+/* GENERAL MESSAGE FUNCIONS */
+
+#define IS_BUNDLE(msg)((msg)->address[0] == '#')
+
+// Iterate over elements of a bundle. msg is an o2_msg_data_ptr, and
+// code is the code to execute. When code is entered, embedded is an
+// o2_msg_data_ptr pointing to each element of msg. code MUST assign
+// the length of embedded to len. (This is not built-in because 
+// embedded may be byte-swapped.) Generally, code will include a
+// recursive call to process embedded, which may itself be a bundle.
+//
+#define FOR_EACH_EMBEDDED(msg, code)                     \
+    char *end_of_msg = PTR(msg) + MSG_DATA_LENGTH(msg); \
+    o2_msg_data_ptr embedded = (o2_msg_data_ptr) \
+            ((msg)->address + o2_strsize((msg)->address) + sizeof(int32_t)); \
+    while (PTR(embedded) < end_of_msg) { int32_t len; \
+        code; \
+        embedded = (o2_msg_data_ptr) (PTR(embedded) + len + sizeof(int32_t)); }
+
 
 /* allocate message structure with at least size bytes in the data portion */
 o2_message_ptr o2_alloc_size_message(int size);
 
-int o2_build_message(o2_message_ptr *msg, o2_time timestamp,
-                     const char *service_name,
-                     const char *path, const char *typestring, va_list ap);
+
+/* free a message and all the messages it links to */
+void o2_message_list_free(o2_message_ptr msg);
 
 
-/**
- *  o2_recv will check all the set up sockets of the local process,
- *  including the udp socket and all the tcp sockets. The message will be
- *  dispatched to a matching method if one is found.
- *  Note: the recv will not set up new socket, as o2_discover will do that
- *  for the local process.
- *
- *  @return O2_SUCESS if succeed, O2_FAIL if not.
- */
-int o2_recv();
-
-
-/**
- *  Convert endianness of arg pointed to by data from network to host or from host to network.
- *
- *  @param type The type of the data.
- *  @param data The data.
- */
-/*void o2_arg_swap_endian(o2_type type, void *data);*/
+/* compute the size of a string including EOS and padding to next word */
+int o2_strsize(const char *s);
 
 
 /**
@@ -56,17 +73,24 @@ int o2_recv();
  */
 void o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order);
 
-int o2_strsize(const char *s);
+int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
+                     const char *service_name,
+                     const char *path, const char *typestring,
+                     int tcp_flag, va_list ap);
+
+/**
+ * Print o2_msg_data to stdout
+ *
+ * @param msg The message to print
+ */
+void o2_msg_data_print(o2_msg_data_ptr msg);
+
 
 /**
  * Print an O2 message to stdout
  *
  * @param msg The message to print
  */
-void o2_print_msg(o2_msg_data_ptr msg);
-
-void o2_initialize_argv();
-
-void o2_finish_argv();
+void o2_message_print(o2_message_ptr msg);
 
 #endif /* O2_message_h */

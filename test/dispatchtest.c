@@ -8,6 +8,8 @@
 
 #define N_ADDRS 20
 
+#define MAX_MESSAGES 50000
+
 int s = 0;
 int w = 1;
 
@@ -16,7 +18,9 @@ void service_one(o2_msg_data_ptr data, const char *types,
 {
     char p[100];
     sprintf(p, "/two/benchmark/%d", s % N_ADDRS);
-    o2_send(p, 0, "i", s);
+    if (s < MAX_MESSAGES) {
+        o2_send(p, 0, "i", s);
+    }
     if (s % 10000 == 0) {
         printf("Service one received %d messages\n", s);
     }
@@ -28,7 +32,9 @@ void service_two(o2_msg_data_ptr data, const char *types,
 {
     char p[100];
     sprintf(p, "/one/benchmark/%d", w % N_ADDRS);
-    o2_send(p, 0, "i", w);
+    if (w < MAX_MESSAGES) {
+        o2_send(p, 0, "i", w);
+    }
     if (w % 10000 == 0) {
         printf("Service two received %d messages\n", w);
     }
@@ -54,9 +60,10 @@ int main(int argc, const char * argv[])
     }
 
     o2_send("/one/benchmark/0", 0, "i", 0);
-    while (1) {
+    while (s < 50000) {
         o2_poll();
     }
     o2_finish();
+    printf("DONE\n");
     return 0;
 }

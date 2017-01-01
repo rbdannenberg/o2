@@ -34,6 +34,9 @@ int main(int argc, const char * argv[]) {
     o2_add_method("/osc/i", "i", osc_i_handler, NULL, FALSE, TRUE);
     while (message_count < 10) {
         o2_poll();
-        usleep(2000);
+        usleep(10000); // 10ms
     }
+    o2_finish();
+    printf("OSCRECV DONE\n");
+    return 0;
 }

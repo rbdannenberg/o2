@@ -3,8 +3,8 @@
 #define o2_dynamic_h
 
 typedef struct dyn_array {
-    int allocated;
-    int length;
+    int32_t allocated;
+    int32_t length;
     char *array;
 } dyn_array, *dyn_array_ptr;
 

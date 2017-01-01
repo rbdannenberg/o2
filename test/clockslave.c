@@ -28,8 +28,8 @@ void clockslave(o2_msg_data_ptr msg, const char *types,
     // Since the clock slave cannot immediately send scheduled messages
     // due to there being no global time reference, we will schedule
     // messages directly on the local scheduler
-    o2_start_send();
-    o2_message_ptr m = o2_finish_message(o2_local_time() + 1, "!client/clockslave");
+    o2_send_start();
+    o2_message_ptr m = o2_message_finish(o2_local_time() + 1, "!client/clockslave", TRUE);
     o2_schedule(&o2_ltsched, m);
 }
 

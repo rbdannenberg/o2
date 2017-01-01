@@ -2,12 +2,9 @@
 //
 // Roger Dannenberg, 2016
 
-#include "o2.h"
-#include "o2_dynamic.h"
-#include "o2_socket.h"
-#include "o2_search.h"
 #include "o2_internal.h"
 #include "o2_sched.h"
+#include "sys/time.h"
 
 // get the master clock - clock time is estimated as
 //   global_time_base + elapsed_time * clock_rate, where
@@ -51,7 +48,7 @@ static o2_time time_offset = 0.0; // added to time_callback()
     static long start_time;
 #endif
 
-void o2_time_init()
+void o2_time_initialize()
 {
 #ifdef __APPLE__
     start_time = AudioGetCurrentHostTime();
@@ -71,13 +68,13 @@ void o2_time_init()
 
 // call this with the local and master time when clock sync is first obtained
 //
-void o2_clock_synchronized(o2_time local_time, o2_time master_time)
+static void o2_clock_synchronized(o2_time local_time, o2_time master_time)
 {
     if (o2_clock_is_synchronized) {
         return;
     }
     o2_clock_is_synchronized = TRUE;
-    o2_start_a_scheduler(&o2_gtsched, master_time);
+    o2_sched_start(&o2_gtsched, master_time);
     if (!is_master) {
         // do not set local_now or global_now because we could be inside
         // o2_sched_poll() and we don't want "now" to change, but we can
@@ -92,35 +89,31 @@ void o2_clock_synchronized(o2_time local_time, o2_time master_time)
 //    called when we are slowing down or speeding up to return
 //    the clock rate to 1.0 because we should be synchronized
 //
-void catch_up_handler(o2_message_ptr msg, const char *types,
+static void catch_up_handler(o2_msg_data_ptr msg, const char *types,
                       o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_arg_ptr rate_id_arg;
-    if (!(rate_id_arg = o2_get_next('i'))) {
-        return;
-    }
-    int rate_id = rate_id_arg->i32;
+    int rate_id = argv[0]->i32;
     if (rate_id != clock_rate_id) return; // this task is cancelled
     // assume the scheduler sets local_now and global_now
-    global_time_base = LOCAL_TO_GLOBAL(msg->data.timestamp);
-    local_time_base = msg->data.timestamp;
+    global_time_base = LOCAL_TO_GLOBAL(msg->timestamp);
+    local_time_base = msg->timestamp;
     clock_rate = 1.0;
 }
 
 
-void will_catch_up_after(double delay)
+static void will_catch_up_after(double delay)
 {
     // build a message that will call catch_up_handler(rate_id) at local_time
-    if (o2_start_send() ||
+    if (o2_send_start() ||
         o2_add_int32(clock_rate_id))
         return;
     
-    o2_message_ptr msg = o2_finish_message(local_time_base + delay, "!_o2/cu");
+    o2_message_ptr msg = o2_message_finish(local_time_base + delay, "!_o2/cu", FALSE);
     o2_schedule(&o2_ltsched, msg);
 }
 
 
-void set_clock(double local_time, double new_master)
+static void set_clock(double local_time, double new_master)
 {
     local_time_base = local_time;
     global_time_base = LOCAL_TO_GLOBAL(local_time_base); // current estimate
@@ -155,12 +148,7 @@ void set_clock(double local_time, double new_master)
 }
 
 
-void reset_clock_rate()
-{
-}
-
-
-int o2_send_clocksync(fds_info_ptr info)
+static int o2_send_clocksync(fds_info_ptr info)
 {
     if (!o2_clock_is_synchronized)
         return O2_SUCCESS;
@@ -170,7 +158,7 @@ int o2_send_clocksync(fds_info_ptr info)
 }
     
 
-void announce_synchronized()
+static void announce_synchronized()
 {
     // when clock becomes synchronized, we must tell all other
     // processes about it. To find all other processes, use the o2_fds_info
@@ -188,12 +176,12 @@ void announce_synchronized()
 void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
                             o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(msg);
+    o2_extract_start(msg);
     o2_arg_ptr arg = o2_get_next('s');
     if (!arg) return;
     char *name = arg->s;
     int i;
-    generic_entry_ptr *entry = lookup(&path_tree_table, name, &i);
+    generic_entry_ptr *entry = o2_lookup(&path_tree_table, name, &i);
     if (entry) {
         assert((*entry)->tag == O2_REMOTE_SERVICE);
         remote_service_entry_ptr service = (remote_service_entry_ptr) *entry;
@@ -209,11 +197,11 @@ static double mean_rtt = 0;
 static double min_rtt = 0;
 
 
-void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
-                           o2_arg_ptr *argv, int argc, void *user_data)
+static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
+                                  o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_arg_ptr arg;
-    o2_start_extract(msg);
+    o2_extract_start(msg);
     if (!(arg = o2_get_next('i'))) return;
     // if this is not a reply to the most recent message, ignore it
     if (arg->i32 != clock_sync_id) return;
@@ -277,14 +265,13 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
         announce_synchronized();
         return; // no clock sync; we're the master
     }
-    if (types[0]) return; // not expecting any arguments
     clock_sync_send_time = o2_local_time();
     if (!found_clock_service) {
         int status = o2_status("_cs");
         found_clock_service = (status >= 0);
         if (found_clock_service) {
             if (status == O2_LOCAL || status == O2_LOCAL_NOTIME) {
-                is_master = TRUE;
+                assert(is_master);
             } else { // record when we started to send clock sync messages
                 start_sync_time = clock_sync_send_time;
                 char path[48]; // enough room for !IP:PORT/cs/get-reply
@@ -310,27 +297,28 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
         if (clock_sync_send_time - start_sync_time > t1) when += 9.5;
     }
     // schedule another call to o2_ping_send_handler
-    if (o2_start_send()) return;
-    o2_message_ptr m = o2_finish_message(when, "!_o2/ps");
+    if (o2_send_start()) return;
+    o2_message_ptr m = o2_message_finish(when, "!_o2/ps", FALSE);
     // printf("*    schedule ping_send at %g, now is %g\n", when, o2_local_time());
     o2_schedule(&o2_ltsched, m);
 }
 
 
-void o2_clock_init()
+void o2_clock_initialize()
 {
     is_master = FALSE;
-    o2_add_method("/_o2/ps", "", &o2_ping_send_handler, NULL, FALSE, FALSE);
+    o2_add_method("/_o2/ps", "", &o2_ping_send_handler, NULL, FALSE, TRUE);
+    o2_add_method("/_o2/cu", "i", &catch_up_handler, NULL, FALSE, TRUE);
 }
 
 
 // cs_ping_handler -- handler for /_cs/get
 //   return the master clock time
-void cs_ping_handler(o2_msg_data_ptr msg, const char *types,
+static void cs_ping_handler(o2_msg_data_ptr msg, const char *types,
                      o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_arg_ptr serial_no_arg, reply_to_arg;
-    o2_start_extract(msg);
+    o2_extract_start(msg);
     if (!(serial_no_arg = o2_get_next('i')) ||
         !(reply_to_arg = o2_get_next('s'))) {
         return;
@@ -372,6 +360,34 @@ int o2_set_clock(o2_time_callback callback, void *data)
         O2_DB(printf("O2: master clock established, time is now %g\n",
                      o2_local_time()));
         is_master = TRUE;
+        // osc_time_offset is initialized using system clock, but you
+        // can call set_osc_time_offset() to change it, e.g. periodically
+        // using a different time source
+#ifdef WIN32
+        // this code comes from liblo
+        /* 
+         * FILETIME is the time in units of 100 nsecs from 1601-Jan-01
+         * 1601 and 1900 are 9435484800 seconds apart.
+         */
+        int64_t osc_time;
+        FILETIME ftime;
+        double dtime;
+        GetSystemTimeAsFileTime(&ftime);
+        dtime =
+            ((ftime.dwHighDateTime * 4294967296.e-7) - 9435484800.) +
+            (ftime.dwLowDateTime * 1.e-7);
+        osc_time = (uint64_t) dtime;
+        osc_time = (osc_time << 32) +
+                   (uint32_t) ((dtime - osc_time) * 4294967296.);
+#else
+#define JAN_1970 0x83aa7e80     /* 2208988800 1970 - 1900 in seconds */
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        int64_t osc_time = (int64_t) (tv.tv_sec + JAN_1970);
+        osc_time = (osc_time << 32) + (int64_t) (tv.tv_usec * 4294.967295);
+#endif
+        set_osc_time_offset(osc_time -
+                            (int64_t) (new_local_time * 4294967296.0));
     }
     return O2_SUCCESS;
 }

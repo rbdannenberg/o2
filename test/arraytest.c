@@ -45,7 +45,7 @@ int arg_count = 0; // used to tell handler how many is correct
 void service_ai(o2_msg_data_ptr data, const char *types,
                 o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
 
     assert(*types++ == '[');
     o2_arg_ptr arg = o2_get_next('[');
@@ -68,7 +68,7 @@ void service_ai(o2_msg_data_ptr data, const char *types,
 void service_a(o2_msg_data_ptr data, const char *types,
                o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
 
     assert(*types++ == '[');
     o2_arg_ptr arg = o2_get_next('[');
@@ -88,7 +88,7 @@ void service_a(o2_msg_data_ptr data, const char *types,
 void service_aii(o2_msg_data_ptr data, const char *types,
                  o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
 
     assert(*types++ == '[');
     o2_arg_ptr arg = o2_get_next('[');
@@ -227,7 +227,7 @@ void zcheck(char typ)
 void service_xixdx(o2_msg_data_ptr data, const char *types,
                    o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
 
     acheck(*types++);
     check_val(*types++);
@@ -247,7 +247,7 @@ void service_xixdx(o2_msg_data_ptr data, const char *types,
 void service_2arrays(o2_msg_data_ptr data, const char *types,
                      o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
 
     icheck(*types++, 456);
 
@@ -274,7 +274,7 @@ void service_2arrays(o2_msg_data_ptr data, const char *types,
 void service_bigarray(o2_msg_data_ptr data, const char *types,
                       o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
     acheck(*types++);
     for (int i = 0; i < arg_count; i++) {
         dcheck(*types++, 123.456 + i);
@@ -290,7 +290,7 @@ void service_bigarray(o2_msg_data_ptr data, const char *types,
 void service_vi(o2_msg_data_ptr data, const char *types,
                 o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
     assert(*types++ == 'v');
     o2_arg_ptr arg = o2_get_next('v');
     assert(arg);
@@ -314,7 +314,7 @@ void service_vi(o2_msg_data_ptr data, const char *types,
 void service_vf(o2_msg_data_ptr data, const char *types,
                 o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
     assert(*types++ == 'v');
     o2_arg_ptr arg = o2_get_next('v');
     assert(arg);
@@ -338,7 +338,7 @@ void service_vf(o2_msg_data_ptr data, const char *types,
 void service_vh(o2_msg_data_ptr data, const char *types,
                 o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
     assert(*types++ == 'v');
     o2_arg_ptr arg = o2_get_next('v');
     assert(arg);
@@ -362,7 +362,7 @@ void service_vh(o2_msg_data_ptr data, const char *types,
 void service_vd(o2_msg_data_ptr data, const char *types,
                 o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
     assert(*types++ == 'v');
     o2_arg_ptr arg = o2_get_next('v');
     assert(arg);
@@ -387,7 +387,7 @@ void service_vd(o2_msg_data_ptr data, const char *types,
 void service_ifvxif(o2_msg_data_ptr data, const char *types,
                     o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
     icheck(*types++, 2345);
     fcheck(*types++, 345.67F);
     
@@ -438,7 +438,7 @@ void service_ifvxif(o2_msg_data_ptr data, const char *types,
 void service_vivd(o2_msg_data_ptr data, const char *types,
                   o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
     assert(*types++ == 'v');
     o2_arg_ptr arg = o2_get_next('v');
     assert(arg);
@@ -475,7 +475,7 @@ void service_vivd(o2_msg_data_ptr data, const char *types,
 void service_coerce(o2_msg_data_ptr data, const char *types,
                     o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
     icheck(*types++, 5678);
     o2_arg_ptr arg = o2_get_next('v');
     assert(*types++ == '[');
@@ -516,7 +516,7 @@ void service_coerce(o2_msg_data_ptr data, const char *types,
 void service_coerce2(o2_msg_data_ptr data, const char *types,
                     o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_start_extract(data);
+    o2_extract_start(data);
     icheck(*types++, 5678);
     fcheck(*types++, 567.89F);
     assert(*types++ == 'v');
@@ -677,34 +677,34 @@ int main(int argc, const char * argv[])
     o2_add_method("/one/service_coerce", NULL, &service_coerce, NULL, FALSE, FALSE);
     o2_add_method("/one/service_coerce2", NULL, &service_coerce2, NULL, FALSE, FALSE);
     
-    o2_start_send();
+    o2_send_start();
     o2_add_start_array();
     o2_add_int32(3456);
     o2_add_end_array();
-    o2_finish_send(0, "/one/service_ai");
+    o2_send_finish(0, "/one/service_ai", TRUE);
     send_the_message();
     printf("DONE sending [3456]\n");
 
-    o2_start_send();
+    o2_send_start();
     o2_add_start_array();
     o2_add_end_array();
-    o2_finish_send(0, "/one/service_a");
+    o2_send_finish(0, "/one/service_a", TRUE);
     send_the_message();
     printf("DONE sending []\n");
 
-    o2_start_send();
+    o2_send_start();
     o2_add_start_array();
     o2_add_int32(123);
     o2_add_int32(234);
     o2_add_end_array();
-    o2_finish_send(0, "/one/service_aii");
+    o2_send_finish(0, "/one/service_aii", TRUE);
     send_the_message();
     printf("DONE sending [123, 234]\n");
 
     // 4. sending typestring [xixdx] where x is one of: hfcBbtsSmTFIN
     for (char *xtp = xtypes; *xtp; xtp++) {
         xtype = *xtp;
-        o2_start_send();
+        o2_send_start();
         o2_add_start_array();
         add_x_parameter();
         o2_add_int32(456);
@@ -714,13 +714,13 @@ int main(int argc, const char * argv[])
         o2_add_end_array();
         char address[32];
         snprintf(address, 32, "/one/service_%ci%cd%c", xtype, xtype, xtype);
-        o2_finish_send(0, address);
+        o2_send_finish(0, address, TRUE);
         send_the_message();
     }
     printf("DONE sending [xixdx] messages\n");
 
     // 5. sending typestring i[ih][fdt]d to test multiple arrays
-    o2_start_send();
+    o2_send_start();
     o2_add_int32(456);
     o2_add_start_array();
     o2_add_int32(1234);
@@ -732,20 +732,20 @@ int main(int argc, const char * argv[])
     o2_add_time(2345.678);
     o2_add_end_array();
     o2_add_double(1234.567);
-    o2_finish_send(0, "/one/service_2arrays");
+    o2_send_finish(0, "/one/service_2arrays", TRUE);
     send_the_message();
     printf("DONE sending 456,[456,12345][1234.56,1234.567,2345.678],1234.567\n");
 
     // 6. sending typestring [ddddd...] where there are 1 to 100 d's
     for (int i = 0; i < 101; i++) {
         arg_count = i;
-        o2_start_send();
+        o2_send_start();
         o2_add_start_array();
         for (int j = 0; j < i; j++) {
             o2_add_double(123.456 + j);
         }
         o2_add_end_array();
-        o2_finish_send(0, "/one/service_bigarray");
+        o2_send_finish(0, "/one/service_bigarray", TRUE);
         send_the_message();
     }
     printf("DONE sending [ddd...], size 0 through 100\n");
@@ -757,9 +757,9 @@ int main(int argc, const char * argv[])
     }
     for (int i = 0; i < 101; i++) {
         arg_count = i;
-        o2_start_send();
+        o2_send_start();
         o2_add_vector('i', i, ivec);
-        o2_finish_send(0, "/one/service_vi");
+        o2_send_finish(0, "/one/service_vi", TRUE);
         send_the_message();
     }
     printf("DONE sending vi, size 0 through 100\n");
@@ -772,9 +772,9 @@ int main(int argc, const char * argv[])
     }
     for (int i = 0; i < 101; i++) {
         arg_count = i;
-        o2_start_send();
+        o2_send_start();
         o2_add_vector('f', i, fvec);
-        o2_finish_send(0, "/one/service_vf");
+        o2_send_finish(0, "/one/service_vf", TRUE);
         send_the_message();
     }
     printf("DONE sending vf, size 0 through 100\n");
@@ -787,9 +787,9 @@ int main(int argc, const char * argv[])
     }
     for (int i = 0; i < 101; i++) {
         arg_count = i;
-        o2_start_send();
+        o2_send_start();
         o2_add_vector('h', i, hvec);
-        o2_finish_send(0, "/one/service_vh");
+        o2_send_finish(0, "/one/service_vh", TRUE);
         send_the_message();
     }
     printf("DONE sending vh, size 0 through 100\n");
@@ -802,9 +802,9 @@ int main(int argc, const char * argv[])
     }
     for (int i = 0; i < 101; i++) {
         arg_count = i;
-        o2_start_send();
+        o2_send_start();
         o2_add_vector('d', i, dvec);
-        o2_finish_send(0, "/one/service_vd");
+        o2_send_finish(0, "/one/service_vd", TRUE);
         send_the_message();
     }
     printf("DONE sending vd, size 0 through 100\n");
@@ -814,7 +814,7 @@ int main(int argc, const char * argv[])
     for (char *xtp = "ihfd"; *xtp; xtp++) {
         xtype = *xtp;
         for (int i = 0; i < 101; i++) {
-            o2_start_send();
+            o2_send_start();
             o2_add_int32(2345);
             o2_add_float(345.67F);
             arg_count = i;
@@ -827,7 +827,7 @@ int main(int argc, const char * argv[])
             }
             o2_add_int32(4567);
             o2_add_float(567.89F);
-            o2_finish_send(0, "/one/service_ifvxif");
+            o2_send_finish(0, "/one/service_ifvxif", TRUE);
             send_the_message();
         }
     }
@@ -835,11 +835,11 @@ int main(int argc, const char * argv[])
 
     // 13. sending typestring vivd (with length 0 to 100)
     for (int i = 0; i < 101; i++) {
-        o2_start_send();
+        o2_send_start();
         arg_count = i;
         o2_add_vector('i', i, ivec);
         o2_add_vector('d', i, dvec);
-        o2_finish_send(0, "/one/service_vivd");
+        o2_send_finish(0, "/one/service_vivd", TRUE);
         send_the_message();
     }
     printf("DONE sending vivd, size 0 through 100\n");
@@ -851,7 +851,7 @@ int main(int argc, const char * argv[])
         for (char *ytp = "ihfd"; *ytp; ytp++) {
             ytype = *ytp;
             for (int i = 0; i < 101; i++) {
-                o2_start_send();
+                o2_send_start();
                 o2_add_int32(5678);
                 arg_count = i;
                 o2_add_start_array();
@@ -866,7 +866,7 @@ int main(int argc, const char * argv[])
                 }
                 o2_add_end_array();
                 o2_add_int32(6789);
-                o2_finish_send(0, "/one/service_coerce");
+                o2_send_finish(0, "/one/service_coerce", TRUE);
                 send_the_message();
             }
         }
@@ -880,7 +880,7 @@ int main(int argc, const char * argv[])
         for (char *y = "ihfdt"; *y; y++) {
             ytype = *y;
             for (int i = 0; i < 101; i++) {
-                o2_start_send();
+                o2_send_start();
                 o2_add_int32(5678);
                 o2_add_float(567.89F);
                 arg_count = i;
@@ -893,7 +893,7 @@ int main(int argc, const char * argv[])
                 }
                 o2_add_int32(6789);
                 o2_add_float(567.89F);
-                o2_finish_send(0, "/one/service_coerce2");
+                o2_send_finish(0, "/one/service_coerce2", TRUE);
                 send_the_message();
             }
         }

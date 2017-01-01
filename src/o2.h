@@ -176,7 +176,7 @@ extern int o2_debug;
 #define O2_BAD_TYPE (-7)
 
 /// \brief an error return value: mismatched types and arguments
-/// returned by o2_build_message(), o2_send(), o2_send_cmd()
+/// returned by o2_message_build(), o2_send(), o2_send_cmd()
 #define O2_EFORMAT (-8)
 
 /// an error return value for o2_initialize(): the socket is closed.
@@ -320,7 +320,7 @@ typedef double o2_time;
  * This data type is used to pass o2 message data to message handlers.
  * It appears many other times in the code. You should NEVER allocate
  * or free an o2_msg_data struct. Instead, create a message using 
- * o2_start_send(), o2_add_*(), and o2_finish_message() to get an 
+ * o2_send_start(), o2_add_*(), and o2_message_finish() to get an 
  * o2_message_ptr. Within the o2_message, the data field is an
  * o2_msg_data structure. We would use o2_message everywhere instead
  * of o2_msg_data, but bundles can contain multiple o2_msg_data 
@@ -382,6 +382,10 @@ typedef struct o2_message {
         struct o2_message *next; ///< links used for free list and scheduler
         int64_t pad_if_needed;   ///< make sure allocated is 8-byte aligned
     };
+    union {
+        int tcp_flag;            ///< send message by tcp?
+        int64_t pad_if_needed2;  ///< make sure allocated is 8-byte aligned 
+    };
     int32_t allocated;       ///< how many bytes allocated in data part
     int32_t length;          ///< the length of the message in data part
     o2_msg_data data;
@@ -409,8 +413,8 @@ typedef enum {
     O2_FLOAT =     'f',     ///< 32 bit IEEE-754 float.
     O2_STRING =    's',     ///< NULL terminated string (Standard C).
     O2_BLOB =      'b',     ///< Binary Large OBject (BLOB) type.
-    O2_START_ARRAY = '[',   ///< Start array or tuple
-    O2_END_ARRAY = ']',     ///< End array or tuple
+    O2_ARRAY_START = '[',   ///< Start array or tuple
+    O2_ARRAY_END = ']',     ///< End array or tuple
     
     // extended O2 types
     O2_INT64 =     'h',     ///< 64 bit signed integer.
@@ -588,6 +592,33 @@ int o2_initialize(char *application_name);
  * @return O2_SUCCESS if succeed, O2_FAIL if not.
  */
 int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)));
+
+
+/**
+ * \brief Set discovery period
+ *
+ * O2 discovery messages are broadcast periodically in case a new process
+ * has joined the application. The default period is 4 seconds. If there
+ * are N processes, each host will receive N/4 discovery messages per 
+ * second. Since there are 5 discovery ports, each process will handle
+ * N/20 discovery messages per second, and a discovery message from any
+ * given process will be received every 20 seconds. (Note, however, that
+ * new processes send more frequently, sending 2 discovery messages to 
+ * each of the 5 discovery port numbers within 2 seconds, so if messages
+ * are not dropped frequently, discovery of new processes will happen much
+ * faster than the worst-case 20 second polling period or even the 
+ * 10 second expected wait.)
+ *
+ * You can change the polling period from 4s by calling this function. The
+ * new polling period takes effect when the next discovery message is sent
+ * at the end of the current polling period.
+ *
+ * @param period the requested polling period; a minimum of 0.1s is enforced; 
+ *               4s is the default (recommended).
+ *
+ * @return the previous polling period
+ */
+o2_time o2_set_discovery_period(o2_time period);
 
 
 /**
@@ -838,14 +869,13 @@ int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...)
  * \brief Send an O2 message. (See also macros #o2_send and #o2_send_cmd).
  *
  * @param msg points to an O2 message.
- * @param tcp_flag is true for reliable send, false for best effort (UDP) send.
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  *
  * After the call, the `msg` parameter is "owned" by O2, which will
- * free it. Therefore, do *not* free msg after calling o2_send_message().
+ * free it. Therefore, do *not* free msg after calling o2_message_send().
  */
-int o2_send_message(o2_message_ptr msg, int tcp_flag);
+int o2_message_send(o2_message_ptr msg);
 
 /**
  * \brief Get the estimated synchronized global O2 time.
@@ -912,19 +942,36 @@ int o2_create_osc_port(const char *service_name, int port_num, int tcp_flag);
  *  \brief Send an OSC message.
  *
  * This function (mostly) bypasses O2 and just constructs a message
- *  and sends it directly via UDP to an OSC server.
+ * and sends it directly to an OSC server. This is very similar to
+ * o2_send(), except (1) with o2_send(), an O2 message is constructed,
+ * then converted to an OSC message, whereas o2_send_osc_message
+ * constructs the OSC message directly, which is slightly faster;
+ * (2) with o2_send(), the message can be sent from any host. If
+ * o2_delegate_to_osc() was executed on a different host, the O2 
+ * message will be sent to that host; then, the message will be 
+ * converted to an OSC message and sent to the OSC server. (You could
+ * send the message directly by calling o2_delegate_to_osc() on the
+ * local host, but service names must be unique across all hosts of 
+ * an O2 application, so you must be careful to use distinct service 
+ * names. In constrast, o2_send_osc_message() will return an error if 
+ * the OSC connection was not made locally; (3) This function cannot
+ * be used to send an OSC bundle. To send a bundle, create an O2 bundle
+ * message and send it as an O2 message to an OSC service. The bundle
+ * will be converted to an OSC bundle.
  *
- *  Note: Before calling o2_send_osc_message(), you should first use
- *  o2_add_osc_service() to add in the osc service and give it a
- *  service name. Then you can use the service name to send the message.
+ * Note: Before calling o2_send_osc_message(), you should first use
+ * o2_delegate_to_osc() to connect to the osc service and give it a
+ * service name. Then you can use the service name to send the message.
+ * The choice of UDP or TCP depends on the tcp_flag parameter to
+ * o2_delegate_to_osc().
  *
- *  @param service_name The o2 name for the remote osc server, named by calling
- *                      o2_add_osc_service().
- *  @param path         The osc path.
- *  @param typestring   The type string for the message
- *  @param ...          The data values to be transmitted.
+ * @param service_name The o2 name for the remote osc server, named by calling
+ *                     o2_delegate_to_osc(). Do not prefix this name with "/".
+ * @param path         The osc path, starting with "/".
+ * @param typestring   The type string for the message, not including ",".
+ * @param ...          The data values to be transmitted.
  *
- *  @return O2_SUCCESS if success, O2_FAIL if not.
+ * @return O2_SUCCESS if success, O2_FAIL if not.
  */
 /** \hideinitializer */
 #define o2_send_osc_message(service_name, path, typestring, ...) \
@@ -939,7 +986,7 @@ int o2_send_osc_message_marker(char *service_name, const char *path,
 /**
  *  \brief Create a service that forwards O2 messages to an OSC server.
  *
- *  @param service_name The o2 service name.
+ *  @param service_name The o2 service name without a '/' prefix.
  *  @param ip           The ip address of the osc server.
  *  @param port_num     The port number of the osc server.
  *  @param tcp_flag     Send OSC message via TCP protocol, in which case
@@ -960,6 +1007,20 @@ int o2_send_osc_message_marker(char *service_name, const char *path,
  */
 int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag);
 
+/**
+ *  \brief Set the OSC time offset.
+ *
+ * @param offset the offset between (global) O2 time and OSC time
+ *
+ * @return the previous offset
+ *
+ * O2 global time should start from 0.0 when the clock is started, whereas
+ * OSC time starts at 1 Jan 1900. The offset is the OSC time corresponding
+ * to O2 time 0.0. Equivalently, OSC_time = O2_time + offset.
+ */
+int64_t set_osc_time_offset(int64_t offset);
+
+
 /** @} */ // end of Basics
 
 /**
@@ -972,14 +1033,14 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * The functions operate on "hidden" messages, so these functions are
  * not reentrant.
  *
- * To build a message, begin by calling o2_start_send() to allocate a
+ * To build a message, begin by calling o2_send_start() to allocate a
  * message. Then call one of the `o2_add_()` functions to add each
- * parameter. Finally, call either o2_finish_send() or
- * o2_finish_send_cmd() to send the message. You should not explicitly
- * allocate or deallocate a message using this procedure.
+ * parameter. Finally, call either o2_send_finish() to send the 
+ * message. You should not explicitly allocate or deallocate a 
+ * message using this procedure.
  *
  * To extract parameters from a message, begin by calling
- * o2_start_extract() to prepare to get parameters from the
+ * o2_extract_start() to prepare to get parameters from the
  * message. Then call o2_get_next() to get each parameter. If the
  * result is non-null, a parameter of the requested type was obtained
  * and you can read the parameter from the result. Results other than
@@ -990,7 +1051,7 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * You should not reuse this storage because the message may have
  * multiple destinations; thus, the message content should not be altered.
  *
- * A by-product of o2_start_extract() and o2_get_next() is an argument
+ * A by-product of o2_extract_start() and o2_get_next() is an argument
  * vector (argv) that can be accessed from o2_argv. (This is the same
  * argument vector created automatically when a handler is added with
  * o2_add_method() when the parse parameter is true.) A possible
@@ -1153,56 +1214,56 @@ o2_blob_ptr o2_blob_new(uint32_t size);
  * Allocates a "hidden" message in preparation for adding
  * parameters. After calling this, you should call `o2_add_` functions
  * such as o2_add_int32() to add parameters. Then call
- * o2_finish_send() or o2_finish_send_cmd() to send the message.
+ * o2_send_finish() to send the message.
  */
-int o2_start_send();
+int o2_send_start();
 
 
-/// \brief add a `float` to the message (see o2_start_send())
+/// \brief add a `float` to the message (see o2_send_start())
 int o2_add_float(float f);
 
 /// \brief This function suppports o2_add_symbol() and o2_add_string()
 /// Normally, you should not call this directly.
 int o2_add_string_or_symbol(o2_type tcode, char *s);
 
-/// \brief add a symbol to the message (see o2_start_send())
+/// \brief add a symbol to the message (see o2_send_start())
 #define o2_add_symbol(s) o2_add_string_or_symbol('S', s)
 
-/// \brief add a string to the message (see o2_start_send())
+/// \brief add a string to the message (see o2_send_start())
 #define o2_add_string(s) o2_add_string_or_symbol('s', s)
 
-/// \brief add an `o2_blob` to the message (see o2_start_send()), where
+/// \brief add an `o2_blob` to the message (see o2_send_start()), where
 ///        the blob is given as a pointer to an #o2_blob object.
 int o2_add_blob(o2_blob_ptr b);
 
-/// \brief add an `o2_blob` to the message (see o2_start_send()), where
+/// \brief add an `o2_blob` to the message (see o2_send_start()), where
 ///        the blob is specified by a size and a data address.
 int o2_add_blob_data(uint32_t size, void *data);
 
-/// \brief add an `int64` to the message (see o2_start_send())
+/// \brief add an `int64` to the message (see o2_send_start())
 int o2_add_int64(int64_t i);
 
 /// \brief This function supports o2_add_double() and o2_add_time()
 /// Normally, you should not call this directly.
 int o2_add_double_or_time(o2_type tchar, double d);
 
-/// \brief add a `double` to the message (see o2_start_send())
+/// \brief add a `double` to the message (see o2_send_start())
 #define o2_add_double(d) o2_add_double_or_time('d', d)
 
-/// \brief add a time (`double`) to the message (see o2_start_send())
+/// \brief add a time (`double`) to the message (see o2_send_start())
 #define o2_add_time(t) o2_add_double_or_time('t', t)
 
 /// \brief This function supports o2_add_int32() and o2_add_char()
 /// Normally, you should not call this directly.
 int o2_add_int32_or_char(o2_type tcode, int32_t i);
 
-/// \brief add an `int32` to the message (see o2_start_send())
+/// \brief add an `int32` to the message (see o2_send_start())
 #define o2_add_int32(i) o2_add_int32_or_char('i', i)
 
-/// \brief add a `char` to the message (see o2_start_send())
+/// \brief add a `char` to the message (see o2_send_start())
 #define o2_add_char(c) o2_add_int32_or_char('c', c)
 
-/// \brief add a short midi message to the message (see o2_start_send())
+/// \brief add a short midi message to the message (see o2_send_start())
 int o2_add_midi(uint8_t *m);
 
 /// \brief This function supports o2_add_true(), o2_add_false(), o2_add_bool(),
@@ -1210,19 +1271,19 @@ int o2_add_midi(uint8_t *m);
 /// Normally, you should not call this directly.
 int o2_add_only_typecode(o2_type typecode);
 
-/// \brief add "true" to the message (see o2_start_send())
+/// \brief add "true" to the message (see o2_send_start())
 #define o2_add_true() o2_add_only_typecode('T');
 
-/// \brief add a "false" to the message (see o2_start_send())
+/// \brief add a "false" to the message (see o2_send_start())
 #define o2_add_false() o2_add_only_typecode('F');
 
-/// \brief add 0 (false) or 1 (true) to the message (see o2_start_send())
+/// \brief add 0 (false) or 1 (true) to the message (see o2_send_start())
 #define o2_add_bool(x) o2_add_int32_or_char('B', x != 0)
 
-/// \brief add "nil" to the message (see o2_start_send())
+/// \brief add "nil" to the message (see o2_send_start())
 #define o2_add_nil() o2_add_only_typecode('N');
 
-/// \brief add "infinitum" to the message (see o2_start_send())
+/// \brief add "infinitum" to the message (see o2_send_start())
 #define o2_add_infinitum() o2_add_only_typecode('I');
 
 /// \brief start adding an array
@@ -1243,17 +1304,37 @@ int o2_add_vector(o2_type element_type,
                   int length, void *data);
 
 /**
+ * \brief add a message to a bundle
+ *
+ * @param msg a message or bundle to add
+ *
+ * @return O2_SUCCESS
+ *
+ * This function can be called after o2_send_start(). If you 
+ * add a message to a bundle with this function, you must not
+ * call any other o2_add_*() functions. E.g. do not call both
+ * o2_add_int32() and o2_add_message() on the same message.
+ * 
+ * This function does NOT free msg. Probably you should call 
+ * o2_messge_free(msg) after calling o2_add_message(msg).
+ */
+int o2_add_message(o2_message_ptr msg);
+
+
+/**
  * \brief finish and return the message.
  *
  * @param time the timestamp for the message (0 for immediate)
  * @param address the O2 address pattern for the message
+ * @param tcp_flag boolean if true, send message reliably
  *
  * @return the address of the completed message, or NULL on error
  *
- * The message must be freed using o2_free_message() or by calling
- * o2_send_message().
+ * The message must be freed using o2_messge_free() or by calling
+ * o2_message_send().
  */
-o2_message_ptr o2_finish_message(o2_time time, const char *address);
+o2_message_ptr o2_message_finish(o2_time time, const char *address,
+                                 int tcp_flag);
 
 /**
  * \brief finish and return a message, prepending service name
@@ -1261,50 +1342,46 @@ o2_message_ptr o2_finish_message(o2_time time, const char *address);
  * @param time the timestamp for the message (0 for immediate)
  * @param service a string to prepend to address or NULL
  * @param address the O2 address pattern for the message
+ * @param tcp_flag boolean if true, send message reliably
  *
  * @return the address of the completed message, or NULL on error
  *
- * The message must be freed using o2_free_message() or by calling
- * o2_send_message(). This function is intended to be used to 
+ * The message must be freed using o2_messge_free() or by calling
+ * o2_message_send(). This function is intended to be used to 
  * forward OSC messages to a service, but it is the implementation
- * of o2_finish_message(), which simply passes NULL for service.
+ * of o2_message_finish(), which simply passes NULL for service.
  */
-o2_message_ptr o2_finish_service_message(o2_time time,
-             const char *service, const char *address);
+o2_message_ptr o2_service_message_finish(o2_time time,
+             const char *service, const char *address, int tcp_flag);
 
 /**
- * \brief free a message allocated by o2_start_send().
+ * \brief free a message allocated by o2_send_start().
  *
  * This function is not normally used because O2 functions that send
  * messages take "ownership" of messages and (eventually) free them.
  */
-void o2_free_message(o2_message_ptr msg);
+void o2_messge_free(o2_message_ptr msg);
 
 
 /**
- * \brief send a message allocated by o2_start_send().
+ * \brief send a message allocated by o2_send_start().
  *
  * This is similar to calling o2_send(), except you use a three-step
- * process of (1) allocate the message with o2_start_send(), (2) add
+ * process of (1) allocate the message with o2_send_start(), (2) add
  * parameters to it using `o2_add_` functions, and (3) call
- * o2_finish_send() to send it.
+ * o2_send_finish() to send it.
+ *
+ * @param time the timestamp for the message
+ * @param address the destination address including the service name.
+ *                To send a bundle to a service named foo, use the 
+ *                address "/foo/#bundle"
+ * @param tcp_flag boolean that says to send the message reliably.
+ *                 Normally, true means use TCP, and false means use UDP.
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_finish_send(o2_time time, char *address);
+int o2_send_finish(o2_time time, char *address, int tcp_flag);
 
-
-/**
- * \brief send a message allocated by o2_start_send().
- *
- * This is similar to calling o2_send_cmd(), except you use a three-step
- * process of (1) allocate the message with o2_start_send(), (2) add
- * parameters to it using `o2_add_` functions, and (3) call
- * o2_finish_send_cmd() to send it.
- *
- * @return #O2_SUCCESS if success, #O2_FAIL if not.
- */
-int o2_finish_send_cmd(o2_time time, char *address);
 
 /** @} */
 
@@ -1328,16 +1405,16 @@ int o2_finish_send_cmd(o2_time time, char *address);
  *
  * @return length of the type string in msg
  *
- * To get arguments from a message, call o2_start_extract(), then for
+ * To get arguments from a message, call o2_extract_start(), then for
  * each parameter, call o2_get_next().
  */
-int o2_start_extract(o2_msg_data_ptr msg);
+int o2_extract_start(o2_msg_data_ptr msg);
 
 /**
  * \brief get the next message parameter
  *
  * This function is called repeatedly to obtain parameters in order
- * from the message passed to o2_start_extract().
+ * from the message passed to o2_extract_start().
  *
  * If the message parameter type matches the `type_code`, a pointer to
  * the parameter is returned. If the types do not match, but coercion
@@ -1355,7 +1432,7 @@ int o2_start_extract(o2_msg_data_ptr msg);
  *
  * The result points into the message or to a statically allocated
  * buffer if type coercion is required. This storage is valid
- * until the next call to `o2_start_extract`. If the value is a 
+ * until the next call to `o2_extract_start`. If the value is a 
  * pointer (string, symbol, midi data, blob), then the value was
  * not copied and remains in place within the message, so there should
  * never be the need to immediately copy the data pointed to.
@@ -1377,7 +1454,7 @@ returned by o2_get_next().
     int my_handler(o2_message_ptr msg, char *types,
                    o2_arg_ptr *argv, int argc, void *user_data)
     {
-        o2_start_extract(msg);
+        o2_extract_start(msg);
         // we expect an int32 and a double argument
         int32_t my_int = o2_get_next('i')->i32;
         double my_double = o2_get_next('d')->d;
@@ -1400,7 +1477,7 @@ from o2_get_next(), where NULL indicates incompatible types.
     int my_handler(o2_message_ptr msg, char *types,
                    o2_arg_ptr *argv, int argc, void *user_data)
     {
-        o2_start_extract(msg);
+        o2_extract_start(msg);
         // we want to get an int32 and a double argument
         o2_arg_ptr ap = o2_get_next('i');
         if (!ap) return O2_FAIL; // parameter cannot be coerced

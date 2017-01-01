@@ -7,25 +7,41 @@
 //
 
 #include "ctype.h"
-#include "o2.h"
-#include "o2_dynamic.h"
-#include "o2_socket.h"
-#include "o2_search.h"
 #include "o2_internal.h"
 #include "o2_send.h"
-#include "o2_sched.h"
 #include "o2_message.h"
 #include "o2_interoperation.h"
+#include "o2_discovery.h"
+
+
 #include <errno.h>
 
-
-#ifndef MSG_NOSIGNAL
-#define MSG_NOSIGNAL 0
-#endif
 
 #if defined(WIN32) || defined(_MSC_VER)
 int initWSock();
 #endif
+
+
+// to prevent deep recursion, messages go into a queue if we are already
+// delivering a message via o2_msg_data_deliver:
+static int in_find_and_call_handlers = FALSE;
+static o2_message_ptr pending_head = NULL;
+static o2_message_ptr pending_tail = NULL;
+
+
+void o2_deliver_pending()
+{
+    while (pending_head) {
+        o2_message_ptr msg = pending_head;
+        if (pending_head == pending_tail) {
+            pending_head = pending_tail = NULL;
+        } else {
+            pending_head = pending_head->next;
+        }
+        o2_message_send(msg);
+        o2_messge_free(msg);
+    }
+}
 
 
 generic_entry_ptr o2_find_service(const char *service_name)
@@ -33,7 +49,7 @@ generic_entry_ptr o2_find_service(const char *service_name)
     // all callers are passing in (possibly) unaligned strings, so we
     // need to copy the service_name to aligned storage and pad it
     int i;
-    char padded[MAX_SERVICE_LEN + 8]; // 8 allows 4 extra (I think)
+    char padded[MAX_SERVICE_LEN + 8]; // 8 allows for padding
     for (i = 0; i < MAX_SERVICE_LEN; i++) {
         char c = (padded[i] = service_name[i]);
         if (c == '/') {
@@ -50,11 +66,11 @@ generic_entry_ptr o2_find_service(const char *service_name)
     padded[i++] = 0;
     padded[i++] = 0;
 
-    generic_entry_ptr *entry = lookup(&path_tree_table, padded, &i);
+    generic_entry_ptr *entry = o2_lookup(&path_tree_table, padded, &i);
     if (!entry) {
         return NULL;
     }
-    // TODO: can anything else be in the path_tree_table? I guess /o2_ and IP addresses
+    // TODO: can anything else be in the path_tree_table? At least /o2_ and IP addresses
     if ((*entry)->tag == PATTERN_NODE ||
         (*entry)->tag == PATTERN_HANDLER ||
         (*entry)->tag == O2_REMOTE_SERVICE ||
@@ -72,110 +88,102 @@ int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...)
     va_start(ap, typestring);
 
     o2_message_ptr msg;
-    int rslt = o2_build_message(&msg, time, NULL, path, typestring, ap);
+    int rslt = o2_message_build(&msg, time, NULL, path, typestring, tcp_flag,
+                                ap);
 #ifndef O2_NO_DEBUGGING
     if (o2_debug > 2 || // non-o2-system messages only if o2_debug <= 2
         (o2_debug > 1 && msg->data.address[1] != '_' &&
          !isdigit(msg->data.address[1]))) {
             printf("O2: sending%s ", (tcp_flag ? " cmd" : ""));
-            o2_print_msg(&(msg->data));
+            o2_msg_data_print(&(msg->data));
             printf("\n");
         }
 #endif
     if (rslt != O2_SUCCESS) {
         return rslt; // could not allocate a message!
     }
-    return o2_send_message(msg, tcp_flag);
+    return o2_message_send(msg);
 }
 
 
-/*
-BUG: the next two functions are the same except for the unused port parameter:
-
-osc_entry_ptr o2_find_local_osc(const char *service_name, int port)
+int o2_message_send(o2_message_ptr msg)
 {
-    int i;
-    entry_ptr *e = lookup(path_tree_table, service_name, &i);
-    if (!e) {
-        return FALSE;
-    }
-    if (((*e)->generic.tag == OSC_SERVICE) && (!strcmp((*e)->osc_entry.ip, "0"))) {
-        return &(*e)->osc_entry;
-    }
-    return FALSE;
-}
 
-osc_entry_ptr o2_find_remote_osc(const char *service_name)
-{
-    int i;
-    entry_ptr *e = lookup(path_tree_table, service_name, &i);
-    if (!e) {
-        return FALSE;
-    }
-    if (((*e)->generic.tag == OSC_SERVICE) && strcmp((*e)->osc_entry.ip, "0")) {
-        return &(*e)->osc_entry;
-    }
-    return FALSE;
-}
-*/
-
-size_t o2_arg_size(o2_type type, void *data);
-
-
-int send_by_tcp_to_process(fds_info_ptr info, o2_message_ptr msg)
-{
-    // printf("+    %s send by tcp %s\n", debug_prefix, msg->data.address);
-    // Send the length of the message
-    int32_t len = htonl(msg->length);
-    SOCKET fd = INFO_TO_FD(info);
-    if (send(fd, (char *) &len, sizeof(int32_t), MSG_NOSIGNAL) < 0) {
-        perror("o2_send_message writing length");
-        goto send_error;
-    }
-    // Send the message body
-    if (send(fd, (char *) &(msg->data), msg->length, MSG_NOSIGNAL) < 0) {
-        perror("o2_send_message writing data");
-        goto send_error;
-    }
-    return O2_SUCCESS;
-  send_error:
-    if (errno != EAGAIN && errno != EINTR) {
-        o2_remove_remote_process(info);
-    }
-    return O2_FAIL;
-}    
-
-
-int o2_send_message(o2_message_ptr msg, int tcp_flag)
-{
     // Find the remote service, note that we skip over the leading '/':
     generic_entry_ptr service = o2_find_service(msg->data.address + 1);
     if (!service) {
-        o2_free_message(msg);
+        o2_messge_free(msg);
         return O2_FAIL;
+    } else if (service->tag > PATTERN_HANDLER) { // remote delivery?
+        o2_send_remote(&msg->data, msg->tcp_flag, service);
+        o2_messge_free(msg);
+    } else if (msg->data.timestamp > 0.0 &&
+               msg->data.timestamp > o2_gtsched.last_time) { // local delivery
+        return o2_schedule(&o2_gtsched, msg); // local delivery later
+    } else if (in_find_and_call_handlers) {
+        if (pending_tail) {
+            pending_tail->next = msg;
+            pending_tail = msg;
+        } else {
+            pending_head = pending_tail = msg;
+        }
+        return O2_SUCCESS;
+    } else {
+        in_find_and_call_handlers = TRUE;
+        o2_msg_data_deliver(&msg->data, msg->tcp_flag, service);
+        o2_messge_free(msg);
+        in_find_and_call_handlers = FALSE;
     }
-    // Local delivery?
-    if (service->tag <= PATTERN_HANDLER) {
-        return o2_schedule_or_deliver_msg(&o2_gtsched, msg, service);
-    } else if (service->tag == O2_REMOTE_SERVICE) {
+    return O2_SUCCESS;
+}
+
+
+// deliver msg_data; similar to o2_message_send but local future
+//     delivery requires the creation of an o2_message
+int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag)
+{
+    generic_entry_ptr service = o2_find_service(msg->address + 1);
+    if (service->tag > PATTERN_HANDLER) {
+        return o2_send_remote(msg, tcp_flag, service);
+    } else if (msg->timestamp > 0.0 &&
+               msg->timestamp > o2_gtsched.last_time) {
+        // need to schedule o2_msg_data, so we need to copy to an o2_message
+        int len = MSG_DATA_LENGTH(msg);
+        o2_message_ptr message = o2_alloc_size_message(len);
+        memcpy((char *) &(message->data), &msg, len);
+        message->length = len;
+        return o2_schedule(&o2_gtsched, message);
+    } else {
+        o2_msg_data_deliver(msg, tcp_flag, service);
+        return O2_SUCCESS;
+    }
+}
+
+
+int o2_send_remote(o2_msg_data_ptr msg, int tcp_flag, generic_entry_ptr service)
+{
+    if (service->tag == O2_REMOTE_SERVICE) {
         // send the message to remote process
-        remote_service_entry_ptr rse = (remote_service_entry_ptr) service;
-        fds_info_ptr info = DA_GET(o2_fds_info, fds_info, rse->process_index);
+        fds_info_ptr info = DA_GET(o2_fds_info, fds_info,
+                ((remote_service_entry_ptr) service)->process_index);
         if (tcp_flag) {
-            send_by_tcp_to_process(info, msg);
+            return send_by_tcp_to_process(info, msg);
         } else { // send via UDP
             // printf(" +    %s normal udp msg to %s, port %d, ip %x\n",
             //        debug_prefix, msg->data.address,
             //        ntohs(proc->udp_sa.sin_port),
             //        ntohl(proc->udp_sa.sin_addr.s_addr));
-            if (sendto(local_send_sock, (char *) &(msg->data), msg->length,
+#if IS_LITTLE_ENDIAN
+            o2_msg_swap_endian(msg, TRUE);
+#endif
+            if (sendto(local_send_sock, (char *) msg, MSG_DATA_LENGTH(msg),
                        0, (struct sockaddr *) &(info->proc.udp_sa),
                        sizeof(info->proc.udp_sa)) < 0) {
-                perror("o2_send_message");
+                perror("o2_message_send");
                 return O2_FAIL;
             }
             O2_DB4(printf("sent UDP, local_send_sock %d, length %d, proc %p\n",
-                          local_send_sock, msg->length, info));
+                          local_send_sock, MSG_DATA_LENGTH(msg), info));
         }
     } else if (service->tag == OSC_REMOTE_SERVICE) {
         o2_send_osc((osc_entry_ptr) service, msg);
@@ -186,60 +194,31 @@ int o2_send_message(o2_message_ptr msg, int tcp_flag)
 }
 
 
-#ifdef UNUSED
-int o2_send_bundle(o2_service_ptr a, o2_bundle_ptr b)
+int send_by_tcp_to_process(fds_info_ptr info, o2_msg_data_ptr msg)
 {
-    return o2_send_bundle_from(a, NULL, b);
-}
-
-int o2_send_bundle_from(struct remote_process *p, o2_service_ptr from, o2_bundle_ptr b)
-{
-    size_t data_len;
-    char *data = o2_bundle_serialise(b, NULL, &data_len);
-    
-    // Send the bundle
-    int ret = send_data(p, from, data, data_len);
-    
-    // Free the memory allocated by o2_bundle_serialise
-    if (data)
-        O2_FREE(data);
-    
-    return ret;
-}
-
-// From http://tools.ietf.org/html/rfc1055
-#define SLIP_END        0300    /* indicates end of packet */
-#define SLIP_ESC        0333    /* indicates byte stuffing */
-#define SLIP_ESC_END    0334    /* ESC ESC_END means END data byte */
-#define SLIP_ESC_ESC    0335    /* ESC ESC_ESC means ESC data byte */
-
-static unsigned char *slip_encode(const unsigned char *data,
-                                  size_t *data_len)
-{
-    size_t i, j = 0, len=*data_len;
-    unsigned char *slipdata = O2_MALLOC(len*2);
-    for (i=0; i<len; i++) {
-        switch (data[i])
-        {
-            case SLIP_ESC:
-                slipdata[j++] = SLIP_ESC;
-                slipdata[j++] = SLIP_ESC_ESC;
-                break;
-            case SLIP_END:
-                slipdata[j++] = SLIP_ESC;
-                slipdata[j++] = SLIP_ESC_END;
-                break;
-            default:
-                slipdata[j++] = data[i];
-        }
+    // printf("+    %s send by tcp %s\n", debug_prefix, msg->data.address);
+    // Send the length of the message
+    int32_t len = htonl(MSG_DATA_LENGTH(msg));
+    SOCKET fd = INFO_TO_FD(info);
+    if (send(fd, (char *) &len, sizeof(int32_t), MSG_NOSIGNAL) < 0) {
+        perror("o2_message_send writing length");
+        goto send_error;
     }
-    slipdata[j++] = SLIP_END;
-    slipdata[j] = 0;
-    *data_len = j;
-    return slipdata;
-}
-
-
+#if IS_LITTLE_ENDIAN
+    o2_msg_swap_endian(msg, TRUE);
 #endif
+    // Send the message body
+    if (send(fd, (char *) msg, MSG_DATA_LENGTH(msg), MSG_NOSIGNAL) < 0) {
+        perror("o2_message_send writing data");
+        goto send_error;
+    }
+    return O2_SUCCESS;
+  send_error:
+    if (errno != EAGAIN && errno != EINTR) {
+        o2_remove_remote_process(info);
+    }
+    return O2_FAIL;
+}    
+
 
 

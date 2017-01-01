@@ -1,12 +1,13 @@
-//  o2server.c - benchmark for local message passing
+//  tcpserver.c - O2 over TCP check and benchmark for message passing
 //
-//  This program works with o2client.c. It is a performance test
+//  This program works with tcpclient.c. It is a performance test
 //  that sends a message back and forth between a client and server.
 //
 
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
+#include "assert.h"
 
 #ifdef WIN32
 #include <windows.h> 
@@ -23,6 +24,7 @@
 
 char *client_addresses[N_ADDRS];
 int msg_count = 0;
+int running = TRUE;
 
 // this is a handler for incoming messages. It simply sends a message
 // back to one of the client addresses
@@ -30,11 +32,20 @@ int msg_count = 0;
 void server_test(o2_msg_data_ptr msg, const char *types,
                 o2_arg ** argv, int argc, void *user_data)
 {
+    assert(argc == 1);
+    msg_count++;
     o2_send_cmd(client_addresses[msg_count % N_ADDRS], 0, "i", msg_count);
     if (msg_count % 10000 == 0) {
         printf("server received %d messages\n", msg_count);
     }
-    msg_count++;
+    if (msg_count < 100) {
+        printf("server message %d is %d\n", msg_count, argv[0]->i32);
+    }
+    if (argv[0]->i32 == -1) {
+        running = FALSE;
+    } else {
+        assert(msg_count == argv[0]->i32);
+    }
 }
 
 
@@ -47,7 +58,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/server/benchmark/%d", i);
-        o2_add_method(path, "i", &server_test, NULL, FALSE, FALSE);
+        o2_add_method(path, "i", &server_test, NULL, FALSE, TRUE);
     }
     
     // create an address for each destination so we do not have to
@@ -79,11 +90,12 @@ int main(int argc, const char * argv[])
     
     printf("Here we go! ...\ntime is %g.\n", o2_get_time());
     
-    while (TRUE) {
+    while (running) {
         o2_poll();
         //usleep(2000); // 2ms // as fast as possible
     }
 
     o2_finish();
+    printf("SERVER DONE\n");
     return 0;
 }
