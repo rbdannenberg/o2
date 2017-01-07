@@ -70,7 +70,7 @@ typedef struct remote_service_entry {
 } remote_service_entry, *remote_service_entry_ptr;
 
 
-// Hash table entry for o2_delegate_to_osc: this service
+// Hash table entry for o2_osc_delegate: this service
 //    is provided by an OSC server
 typedef struct osc_entry {
     int tag; // must be OSC_REMOTE_SERVICE

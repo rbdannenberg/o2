@@ -647,11 +647,11 @@ int main(int argc, const char * argv[])
     a_midi_msg[3] = 0;
 
     o2_initialize("test");    
-    o2_service_add("one");
+    o2_service_new("one");
 
-    o2_add_method("/one/service_ai", "[i]", &service_ai, NULL, FALSE, FALSE);
-    o2_add_method("/one/service_a", "[]", &service_a, NULL, FALSE, FALSE);
-    o2_add_method("/one/service_aii", "[ii]", &service_aii,
+    o2_method_new("/one/service_ai", "[i]", &service_ai, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_a", "[]", &service_a, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_aii", "[ii]", &service_aii,
                   NULL, FALSE, FALSE);
     // [xixdx] where x is one of: hfcBbtsSmTFIN
     char *xtypes = "ihfdcBbtsSmTFIN";
@@ -661,21 +661,21 @@ int main(int argc, const char * argv[])
         snprintf(type_string, 32, "[%ci%cd%c]", xtype, xtype, xtype);
         char address[32];
         snprintf(address, 32, "/one/service_%ci%cd%c", xtype, xtype, xtype);
-        o2_add_method(address, type_string, &service_xixdx,
+        o2_method_new(address, type_string, &service_xixdx,
                       NULL, FALSE, FALSE);
     }
-    o2_add_method("/one/service_2arrays", "i[ih][fdt]d", &service_2arrays, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_2arrays", "i[ih][fdt]d", &service_2arrays, NULL, FALSE, FALSE);
     // use NULL for type string to disable type-string checking
-    o2_add_method("/one/service_bigarray", NULL, &service_bigarray, NULL, FALSE, FALSE);
-    o2_add_method("/one/service_vi", NULL, &service_vi, NULL, FALSE, FALSE);
-    o2_add_method("/one/service_vf", NULL, &service_vf, NULL, FALSE, FALSE);
-    o2_add_method("/one/service_vh", NULL, &service_vh, NULL, FALSE, FALSE);
-    o2_add_method("/one/service_vd", NULL, &service_vd, NULL, FALSE, FALSE);
-    o2_add_method("/one/service_ifvxif", NULL,
+    o2_method_new("/one/service_bigarray", NULL, &service_bigarray, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_vi", NULL, &service_vi, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_vf", NULL, &service_vf, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_vh", NULL, &service_vh, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_vd", NULL, &service_vd, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_ifvxif", NULL,
                   &service_ifvxif, NULL, FALSE, FALSE);
-    o2_add_method("/one/service_vivd", NULL, &service_vivd, NULL, FALSE, FALSE);
-    o2_add_method("/one/service_coerce", NULL, &service_coerce, NULL, FALSE, FALSE);
-    o2_add_method("/one/service_coerce2", NULL, &service_coerce2, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_vivd", NULL, &service_vivd, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_coerce", NULL, &service_coerce, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_coerce2", NULL, &service_coerce2, NULL, FALSE, FALSE);
     
     o2_send_start();
     o2_add_start_array();

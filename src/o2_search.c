@@ -296,7 +296,7 @@ static void free_entry(generic_entry_ptr entry)
         // nothing special to do here. "parent" is a process,
         // but it is "owned" by pointer in o2_fds_info.
     } // else if OSC_REMOTE_SERVICE: TCP socket, if any, is deleted by
-      // o2_service_remove()
+      // o2_service_free()
     O2_FREE(entry->key);
     O2_FREE(entry);
 }
@@ -366,7 +366,7 @@ int o2_entry_add(node_entry_ptr node, generic_entry_ptr entry)
 //
 // path is "owned" by caller (so it is copied here)
 //
-int o2_add_method(const char *path, const char *typespec,
+int o2_method_new(const char *path, const char *typespec,
                   o2_method_handler h, void *user_data, int coerce, int parse)
 {
     char *key = o2_heapify(path);
@@ -478,7 +478,7 @@ remote_service_entry_ptr o2_remote_process_new_at(
 
 // remove a service from path_tree_table
 //
-int o2_service_remove(char *service_name)
+int o2_service_free(char *service_name)
 {
     generic_entry_ptr *entry_ptr = o2_service_find(service_name);
     if (!*entry_ptr) return O2_FAIL;

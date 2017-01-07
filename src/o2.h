@@ -41,12 +41,15 @@ timestamp of zero (0.0) means deliver the message
 immediately. Messages with non-zero timestamps are only deliverable
 after both the sender and receiver have synchronized clocks.
 
-A service is created using the functions: o2_service_add(service_name)
+A service is created using the functions: 
+
+    o2_service_new("service_name")
+
 and
 
-    o2_add_method("address," "types," handler, user_data, coerce, parse),
+    o2_method_new("address," "types," handler, user_data, coerce, parse),
 
-where o2_add_method is called to install a handler for each node, and each
+where o2_method_new is called to install a handler for each node, and each
 "address" includes the service name as the first node.
 
 Some major components and concepts of O2 are the following:
@@ -131,27 +134,27 @@ Some major components and concepts of O2 are the following:
  */
 
 /// \brief Enable debugging output.
-//
+///
 /// Unless O2_NO_DEBUG is defined at compile time, O2 is
 /// compiled with debugging code that prints information to
 /// stdout, including network addresses, services discovered,
 /// and clock synchronization status. Enable the debugging
 /// information by calling o2_debug_flags() with a string
 /// containing any of the following characters:
-///   c - for basic connection data
-///   r - for tracing non-system incoming messages
-///   s - for tracing non-system outgoing messages
-///   R - for tracing system incoming messages
-///   S - for tracing system outgoing messages
-///   k - for tracing clock synchronization protocol
-///   d - for tracing discovery messages
-///   t - for tracing user messages dispatched from schedulers
-///   T - for tracing system messages dispatched from schedulers
-///   m - trace O2_MALLOC and O2_FREE calls
-///   o - trace socket creating and closing
-///   O - open sound control messages
-///   g - print general status info
-///   a - all debug flags except m (malloc/free)
+///   - c - for basic connection data
+///   - r - for tracing non-system incoming messages
+///   - s - for tracing non-system outgoing messages
+///   - R - for tracing system incoming messages
+///   - S - for tracing system outgoing messages
+///   - k - for tracing clock synchronization protocol
+///   - d - for tracing discovery messages
+///   - t - for tracing user messages dispatched from schedulers
+///   - T - for tracing system messages dispatched from schedulers
+///   - m - trace O2_MALLOC and O2_FREE calls
+///   - o - trace socket creating and closing
+///   - O - open sound control messages
+///   - g - print general status info
+///   - a - all debug flags except m (malloc/free)
 #ifndef O2_NO_DEBUG
 void o2_debug_flags(const char *flags);
 #endif
@@ -486,7 +489,7 @@ typedef enum {
  * \brief union of all O2 parameter types
  *
  * An o2_arg_ptr is a pointer to an O2 message argument. If argument
- * parsing is requested (by setting the parse parameter in o2_add_method),
+ * parsing is requested (by setting the parse parameter in o2_method_new),
  * then the handler receives an array of o2_arg_ptrs. If argument parsing
  * is not requested, you have the option of parsing the message one
  * parameter at a time by calling o2_get_next(), which returns an
@@ -500,7 +503,7 @@ typedef enum {
  * to extract a parameter of type double. (This assumes that the message
  * is properly formed and the type string indicates that this parameter is
  * a double, or that type coercion was enabled by the coerce flag in
- * o2_add_method().)
+ * o2_method_new().)
  */
 typedef union {
     int32_t    i32;  ///< 32 bit signed integer.
@@ -677,32 +680,32 @@ o2_time o2_set_discovery_period(o2_time period);
  * accordingly. E.g. to handle messages addressed to "/synth/volume"
  * you call
  * \code{.c}
- * o2_service_add("synth");
- * o2_add_method("/synth/volume", "f", synth_volume_handler, NULL, NULL, TRUE);
+ * o2_service_new("synth");
+ * o2_method_new("/synth/volume", "f", synth_volume_handler, NULL, NULL, TRUE);
  * \endcode
  * and define `synth_volume_handler` (see the type declaration for
- * #o2_method_handler and o2_add_method())
+ * #o2_method_handler and o2_method_new())
  *
  *  @param service_name the name of the service
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_service_add(char *service_name);
+int o2_service_new(char *service_name);
 
 
 /**
  *  \brief Remove a local service
  *
  * The #service_name corresponds to the parameter previously passed to
- * #o2_service_add or #o2_delegate_to_osc. Note that if an OSC port 
- * forwards to this service (see #o2_osc_port_create), the port remains
- * open, but the OSC messages will be dropped. See #o2_osc_port_remove().
+ * #o2_service_new or #o2_osc_delegate. Note that if an OSC port 
+ * forwards to this service (see #o2_osc_port_new), the port remains
+ * open, but the OSC messages will be dropped. See #o2_osc_port_free().
  *
  * @param service_name the name of the service
  * 
  * @return #O2_SUCCSS if success, #O2_FAIL if not.
  */
-int o2_service_remove(char *service_name);
+int o2_service_free(char *service_name);
 
 
 /**
@@ -726,7 +729,7 @@ int o2_service_remove(char *service_name);
  *
  * @return O2_SUCCESS if succeed, O2_FAIL if not.
  */
-int o2_add_method(const char *path, const char *typespec,
+int o2_method_new(const char *path, const char *typespec,
                   o2_method_handler h, void *user_data, int coerce, int parse);
 
 
@@ -977,7 +980,7 @@ o2_time o2_local_time();
  *
  *  @return return the error message as a string
  */
-const char *o2_get_error(int i);
+const char *o2_error_to_string(int i);
 
 /**
  *  \brief release the memory and shut down O2.
@@ -1005,13 +1008,13 @@ int o2_finish();
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_osc_port_create(const char *service_name, int port_num, int tcp_flag);
+int o2_osc_port_new(const char *service_name, int port_num, int tcp_flag);
 
 /**
  * \brief Remove a port receiving OSC messages.
  *
- * This removes a port created by #o2_osc_port_create(). If you want to 
- * remove the corresponding service, you must also call #o2_service_remove()
+ * This removes a port created by #o2_osc_port_new(). If you want to 
+ * remove the corresponding service, you must also call #o2_service_free()
  * with the service name.
  *
  * @param port_num The port number that receives OSC messages.
@@ -1019,7 +1022,7 @@ int o2_osc_port_create(const char *service_name, int port_num, int tcp_flag);
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  *
  */
-int o2_osc_port_remove(int port_num);
+int o2_osc_port_free(int port_num);
 
 
 /**
@@ -1028,29 +1031,29 @@ int o2_osc_port_remove(int port_num);
  * This function (mostly) bypasses O2 and just constructs a message
  * and sends it directly to an OSC server. This is very similar to
  * o2_send(), except (1) with o2_send(), an O2 message is constructed,
- * then converted to an OSC message, whereas o2_send_osc_message
+ * then converted to an OSC message, whereas o2_osc_message_send
  * constructs the OSC message directly, which is slightly faster;
  * (2) with o2_send(), the message can be sent from any host. If
- * o2_delegate_to_osc() was executed on a different host, the O2 
+ * o2_osc_delegate() was executed on a different host, the O2 
  * message will be sent to that host; then, the message will be 
  * converted to an OSC message and sent to the OSC server. (You could
- * send the message directly by calling o2_delegate_to_osc() on the
+ * send the message directly by calling o2_osc_delegate() on the
  * local host, but service names must be unique across all hosts of 
  * an O2 application, so you must be careful to use distinct service 
- * names. In constrast, o2_send_osc_message() will return an error if 
+ * names. In constrast, o2_osc_message_send() will return an error if 
  * the OSC connection was not made locally; (3) This function cannot
  * be used to send an OSC bundle. To send a bundle, create an O2 bundle
  * message and send it as an O2 message to an OSC service. The bundle
  * will be converted to an OSC bundle.
  *
- * Note: Before calling o2_send_osc_message(), you should first use
- * o2_delegate_to_osc() to connect to the osc service and give it a
+ * Note: Before calling o2_osc_message_send(), you should first use
+ * o2_osc_delegate() to connect to the osc service and give it a
  * service name. Then you can use the service name to send the message.
  * The choice of UDP or TCP depends on the tcp_flag parameter to
- * o2_delegate_to_osc().
+ * o2_osc_delegate().
  *
  * @param service_name The o2 name for the remote osc server, named by calling
- *                     o2_delegate_to_osc(). Do not prefix this name with "/".
+ *                     o2_osc_delegate(). Do not prefix this name with "/".
  * @param path         The osc path, starting with "/".
  * @param typestring   The type string for the message, not including ",".
  * @param ...          The data values to be transmitted.
@@ -1058,12 +1061,12 @@ int o2_osc_port_remove(int port_num);
  * @return O2_SUCCESS if success, O2_FAIL if not.
  */
 /** \hideinitializer */
-#define o2_send_osc_message(service_name, path, typestring, ...) \
-    o2_send_osc_message_marker(service_name, path, typestring, \
+#define o2_osc_message_send(service_name, path, typestring, ...) \
+    o2_osc_message_send_marker(service_name, path, typestring, \
                                O2_MARKER_A, O2_MARKER_B)
 
 /** \cond INTERNAL */ \
-int o2_send_osc_message_marker(char *service_name, const char *path,
+int o2_osc_message_send_marker(char *service_name, const char *path,
                                const char *typestring, ...);
 /** \endcond */
 
@@ -1089,9 +1092,9 @@ int o2_send_osc_message_marker(char *service_name, const char *path,
  *  clock synchronization with the OSC server, which is normally
  *  unimplemented.)
  *
- * If this is a tcp connection, close it by calling #o2_service_remove().
+ * If this is a tcp connection, close it by calling #o2_service_free().
  */
-int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag);
+int o2_osc_delegate(char *service_name, char *ip, int port_num, int tcp_flag);
 
 /**
  *  \brief Set the OSC time offset.
@@ -1104,7 +1107,7 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * OSC time starts at 1 Jan 1900. The offset is the OSC time corresponding
  * to O2 time 0.0. Equivalently, OSC_time = O2_time + offset.
  */
-uint64_t set_osc_time_offset(uint64_t offset);
+uint64_t o2_osc_time_offset(uint64_t offset);
 
 
 /** @} */ // end of Basics
@@ -1140,7 +1143,7 @@ uint64_t set_osc_time_offset(uint64_t offset);
  * A by-product of o2_extract_start() and o2_get_next() is an argument
  * vector (argv) that can be accessed from o2_argv. (This is the same
  * argument vector created automatically when a handler is added with
- * o2_add_method() when the parse parameter is true.) A possible
+ * o2_method_new() when the parse parameter is true.) A possible
  * advantage of using a sequence of o2_get_next() calls rather than
  * simply setting the parse flag is that you can receive messages with
  * various types and numbers of parameters. Also, you can check vector
@@ -1532,7 +1535,7 @@ int o2_extract_start(o2_msg_data_ptr msg);
  *
 ### Example 1: Simple but not completely robust
 
-Note: call o2_add_method() with type_spec = "id", h = my_handler,
+Note: call o2_method_new() with type_spec = "id", h = my_handler,
 coerce = false, parse = false. In this case, since there is
 no type coercion, type_spec must match the message exactly,
 so o2_get_next() should always return a non-null o2_arg_ptr.
@@ -1553,7 +1556,7 @@ returned by o2_get_next().
 
 ### Example 2: Type coercion and type checking.
 
-Note: call o2_add_method() with type_spec = NULL, h = my_handler,
+Note: call o2_method_new() with type_spec = NULL, h = my_handler,
 coerce = false, parse = false. In this case, even though
 coerce is false, there is no type_spec, so the handler will
 be called without type checking. We could check the

@@ -6,7 +6,7 @@
 //
 /* Design notes:
  *    We handle incoming OSC ports using 
- * o2_osc_port_create(service_name, port_num, tcp_flag), which puts an
+ * o2_osc_port_new(service_name, port_num, tcp_flag), which puts an
  * entry in the fds_info table that says incoming OSC messages are 
  * handled by the service_name (which may or may not be local). Thus, 
  * when an OSC message arrives, we use the incoming data to construct 
@@ -18,7 +18,7 @@
  * either a local dispatch or forwarding to an O2 service.
  *
  *   We handle outgoing OSC messages using
- * o2_delegate_to_osc(service_name, ip, port_num), which puts an
+ * o2_osc_delegate(service_name, ip, port_num), which puts an
  * entry in the top-level hash table with the OSC socket.
  */
 
@@ -34,7 +34,7 @@ static o2_message_ptr osc_to_o2(int32_t len, char *oscmsg, char *service);
 
 static uint64_t osc_time_offset = 0;
 
-uint64_t set_osc_time_offset(uint64_t offset)
+uint64_t o2_osc_time_offset(uint64_t offset)
 {
     uint64_t old = osc_time_offset;
     osc_time_offset = offset;
@@ -69,7 +69,7 @@ uint64_t o2_time_to_osc(o2_time o2time)
  *
  * Algorithm: Add a socket, put service name in info
  */
-int o2_osc_port_create(const char *service_name, int port_num, int tcp_flag)
+int o2_osc_port_new(const char *service_name, int port_num, int tcp_flag)
 {
     fds_info_ptr info;
     if (tcp_flag) {
@@ -83,7 +83,7 @@ int o2_osc_port_create(const char *service_name, int port_num, int tcp_flag)
 }
 
 
-int o2_osc_port_remove(int port_num)
+int o2_osc_port_free(int port_num)
 {
     int result = O2_FAIL;
     char *service_name_copy = NULL;
@@ -115,7 +115,7 @@ int o2_osc_port_remove(int port_num)
  * of an address. path is a normal OSC address string and is not prefixed
  * with an O2 service name.
  */
-int o2_send_osc_message_marker(char *service_name, const char *path,
+int o2_osc_message_send_marker(char *service_name, const char *path,
                                const char *typestring, ...)
 {
     va_list ap;
@@ -131,7 +131,7 @@ int o2_send_osc_message_marker(char *service_name, const char *path,
 
 
 // messages to this service are forwarded as OSC messages
-int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
+int o2_osc_delegate(char *service_name, char *ip, int port_num, int tcp_flag)
 {
     int ret = O2_SUCCESS;
     if (streql(ip, "")) ip = "localhost";
@@ -400,6 +400,6 @@ int o2_send_osc(osc_entry_ptr service, o2_msg_data_ptr msg)
     }
     return O2_SUCCESS;
   close_socket:
-    o2_service_remove(service->key);
+    o2_service_free(service->key);
     return O2_FAIL;
 }

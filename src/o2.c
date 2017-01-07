@@ -202,17 +202,17 @@ The process name is freed by o2_remove_remote_process().
 
 OSC Service Name: Allocation, References, Freeing
 -------------------------------------------------
-o2_osc_port_create() creates a tcp service or incoming udp port
+o2_osc_port_new() creates a tcp service or incoming udp port
 for OSC messages that are redirected to an O2 service. The
 service name is copied to the heap and stored as
 osc_service_name in the fds_info record associated with the
 socket. For UDP, there are no other references, and the
 osc_service_name is freed when the UDP socket is removed by
-calling o2_osc_port_remove(). For TCP, the osc_service_name
+calling o2_osc_port_free(). For TCP, the osc_service_name
 is shared between the OSC_TCP_SERVER_SOCKET and any 
 OSC_TCP_SOCKET that was accepted from the server socket.
 These sockets and their shared osc_service_name are also
-removed by o2_osc_port_remove().
+removed by o2_osc_port_free().
 
 
 Byte Order
@@ -368,18 +368,18 @@ int o2_initialize(char *application_name)
     // Initialize discovery, tcp, and udp sockets.
     if ((err = o2_sockets_initialize())) goto cleanup;
     
-    o2_service_add("_o2");
-    o2_add_method("/_o2/dy", "ssii", &o2_discovery_handler, NULL, FALSE, FALSE);
-    // TODO: DELETE     o2_add_method("/_o2/in", "siii", &o2_discovery_init_handler,
+    o2_service_new("_o2");
+    o2_method_new("/_o2/dy", "ssii", &o2_discovery_handler, NULL, FALSE, FALSE);
+    // TODO: DELETE     o2_method_new("/_o2/in", "siii", &o2_discovery_init_handler,
     //                                NULL, FALSE, FALSE);
     // "/sv/" service messages are sent by tcp as ordinary O2 messages, so they
     // are addressed by full name (IP:PORT). We cannot call them /_o2/sv:
     char address[32];
     snprintf(address, 32, "/%s/sv", o2_process->proc.name);
-    o2_add_method(address, NULL, &o2_services_handler, NULL, FALSE, FALSE);
+    o2_method_new(address, NULL, &o2_services_handler, NULL, FALSE, FALSE);
     snprintf(address, 32, "/%s/cs/cs", o2_process->proc.name);
-    o2_add_method(address, "s", &o2_clocksynced_handler, NULL, FALSE, FALSE);
-    o2_add_method("/_o2/ds", NULL, &o2_discovery_send_handler,
+    o2_method_new(address, "s", &o2_clocksynced_handler, NULL, FALSE, FALSE);
+    o2_method_new("/_o2/ds", NULL, &o2_discovery_send_handler,
                   NULL, FALSE, FALSE);
     o2_time_initialize();
     o2_sched_initialize();
@@ -430,7 +430,7 @@ void o2_notify_others(char *service_name, int added)
 }
 
 
-int o2_service_add(char *service_name)
+int o2_service_new(char *service_name)
 {    
 //#if defined(WIN32) || defined(_MSC_VER)
     /* Windows Server 2003 or later (Vista, 7, etc.) must join the
@@ -449,7 +449,7 @@ int o2_service_add(char *service_name)
     DA_LAST(o2_process->proc.services, service_table)->name = service_name;
     
     if (!o2_tree_insert_node(&path_tree_table, service_name)) {
-        O2_DBD(printf("%s o2_service_add failed at o2_tree_insert_node (%s)\n",
+        O2_DBD(printf("%s o2_service_new failed at o2_tree_insert_node (%s)\n",
                       o2_debug_prefix, service_name));
         return O2_FAIL;
     }
@@ -553,9 +553,32 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 
 
 static char o2_error_msg[100];
-const char *o2_get_error(int i)
+static char *error_strings[] = {
+    "O2_SUCCESS",
+    "O2_FAIL",
+    "O2_SERVICE_CONFLICT",
+    "O2_NO_SERVICE",
+    "O2_NO_MEMORY",
+    "O2_ALREADY_RUNNING",
+    "O2_BAD_NAME",
+    "O2_BAD_TYPE",
+    "O2_BAD_ARGS",
+    "O2_TCP_HUP",
+    "O2_HOSTNAME_TO_NETADDR_FAIL",
+    "O2_TCP_CONNECT_FAIL",
+    "O2_NO_CLOCK",
+    "O2_NO_HANDLER",
+    "O2_INVALID_MSG",
+    "O2_SEND_FAIL" };
+    
+
+const char *o2_error_to_string(int i)
 {
-    sprintf(o2_error_msg, "O2 error, code is %d", i);
+    if (i < 1 && i >= O2_SEND_FAIL) {
+        sprintf(o2_error_msg, "O2 error %s", error_strings[-i]);
+    } else {
+        sprintf(o2_error_msg, "O2 error, code is %d", i);
+    }
     return o2_error_msg;
 }
 

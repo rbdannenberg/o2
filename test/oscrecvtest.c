@@ -1,4 +1,4 @@
-//  oscrecvtest.c - test o2_osc_port_create()
+//  oscrecvtest.c - test o2_osc_port_new()
 //
 //  this test is designed to run with oscsendtest.c
 
@@ -62,15 +62,15 @@ int main(int argc, const char * argv[])
     o2_initialize("test");
 
     printf("tcpflag %d\n", tcpflag);
-    assert(o2_osc_port_create("osc", 8100, tcpflag) == O2_SUCCESS);
+    assert(o2_osc_port_new("osc", 8100, tcpflag) == O2_SUCCESS);
     
     o2_clock_set(NULL, NULL);
-    o2_add_method("/osc/i", "i", osc_i_handler, NULL, FALSE, TRUE);
+    o2_method_new("/osc/i", "i", osc_i_handler, NULL, FALSE, TRUE);
     while (message_count < 10 || timed_count < 10) {
         o2_poll();
         usleep(10000); // 10ms
     }
-    o2_osc_port_remove(8100);
+    o2_osc_port_free(8100);
     o2_finish();
     printf("OSCRECV DONE\n");
     sleep(1); // allow TCP to finish up

@@ -43,8 +43,8 @@ void clockslave(o2_msg_data_ptr msg, const char *types,
 int main(int argc, const char * argv[])
 {
     o2_initialize("test");
-    o2_service_add("client");
-    o2_add_method("/client/clockslave", "", &clockslave, NULL, FALSE, FALSE);
+    o2_service_new("client");
+    o2_method_new("/client/clockslave", "", &clockslave, NULL, FALSE, FALSE);
     // this particular handler ignores all parameters, so this is OK:
     // start polling and reporting status
     clockslave(NULL, NULL, NULL, 0, NULL);

@@ -1,4 +1,4 @@
-//  oscsendtest.c - test o2_delegate_to_osc()
+//  oscsendtest.c - test o2_osc_delegate()
 //
 //  this test is designed to run with oscrecvtest.c
 
@@ -45,7 +45,7 @@ int main(int argc, const char * argv[])
         o2_poll();
     }
 
-    assert(o2_delegate_to_osc("osc", "localhost", 8100, tcpflag) == O2_SUCCESS);
+    assert(o2_osc_delegate("osc", "localhost", 8100, tcpflag) == O2_SUCCESS);
     
     // send 12 messages, 1 every 0.5s, and stop
     for (int n = 0; n < 12; n++) {
@@ -67,7 +67,7 @@ int main(int argc, const char * argv[])
         o2_poll();
         usleep(2000); // 2ms
     }
-    o2_service_remove("osc");
+    o2_service_free("osc");
     o2_finish();
     sleep(1); // finish closing sockets
     printf("OSCSEND DONE\n");

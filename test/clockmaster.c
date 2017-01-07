@@ -39,8 +39,8 @@ void clockmaster(o2_msg_data_ptr msg, const char *types,
 int main(int argc, const char * argv[])
 {
     o2_initialize("test");
-    o2_service_add("server");
-    o2_add_method("/server/clockmaster", "", &clockmaster, NULL, FALSE, FALSE);
+    o2_service_new("server");
+    o2_method_new("/server/clockmaster", "", &clockmaster, NULL, FALSE, FALSE);
     // we are the master clock
     o2_clock_set(NULL, NULL);
     o2_send("!server/clockmaster", 0.0, ""); // start polling

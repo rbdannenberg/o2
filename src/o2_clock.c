@@ -162,7 +162,7 @@ static int o2_send_clocksync(fds_info_ptr info)
 static void compute_osc_time_offset(o2_time now)
 {
     // osc_time_offset is initialized using system clock, but you
-    // can call set_osc_time_offset() to change it, e.g. periodically
+    // can call o2_osc_time_offset() to change it, e.g. periodically
     // using a different time source
 #ifdef WIN32
     // this code comes from liblo
@@ -188,7 +188,7 @@ static void compute_osc_time_offset(o2_time now)
     osc_time = (osc_time << 32) + (uint64_t) (tv.tv_usec * 4294.967295);
 #endif
     osc_time -= (uint64_t) (now * 4294967296.0);
-    set_osc_time_offset(osc_time);
+    o2_osc_time_offset(osc_time);
     O2_DBK(printf("%s osc_time_offset (in sec) %g\n",
                   o2_debug_prefix, osc_time / 4294967296.0));
 }
@@ -320,7 +320,7 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
                 char path[48]; // enough room for !IP:PORT/cs/get-reply
                 snprintf(path, 48, "!%s/cs/get-reply",
                          o2_process->proc.name);
-                o2_add_method(path, "it", &cs_ping_reply_handler,
+                o2_method_new(path, "it", &cs_ping_reply_handler,
                               NULL, FALSE, FALSE);
                 snprintf(path, 32, "!%s/cs", o2_process->proc.name);
                 clock_sync_reply_to = o2_heapify(path);
@@ -350,8 +350,8 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
 void o2_clock_initialize()
 {
     is_master = FALSE;
-    o2_add_method("/_o2/ps", "", &o2_ping_send_handler, NULL, FALSE, TRUE);
-    o2_add_method("/_o2/cu", "i", &catch_up_handler, NULL, FALSE, TRUE);
+    o2_method_new("/_o2/ps", "", &o2_ping_send_handler, NULL, FALSE, TRUE);
+    o2_method_new("/_o2/cu", "i", &catch_up_handler, NULL, FALSE, TRUE);
 }
 
 
@@ -399,8 +399,8 @@ int o2_clock_set(o2_time_callback callback, void *data)
 
     if (!is_master) {
         o2_clock_synchronized(new_local_time, new_local_time);
-        o2_service_add("_cs");
-        o2_add_method("/_cs/get", "is", &cs_ping_handler, NULL, FALSE, FALSE);
+        o2_service_new("_cs");
+        o2_method_new("/_cs/get", "is", &cs_ping_handler, NULL, FALSE, FALSE);
         O2_DBG(printf("%s master clock established, time is now %g\n",
                      o2_debug_prefix, o2_local_time()));
         is_master = TRUE;

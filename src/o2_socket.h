@@ -107,10 +107,10 @@ typedef struct fds_info {
               // received on the port.
               // If this is an OSC_SOCKET or OSC_TCP_SERVER_SOCKET,
               // this is the corresponding port number that is used by
-              // o2_osc_port_remove(). If this is an OSC_TCP_SOCKET, then
+              // o2_osc_port_free(). If this is an OSC_TCP_SOCKET, then
               // this is the port number of the OSC_TCP_SERVER_SOCKET from
               // which this socket was accepted. (It is used by
-              // o2_osc_port_remove() to identify the sockets to close.)
+              // o2_osc_port_free() to identify the sockets to close.)
     union {
         struct {
             char *name; // e.g. "128.2.1.100:55765", this is used so that when

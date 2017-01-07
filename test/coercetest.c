@@ -349,7 +349,7 @@ void send_the_message()
 int main(int argc, const char * argv[])
 {
     o2_initialize("test");    
-    o2_service_add("one");
+    o2_service_new("one");
 
     char address[32];
     for (int i = 0; i < 8; i++) {
@@ -358,45 +358,45 @@ int main(int argc, const char * argv[])
         send_types[0] = send_type;
         send_types[1] = 0;
         snprintf(address, 32, "/one/%ci", send_type);
-        o2_add_method(address, send_types, &service_i, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, &service_i, NULL, TRUE, FALSE);
 
         snprintf(address, 32, "/one/%cB", send_type);
-        o2_add_method(address, send_types, service_B, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_B, NULL, TRUE, FALSE);
     
         snprintf(address, 32, "/one/%ch", send_type);
-        o2_add_method(address, send_types, service_h, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_h, NULL, TRUE, FALSE);
 
         snprintf(address, 32, "/one/%cf", send_type);
-        o2_add_method(address, send_types, service_f, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_f, NULL, TRUE, FALSE);
 
         snprintf(address, 32, "/one/%cd", send_type);
-        o2_add_method(address, send_types, service_d, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_d, NULL, TRUE, FALSE);
 
         snprintf(address, 32, "/one/%ct", send_type);
-        o2_add_method(address, send_types, service_t, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_t, NULL, TRUE, FALSE);
 
         snprintf(address, 32, "/one/%cT", send_type);
-        o2_add_method(address, send_types, service_T, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_T, NULL, TRUE, FALSE);
 
         snprintf(address, 32, "/one/%cF", send_type);
-        o2_add_method(address, send_types, service_F, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_F, NULL, TRUE, FALSE);
     }
-    o2_add_method("/one/sS", "S", service_S, NULL, TRUE, FALSE);
-    o2_add_method("/one/Ss", "s", service_s, NULL, TRUE, FALSE);
+    o2_method_new("/one/sS", "S", service_S, NULL, TRUE, FALSE);
+    o2_method_new("/one/Ss", "s", service_s, NULL, TRUE, FALSE);
     
-    o2_add_method("/one/ip", "i", &service_ip, NULL, TRUE, TRUE);
-    o2_add_method("/one/Bp", "B", &service_Bp, NULL, TRUE, TRUE);
-    o2_add_method("/one/hp", "h", &service_hp, NULL, TRUE, TRUE);
-    o2_add_method("/one/fp", "f", &service_fp, NULL, TRUE, TRUE);
-    o2_add_method("/one/dp", "d", &service_dp, NULL, TRUE, TRUE);
-    o2_add_method("/one/tp", "t", &service_tp, NULL, TRUE, TRUE);
-    o2_add_method("/one/Tp", "T", &service_Tp, NULL, TRUE, TRUE);
-    o2_add_method("/one/Fp", "F", &service_Fp, NULL, TRUE, TRUE);
-    o2_add_method("/one/sp", "s", &service_sp, NULL, TRUE, TRUE);
-    o2_add_method("/one/Sp", "S", &service_Sp, NULL, TRUE, TRUE);
+    o2_method_new("/one/ip", "i", &service_ip, NULL, TRUE, TRUE);
+    o2_method_new("/one/Bp", "B", &service_Bp, NULL, TRUE, TRUE);
+    o2_method_new("/one/hp", "h", &service_hp, NULL, TRUE, TRUE);
+    o2_method_new("/one/fp", "f", &service_fp, NULL, TRUE, TRUE);
+    o2_method_new("/one/dp", "d", &service_dp, NULL, TRUE, TRUE);
+    o2_method_new("/one/tp", "t", &service_tp, NULL, TRUE, TRUE);
+    o2_method_new("/one/Tp", "T", &service_Tp, NULL, TRUE, TRUE);
+    o2_method_new("/one/Fp", "F", &service_Fp, NULL, TRUE, TRUE);
+    o2_method_new("/one/sp", "s", &service_sp, NULL, TRUE, TRUE);
+    o2_method_new("/one/Sp", "S", &service_Sp, NULL, TRUE, TRUE);
 
-    o2_add_method("/one/many", "hifdt", &service_many, NULL, TRUE, FALSE);
-    o2_add_method("/one/manyp", "ihdff", &service_manyp, NULL, TRUE, TRUE);
+    o2_method_new("/one/many", "hifdt", &service_many, NULL, TRUE, FALSE);
+    o2_method_new("/one/manyp", "ihdff", &service_manyp, NULL, TRUE, TRUE);
 
     o2_send("/one/many", 0, "hifdt", 12345LL, 1234,
             123.456, 123.456, 123.456);

@@ -65,12 +65,12 @@ int main(int argc, const char *argv[])
     }
 
     o2_initialize("test");
-    o2_service_add("client");
+    o2_service_new("client");
     
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/client/benchmark/%d", i);
-        o2_add_method(path, "i", &client_test, NULL, FALSE, TRUE);
+        o2_method_new(path, "i", &client_test, NULL, FALSE, TRUE);
     }
     
     for (int i = 0; i < N_ADDRS; i++) {

@@ -45,18 +45,18 @@ void service_two(o2_msg_data_ptr data, const char *types,
 int main(int argc, const char * argv[])
 {
     o2_initialize("test");    
-    o2_service_add("one");
+    o2_service_new("one");
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/one/benchmark/%d", i);
-        o2_add_method(path, "i", &service_one, NULL, FALSE, FALSE);
+        o2_method_new(path, "i", &service_one, NULL, FALSE, FALSE);
     }
     
-    o2_service_add("two");
+    o2_service_new("two");
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/two/benchmark/%d", i);
-        o2_add_method(path, "i", &service_two, NULL, FALSE, FALSE);
+        o2_method_new(path, "i", &service_two, NULL, FALSE, FALSE);
     }
 
     o2_send("/one/benchmark/0", 0, "i", 0);

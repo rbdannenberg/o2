@@ -54,10 +54,10 @@ int main(int argc, const char * argv[])
     // we are the master clock
     o2_clock_set(NULL, NULL);
 
-    o2_service_add("midi");
+    o2_service_new("midi");
     
     // add our handler for incoming messages to each server address
-    o2_add_method("/midi/midi", "iii", &midi_handler, NULL, TRUE, TRUE);
+    o2_method_new("/midi/midi", "iii", &midi_handler, NULL, TRUE, TRUE);
     
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     

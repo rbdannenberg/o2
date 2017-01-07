@@ -62,13 +62,13 @@ int main(int argc, const char * argv[])
     }
 
     o2_initialize("test");
-    o2_service_add("server");
+    o2_service_new("server");
     
     // add our handler for incoming messages to each server address
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/server/benchmark/%d", i);
-        o2_add_method(path, "i", &server_test, NULL, FALSE, TRUE);
+        o2_method_new(path, "i", &server_test, NULL, FALSE, TRUE);
     }
     
     // create an address for each destination so we do not have to

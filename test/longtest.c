@@ -100,7 +100,7 @@ int main(int argc, const char * argv[])
     char address[32];
     char types[200];
     o2_initialize("test");    
-    o2_service_add("one");
+    o2_service_new("one");
 
     // send from 0 to N-1 floats, without coercion
     for (int i = 0; i < N; i++) {
@@ -109,7 +109,7 @@ int main(int argc, const char * argv[])
             types[j] = 'f';
         }
         types[i] = 0;
-        o2_add_method(address, types, &service_f, NULL, FALSE, FALSE);
+        o2_method_new(address, types, &service_f, NULL, FALSE, FALSE);
         o2_send_start();
         for (int j = 0; j < i; j++) {
             o2_add_float(j + 123.0F);
@@ -127,7 +127,7 @@ int main(int argc, const char * argv[])
             types[j] = 'd';
         }
         types[i] = 0;
-        o2_add_method(address, types, &service_d, NULL, FALSE, FALSE);
+        o2_method_new(address, types, &service_d, NULL, FALSE, FALSE);
         o2_send_start();
         for (int j = 0; j < i; j++) {
             o2_add_double(j + 1234);
@@ -145,7 +145,7 @@ int main(int argc, const char * argv[])
             types[j] = 'i';
         }
         types[i] = 0;
-        o2_add_method(address, types, &service_fc, NULL, TRUE, TRUE);
+        o2_method_new(address, types, &service_fc, NULL, TRUE, TRUE);
         o2_send_start();
         for (int j = 0; j < i; j++) {
             o2_add_float(j + 123.0F);
@@ -164,7 +164,7 @@ int main(int argc, const char * argv[])
             types[j] = 'h';
         }
         types[i] = 0;
-        o2_add_method(address, types, &service_dc, NULL, TRUE, TRUE);
+        o2_method_new(address, types, &service_dc, NULL, TRUE, TRUE);
         o2_send_start();
         for (int j = 0; j < i; j++) {
             o2_add_double(j + 1234);
