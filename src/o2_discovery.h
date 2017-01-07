@@ -9,7 +9,7 @@
 #ifndef o2_discovery_h
 #define o2_discovery_h
 
-#define PORT_MAX  5
+#define PORT_MAX  16
 
 extern SOCKET o2_discovery_socket;
 extern int o2_port_map[16];

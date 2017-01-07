@@ -36,9 +36,9 @@ void service_two(o2_msg_data_ptr data, const char *types,
 int main(int argc, const char * argv[])
 {
     o2_initialize("test");
-    o2_add_service("one");
+    o2_service_add("one");
     o2_add_method("/one/i", "i", &service_one, NULL, TRUE, TRUE);  
-    o2_add_service("two");
+    o2_service_add("two");
     o2_add_method("/two/i", "i", &service_two, NULL, TRUE, TRUE);
 
     // make a bundle, starting with two messages

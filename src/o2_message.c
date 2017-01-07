@@ -58,6 +58,7 @@
 #include "o2_internal.h"
 #include "o2_message.h"
 #include "o2_discovery.h"
+#include "o2_send.h"
 
 
 // --------- PART 1 : SCRATCH AREAS FOR MESSAGE CONSTRUCTION --------
@@ -421,7 +422,11 @@ int *o2_msg_len_ptr()
 
 int o2_set_msg_length(int32_t *msg_len_ptr)
 {
-    *msg_len_ptr = (msg_data.array + msg_data.length) - PTR(msg_len_ptr + 1);
+    int32_t len = (msg_data.array + msg_data.length) - PTR(msg_len_ptr + 1);
+#if IS_LITTLE_ENDIAN
+    len = swap32(len);
+#endif
+    *msg_len_ptr = len;
     return O2_SUCCESS;
 }
 
@@ -542,31 +547,33 @@ MX_TYPE(rd_int64, int64_t)
 /// a free list of 240-byte (MESSAGE_DEFAULT_SIZE) o2_messages
 o2_message_ptr message_freelist = NULL;
 
-
 // get a free message of size MESSAGE_DEFAULT_SIZE
 static o2_message_ptr message_alloc()
 {
     o2_message_ptr msg;
     if (!message_freelist) {
-        msg = (o2_message_ptr)o2_malloc(MESSAGE_DEFAULT_SIZE);
+        msg = (o2_message_ptr) o2_malloc(MESSAGE_DEFAULT_SIZE);
+        // printf("new msg %p\n", msg);
         msg->allocated = MESSAGE_ALLOCATED_FROM_SIZE(MESSAGE_DEFAULT_SIZE);
         MSG_ZERO_END(msg, MESSAGE_DEFAULT_SIZE);
-    }
-    else {
+    } else {
         msg = message_freelist;
         message_freelist = message_freelist->next;
+        msg->length = 0;
     }
     return msg;
 }
 
 
-void o2_messge_free(o2_message_ptr msg)
+void o2_message_free(o2_message_ptr msg)
 {
+    assert(msg->length != -1);  // check if message is already freed
+    msg->length = -1;
     if (msg->allocated == MESSAGE_ALLOCATED_FROM_SIZE(MESSAGE_DEFAULT_SIZE)) {
         msg->next = message_freelist;
         message_freelist = msg;
     } else {
-        o2_free(msg);
+        O2_FREE(msg);
     }
 }
 
@@ -575,7 +582,7 @@ void o2_message_list_free(o2_message_ptr msg)
 {
     while (msg) {
         o2_message_ptr next = msg->next;
-        o2_messge_free(msg);
+        o2_message_free(msg);
         msg = next;
     }
 }
@@ -586,8 +593,7 @@ o2_message_ptr o2_alloc_size_message(int size)
     if (size <= MESSAGE_ALLOCATED_FROM_SIZE(MESSAGE_DEFAULT_SIZE)) {
         // standard pre-allocated message is big enough so use one */
         return message_alloc();
-    }
-    else {
+    } else {
         o2_message_ptr msg = (o2_message_ptr)
             o2_malloc(MESSAGE_SIZE_FROM_ALLOCATED(size));
         msg->allocated = size;
@@ -721,11 +727,13 @@ ssize_t o2_validate_bundle(void *data, ssize_t size)
 
 #endif // VALIDATION_FUNCTIONS
 
+#define PREPARE_TO_ACCESS(typ) \
+    char *end = data_next + sizeof(typ); \
+    if (end > end_of_msg) return O2_INVALID_MSG;
 
 /* convert endianness of a message */
-void o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
+int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
 {
-    // do not write beyond barrier (message may be malformed)
     char *types = O2_MSG_TYPES(msg);
     int types_len = (int) strlen(types);
     char *data_next = WORD_ALIGN_PTR(types + types_len + 4);
@@ -740,48 +748,66 @@ void o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
             if (is_host_order) len = *len_ptr;
             *len_ptr = swap32(*len_ptr);
             if (!is_host_order) len = *len_ptr;
+            if (PTR(msg) + len > end_of_msg) {
+                return O2_FAIL;
+            }
             o2_msg_swap_endian(embedded, is_host_order));
-        return;
+        return O2_SUCCESS;
     }
+    // do not write beyond barrier (message may be malformed)
     char *end_of_msg = PTR(msg) + MSG_DATA_LENGTH(msg);
-    while (*types && data_next < end_of_msg) {
+    while (*types) {
+        if (data_next >= end_of_msg) {
+            return O2_FAIL;
+        }
         switch (*types) {
             case O2_INT32:
             case O2_FLOAT:
             case O2_CHAR: {
+                PREPARE_TO_ACCESS(int32_t);
                 int32_t i = *(int32_t *)data_next;
                 *(int32_t *)data_next = swap32(i);
-                data_next += sizeof(int32_t);
+                data_next = end;
                 break;
             }
             case O2_BLOB: {
-                // this is a bit tricky: increment data_next by the
+                int32_t size;
+                PREPARE_TO_ACCESS(int32_t);
+                // this is a bit tricky: size gets the
                 // blob length field either before swapping or after
                 // swapping, depending on whether the message starts
                 // out in host order or not.
                 int32_t *len_ptr = (int32_t *) data_next;
-                if (is_host_order) data_next += *len_ptr;
+                if (is_host_order) size = *len_ptr;
                 *len_ptr = swap32(*len_ptr);
-                if (!is_host_order) data_next += *len_ptr;
+                if (!is_host_order) size = *len_ptr;
+                // now skip the blob data
+                end += size;
+                if (end > end_of_msg) return O2_INVALID_MSG;
+                data_next = end;
                 break;
             }
             case O2_TIME:
             case O2_INT64:
             case O2_DOUBLE: {
+                PREPARE_TO_ACCESS(int64_t);
                 int64_t i = *(int64_t *)data_next;
-                if (data_next + sizeof(int64_t) <= end_of_msg) {
-                    *(int64_t *)data_next = swap64(i);
-                }
-                data_next += sizeof(int64_t);
+                *(int64_t *)data_next = swap64(i);
+                data_next = end;
                 break;
             }
             case O2_STRING:
-            case O2_SYMBOL:
-                data_next += o2_strsize(data_next);
+            case O2_SYMBOL: {
+                char *end = data_next + o2_strsize(data_next);
+                if (end > end_of_msg) return O2_INVALID_MSG;
+                data_next = end;
                 break;
-            case O2_MIDI:
-                data_next += 4;
+            }
+            case O2_MIDI: {
+                PREPARE_TO_ACCESS(int32_t);
+                data_next = end;
                 break;
+            }
             case O2_TRUE:
             case O2_FALSE:
             case O2_NIL:
@@ -789,32 +815,33 @@ void o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
                 /* these are fine, no data to modify */
                 break;
             case O2_VECTOR: {
+                PREPARE_TO_ACCESS(int32_t);
                 int32_t *len_ptr = (int32_t *) data_next;
                 int len;
                 if (is_host_order) len = *len_ptr;
                 *len_ptr = swap32(*len_ptr);
                 if (!is_host_order) len = *len_ptr;
-                if (data_next + len < end_of_msg) {
-                    data_next += sizeof(int32_t);
-                    len /= 4;
-                    char vtype = *types++;
-                    if (vtype == O2_DOUBLE || vtype == O2_INT64) {
-                        len /= 2;
+                data_next = end;
+                // now test for vector data within end_of_msg
+                end += len;
+                if (end > end_of_msg) return O2_INVALID_MSG;
+                // swap each vector element
+                len /= 4; // assuming 32-bit elements
+                char vtype = *types++;
+                if (vtype == O2_DOUBLE || vtype == O2_INT64) {
+                    len /= 2; // half as many elements if they are 64-bits
+                }
+                for (int i = 0; i < len; i++) { // for each vector element
+                    if (i > 0) printf(" ");
+                    if (vtype == O2_INT32 || vtype == O2_FLOAT) {
+                        *(int32_t *)data_next =
+                                swap32(*(int32_t *)data_next);
+                        data_next += sizeof(int32_t);
+                    } else if (vtype == O2_INT64 || vtype == O2_DOUBLE) {
+                        *(int64_t *)data_next =
+                                swap64(*(int64_t *)data_next);
+                        data_next += sizeof(int64_t);
                     }
-                    for (int i = 0; i < len; i++) {
-                        if (i > 0) printf(" ");
-                        if (vtype == O2_INT32 || vtype == O2_FLOAT) {
-                            *(int32_t *)data_next =
-                                    swap32(*(int32_t *)data_next);
-                            data_next += sizeof(int32_t);
-                        } else if (vtype == O2_INT64 || vtype == O2_DOUBLE) {
-                            *(int64_t *)data_next =
-                                    swap64(*(int64_t *)data_next);
-                            data_next += sizeof(int64_t);
-                        }
-                    }
-                } else {
-                    data_next += len;
                 }
                 break;
             }
@@ -822,10 +849,11 @@ void o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
                 fprintf(stderr,
                         "O2 warning: unhandled type '%c' at %s:%d\n", *types,
                         __FILE__, __LINE__);
-                break;
+                return O2_INVALID_MSG;
         }
         types++;
     }
+    return O2_SUCCESS;
 }
 
 
@@ -835,7 +863,7 @@ int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
 {
     o2_send_start();
     
-    // add data
+    // add data, a NULL typestring or "" means "no arguments"
     while (typestring && *typestring) {
         switch (*typestring++) {
             case O2_INT32: // get int in case int32 was promoted to int64
@@ -912,22 +940,21 @@ int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
     if ((((unsigned long) i) & 0xFFFFFFFFUL) !=
         (((unsigned long) O2_MARKER_A) & 0xFFFFFFFFUL)) {
         // bad format/args
-        fprintf(stderr,
-                "o2 error: o2_send, o2_message_add, or o2_message_add_varargs called with mismatching types and data at\n exiting.\n");
-        va_end(ap);
-        return O2_EFORMAT;
+        goto error_exit;
     }
     i = va_arg(ap, void *);
     if ((((unsigned long) i) & 0xFFFFFFFFUL) !=
         (((unsigned long) O2_MARKER_B) & 0xFFFFFFFFUL)) {
-        fprintf(stderr,
-                "o2 error: o2_send, o2_message_add, or o2_message_add_varargs called with mismatching types and data at\n exiting.\n");
-        return O2_EFORMAT;
+        goto error_exit;
     }
 #endif
     va_end(ap);
     *msg = o2_service_message_finish(timestamp, service_name, path, tcp_flag);
     return (*msg ? O2_SUCCESS : O2_FAIL);
+  error_exit:
+    fprintf(stderr, "o2 error: o2_send or o2_send_cmd called with mismatching types and data.\n");
+    va_end(ap);
+    return O2_BAD_ARGS;    
 }
 
 
@@ -946,7 +973,7 @@ int o2_send_finish(o2_time time, char *address, int tcp_flag)
 {
     o2_message_ptr msg = o2_message_finish(time, address, tcp_flag);
     if (!msg) return O2_FAIL;
-    return o2_message_send(msg);
+    return o2_message_send2(msg, TRUE);
 }
 
 

@@ -18,15 +18,21 @@
 void o2_deliver_pending();
 
 /**
- *  Use initial part of an O2 address to find an o2_service using
+ *  \brief Use initial part of an O2 address to find an o2_service using
  *  a hash table lookup.
  *
  *  @param name points to the service name (do not include the
  *              initial '!' or '/' from the O2 address).
  *
- *  @return The pointer to the service or NULL if none found. 
+ *  @return The pointer to the table entry pointing to service,
+ *          or NULL if none found.
+ * 
+ *  Note: The table entry is not dereferenced so that the result
+ *  can be used to remove the entry from the table. (See entry_remove()).
  */
-generic_entry_ptr o2_find_service(const char *name);
+generic_entry_ptr *o2_service_find(const char *name);
+
+int o2_message_send2(o2_message_ptr msg, int schedulable);
 
 int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag);
 

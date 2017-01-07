@@ -647,7 +647,7 @@ int main(int argc, const char * argv[])
     a_midi_msg[3] = 0;
 
     o2_initialize("test");    
-    o2_add_service("one");
+    o2_service_add("one");
 
     o2_add_method("/one/service_ai", "[i]", &service_ai, NULL, FALSE, FALSE);
     o2_add_method("/one/service_a", "[]", &service_a, NULL, FALSE, FALSE);

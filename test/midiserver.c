@@ -32,13 +32,13 @@ void midi_handler(o2_msg_data_ptr msg, const char *types,
     int data1 = argv[1]->i32;
     int data2 = argv[2]->i32;
     Pm_WriteShort(midi_out, 0, Pm_Message(status, data1, data2));
-    printf("Pm_WriteShort(%2x %2x %2x at %g\n", status, data1, data2, o2_get_time());
+    printf("Pm_WriteShort(%2x %2x %2x at %g\n", status, data1, data2, o2_time_get());
 }
 
 
 int main(int argc, const char * argv[])
 {
-    o2_debug = 2;
+    o2_debug_flags("3");
     
     // start portmidi
     Pt_Start(1, 0, 0);
@@ -52,14 +52,14 @@ int main(int argc, const char * argv[])
     // passed from the command line so we provide service to any application
 
     // we are the master clock
-    o2_set_clock(NULL, NULL);
+    o2_clock_set(NULL, NULL);
 
-    o2_add_service("midi");
+    o2_service_add("midi");
     
     // add our handler for incoming messages to each server address
     o2_add_method("/midi/midi", "iii", &midi_handler, NULL, TRUE, TRUE);
     
-    printf("Here we go! ...\ntime is %g.\n", o2_get_time());
+    printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     
     while (TRUE) {
         o2_poll();

@@ -84,17 +84,33 @@ struct fds_info; // recursive declarations o2_socket_handler and fds_info
 
 typedef int (*o2_socket_handler)(SOCKET sock, struct fds_info *info);
 
+/* info->proc.status values */
+#define PROCESS_LOCAL 0       // process is the local process
+#define PROCESS_CONNECTED 1   // connect call returned or accepted connection
+#define PROCESS_NO_CLOCK 2    // process initial message received, not clock synced
+#define PROCESS_OK 3          // process is clock synced
+
 typedef struct fds_info {
     int tag;  // UDP_SOCKET, TCP_SOCKET, DISCOVER_SOCKET, TCP_SERVER_SOCKET
               // OSC_SOCKET, OSC_TCP_SERVER_SOCKET,
               // OSC_TCP_SOCKET, OSC_TCP_CLIENT
 
+    int delete_me;              // set to TRUE when socket should be removed
     int32_t length;             // message length
     o2_message_ptr message;     // message data from TCP stream goes here
     int length_got;             // how many bytes of length have been read?
     int message_got;            // how many bytes of message have been read?
     o2_socket_handler handler;  // handler for socket
-
+    int port; // port number: if this is a TCP_SOCKET, this is the UDP port
+              // number so that we can check for changes in discovery, and 
+              // port is set by an incoming init message, the first message
+              // received on the port.
+              // If this is an OSC_SOCKET or OSC_TCP_SERVER_SOCKET,
+              // this is the corresponding port number that is used by
+              // o2_osc_port_remove(). If this is an OSC_TCP_SOCKET, then
+              // this is the port number of the OSC_TCP_SERVER_SOCKET from
+              // which this socket was accepted. (It is used by
+              // o2_osc_port_remove() to identify the sockets to close.)
     union {
         struct {
             char *name; // e.g. "128.2.1.100:55765", this is used so that when
@@ -103,12 +119,9 @@ typedef struct fds_info {
             // when a new process is connected, we send an /in message to this
             // name. name is "owned" by the process_info struct and will be
             // deleted when the struct is freed
-            int status; // PROCESS_DISCOVERED through PROCESS_OK
+            int status; // PROCESS_LOCAL through PROCESS_OK
             dyn_array services; // these are the keys of remote_service_entry
                         // objects, owned by the service entries (do not free)
-            // port numbers are here so that in discovery, we can check for
-            // any changes
-            int udp_port;       // current udp port number
             struct sockaddr_in udp_sa;  // address for sending UDP messages
         } proc;
         char *osc_service_name; // if this forwards messages to an OSC server
@@ -122,13 +135,11 @@ typedef struct fds_info {
 extern char o2_local_ip[24];
 extern int o2_local_tcp_port;
 extern dyn_array o2_fds_info;
-extern int o2_found_network; // true if we have an IP address, which implies a network connection
-// if false, we only talk to 127.0.0.1 (localhost)
+extern int o2_found_network; // true if we have an IP address, which implies a
+// network connection; if false, we only talk to 127.0.0.1 (localhost)
 
-
-//#ifndef WIN32
-extern dyn_array o2_fds;///< pre-constructed fds parameter for poll()
-//#endif
+extern dyn_array o2_fds;  ///< pre-constructed fds parameter for poll()
+extern int o2_socket_delete_flag;
 
 /**
  * In windows, before we want to use the socket to transport, we need 
@@ -142,16 +153,22 @@ int o2_initWSock();
 
 fds_info_ptr o2_add_new_socket(SOCKET sock, int tag, o2_socket_handler handler);
 
-int o2_process_initialize(fds_info_ptr info, const char *name, int status);
+void o2_disable_sigpipe(SOCKET sock);
+
+int o2_process_initialize(fds_info_ptr info, int status);
+
+void o2_socket_mark_to_free(int i);
 
 int o2_sockets_initialize();
 
-int o2_make_tcp_recv_socket(int tag, o2_socket_handler handler,
+int o2_make_tcp_recv_socket(int tag, int port, o2_socket_handler handler,
                             fds_info_ptr *info);
 
 int o2_make_udp_recv_socket(int tag, int *port, fds_info_ptr *info);
 
 int o2_osc_delegate_handler(SOCKET sock, fds_info_ptr info);
+
+void o2_free_deleted_sockets();
 
 /**
  *  o2_recv will check all the set up sockets of the local process,
@@ -164,8 +181,6 @@ int o2_osc_delegate_handler(SOCKET sock, fds_info_ptr info);
  */
 int o2_recv();
 
-
-void o2_remove_socket(int i);
 
 int o2_tcp_initial_handler(SOCKET sock, fds_info_ptr info);
 

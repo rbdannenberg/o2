@@ -7,11 +7,11 @@
 //
 // delivery is recursive due to bundles. Here's an overview of the structure:
 //
-// o2_message_send(o2_message_ptr msg)
+// o2_message_send(o2_message_ptr msg, int schedulable)
 //         (Defined in o2_send.c)
 //         Determines local or remote O2 or OSC
 //         If remote, calls o2_send_remote()
-//         If local and future, calls o2_schedule()
+//         If local and future and schedulable, calls o2_schedule()
 //         Otherwise, calls o2_msg_data_deliver()
 //         Caller gives msg to callee. msg is freed eventually.
 // o2_send_remote(o2_msg_data_ptr msg, int tcp_flag, fds_info_ptr info)
@@ -26,13 +26,18 @@
 //         If local, calls o2_msg_data_deliver()
 // o2_schedule(o2_sched_ptr sched, o2_message_ptr msg)
 //         (Defined in o2_sched.c)
-//         Assumes msg is addressed to a *local* service.
+//         msg could be local or for delivery to an OSC server
 //         Caller gives msg to callee. msg is freed eventually.
+//         Calls o2_message_send2(msg, FALSE) to send message
+//         (FALSE prevents a locally scheduled message you are trying
+//         to dispatch from being considered for scheduling using the
+//         o2_gtsched, which may not be working yet.)
 // o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
 //                     generic_entry_ptr service)
-//         deliver a message or bundle. Calls o2_deliver_embedded_msgs() if
-//         this is a bundle. Otherwise, uses find_and_call_handlers_rec().
-// o2_deliver_embedded_msgs(o2_msg_data_ptr msg, int tcp_flag)
+//         delivers a message or bundle locally. Calls
+//         o2_embedded_msgs_deliver() if this is a bundle.
+//         Otherwise, uses find_and_call_handlers_rec().
+// o2_embedded_msgs_deliver(o2_msg_data_ptr msg, int tcp_flag)
 //         Deliver or schedule messages in a bundle (recursively).
 //         Calls o2_msg_data_send() to deliver each embedded message
 //         message, which copies the element into an o2_message if needed.
@@ -61,11 +66,10 @@ static void free_entry(generic_entry_ptr entry);
 static void free_node(node_entry_ptr node);
 static void string_pad(char *dst, char *src);
 static int o2_pattern_match(const char *str, const char *p);
-static int remove_entry(node_entry_ptr node, generic_entry_ptr *child, int resize);
+static int entry_remove(node_entry_ptr node, generic_entry_ptr *child, int resize);
 static int remove_method_from_tree(char *remaining, char *name,
                                    node_entry_ptr node);
 static int remove_node(node_entry_ptr node, const char *key);
-static int remove_remote_service(fds_info_ptr info);
 static int remove_remote_services(fds_info_ptr info);
 static int resize_table(node_entry_ptr node, int new_locs);
 
@@ -132,7 +136,7 @@ static void call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg,
          !(handler->coerce_flag ||  // need coercion or exact match
            (streql(handler->type_string, types))))) {
         // printf("!!! %s: call_handler skipping %s due to type mismatch\n",
-        //        debug_prefix, msg->address);
+        //        o2_debug_prefix, msg->address);
         return; // type mismatch
     }
 
@@ -237,15 +241,15 @@ static void find_and_call_handlers_rec(char *remaining, char *name,
         if (slash) *slash = 0;
         string_pad(name, remaining);
         if (slash) *slash = '/';
-        generic_entry_ptr *entry_ptr = o2_lookup((node_entry_ptr) node, name, &index);
-        if (entry_ptr) {
-            if (slash && ((*entry_ptr)->tag == PATTERN_NODE)) {
-                find_and_call_handlers_rec(slash + 1, name, *entry_ptr,
+        generic_entry_ptr entry = *o2_lookup((node_entry_ptr) node, name, &index);
+        if (entry) {
+            if (slash && (entry->tag == PATTERN_NODE)) {
+                find_and_call_handlers_rec(slash + 1, name, entry,
                                            msg, types);
-            } else if (!slash && ((*entry_ptr)->tag == PATTERN_HANDLER)) {
+            } else if (!slash && (entry->tag == PATTERN_HANDLER)) {
                 char *path_end = remaining + strlen(remaining);
                 path_end = WORD_ALIGN_PTR(path_end);
-                call_handler((handler_entry_ptr) *entry_ptr, msg, path_end + 5);
+                call_handler((handler_entry_ptr) entry, msg, path_end + 5);
             }
         }
     }
@@ -291,9 +295,8 @@ static void free_entry(generic_entry_ptr entry)
     } else if (entry->tag == O2_REMOTE_SERVICE) {
         // nothing special to do here. "parent" is a process,
         // but it is "owned" by pointer in o2_fds_info.
-    } else if (entry->tag == OSC_REMOTE_SERVICE) {
-        // TODO: maybe close the TCP connection
-    } // TODO: could there be an OSC_LOCAL_SERVICE here?
+    } // else if OSC_REMOTE_SERVICE: TCP socket, if any, is deleted by
+      // o2_service_remove()
     O2_FREE(entry->key);
     O2_FREE(entry);
 }
@@ -340,15 +343,15 @@ static int initialize_table(dyn_array_ptr table, int locations)
 }
 
 
-// o2_add_entry inserts an entry into the hash table. If the table becomes
+// o2_entry_add inserts an entry into the hash table. If the table becomes
 // too full, a new larger table is created.
 //
-int o2_add_entry(node_entry_ptr node, generic_entry_ptr entry)
+int o2_entry_add(node_entry_ptr node, generic_entry_ptr entry)
 {
     int index;
     generic_entry_ptr *ptr = o2_lookup(node, entry->key, &index);
-    if (ptr) { // if we found it, this is a replacement
-        remove_entry(node, ptr, FALSE); // splice out existing entry and delete it
+    if (*ptr) { // if we found it, this is a replacement
+        entry_remove(node, ptr, FALSE); // splice out existing entry and delete it
     } else {
         assert(index < node->children.length);
         // where to put new entry:
@@ -418,7 +421,7 @@ int o2_add_method(const char *path, const char *typespec,
     handler->types_len = types_len;
     handler->coerce_flag = coerce;
     handler->parse_args = parse;
-    int ret = o2_add_entry(table, (generic_entry_ptr) handler);
+    int ret = o2_entry_add(table, (generic_entry_ptr) handler);
     if (ret) {
         // TODO CLEANUP
         return ret;
@@ -440,7 +443,7 @@ int o2_add_method(const char *path, const char *typespec,
     handler->parse_args = parse;
     
     // put the entry in the master table
-    return o2_add_entry(&master_table, (generic_entry_ptr) handler);
+    return o2_entry_add(&master_table, (generic_entry_ptr) handler);
 }
 
 
@@ -448,29 +451,74 @@ int o2_add_method(const char *path, const char *typespec,
 //
 // service is "owned" by the caller
 //
-int o2_add_remote_service(fds_info_ptr info, const char *service)
+int o2_remote_service_add(fds_info_ptr info, const char *service)
 {
-    // make an entry for the path table
-    remote_service_entry_ptr entry = (remote_service_entry_ptr)
-                                     O2_MALLOC(sizeof(remote_service_entry));
-    
-    entry->tag = O2_REMOTE_SERVICE;
-    entry->key = o2_heapify(service);
-    entry->next = NULL;
-    entry->process_index = INFO_TO_INDEX(info);
-    
-    // put the entry in the path table
-    o2_add_entry(&path_tree_table, (generic_entry_ptr) entry);
-
-    // service name also goes into process
-    DA_APPEND(info->proc.services, char *, entry->key);
-    // printf("%s: added %s service at %s\n", debug_prefix, service, process->name);
-
+    int index;
+    generic_entry_ptr *entry_ptr = o2_lookup(&path_tree_table, service, &index);
+    o2_remote_process_new_at(service, entry_ptr, info);
     return O2_SUCCESS;
 }
 
 
-int o2_deliver_embedded_msgs(o2_msg_data_ptr msg, int tcp_flag)
+// note name should be heapified and owned by caller, eventually it is owned
+// by the fds_info record for the remote process TCP_SOCKET.
+//
+remote_service_entry_ptr o2_remote_process_new_at(
+        const char *name, generic_entry_ptr *entry_ptr, fds_info_ptr info)
+{
+    remote_service_entry_ptr process = O2_MALLOC(sizeof(remote_service_entry));
+    process->tag = O2_REMOTE_SERVICE;
+    process->key = o2_heapify(name);
+    process->next = NULL;
+    process->process_index = INFO_TO_INDEX(info);
+    add_entry_at(&path_tree_table, entry_ptr, (generic_entry_ptr) process);
+    return process;
+}
+
+
+// remove a service from path_tree_table
+//
+int o2_service_remove(char *service_name)
+{
+    generic_entry_ptr *entry_ptr = o2_service_find(service_name);
+    if (!*entry_ptr) return O2_FAIL;
+    switch ((*entry_ptr)->tag) {
+        case O2_REMOTE_SERVICE:
+        case O2_BRIDGE_SERVICE:
+        default:
+            return O2_FAIL; // not implemented yet
+        case PATTERN_NODE:
+        case PATTERN_HANDLER: {
+            break;
+        }
+        case OSC_REMOTE_SERVICE: {
+            // shut down any OSC connection
+            osc_entry_ptr osc_entry = (osc_entry_ptr) (*entry_ptr);
+            if (osc_entry->fds_index >= 0) { // TCP
+                o2_socket_mark_to_free(osc_entry->fds_index); // close the TCP socket
+                osc_entry->fds_index = -1;   // just to be safe
+            }
+            break;
+        }
+    }
+    entry_remove(&path_tree_table, entry_ptr, TRUE);
+    o2_notify_others(service_name, FALSE);
+    return O2_SUCCESS;
+}
+
+
+int o2_remote_service_remove(const char *service)
+{
+    generic_entry_ptr *node_ptr = o2_service_find(service);
+    if (*node_ptr) {
+        assert((*node_ptr)->tag == O2_REMOTE_SERVICE);
+        return entry_remove(&path_tree_table, node_ptr, TRUE);
+    }
+    return O2_FAIL;
+}
+
+
+int o2_embedded_msgs_deliver(o2_msg_data_ptr msg, int tcp_flag)
 {
     char *end_of_msg = PTR(msg) + MSG_DATA_LENGTH(msg);
     o2_msg_data_ptr embedded = (o2_msg_data_ptr) (msg->address + o2_strsize(msg->address) + sizeof(int32_t));
@@ -488,16 +536,14 @@ void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
                          generic_entry_ptr service)
 {
     if (IS_BUNDLE(msg)) {
-        o2_deliver_embedded_msgs(msg, tcp_flag);
+        o2_embedded_msgs_deliver(msg, tcp_flag);
         return;
     }
 
     char *address = msg->address;
     if (!service) {
-        service = o2_find_service(address + 1);
-    }
-    if (!service) {
-        return; // service must have been removed!
+        service = *o2_service_find(address + 1);
+        if (!service) return; // service must have been removed
     }
 
     // we are going to deliver a non-bundle message, so we'll need
@@ -516,10 +562,10 @@ void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
     } else if ((address[0]) == '!') { // do full path lookup
         int index;
         address[0] = '/'; // must start with '/' to get consistent hash value
-        generic_entry_ptr *handler = o2_lookup(&master_table, address, &index);
+        generic_entry_ptr handler = *o2_lookup(&master_table, address, &index);
         address[0] = '!'; // restore address for no particular reason
-        if (handler && (*handler)->tag == PATTERN_HANDLER) {
-            call_handler((handler_entry_ptr) (*handler), msg, types);
+        if (handler && handler->tag == PATTERN_HANDLER) {
+            call_handler((handler_entry_ptr) handler, msg, types);
         }
     } else if (service->tag == PATTERN_NODE) {
         char name[NAME_BUF_LEN];
@@ -596,11 +642,11 @@ generic_entry_ptr *o2_lookup(node_entry_ptr node, const char *key, int *index)
                                     *index);
     while (*ptr) {
         if (streql(key, (*ptr)->key)) {
-            return ptr;
+            break;
         }
         ptr = &((*ptr)->next);
     }
-    return NULL;
+    return ptr;
 }
 
 
@@ -845,17 +891,22 @@ int o2_remove_method(const char *path)
 
 int o2_remove_remote_process(fds_info_ptr info)
 {
-    // remove the remote services provided by the proc
-    remove_remote_services(info);
-    // proc.name may be NULL if we have not received an init (/o2_/dy) message
-    if (info->proc.name) {
-        // remove the remote service associated with the ip_port string
-        remove_remote_service(info);
-        O2_DB(printf("O2: removing remote process %s\n", info->proc.name));
-        O2_FREE(info->proc.name);
-        info->proc.name = NULL;
-    }
-    o2_remove_socket(INFO_TO_INDEX(info)); // close the TCP socket
+    if (info->tag == TCP_SOCKET) {
+        // remove the remote services provided by the proc
+        remove_remote_services(info);
+        // proc.name may be NULL if we have not received an init (/_o2/dy) message
+        if (info->proc.name) {
+            // remove the remote service associated with the ip_port string
+            o2_remote_service_remove(info->proc.name);
+            O2_DBD(printf("%s removing remote process %s\n",
+                          o2_debug_prefix, info->proc.name));
+            O2_FREE(info->proc.name);
+            info->proc.name = NULL;
+        }
+        
+    } // else if (info->tag == OSC_TCP_SOCKET) do nothing special
+    // else if (info->tag == OSC_REMOTE_SERVICE
+    o2_socket_mark_to_free(INFO_TO_INDEX(info)); // close the TCP socket
     return O2_SUCCESS;
 }
 
@@ -873,25 +924,24 @@ node_entry_ptr o2_tree_insert_node(node_entry_ptr node, char *key)
 {
     int index; // location returned by o2_lookup
     assert(node->children.length > 0);
-    node_entry_ptr *entry = (node_entry_ptr *) o2_lookup(node, key, &index);
+    generic_entry_ptr *entry_ptr = o2_lookup(node, key, &index);
     // 3 outcomes: entry exists and is a PATTERN_NODE: return location
     //    entry exists but is something else: delete old and create one
     //    entry does not exist: create one
-    if (entry) {
-        if ((*entry)->tag == PATTERN_NODE) {
-            return *entry;
+    if (*entry_ptr) {
+        if ((*entry_ptr)->tag == PATTERN_NODE) {
+            return (node_entry_ptr) *entry_ptr;
         } else {
             // this node cannot be a handler (leaf) and a (non-leaf) node
-            remove_entry(node, (generic_entry_ptr *) entry, FALSE);
+            entry_remove(node, entry_ptr, FALSE);
         }
     } else {
         assert(index < node->children.length);
-        entry = DA_GET(node->children, node_entry_ptr, index);
+        entry_ptr = DA_GET(node->children, generic_entry_ptr, index);
     }
     // entry is a valid location. Insert a new node:
     node_entry_ptr new_entry = create_node(key);
-    add_entry_at(node, (generic_entry_ptr *) entry,
-                 (generic_entry_ptr) new_entry);
+    add_entry_at(node, entry_ptr, (generic_entry_ptr) new_entry);
     return new_entry;
 }
 
@@ -899,12 +949,13 @@ node_entry_ptr o2_tree_insert_node(node_entry_ptr node, char *key)
 // remove a child from a node. Then free the child
 // (deleting its entire subtree, or if it is a leaf, removing the
 // entry from the master_table).
-// ptr is the address of the pointer to the entry to be removed.
+// ptr is the address of the pointer to the table entry to be removed.
+// This ptr must be a value returned by o2_lookup or o2_service_find
 // Often, we remove an entry to make room for an insertion, so
 // we do not want to resize the table. The resize parameter must
 // be true to enable resizing.
 //
-static int remove_entry(node_entry_ptr node, generic_entry_ptr *child, int resize)
+static int entry_remove(node_entry_ptr node, generic_entry_ptr *child, int resize)
 {
     node->num_children--;
     generic_entry_ptr entry = *child;
@@ -937,32 +988,32 @@ static int remove_method_from_tree(char *remaining, char *name,
 {
     char *slash = strchr(remaining, '/');
     int index; // return value from o2_lookup
-    generic_entry_ptr *entry; // another return value from o2_lookup
+    generic_entry_ptr *entry_ptr; // another return value from o2_lookup
     if (slash) { // we have an internal node name
         *slash = 0; // terminate the string at the "/"
         string_pad(name, remaining);
         *slash = '/'; // restore the string
-        entry = o2_lookup(node, name, &index);
-        if ((!entry) || ((*entry)->tag != PATTERN_NODE)) {
+        entry_ptr = o2_lookup(node, name, &index);
+        if ((!*entry_ptr) || ((*entry_ptr)->tag != PATTERN_NODE)) {
             printf("could not find method\n");
             return O2_FAIL;
         }
         // *entry addresses a node entry
-        node = (node_entry_ptr) *entry;
+        node = (node_entry_ptr) *entry_ptr;
         remove_method_from_tree(slash + 1, name, node);
         if (node->num_children == 0) {
             // remove the empty table
-            return remove_entry(node, entry, TRUE);
+            return entry_remove(node, entry_ptr, TRUE);
         }
         return O2_SUCCESS;
     }
     // now table is where we find the final path name with the handler
     // remaining points to the final segment of the path
     string_pad(name, remaining);
-    entry = o2_lookup(node, name, &index);
+    entry_ptr = o2_lookup(node, name, &index);
     // there should be an entry, remove it
-    if (entry) {
-        remove_entry(node, entry, TRUE);
+    if (*entry_ptr) {
+        entry_remove(node, entry_ptr, TRUE);
         return O2_SUCCESS;
     }
     return O2_FAIL;
@@ -978,23 +1029,10 @@ static int remove_node(node_entry_ptr node, const char *key)
 {
     int index;
     generic_entry_ptr *ptr = o2_lookup(node, key, &index);
-    if (ptr) {
-        return remove_entry(node, ptr, TRUE);
+    if (*ptr) {
+        return entry_remove(node, ptr, TRUE);
     }
     return O2_FAIL;
-}
-
-
-static int remove_remote_service(fds_info_ptr info)
-{
-    int index;
-    generic_entry_ptr *child = o2_lookup(&path_tree_table, info->proc.name, &index);
-    if (!child) return O2_FAIL;
-    
-    return remove_entry(&path_tree_table, child, TRUE);
-    // on return, proc still has it's proc->name entered as a service name
-    // in proc->services, but we rely on the caller,
-    // o2_remove_remote_process(), to remove proc->services.
 }
 
 
@@ -1003,10 +1041,10 @@ static int remove_remote_services(fds_info_ptr info)
     int i, index;
     for (i = 0; i < info->proc.services.length; i++) {
         char *service = *DA_GET(info->proc.services, char *, i);
-        generic_entry_ptr *node = o2_lookup(&path_tree_table, service, &index);
-        assert(node && *node);
+        generic_entry_ptr *node_ptr = o2_lookup(&path_tree_table, service, &index);
+        assert(*node_ptr);
         // wait and resize later
-        remove_entry(&path_tree_table, node, FALSE);
+        entry_remove(&path_tree_table, node_ptr, FALSE);
     }
     info->proc.services.length = 0;
     return O2_SUCCESS;
@@ -1025,7 +1063,7 @@ static int resize_table(node_entry_ptr node, int new_locs)
     enumerate_begin(&enumerator, &old);
     generic_entry_ptr entry;
     while ((entry = enumerate_next(&enumerator))) {
-        o2_add_entry(node, entry);
+        o2_entry_add(node, entry);
     }
     // now we have moved all entries into the new table and we can free the
     // old one
@@ -1077,34 +1115,6 @@ static void string_pad(char *dst, char *src)
 }
 
 
-#ifdef DELETE_THIS
-(TODO DELETE THIS)
-// add a service for OSC
-// path is "owned" by the caller
-int add_local_osc(const char *path, int port, SOCKET tcp_socket)
-{
-    // make an entry for the path_tree_table
-    osc_entry_ptr entry = O2_MALLOC(sizeof(struct osc_entry));
-    
-    entry->tag = OSC_LOCAL_SERVICE;
-    entry->key = o2_heapify(path); 
-    entry->ip[0] = 0;
-    entry->port = port;
-    entry->fds_index = -1;
-    /* TODO: set udp_sa */
-    assert(FALSE); // THIS NEEDS WORK
-    
-    /* TODO: BIND?
-    if (o2_bind(&(entry->osc_entry.socket), 0) == -1) {
-        perror("Bind udp socket");
-        return O2_FAIL;
-    }
-    */
-    // put the entry in the path_tree_table
-    o2_add_entry(&path_tree_table, (generic_entry_ptr) entry);
-    return O2_SUCCESS;
-}
-#endif
 
 //Recieving messages.
 /* TODO DELETE THIS

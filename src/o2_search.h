@@ -17,7 +17,6 @@
 #define O2_BRIDGE_SERVICE 3
 #define OSC_REMOTE_SERVICE 4
 #define O2_PROCESS 5
-#define OSC_LOCAL_SERVICE 6 // TODO: is this used?
 #define index strchr
 /**
  *  Structures for hash look up.
@@ -61,21 +60,13 @@ typedef struct handler_entry {
 } handler_entry, *handler_entry_ptr;
 
 
-/* info->proc.status values */
-#define PROCESS_LOCAL 0       // process is the local process
-#define PROCESS_DISCOVERED 1  // process created from discovery message
-#define PROCESS_CONNECTING 2  // we called connect to this process
-#define PROCESS_CONNECTED 3   // connect call returned
-#define PROCESS_NO_CLOCK 4    // process initial message received, not clock synced
-#define PROCESS_OK 5          // process is clock synced
-
-
 // Hash table's entry for a remote service
 typedef struct remote_service_entry {
     int tag;   // must be O2_REMOTE_SERVICE
     char *key; // key is "owned" by this remote_service_entry struct
     generic_entry_ptr next;
-    int process_index;   // points to its host process for the service
+    int process_index;   // points to its host process for the service,
+    // -1 indicates the remote service is discovered but not connected
 } remote_service_entry, *remote_service_entry_ptr;
 
 
@@ -89,6 +80,7 @@ typedef struct osc_entry {
     char ip[20];
     int port;
     int fds_index; // points to fds and fds_info entries for TCP socket
+    // otherwise the value is -1 indicating UDP
 } osc_entry, *osc_entry_ptr;
 
 
@@ -115,7 +107,7 @@ extern node_entry master_table;
 /**
  * add an entry to a hash table
  */
-int o2_add_entry(node_entry_ptr node, generic_entry_ptr entry);
+int o2_entry_add(node_entry_ptr node, generic_entry_ptr entry);
 
 
 /**
@@ -129,10 +121,17 @@ int o2_add_entry(node_entry_ptr node, generic_entry_ptr entry);
  *
  *  @return If succeed, return O2_SUCCESS. If not, return O2_FAIL.
  */
-int o2_add_remote_service(fds_info_ptr info, const char *service);
+int o2_remote_service_add(fds_info_ptr info, const char *service);
 
 
-int o2_deliver_embedded_msgs(o2_msg_data_ptr msg, int tcp_flag);
+remote_service_entry_ptr o2_remote_process_new_at(
+        const char *name, generic_entry_ptr *entry_ptr, fds_info_ptr info);
+
+
+int o2_remote_service_remove(const char *service);
+
+
+int o2_embedded_msgs_deliver(o2_msg_data_ptr msg, int tcp_flag);
 
 /**
  * Deliver a message immediately and locally. If service is given,
@@ -170,7 +169,7 @@ node_entry_ptr o2_node_initialize(node_entry_ptr node, char *key);
  *  @param key   The key.
  *  @param index The position in the hash table.
  *
- *  @return The pointer to the entry.
+ *  @return The address of the pointer to the entry.
  */
 generic_entry_ptr *o2_lookup(node_entry_ptr dict, const char *key, int *index);
 

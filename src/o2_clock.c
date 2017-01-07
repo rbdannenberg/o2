@@ -20,7 +20,7 @@ static double clock_rate;
 
 int o2_clock_is_synchronized = FALSE; // can we read the time?
 
-static int is_master; // initially FALSE, set true by o2_set_clock()
+static int is_master; // initially FALSE, set true by o2_clock_set()
 static int found_clock_service = FALSE; // set when service appears
 static o2_time start_sync_time; // local time when we start syncing
 static int clock_sync_id = 0;
@@ -144,7 +144,8 @@ static void set_clock(double local_time, double new_master)
         // TODO: maybe we should try to run clock sync soon since we are
         //       way out of sync and do not know if master time is running
     }
-    O2_DB3(printf("O2: adjust clock to %g, rate %g\n", local_time, clock_rate));
+    O2_DBK(printf("%s adjust clock to %g, rate %g\n",
+                  o2_debug_prefix, local_time, clock_rate));
 }
 
 
@@ -158,7 +159,42 @@ static int o2_send_clocksync(fds_info_ptr info)
 }
     
 
-static void announce_synchronized()
+static void compute_osc_time_offset(o2_time now)
+{
+    // osc_time_offset is initialized using system clock, but you
+    // can call set_osc_time_offset() to change it, e.g. periodically
+    // using a different time source
+#ifdef WIN32
+    // this code comes from liblo
+    /* 
+     * FILETIME is the time in units of 100 nsecs from 1601-Jan-01
+     * 1601 and 1900 are 9435484800 seconds apart.
+     */
+    int64_t osc_time;
+    FILETIME ftime;
+    double dtime;
+    GetSystemTimeAsFileTime(&ftime);
+    dtime =
+        ((ftime.dwHighDateTime * 4294967296.e-7) - 9435484800.) +
+        (ftime.dwLowDateTime * 1.e-7);
+    osc_time = (uint64_t) dtime;
+    osc_time = (osc_time << 32) +
+        (uint32_t) ((dtime - osc_time) * 4294967296.);
+#else
+#define JAN_1970 0x83aa7e80     /* 2208988800 1970 - 1900 in seconds */
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    uint64_t osc_time = (uint64_t) (tv.tv_sec + JAN_1970);
+    osc_time = (osc_time << 32) + (uint64_t) (tv.tv_usec * 4294.967295);
+#endif
+    osc_time -= (uint64_t) (now * 4294967296.0);
+    set_osc_time_offset(osc_time);
+    O2_DBK(printf("%s osc_time_offset (in sec) %g\n",
+                  o2_debug_prefix, osc_time / 4294967296.0));
+}
+
+
+static void announce_synchronized(o2_time now)
 {
     // when clock becomes synchronized, we must tell all other
     // processes about it. To find all other processes, use the o2_fds_info
@@ -169,7 +205,11 @@ static void announce_synchronized()
             o2_send_clocksync(info);
         }
     }
-    O2_DB(printf("O2: obtained clock sync at %g\n", o2_get_time()));
+    // in addition, compute the offset to absolute time in case we need an
+    // OSC timestamp
+    compute_osc_time_offset(now);
+    O2_DBG(printf("%s obtained clock sync at %g\n",
+                  o2_debug_prefix, o2_time_get()));
 }
 
 
@@ -181,10 +221,10 @@ void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
     if (!arg) return;
     char *name = arg->s;
     int i;
-    generic_entry_ptr *entry = o2_lookup(&path_tree_table, name, &i);
+    generic_entry_ptr entry = *o2_lookup(&path_tree_table, name, &i);
     if (entry) {
-        assert((*entry)->tag == O2_REMOTE_SERVICE);
-        remote_service_entry_ptr service = (remote_service_entry_ptr) *entry;
+        assert(entry->tag == O2_REMOTE_SERVICE);
+        remote_service_entry_ptr service = (remote_service_entry_ptr) entry;
         fds_info_ptr process_info = DA_GET(o2_fds_info, fds_info,
                                            service->process_index);
         process_info->proc.status = PROCESS_OK;
@@ -215,8 +255,8 @@ static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
     round_trip_time[i] = rtt;
     master_minus_local[i] = master_time - now;
     ping_reply_count++;
-    O2_DB3(printf("O2: got clock reply, master_time %g, rtt %g, count %d\n",
-                  master_time, rtt, ping_reply_count));
+    O2_DBK(printf("%s got clock reply, master_time %g, rtt %g, count %d\n",
+                  o2_debug_prefix, master_time, rtt, ping_reply_count));
     if (ping_reply_count >= CLOCK_SYNC_HISTORY_LEN) {
         // find minimum round trip time
         min_rtt = 9999.0;
@@ -230,12 +270,12 @@ static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
             }
         }
         // best estimate of master_minus_local is stored at i
-        //printf("*    %s: time adjust %g\n", debug_prefix,
-        //       now + master_minus_local[best_i] - o2_get_time());
+        //printf("*    %s: time adjust %g\n", o2_debug_prefix,
+        //       now + master_minus_local[best_i] - o2_time_get());
         o2_time new_master = now + master_minus_local[best_i];
         if (!o2_clock_is_synchronized) {
             o2_clock_synchronized(now, new_master);
-            announce_synchronized();
+            announce_synchronized(new_master);
         } else {
             set_clock(now, new_master);
         }
@@ -259,10 +299,13 @@ int o2_roundtrip(double *mean, double *min)
 void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
                           o2_arg_ptr *argv, int argc, void *user_data)
 {
-    // printf("*    ping_send called at %g\n", o2_local_time());
+    // this function gets called periodically to drive the clock sync
+    // protocol, but if the application calls o2_clock_set(), then we
+    // become the master, at which time we stop polling and announce
+    // to all other processes that we know what time it is, and we
+    // return without scheduling another callback.
     if (is_master) {
         o2_clock_is_synchronized = TRUE;
-        announce_synchronized();
         return; // no clock sync; we're the master
     }
     clock_sync_send_time = o2_local_time();
@@ -289,7 +332,7 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
     if (found_clock_service) { // found service, but it's non-local
         clock_sync_id++;
         o2_send("!_cs/get", 0, "is", clock_sync_id, clock_sync_reply_to); // TODO: test return?
-        O2_DB3(printf("O2: clock request sent\n"));
+        O2_DBK(printf("%s clock request sent\n", o2_debug_prefix));
         // run every 1/2 second until at least CLOCK_SYNC_HISTORY_LEN pings
         // have been sent to get a fast start, then ping every 10s. Here, we
         // add 1.0 to allow for round-trip time and an extra ping just in case:
@@ -297,7 +340,7 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
         if (clock_sync_send_time - start_sync_time > t1) when += 9.5;
     }
     // schedule another call to o2_ping_send_handler
-    if (o2_send_start()) return;
+    o2_send_start();
     o2_message_ptr m = o2_message_finish(when, "!_o2/ps", FALSE);
     // printf("*    schedule ping_send at %g, now is %g\n", when, o2_local_time());
     o2_schedule(&o2_ltsched, m);
@@ -333,14 +376,15 @@ static void cs_ping_handler(o2_msg_data_ptr msg, const char *types,
     char address[1024];
     memcpy(address, replyto, len);
     memcpy(address + len, "/get-reply", 11); // include EOS
-    o2_send(address, 0, "it", serial_no, o2_get_time());
+    o2_send(address, 0, "it", serial_no, o2_time_get());
 }
 
 
-int o2_set_clock(o2_time_callback callback, void *data)
+int o2_clock_set(o2_time_callback callback, void *data)
 {
     if (!o2_application_name) {
-        O2_DB(printf("O2: o2_set_clock cannot be called before o2_initialize.\n"));
+        O2_DBK(printf("%s o2_clock_set cannot be called before o2_initialize.\n",
+                      o2_debug_prefix));
         return O2_FAIL;
     }
     // adjust local_start_time to ensure continuity of time:
@@ -355,39 +399,12 @@ int o2_set_clock(o2_time_callback callback, void *data)
 
     if (!is_master) {
         o2_clock_synchronized(new_local_time, new_local_time);
-        o2_add_service("_cs");
+        o2_service_add("_cs");
         o2_add_method("/_cs/get", "is", &cs_ping_handler, NULL, FALSE, FALSE);
-        O2_DB(printf("O2: master clock established, time is now %g\n",
-                     o2_local_time()));
+        O2_DBG(printf("%s master clock established, time is now %g\n",
+                     o2_debug_prefix, o2_local_time()));
         is_master = TRUE;
-        // osc_time_offset is initialized using system clock, but you
-        // can call set_osc_time_offset() to change it, e.g. periodically
-        // using a different time source
-#ifdef WIN32
-        // this code comes from liblo
-        /* 
-         * FILETIME is the time in units of 100 nsecs from 1601-Jan-01
-         * 1601 and 1900 are 9435484800 seconds apart.
-         */
-        int64_t osc_time;
-        FILETIME ftime;
-        double dtime;
-        GetSystemTimeAsFileTime(&ftime);
-        dtime =
-            ((ftime.dwHighDateTime * 4294967296.e-7) - 9435484800.) +
-            (ftime.dwLowDateTime * 1.e-7);
-        osc_time = (uint64_t) dtime;
-        osc_time = (osc_time << 32) +
-                   (uint32_t) ((dtime - osc_time) * 4294967296.);
-#else
-#define JAN_1970 0x83aa7e80     /* 2208988800 1970 - 1900 in seconds */
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        int64_t osc_time = (int64_t) (tv.tv_sec + JAN_1970);
-        osc_time = (osc_time << 32) + (int64_t) (tv.tv_usec * 4294.967295);
-#endif
-        set_osc_time_offset(osc_time -
-                            (int64_t) (new_local_time * 4294967296.0));
+        announce_synchronized(new_local_time);
     }
     return O2_SUCCESS;
 }
@@ -419,7 +436,7 @@ o2_time o2_local_to_global(double lt)
 }
 
 
-o2_time o2_get_time()
+o2_time o2_time_get()
 {
     o2_time t = o2_local_time();
     return (is_master ? t : LOCAL_TO_GLOBAL(t));

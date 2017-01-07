@@ -41,19 +41,61 @@
 
 #endif   // _MSC_VER
 
-//TODO REMOVE #include "o2_error.h"
-
-#ifndef O2_NO_DEBUGGING
-// macro to surround debug print statements:
-#define O2_DB(x) if (o2_debug) { (x); }
-#define O2_DB2(x) if (o2_debug > 1) { (x); }
-#define O2_DB3(x) if (o2_debug > 2) { (x); }
-#define O2_DB4(x) if (o2_debug > 3) { (x); }
+#ifdef O2_NO_DEBUGGING
+#define o2_debug_flags(x)
+#define O2_DBC(x)
+#define O2_DBr(x)
+#define O2_DBs(x)
+#define O2_DBR(x)
+#define O2_DBS(x)
+#define O2_DBK(x)
+#define O2_DBD(x)
+#define O2_DBt(x)
+#define O2_DBT(x)
+#define O2_DBM(x)
+#define O2_DBo(x)
+#define O2_DBO(x)
+#define O2_DBG(x)
+// speical multiple category tests:
+#define O2_DBoO(x)
 #else
-#define O2_DB(x)
-#define O2_DB2(x)
-#define O2_DB3(x)
-#define O2_DB4(x)
+extern int o2_debug;
+void o2_dbg_msg(const char *src, o2_msg_data_ptr msg,
+                const char *extra_label, const char *extra_data);
+// macro to surround debug print statements:
+#define O2_DBC_FLAG 1
+#define O2_DBr_FLAG 2
+#define O2_DBs_FLAG 4
+#define O2_DBR_FLAG 8
+#define O2_DBS_FLAG 0x10
+#define O2_DBK_FLAG 0x20
+#define O2_DBD_FLAG 0x40
+#define O2_DBt_FLAG 0x80
+#define O2_DBT_FLAG 0x100
+#define O2_DBM_FLAG 0x200
+#define O2_DBo_FLAG 0x400
+#define O2_DBO_FLAG 0x800
+#define O2_DBG_FLAG 0x1000
+// All flags but DBM (malloc/free) enabled by "a"
+#define O2_DBA_FLAGS (0x1FFF-0x200)
+
+#define O2_DBC(x) if (o2_debug & O2_DBC_FLAG) { x; }
+#define O2_DBr(x) if (o2_debug & O2_DBr_FLAG) { x; }
+#define O2_DBs(x) if (o2_debug & O2_DBs_FLAG) { x; }
+#define O2_DBR(x) if (o2_debug & O2_DBR_FLAG) { x; }
+#define O2_DBS(x) if (o2_debug & O2_DBS_FLAG) { x; }
+#define O2_DBK(x) if (o2_debug & O2_DBK_FLAG) { x; }
+#define O2_DBD(x) if (o2_debug & O2_DBD_FLAG) { x; }
+#define O2_DBt(x) if (o2_debug & O2_DBt_FLAG) { x; }
+#define O2_DBT(x) if (o2_debug & O2_DBT_FLAG) { x; }
+#define O2_DBM(x) if (o2_debug & O2_DBM_FLAG) { x; }
+#define O2_DBo(x) if (o2_debug & O2_DBo_FLAG) { x; }
+#define O2_DBO(x) if (o2_debug & O2_DBO_FLAG) { x; }
+// general debug msgs ('g') are printed if ANY other debugging enabled
+#define O2_DBG_FLAGS (O2_DBA_FLAGS|O2_DBM_FLAG)
+#define O2_DBG(x) if (o2_debug & O2_DBG_FLAGS) { x; }
+// special multiple category tests:
+#define O2_DBoO(x) if (o2_debug & (O2_DBo_FLAG | O2_DBO_FLAG)) { x; }
 #endif
 
 #define RETURN_IF_ERROR(expr) { int err = (expr); if (err) return err; }
@@ -94,7 +136,7 @@
 #include <math.h>
 #include <assert.h>
 
-extern char *debug_prefix;
+extern char *o2_debug_prefix;
 extern SOCKET local_send_sock; // socket for sending all UDP msgs
 
 extern o2_time o2_local_now;
@@ -140,6 +182,7 @@ extern o2_arg_ptr *o2_argv; // arg vector extracted by calls to o2_get_next()
 extern int o2_argc; // length of argv
 
 // shared internal functions
+void o2_notify_others(char *service_name, int added);
 
 #endif /* O2_INTERNAL_H */
 /// \endcond

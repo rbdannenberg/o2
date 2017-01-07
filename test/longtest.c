@@ -100,7 +100,7 @@ int main(int argc, const char * argv[])
     char address[32];
     char types[200];
     o2_initialize("test");    
-    o2_add_service("one");
+    o2_service_add("one");
 
     // send from 0 to N-1 floats, without coercion
     for (int i = 0; i < N; i++) {

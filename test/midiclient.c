@@ -23,7 +23,7 @@ int msg_count = 0;
 
 int main(int argc, const char * argv[])
 {
-    o2_debug = 3;
+    o2_debug_flags("*");
     
     /* establish non-blocking input so we can "type" some notes */
     IOsetup(0); // inputfd: 0 means stdin
@@ -34,9 +34,9 @@ int main(int argc, const char * argv[])
         o2_poll();
         usleep(2000); // 2ms
     }
-    printf("We discovered the midi service.\ntime is %g.\n", o2_get_time());
+    printf("We discovered the midi service.\ntime is %g.\n", o2_time_get());
     
-    printf("Here we go! ...\ntime is %g.\n", o2_get_time());
+    printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     
     while (1) {
         o2_poll();
@@ -46,7 +46,7 @@ int main(int argc, const char * argv[])
             char *keyloc = strchr(keys, input);
             if (keyloc) {
                 input = (keyloc - keys) + 48; // index of found key to pitch
-                double now = o2_get_time();
+                double now = o2_time_get();
                 o2_send_cmd("/midi/midi", 0.0, "iii", 0x90, input, 127);
                 o2_send_cmd("/midi/midi", now + 1.0, "iii", 0x90, input, 0);
                 printf("sent key number %d at %g\n", input, now);

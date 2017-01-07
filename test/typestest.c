@@ -532,10 +532,10 @@ int main(int argc, const char * argv[])
     a_midi_msg[3] = 0;
 
     o2_initialize("test");    
-    o2_add_service("one");
-    o2_add_service("two");
-    o2_add_service("three");
-    o2_add_service("four");
+    o2_service_add("one");
+    o2_service_add("two");
+    o2_service_add("three");
+    o2_service_add("four");
     o2_add_method("/one/none", "", &service_none, NULL, FALSE, FALSE);
     o2_add_method("/one/nonep", "", &service_nonep, NULL, FALSE, TRUE);
     o2_add_method("/one/i", "i", &service_i, NULL, FALSE, FALSE);

@@ -1,11 +1,13 @@
 #!/bin/sh
 
+BIN="../Debug"
+
 # runtest testname - runs testname, saving output in output.txt,
 #    searches output.txt for single full line containing "DONE",
 #    returns status=0 if DONE was found (indicating success), or
 #    else status=-1 (indicating failure).
 runtest(){
-    printf "%24s: "  "$1"
+    printf "%30s: "  "$1"
     ../Debug/$1 > output.txt
     if grep -Fxq "DONE" output.txt
     then
@@ -18,8 +20,8 @@ runtest(){
 
 
 rundouble(){
-    printf "%24s: "  "$1+$3"
-    ./regression_run_two.sh "../Debug/$1" "../Debug/$3" &>misc.txt 2>&1
+    printf "%30s: "  "$1+$3"
+    ./regression_run_two.sh "$BIN//$1" "$BIN/$3" &>misc.txt 2>&1
     if grep -Fxq "$2" output.txt
     then
         if grep -Fxq "$4" output2.txt
@@ -27,9 +29,11 @@ rundouble(){
             echo "PASS"
             status=0
         else
-            status=1
+            echo "FAIL"
+            status=-1
         fi
     else
+        echo "FAIL"
         status=-1
     fi
 }
@@ -60,14 +64,60 @@ while true; do
     runtest "bundletest"
     if [ $status == -1 ]; then break; fi
 
+    rundouble "clockmaster" "CLOCKMASTER DONE" "clockslave" "CLOCKSLAVE DONE"
+    if [ $status == -1 ]; then break; fi
+
     rundouble "o2client" "CLIENT DONE" "o2server" "SERVER DONE"
     if [ $status == -1 ]; then break; fi
 
-    rundouble "oscrecvtest" "OSCRECV DONE" "oscsendtest" "OSCSEND DONE"
+    rundouble "oscsendtest u" "OSCSEND DONE" "oscrecvtest u" "OSCRECV DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "oscsendtest" "OSCSEND DONE" "oscrecvtest" "OSCRECV DONE"
     if [ $status == -1 ]; then break; fi
 
     rundouble "tcpclient" "CLIENT DONE" "tcpserver" "SERVER DONE"
     if [ $status == -1 ]; then break; fi
+
+    rundouble "oscbndlsend u" "OSCSEND DONE" "oscbndlrecv u" "OSCRECV DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "oscbndlsend" "OSCSEND DONE" "oscbndlrecv" "OSCRECV DONE"
+    if [ $status == -1 ]; then break; fi
+
+# tests for compatibility with liblo are run only if the binaries were built
+# In CMake, set BUILD_TESTS_WITH_LIBLO to create the binaries
+    if [ -f "$BIN/lo_oscrecv" ]; then
+        rundouble "oscsendtest Mu" "OSCSEND DONE" "lo_oscrecv u" "OSCRECV DONE"
+        if [ $status == -1 ]; then break; fi
+
+        rundouble "oscsendtest M" "OSCSEND DONE" "lo_oscrecv" "OSCRECV DONE"
+        if [ $status == -1 ]; then break; fi
+    fi
+
+    if [ -f "$BIN/lo_oscsend" ]; then
+        rundouble "lo_oscsend u" "OSCSEND DONE" "oscrecvtest u" "OSCRECV DONE"
+        if [ $status == -1 ]; then break; fi
+
+        rundouble "lo_oscsend" "OSCSEND DONE" "oscrecvtest" "OSCRECV DONE"
+        if [ $status == -1 ]; then break; fi
+    fi
+
+    if [ -f "$BIN/lo_bndlsend" ]; then
+        rundouble "lo_bndlsend u" "OSCSEND DONE" "oscbndlrecv u" "OSCRECV DONE"
+        if [ $status == -1 ]; then break; fi
+
+        rundouble "lo_bndlsend" "OSCSEND DONE" "oscbndlrecv" "OSCRECV DONE"
+        if [ $status == -1 ]; then break; fi
+    fi
+
+    if [ -f "$BIN/lo_bndlrecv" ]; then
+        rundouble  "oscbndlsend Mu" "OSCSEND DONE" "lo_bndlrecv u" "OSCRECV DONE"
+        if [ $status == -1 ]; then break; fi
+
+        rundouble  "oscbndlsend M" "OSCSEND DONE" "lo_bndlrecv" "OSCRECV DONE"
+        if [ $status == -1 ]; then break; fi
+    fi
 
     # exit with no errors
     errorflag=0
@@ -81,5 +131,5 @@ then
     echo "       See output.txt (and possibly output2.txt) for "
     echo "       output from the failing test(s)."
 else
-    echo "All O2 regression tests PASSED."
+    echo "****    All O2 regression tests PASSED."
 fi

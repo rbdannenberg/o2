@@ -70,8 +70,10 @@ int o2_strsize(const char *s);
  * Convert endianness of a message
  *
  * @param msg The message
+ *
+ * @return O2_SUCCESS unless the message is malformed
  */
-void o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order);
+int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order);
 
 int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
                      const char *service_name,

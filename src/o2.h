@@ -41,7 +41,7 @@ timestamp of zero (0.0) means deliver the message
 immediately. Messages with non-zero timestamps are only deliverable
 after both the sender and receiver have synchronized clocks.
 
-A service is created using the functions: o2_add_service(service_name)
+A service is created using the functions: o2_service_add(service_name)
 and
 
     o2_add_method("address," "types," handler, user_data, coerce, parse),
@@ -131,14 +131,30 @@ Some major components and concepts of O2 are the following:
  */
 
 /// \brief Enable debugging output.
+//
 /// Unless O2_NO_DEBUG is defined at compile time, O2 is
 /// compiled with debugging code that prints information to
 /// stdout, including network addresses, services discovered,
 /// and clock synchronization status. Enable the debugging
-/// information by setting o2_debug to 1 for basic connection
-/// data, 2 for tracing user messages sent and received, and 3
-/// for tracing clock-sync and (perhaps) discovery messages.
-extern int o2_debug;
+/// information by calling o2_debug_flags() with a string
+/// containing any of the following characters:
+///   c - for basic connection data
+///   r - for tracing non-system incoming messages
+///   s - for tracing non-system outgoing messages
+///   R - for tracing system incoming messages
+///   S - for tracing system outgoing messages
+///   k - for tracing clock synchronization protocol
+///   d - for tracing discovery messages
+///   t - for tracing user messages dispatched from schedulers
+///   T - for tracing system messages dispatched from schedulers
+///   m - trace O2_MALLOC and O2_FREE calls
+///   o - trace socket creating and closing
+///   O - open sound control messages
+///   g - print general status info
+///   a - all debug flags except m (malloc/free)
+#ifndef O2_NO_DEBUG
+void o2_debug_flags(const char *flags);
+#endif
 
 /** @} */
 
@@ -167,7 +183,7 @@ extern int o2_debug;
 #define O2_NO_MEMORY (-4)
 
 /// an error return value for o2_initialize(): O2 is already running.
-#define O2_RUNNING (-5)
+#define O2_ALREADY_RUNNING (-5)
 
 /// an error return value for o2_initialize(): invalid name parameter.
 #define O2_BAD_NAME (-6)
@@ -177,17 +193,17 @@ extern int o2_debug;
 
 /// \brief an error return value: mismatched types and arguments
 /// returned by o2_message_build(), o2_send(), o2_send_cmd()
-#define O2_EFORMAT (-8)
+#define O2_BAD_ARGS (-8)
 
 /// an error return value for o2_initialize(): the socket is closed.
 #define O2_TCP_HUP (-9)
 
 // an error return value indicating inet_pton() failed to convert a
 // string to an IP address
-#define O2_HOSTNAME_TO_NETADDR (-10)
+#define O2_HOSTNAME_TO_NETADDR_FAIL (-10)
 
 // an error return value: attempt to make a TCP connection failed
-#define O2_TCP_CONNECT (-11)
+#define O2_TCP_CONNECT_FAIL (-11)
 
 // an error return value: message was not scheduled or delivered because
 // the current time is not available
@@ -196,24 +212,29 @@ extern int o2_debug;
 // an error return value: no handler for an address
 #define O2_NO_HANDLER (-13)
 
+// an error return value: an O2 message is invalid
+#define O2_INVALID_MSG (-14)
 
+// an error return value: could not write to socket or send datagram
+#define O2_SEND_FAIL (-15)
 
 // Status return codes for o2_status function:
 
 /// \brief return value for o2_status() function: this is a local service
-/// but clock sync has not yet been established
+/// but clock sync has not yet been established so messages with non-zero
+/// timestamps will be dropped.
 #define O2_LOCAL_NOTIME 0
 
 /// \brief return value for o2_status() function: this is a remote service
 /// but clock sync has not yet been established. The remote service
 /// may represent a bridge to a non-IP destination or to an OSC
-/// server.
+/// server. Messages to this service with non-zero timestamps will be dropped.
 #define O2_REMOTE_NOTIME 1
 
 /// \brief return value for o2_status() function: this service is connected.
 /// The service is attached to this process by non-IP link. Clock sync
 /// has not yet been established between the master clock and this
-/// process, so timestamped messages to this service will be
+/// process, so non-zero timestamped messages to this service will be
 /// dropped. Note that within other processes,
 /// the status for this service will be #O2_REMOTE_NOTIME rather than
 /// #O2_BRIDGE_NOTIME. Note also that O2 does not require the
@@ -223,20 +244,18 @@ extern int o2_debug;
 #define O2_BRIDGE_NOTIME 2
 
 /// \brief return value for o2_status() function: this service is connected.
-/// The service forwards messages to an OSC server. The status of the
-/// OSC server is not reported by O2 (and in the typical UDP case,
+/// The service is local and forwards messages to an OSC server. The status
+/// of the OSC server is not reported by O2 (and in the typical UDP case,
 /// there is no way to determine if the OSC server is operational, so
 /// "connected" may just mean that the service has been defined).
 /// Clock sync has not yet been established between the master clock
-/// and this process, so timestamped messages to this service will be
-/// dropped. Note that within other processes,
+/// and this process, so messages with non-zero timestamps to this service
+/// will be dropped. Note that within other processes,
 /// the status for this service will be #O2_REMOTE_NOTIME rather than
 /// #O2_TO_OSC_NOTIME. Note also that O2 does not require the
 /// OSC server to have a synchronized clock, so "NOTIME" only
-/// means that *this* process is not synchronized and therefore cannot
+/// means that *this* process is not synchronized to O2 and therefore cannot
 /// (and will not) schedule a timestamped message for timed delivery.
-/// (There is no standard for clock synchronization in OSC; therefore,
-/// one should not expect the status to ever change to O2_TO_OSC.)
 #define O2_TO_OSC_NOTIME 3
 
 /// \brief return value for o2_status() function: this is a local service
@@ -261,16 +280,20 @@ extern int o2_debug;
 /// timestamp, resulting in some added network latency.
 #define O2_BRIDGE 6
 
-/// \brief return value for o2_status() function: this service is connected.
-/// The service forwards messages to an OSC server, and this process
-/// is synchronized. The status of the OSC server is not reported by
-/// O2 (and in the typical UDP case, there is no way to determine if
-/// the OSC server is operational). Timed messages will be scheduled
-/// locally and sent according to the timestamp, resulting in some
-/// added network latency. If O2 timestamps can be converted to valid
-/// OSC timestamps, messages should be forwarded immediately and
-/// scheduled in the OSC server, but OSC clock synchronization is not
-/// standardized or commonly used, so do not expect this behavior.
+/// \brief return value for o2_status() function: this service is
+/// connected and clock sync has been established.
+/// The service forwards messages directly from the current process
+/// to an OSC server, and the process is synchronized. The status of
+/// the OSC server is not reported by O2 (and in the typical UDP case,
+/// there is no way to determine if the OSC server is operational).
+/// Non-bundle O2 messages will be scheduled locally and sent according
+/// to the timestamp to avoid creating a timestamped bundle, but this
+/// will result in some added network latency. O2 bundles will be
+/// converted to OSC bundles with timestamps based on Unix gettimeofday()
+/// or Windows GetSystemTimeAsFileTime() which are then converted to
+/// OSC-compatible NTP timestamps (this is all based on liblo; timestamped
+/// message to liblo implementations of OSC will be correctly interpreted).
+/// The resulting OSC bundles are sent immediately.
 #define O2_TO_OSC 7
 
 /** @} */
@@ -291,6 +314,13 @@ void *o2_calloc(size_t n, size_t s);
  * @{
  */
 
+#ifndef O2_NO_DEBUG
+void *o2_dbg_malloc(size_t size, char *file, int line);
+void o2_dbg_free(void *obj, char *file, int line);
+#define O2_MALLOC(x) o2_dbg_malloc(x, __FILE__, __LINE__)
+#define O2_FREE(x) o2_dbg_free(x, __FILE__, __LINE__)
+#endif
+
 /** \brief allocate memory
  *
  * O2 allows you to provide custom heap implementations to avoid
@@ -301,13 +331,31 @@ void *o2_calloc(size_t n, size_t s);
  * handler callback, i.e. within the sphere of O2 execution, you
  * should use #O2_MALLOC, #O2_FREE, and #O2_CALLOC.
  */
+#ifndef O2_MALLOC
+#ifdef NO_O2_DEBUG
 #define O2_MALLOC(x) (*o2_malloc)(x)
+#else
+#define O2_MALLOC(x) o2_dbg_malloc(x, __FILE__, __LINE__)
+#endif
+#endif
 
 /** \brief free memory allocated by #O2_MALLOC */
+#ifndef O2_FREE
+#ifdef NO_O2_DEBUG
 #define O2_FREE(x) (*o2_free)(x)
+#else
+#define O2_FREE(x) (*o2_dbg_free)(x, __FILE__, __LINE__)
+#endif
+#endif
 
 /** \brief allocate and zero memory (see #O2_MALLOC) */
+#ifndef O2_CALLOC
+#ifdef NO_O2_DEBUG
 #define O2_CALLOC(n, s) o2_calloc((n), (s))
+#else
+#define O2_CALLOC(n, s) o2_dbg_calloc((n), (s), __FILE__, __LINE__)
+#endif
+#endif
 
 /** \brief O2 timestamps are doubles representing seconds since the
  * approximate start time of the application.
@@ -629,7 +677,7 @@ o2_time o2_set_discovery_period(o2_time period);
  * accordingly. E.g. to handle messages addressed to "/synth/volume"
  * you call
  * \code{.c}
- * o2_add_service("synth");
+ * o2_service_add("synth");
  * o2_add_method("/synth/volume", "f", synth_volume_handler, NULL, NULL, TRUE);
  * \endcode
  * and define `synth_volume_handler` (see the type declaration for
@@ -639,7 +687,22 @@ o2_time o2_set_discovery_period(o2_time period);
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_add_service(char *service_name);
+int o2_service_add(char *service_name);
+
+
+/**
+ *  \brief Remove a local service
+ *
+ * The #service_name corresponds to the parameter previously passed to
+ * #o2_service_add or #o2_delegate_to_osc. Note that if an OSC port 
+ * forwards to this service (see #o2_osc_port_create), the port remains
+ * open, but the OSC messages will be dropped. See #o2_osc_port_remove().
+ *
+ * @param service_name the name of the service
+ * 
+ * @return #O2_SUCCSS if success, #O2_FAIL if not.
+ */
+int o2_service_remove(char *service_name);
 
 
 /**
@@ -760,6 +823,11 @@ int o2_run(int rate);
  */
 int o2_status(const char *service);
 
+/**
+ * \brief A variable indicating that the clock is the master or is
+ *        synchronized to the master.
+ */
+extern int o2_clock_is_synchronized;
 
 /**
  *  \brief Get network round-trip information.
@@ -775,7 +843,7 @@ int o2_roundtrip(double *mean, double *min);
 
 /** \brief signature for callback that defines the master clock
  *
- * See o2_set_clock() for details.
+ * See o2_clock_set() for details.
  */
 typedef o2_time (*o2_time_callback)(void *rock);
 
@@ -785,12 +853,12 @@ typedef o2_time (*o2_time_callback)(void *rock);
  *
  *  Exactly one process per O2 application should provide a master
  *  clock. All other processes synchronize to the master. To become
- *  the master, call o2_set_clock(). 
+ *  the master, call o2_clock_set(). 
  *
  *  The time reported by the gettime function will be offset to 
  *  match the current local time so that local time continues to 
  *  increase smoothly. You cannot force O2 time to match an external 
- *  absolute time, but once o2_set_clock() is called, the difference
+ *  absolute time, but once o2_clock_set() is called, the difference
  *  between the time reference and O2's local time (as reported by 
  *  o2_local_time()) will be fixed.
  *
@@ -807,7 +875,7 @@ typedef o2_time (*o2_time_callback)(void *rock);
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_set_clock(o2_time_callback gettime, void *rock);
+int o2_clock_set(o2_time_callback gettime, void *rock);
 
 
 /**
@@ -832,8 +900,9 @@ int o2_set_clock(o2_time_callback gettime, void *rock);
  *
  */
 /** \hideinitializer */ // turn off Doxygen report on o2_send_marker()
-#define o2_send(path, time, ...) \
-    o2_send_marker(path, time, FALSE, __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
+#define o2_send(path, time, ...)         \
+    o2_send_marker(path, time, FALSE,    \
+                   __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
 /** \cond INTERNAL */ \
 int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...);
@@ -861,8 +930,9 @@ int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...)
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
 /** \hideinitializer */ // turn off Doxygen report on o2_send_marker()
-#define o2_send_cmd(path, time, typestring, ...) \
-    o2_send_marker(path, time, TRUE, typestring, __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
+#define o2_send_cmd(path, time, ...) \
+    o2_send_marker(path, time, TRUE, \
+                   __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
 
 /**
@@ -881,7 +951,7 @@ int o2_message_send(o2_message_ptr msg);
  * \brief Get the estimated synchronized global O2 time.
  *
  *  This function returns a valid value either after you call
- *  o2_set_clock(), making the local clock the master clock for the O2
+ *  o2_clock_set(), making the local clock the master clock for the O2
  *  application, or after O2 has finished discovering and
  *  synchronizing with the master clock. Until then, -1 is returned.
  *
@@ -890,7 +960,7 @@ int o2_message_send(o2_message_ptr msg);
  *
  *  @return the time in seconds, or -1 if global (master) time is unknown.
  */
-o2_time o2_get_time();
+o2_time o2_time_get();
 
 
 /**
@@ -935,7 +1005,21 @@ int o2_finish();
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_create_osc_port(const char *service_name, int port_num, int tcp_flag);
+int o2_osc_port_create(const char *service_name, int port_num, int tcp_flag);
+
+/**
+ * \brief Remove a port receiving OSC messages.
+ *
+ * This removes a port created by #o2_osc_port_create(). If you want to 
+ * remove the corresponding service, you must also call #o2_service_remove()
+ * with the service name.
+ *
+ * @param port_num The port number that receives OSC messages.
+ * 
+ * @return #O2_SUCCESS if success, #O2_FAIL if not.
+ *
+ */
+int o2_osc_port_remove(int port_num);
 
 
 /**
@@ -999,11 +1083,13 @@ int o2_send_osc_message_marker(char *service_name, const char *path,
  *  When the created service receives any O2 messages, it will
  *  send the message to the OSC server. If the incoming message has
  *  a timestamp for some future time, the message will be held until
- *  that time, then sent to the OSC server. (Ideally, O2 will convert
+ *  that time, then sent to the OSC server. (Ideally, O2 could convert
  *  the message to an OSC timestamped bundle and send it immediately
  *  to achieve precise forward-synchronous timing, but this requires
  *  clock synchronization with the OSC server, which is normally
  *  unimplemented.)
+ *
+ * If this is a tcp connection, close it by calling #o2_service_remove().
  */
 int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag);
 
@@ -1018,7 +1104,7 @@ int o2_delegate_to_osc(char *service_name, char *ip, int port_num, int tcp_flag)
  * OSC time starts at 1 Jan 1900. The offset is the OSC time corresponding
  * to O2 time 0.0. Equivalently, OSC_time = O2_time + offset.
  */
-int64_t set_osc_time_offset(int64_t offset);
+uint64_t set_osc_time_offset(uint64_t offset);
 
 
 /** @} */ // end of Basics
@@ -1316,7 +1402,7 @@ int o2_add_vector(o2_type element_type,
  * o2_add_int32() and o2_add_message() on the same message.
  * 
  * This function does NOT free msg. Probably you should call 
- * o2_messge_free(msg) after calling o2_add_message(msg).
+ * o2_message_free(msg) after calling o2_add_message(msg).
  */
 int o2_add_message(o2_message_ptr msg);
 
@@ -1330,8 +1416,10 @@ int o2_add_message(o2_message_ptr msg);
  *
  * @return the address of the completed message, or NULL on error
  *
- * The message must be freed using o2_messge_free() or by calling
- * o2_message_send().
+ * The message must be freed using o2_message_free() or by calling
+ * o2_message_send(). If the message is a bundle (you have added
+ * messages using o2_add_message()), do not call o2_message_finish().
+ * Instead, call o2_service_message_finish().
  */
 o2_message_ptr o2_message_finish(o2_time time, const char *address,
                                  int tcp_flag);
@@ -1340,13 +1428,14 @@ o2_message_ptr o2_message_finish(o2_time time, const char *address,
  * \brief finish and return a message, prepending service name
  *
  * @param time the timestamp for the message (0 for immediate)
- * @param service a string to prepend to address or NULL
- * @param address the O2 address pattern for the message
+ * @param service a string to prepend to address or NULL.
+ * @param address the O2 address pattern for the message. If this
+ *                is a bundle, address should be "" (empty string)
  * @param tcp_flag boolean if true, send message reliably
  *
  * @return the address of the completed message, or NULL on error
  *
- * The message must be freed using o2_messge_free() or by calling
+ * The message must be freed using o2_message_free() or by calling
  * o2_message_send(). This function is intended to be used to 
  * forward OSC messages to a service, but it is the implementation
  * of o2_message_finish(), which simply passes NULL for service.
@@ -1360,7 +1449,7 @@ o2_message_ptr o2_service_message_finish(o2_time time,
  * This function is not normally used because O2 functions that send
  * messages take "ownership" of messages and (eventually) free them.
  */
-void o2_messge_free(o2_message_ptr msg);
+void o2_message_free(o2_message_ptr msg);
 
 
 /**
@@ -1374,7 +1463,7 @@ void o2_messge_free(o2_message_ptr msg);
  * @param time the timestamp for the message
  * @param address the destination address including the service name.
  *                To send a bundle to a service named foo, use the 
- *                address "/foo/#bundle"
+ *                address "#foo"
  * @param tcp_flag boolean that says to send the message reliably.
  *                 Normally, true means use TCP, and false means use UDP.
  *

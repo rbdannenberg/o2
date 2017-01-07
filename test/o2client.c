@@ -50,15 +50,22 @@ void client_test(o2_msg_data_ptr data, const char *types,
 
 int main(int argc, const char *argv[])
 {
-    if (argc == 2) {
+    printf("Usage: o2client maxmsgs debugflags "
+           "(see o2.h for flags, use a for all)\n");
+    if (argc >= 2) {
         max_msg_count = atoi(argv[1]);
         printf("max_msg_count set to %d\n", max_msg_count);
-    } else if (argc != 1) {
-        printf("usage: o2client [max_messages_to_send]\n");
-        exit(1);
     }
+    if (argc >= 3) {
+        o2_debug_flags(argv[2]);
+        printf("debug flags are: %s\n", argv[2]);
+    }
+    if (argc > 3) {
+        printf("WARNING: o2client ignoring extra command line argments\n");
+    }
+
     o2_initialize("test");
-    o2_add_service("client");
+    o2_service_add("client");
     
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
@@ -73,19 +80,19 @@ int main(int argc, const char *argv[])
         strcpy(server_addresses[i], path);
     }
 
-    while (o2_status("server") < O2_LOCAL) {
+    while (o2_status("server") < O2_REMOTE) {
         o2_poll();
         usleep(2000); // 2ms
     }
-    printf("We discovered the server.\ntime is %g.\n", o2_get_time());
+    printf("We discovered the server.\ntime is %g.\n", o2_time_get());
     
-    double now = o2_get_time();
-    while (o2_get_time() < now + 1) {
+    double now = o2_time_get();
+    while (o2_time_get() < now + 1) {
         o2_poll();
         usleep(2000);
     }
     
-    printf("Here we go! ...\ntime is %g.\n", o2_get_time());
+    printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     
     o2_send("!server/benchmark/0", 0, "i", 1);
     

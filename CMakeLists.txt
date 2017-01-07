@@ -25,10 +25,8 @@ endif(APPLE)
  
 set(O2_SRC  
   src/o2_dynamic.c src/o2_dynamic.c 
-  src/o2.c src/o2.h
+  src/o2.c src/o2.h src/o2_internal.h 
   src/o2_discovery.c src/o2_discovery.h
-  src/o2_error.h 
-  src/o2_internal.h
   src/o2_message.c src/o2_message.h 
   src/o2_sched.c src/o2_sched.h
   src/o2_search.c src/o2_search.h 
@@ -36,7 +34,7 @@ set(O2_SRC
   src/o2_socket.c src/o2_socket.h 
   src/o2_clock.c src/o2_clock.h
   # src/o2_debug.c src/o2_debug.h
-  src/o2_interoperation.c
+  src/o2_interoperation.c src/o2_interoperation.h
   )  
  
 add_library(o2_static STATIC ${O2_SRC})  
@@ -103,10 +101,18 @@ add_executable(oscrecvtest test/oscrecvtest.c)
 target_include_directories(oscrecvtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(oscrecvtest ${LIBRARIES}) 
  
-add_executable(bundletest test/bundletest.c)  
-target_include_directories(bundletest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+add_executable(bundletest test/bundletest.c)   
+target_include_directories(bundletest PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(bundletest ${LIBRARIES}) 
- 
+  
+add_executable(oscbndlsend test/oscbndlsend.c)   
+target_include_directories(oscbndlsend PRIVATE ${CMAKE_SOURCE_DIR}/src)   
+target_link_libraries(oscbndlsend ${LIBRARIES}) 
+
+add_executable(oscbndlrecv test/oscbndlrecv.c)   
+target_include_directories(oscbndlrecv PRIVATE ${CMAKE_SOURCE_DIR}/src)   
+target_link_libraries(oscbndlrecv ${LIBRARIES}) 
+  
 if(UNIX)
   if(BUILD_MIDI_EXAMPLE)
     # Use PortMidi Library
@@ -199,9 +205,25 @@ if(BUILD_TESTS_WITH_LIBLO)
   # Create executables 
   add_executable(lo_benchmk_server  test/lo_benchmk_server.c) 
   target_include_directories(lo_benchmk_server PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_benchmk_server ${LO_LIB} ${EXTRA_NEEDED_LIBS}) 
+  target_link_libraries(lo_benchmk_server ${LIBLO_LIB} ${EXTRA_NEEDED_LIBS}) 
 
   add_executable(lo_benchmk_client  test/lo_benchmk_client.c) 
-  target_include_directories(lo_benchmk_client PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_benchmk_client ${LO_LIB}  ${EXTRA_NEEDED_LIBS})
+  target_include_directories(lo_benchmk_client PRIVATE ${LIBLO_INCLUDE_PATH})  
+  target_link_libraries(lo_benchmk_client ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})  
+
+  add_executable(lo_oscrecv test/lo_oscrecv.c) 
+  target_include_directories(lo_oscrecv PRIVATE ${LIBLO_INCLUDE_PATH})  
+  target_link_libraries(lo_oscrecv ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})   
+
+  add_executable(lo_oscsend test/lo_oscsend.c) 
+  target_include_directories(lo_oscsend PRIVATE ${LIBLO_INCLUDE_PATH})  
+  target_link_libraries(lo_oscsend ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})    
+
+  add_executable(lo_bndlsend test/lo_bndlsend.c) 
+  target_include_directories(lo_bndlsend PRIVATE ${LIBLO_INCLUDE_PATH})  
+  target_link_libraries(lo_bndlsend ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})     
+
+  add_executable(lo_bndlrecv test/lo_bndlrecv.c) 
+  target_include_directories(lo_bndlrecv PRIVATE ${LIBLO_INCLUDE_PATH})  
+  target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})     
 endif(BUILD_TESTS_WITH_LIBLO)

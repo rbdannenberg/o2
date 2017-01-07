@@ -45,6 +45,7 @@
  
  */
 
+#include "ctype.h"
 #include "o2_internal.h"
 #include "o2_message.h"
 #include "o2_sched.h"
@@ -127,12 +128,12 @@ int o2_schedule(o2_sched_ptr s, o2_message_ptr m)
         // it was probably a mistake to schedule the message when the timestamp
         // is not in the future, but we'll try a local delivery anyway
         o2_msg_data_deliver(&m->data, m->tcp_flag, NULL);
-        o2_messge_free(m);
+        o2_message_free(m);
         return O2_SUCCESS;
     }
     if (s == &o2_gtsched && !o2_gtsched_started) {
         // cannot schedule in the future until there is a valid clock
-        o2_messge_free(m);
+        o2_message_free(m);
         return O2_NO_CLOCK;
     }
     int64_t index = SCHED_INDEX(mt);
@@ -171,14 +172,17 @@ static void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
         while (*m_ptr && ((*m_ptr)->data.timestamp <= run_until_time)) {
             o2_message_ptr m = *m_ptr;
             *m_ptr = m->next; // unlink message m
-            // printf("dispatching %p: %s\n", m, m->path);
-            o2_active_sched = s; // if we recursively schedule another message, use
-            // this same scheduler.
+            o2_active_sched = s; // if we recursively schedule another message,
+            // use this same scheduler.
             // careful: this can call schedule and change the table
-            //printf("o2_msg_data_deliver at %g actual %g\n",
-            //       m->data.timestamp, run_until_time);
-            o2_msg_data_deliver(&m->data, m->tcp_flag, NULL);
-            o2_messge_free(m);
+            O2_DBt(if (m->data.address[1] != '_' &&
+                       !isdigit(m->data.address[1]))
+                       o2_dbg_msg("sched_dispatch", &m->data, NULL, NULL));
+            O2_DBT(if (m->data.address[1] == '_' ||
+                       isdigit(m->data.address[1]))
+                       o2_dbg_msg("sched_dispatch", &m->data, NULL, NULL));
+            o2_message_send2(m, FALSE); // don't assume local and call
+            // o2_msg_data_deliver; maybe this is an OSC message
         }
         s->last_bin++;
     }

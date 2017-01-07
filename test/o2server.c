@@ -53,8 +53,18 @@ void server_test(o2_msg_data_ptr msg, const char *types,
 
 int main(int argc, const char *argv[])
 {
+    printf("Usage: o2server [debugflags] "
+           "(see o2.h for flags, use a for all)\n");
+    if (argc == 2) {
+        o2_debug_flags(argv[1]);
+        printf("debug flags are: %s\n", argv[1]);
+    }
+    if (argc > 2) {
+        printf("WARNING: o2server ignoring extra command line argments\n");
+    }
+
     o2_initialize("test");
-    o2_add_service("server");
+    o2_service_add("server");
     
     // add our handler for incoming messages to each server address
     for (int i = 0; i < N_ADDRS; i++) {
@@ -73,7 +83,7 @@ int main(int argc, const char *argv[])
     }
 
     // we are the master clock
-    o2_set_clock(NULL, NULL);
+    o2_clock_set(NULL, NULL);
     
     // wait for client service to be discovered
     while (o2_status("client") < O2_LOCAL) {
@@ -81,16 +91,16 @@ int main(int argc, const char *argv[])
         usleep(2000); // 2ms
     }
     
-    printf("We discovered the client at time %g.\n", o2_get_time());
+    printf("We discovered the client at time %g.\n", o2_time_get());
     
     // delay 5 seconds
-    double now = o2_get_time();
-    while (o2_get_time() < now + 1) {
+    double now = o2_time_get();
+    while (o2_time_get() < now + 1) {
         o2_poll();
         usleep(2000);
     }
     
-    printf("Here we go! ...\ntime is %g.\n", o2_get_time());
+    printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     
     while (running) {
         o2_poll();

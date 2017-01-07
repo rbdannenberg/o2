@@ -349,7 +349,7 @@ void send_the_message()
 int main(int argc, const char * argv[])
 {
     o2_initialize("test");    
-    o2_add_service("one");
+    o2_service_add("one");
 
     char address[32];
     for (int i = 0; i < 8; i++) {
