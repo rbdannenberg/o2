@@ -131,7 +131,7 @@ int o2_osc_message_send_marker(char *service_name, const char *path,
 
 
 // messages to this service are forwarded as OSC messages
-int o2_osc_delegate(char *service_name, char *ip, int port_num, int tcp_flag)
+int o2_osc_delegate(const char *service_name, const char *ip, int port_num, int tcp_flag)
 {
     int ret = O2_SUCCESS;
     if (streql(ip, "")) ip = "localhost";

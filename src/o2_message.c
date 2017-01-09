@@ -248,7 +248,7 @@ int o2_add_only_typecode(o2_type code)
 }
 
 
-int o2_add_string_or_symbol(o2_type code, char *s)
+int o2_add_string_or_symbol(o2_type code, const char *s)
 {
     if (is_bundle) return O2_FAIL;
     is_normal = TRUE;
@@ -293,17 +293,9 @@ int o2_add_blob(o2_blob *b)
 }
 
 
-int o2_add_midi(uint8_t *m)
+int o2_add_midi(uint32_t m)
 {
-    if (is_bundle) return O2_FAIL;
-    is_normal = TRUE;
-    message_check_length(4);
-    char *dst = msg_data.array + msg_data.length;
-    memcpy(dst, m, 4);
-    msg_data.length += 4;
-    // add the typecode
-    DA_APPEND(msg_types, char, 'm');
-    return O2_SUCCESS;
+    return o2_add_int32_or_char(O2_MIDI, (int32_t) m);
 }
 
 
@@ -762,6 +754,7 @@ int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
         }
         switch (*types) {
             case O2_INT32:
+            case O2_MIDI:
             case O2_FLOAT:
             case O2_CHAR: {
                 PREPARE_TO_ACCESS(int32_t);
@@ -800,11 +793,6 @@ int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
             case O2_SYMBOL: {
                 char *end = data_next + o2_strsize(data_next);
                 if (end > end_of_msg) return O2_INVALID_MSG;
-                data_next = end;
-                break;
-            }
-            case O2_MIDI: {
-                PREPARE_TO_ACCESS(int32_t);
                 data_next = end;
                 break;
             }
@@ -969,7 +957,7 @@ int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
 // TODO REMOVE static char *mc_barrier = NULL;  // end of allocated message data
 
 
-int o2_send_finish(o2_time time, char *address, int tcp_flag)
+int o2_send_finish(o2_time time, const char *address, int tcp_flag)
 {
     o2_message_ptr msg = o2_message_finish(time, address, tcp_flag);
     if (!msg) return O2_FAIL;

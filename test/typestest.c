@@ -10,7 +10,7 @@
 int got_the_message = FALSE;
 
 o2_blob_ptr a_blob;
-char a_midi_msg[4];
+uint32_t a_midi_msg;
 
 void service_none(o2_msg_data_ptr data, const char *types,
                   o2_arg_ptr *argv, int argc, void *user_data)
@@ -270,9 +270,9 @@ void service_m(o2_msg_data_ptr data, const char *types,
     o2_extract_start(data);
     assert(strcmp(types, "m") == 0);
     o2_arg_ptr arg = o2_get_next('m');
-    assert(memcmp(arg->m, &(a_midi_msg[0]), 3) == 0);
+    assert(arg->m == a_midi_msg);
     printf("service_m types=%s midi = %2x %2x %2x\n", types,
-           arg->m[0], arg->m[1], arg->m[2]);
+           (arg->m >> 16) & 0xff, (arg->m >> 8) & 0xff, arg->m & 0xff);
     got_the_message = TRUE;
 }
 
@@ -282,9 +282,10 @@ void service_mp(o2_msg_data_ptr data, const char *types,
 {
     assert(strcmp(types, "m") == 0);
     assert(argc == 1);
-    assert(memcmp(argv[0]->m, &(a_midi_msg[0]), 3) == 0);
+    o2_arg_ptr arg = argv[0];
+    assert(arg->m == a_midi_msg);
     printf("service_mp types=%s midi = %2x %2x %2x\n", types,
-           argv[0]->m[0], argv[0]->m[1], argv[0]->m[2]);
+           (arg->m >> 16) & 0xff, (arg->m >> 8) & 0xff, arg->m & 0xff);
     got_the_message = TRUE;
 }
 
@@ -395,7 +396,7 @@ void service_many(o2_msg_data_ptr data, const char *types,
     assert(arg->b.size = a_blob->size &&
            memcmp(arg->b.data, a_blob->data, 15) == 0);
     arg = o2_get_next('m');
-    assert(memcmp(arg->m, &(a_midi_msg[0]), 3) == 0);
+    assert(arg->m == a_midi_msg);
     arg = o2_get_next('T');
     assert(arg);
     arg = o2_get_next('F');
@@ -428,7 +429,7 @@ void service_manyp(o2_msg_data_ptr data, const char *types,
     assert(strcmp(argv[8]->S, "123456") == 0);
     assert(argv[9]->b.size = a_blob->size &&
            memcmp(argv[9]->b.data, a_blob->data, 15) == 0);
-    assert(memcmp(argv[10]->m, &(a_midi_msg[0]), 3) == 0);
+    assert(argv[10]->m == a_midi_msg);
     assert(argv[15]->i == 1234);
     assert(strcmp(types, "icBhfdtsSbmTFINi") == 0);
     printf("service_manyp types=%s\n", types);
@@ -526,10 +527,7 @@ int main(int argc, const char * argv[])
     a_blob->size = 15;
     memcpy(a_blob->data, "This is a blob", 15);
 
-    a_midi_msg[0] = 0x90;
-    a_midi_msg[1] = 60;
-    a_midi_msg[2] = 100;
-    a_midi_msg[3] = 0;
+    a_midi_msg = (0x90 << 16) + (60 << 8) + 100;
 
     o2_initialize("test");    
     o2_service_new("one");
@@ -616,9 +614,9 @@ int main(int argc, const char * argv[])
     send_the_message();
     o2_send("/one/bp", 0, "b", a_blob);
     send_the_message();
-    o2_send("/one/m", 0, "m", &(a_midi_msg[0]));
+    o2_send("/one/m", 0, "m", a_midi_msg);
     send_the_message();
-    o2_send("/one/mp", 0, "m", &(a_midi_msg[0]));
+    o2_send("/one/mp", 0, "m", a_midi_msg);
     send_the_message();
     o2_send("/one/T", 0, "T");
     send_the_message();
@@ -638,11 +636,11 @@ int main(int argc, const char * argv[])
     send_the_message();
     o2_send("/one/many", 0, "icBhfdtsSbmTFINi", 1234, 'Q', TRUE, 12345LL,
             1234.5, 1234.56, 1234.567, "1234", "123456",
-            a_blob, &(a_midi_msg[0]), 1234);
+            a_blob, a_midi_msg, 1234);
     send_the_message();
     o2_send("/one/manyp", 0, "icBhfdtsSbmTFINi", 1234, 'Q', TRUE, 12345LL,
             1234.5, 1234.56, 1234.567, "1234", "123456",
-            a_blob, &(a_midi_msg[0]), 1234);
+            a_blob, a_midi_msg, 1234);
     send_the_message();
     o2_send("/two/i", 0, "i", 1234);
     send_the_message();

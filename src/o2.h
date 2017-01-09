@@ -3,6 +3,14 @@
 // see license.txt for license
 // June 2016
 
+#ifndef O2_H
+#define O2_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 /** \file o2.h
 \mainpage
 \section Introduction
@@ -112,9 +120,6 @@ Some major components and concepts of O2 are the following:
     activity.
 
 */
-
-#ifndef O2_H
-#define O2_H
 
 // get uint32_t, etc.:
 #include <stdlib.h>
@@ -474,10 +479,10 @@ typedef enum {
     O2_SYMBOL =    'S',     ///< Used in systems distinguish strings and symbols.
     O2_CHAR =      'c',     ///< 8bit char variable (Standard C).
     O2_MIDI =      'm',     ///< 4 byte MIDI packet.
-    O2_TRUE =      'T',     ///< Sybol representing the value True.
-    O2_FALSE =     'F',     ///< Sybol representing the value False.
-    O2_NIL =       'N',     ///< Sybol representing the value Nil.
-    O2_INFINITUM = 'I',     ///< Sybol representing the value Infinitum.
+    O2_TRUE =      'T',     ///< Symbol representing the value True.
+    O2_FALSE =     'F',     ///< Symbol representing the value False.
+    O2_NIL =       'N',     ///< Symbol representing the value Nil.
+    O2_INFINITUM = 'I',     ///< Symbol representing the value Infinitum.
     
     // O2 types
     O2_BOOL =      'B',     ///< Boolean value returned as either 0 or 1
@@ -519,12 +524,14 @@ typedef union {
         Used in systems which distinguish strings and symbols. */
     char       S[4];
     int        c;    ///< Standard C, 8 bit, char, stored as int.
-    uint8_t    m[4]; ///< A 4 byte MIDI packet.
+    uint32_t   m;    ///< A 4 byte MIDI packet. MSB to LSB are port id,
+                     ///< status, data1, data2
     o2_time    t;    ///< TimeTag value.
     o2_blob    b;    ///< a blob (unstructured bytes)
     int32_t    B;    ///< a boolean value, either 0 or 1
     struct {
-        int32_t len; ///< length of vector
+        int32_t len; ///< length of vector in bytes
+        ///< IMPORTANT: divide by 4 or 8 to get length in elements
         int32_t typ; ///< type of vector elements
         union {
             int32_t    *vi;  ///< vector of 32-bit signed integers
@@ -690,7 +697,7 @@ o2_time o2_set_discovery_period(o2_time period);
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_service_new(char *service_name);
+int o2_service_new(const char *service_name);
 
 
 /**
@@ -908,7 +915,8 @@ int o2_clock_set(o2_time_callback gettime, void *rock);
                    __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
 /** \cond INTERNAL */ \
-int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...);
+int o2_send_marker(const char *path, double time, int tcp_flag, 
+                   const char *typestring, ...);
 /** \endcond */
 
 /**
@@ -1094,7 +1102,8 @@ int o2_osc_message_send_marker(char *service_name, const char *path,
  *
  * If this is a tcp connection, close it by calling #o2_service_free().
  */
-int o2_osc_delegate(char *service_name, char *ip, int port_num, int tcp_flag);
+int o2_osc_delegate(const char *service_name, const char *ip, int port_num, 
+                    int tcp_flag);
 
 /**
  *  \brief Set the OSC time offset.
@@ -1224,10 +1233,11 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  *
  * Note also that vector elements cannot be retrieved directly without
  * calling o2_get_next('v') or o2_get_next('['). For example, if the actual
- * argument is a two-element integer vector ("vi"), a call to o2_get_next('i')
- * will fail unless it is preceded by o2_get_next('v') or o2_get_next('[').
+ * argument is a two-element integer vector ("vi"), a call to 
+ * o2_get_next(O2_INT32) will fail unless it is preceded by 
+ * o2_get_next(O2_VECTOR) or o2_get_next(O2_ARRAY_START).
  *
- * If a vector is expected, call o2_get_next('v'). The return value will
+ * If a vector is expected, call o2_get_next(O2_VECTOR). The return value will
  * be a non-null o2_arg_ptr if the next argument in the actual message 
  * is a vector or array, and otherwise NULL. You should not dereference this
  * return value yet...
@@ -1313,13 +1323,13 @@ int o2_add_float(float f);
 
 /// \brief This function suppports o2_add_symbol() and o2_add_string()
 /// Normally, you should not call this directly.
-int o2_add_string_or_symbol(o2_type tcode, char *s);
+int o2_add_string_or_symbol(o2_type tcode, const char *s);
 
 /// \brief add a symbol to the message (see o2_send_start())
-#define o2_add_symbol(s) o2_add_string_or_symbol('S', s)
+#define o2_add_symbol(s) o2_add_string_or_symbol(O2_SYMBOL, s)
 
 /// \brief add a string to the message (see o2_send_start())
-#define o2_add_string(s) o2_add_string_or_symbol('s', s)
+#define o2_add_string(s) o2_add_string_or_symbol(O2_STRING, s)
 
 /// \brief add an `o2_blob` to the message (see o2_send_start()), where
 ///        the blob is given as a pointer to an #o2_blob object.
@@ -1337,23 +1347,23 @@ int o2_add_int64(int64_t i);
 int o2_add_double_or_time(o2_type tchar, double d);
 
 /// \brief add a `double` to the message (see o2_send_start())
-#define o2_add_double(d) o2_add_double_or_time('d', d)
+#define o2_add_double(d) o2_add_double_or_time(O2_DOUBLE, d)
 
 /// \brief add a time (`double`) to the message (see o2_send_start())
-#define o2_add_time(t) o2_add_double_or_time('t', t)
+#define o2_add_time(t) o2_add_double_or_time(O2_TIME, t)
 
 /// \brief This function supports o2_add_int32() and o2_add_char()
 /// Normally, you should not call this directly.
 int o2_add_int32_or_char(o2_type tcode, int32_t i);
 
 /// \brief add an `int32` to the message (see o2_send_start())
-#define o2_add_int32(i) o2_add_int32_or_char('i', i)
+#define o2_add_int32(i) o2_add_int32_or_char(O2_INT32, i)
 
 /// \brief add a `char` to the message (see o2_send_start())
-#define o2_add_char(c) o2_add_int32_or_char('c', c)
+#define o2_add_char(c) o2_add_int32_or_char(O2_CHAR, c)
 
 /// \brief add a short midi message to the message (see o2_send_start())
-int o2_add_midi(uint8_t *m);
+int o2_add_midi(uint32_t m);
 
 /// \brief This function supports o2_add_true(), o2_add_false(), o2_add_bool(),
 /// o2_add_nil(), o2_add_infinitum(), and others.
@@ -1361,25 +1371,25 @@ int o2_add_midi(uint8_t *m);
 int o2_add_only_typecode(o2_type typecode);
 
 /// \brief add "true" to the message (see o2_send_start())
-#define o2_add_true() o2_add_only_typecode('T');
+#define o2_add_true() o2_add_only_typecode(O2_TRUE);
 
 /// \brief add a "false" to the message (see o2_send_start())
-#define o2_add_false() o2_add_only_typecode('F');
+#define o2_add_false() o2_add_only_typecode(O2_FALSE);
 
 /// \brief add 0 (false) or 1 (true) to the message (see o2_send_start())
-#define o2_add_bool(x) o2_add_int32_or_char('B', x != 0)
+#define o2_add_bool(x) o2_add_int32_or_char(O2_BOOL, x != 0)
 
 /// \brief add "nil" to the message (see o2_send_start())
-#define o2_add_nil() o2_add_only_typecode('N');
+#define o2_add_nil() o2_add_only_typecode(O2_NIL);
 
 /// \brief add "infinitum" to the message (see o2_send_start())
-#define o2_add_infinitum() o2_add_only_typecode('I');
+#define o2_add_infinitum() o2_add_only_typecode(O2_INFINITUM);
 
 /// \brief start adding an array
-#define o2_add_start_array() o2_add_only_typecode('[');
+#define o2_add_start_array() o2_add_only_typecode(O2_ARRAY_START);
 
 /// \brief finish adding an array
-#define o2_add_end_array() o2_add_only_typecode(']');
+#define o2_add_end_array() o2_add_only_typecode(O2_ARRAY_END);
 
 /** \brief add a vector
  *
@@ -1472,7 +1482,7 @@ void o2_message_free(o2_message_ptr msg);
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_send_finish(o2_time time, char *address, int tcp_flag);
+int o2_send_finish(o2_time time, const char *address, int tcp_flag);
 
 
 /** @} */
@@ -1548,8 +1558,8 @@ returned by o2_get_next().
     {
         o2_extract_start(msg);
         // we expect an int32 and a double argument
-        int32_t my_int = o2_get_next('i')->i32;
-        double my_double = o2_get_next('d')->d;
+        int32_t my_int = o2_get_next(O2_INT32)->i32;
+        double my_double = o2_get_next(O2_DOUBLE)->d;
         ...
     }
 \endcode
@@ -1571,10 +1581,10 @@ from o2_get_next(), where NULL indicates incompatible types.
     {
         o2_extract_start(msg);
         // we want to get an int32 and a double argument
-        o2_arg_ptr ap = o2_get_next('i');
+        o2_arg_ptr ap = o2_get_next(O2_INT32);
         if (!ap) return O2_FAIL; // parameter cannot be coerced
         int32_t my_int = ap->i32;
-        o2_arg_ptr ap = o2_get_next('d');
+        o2_arg_ptr ap = o2_get_next(O2_DOUBLE);
         if (!ap) return O2_FAIL; // parameter cannot be coerced
         double my_double = ap->d;
         ...
@@ -1678,5 +1688,8 @@ int o2_schedule(o2_sched_ptr scheduler, o2_message_ptr msg);
 
 /** @} */ // end of a basics group
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* O2_H */

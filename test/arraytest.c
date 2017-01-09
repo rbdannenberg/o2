@@ -32,7 +32,7 @@
 int got_the_message = FALSE;
 
 o2_blob_ptr a_blob;
-char a_midi_msg[4];
+uint32_t a_midi_msg;
 
 char xtype = 0; // used to tell handler what type(s) to expect when
 char ytype = 0; // used to tell handler what type(s) to coerce to
@@ -155,7 +155,7 @@ void check_val(char actual_type)
             assert(strcmp(arg->S, "This is a symbol") == 0);
             break;
         case O2_MIDI:
-            assert(memcmp(arg->m, &(a_midi_msg[0]), 3) == 0);
+            assert(arg->m == a_midi_msg);
             break;
         default:
             assert(FALSE);
@@ -625,7 +625,7 @@ void add_x_parameter()
             o2_add_symbol("This is a symbol");
             break;
         case O2_MIDI:
-            o2_add_midi((uint8_t *) &(a_midi_msg[0]));
+            o2_add_midi(a_midi_msg);
             break;
         default:
             assert(FALSE);
@@ -641,10 +641,7 @@ int main(int argc, const char * argv[])
     a_blob->size = 15;
     memcpy(a_blob->data, "This is a blob", 15);
 
-    a_midi_msg[0] = 0x90;
-    a_midi_msg[1] = 60;
-    a_midi_msg[2] = 100;
-    a_midi_msg[3] = 0;
+    a_midi_msg = (0x90 << 16) + (60 << 8) + 100;
 
     o2_initialize("test");    
     o2_service_new("one");

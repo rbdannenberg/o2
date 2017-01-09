@@ -71,7 +71,7 @@ generic_entry_ptr *o2_service_find(const char *service_name)
 
 // This function is invoked by macros o2_send and o2_send_cmd.
 // It expects arguments to end with O2_MARKER_A and O2_MARKER_B
-int o2_send_marker(char *path, double time, int tcp_flag, char *typestring, ...)
+int o2_send_marker(const char *path, double time, int tcp_flag, const char *typestring, ...)
 {
     va_list ap;
     va_start(ap, typestring);

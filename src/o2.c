@@ -430,7 +430,7 @@ void o2_notify_others(char *service_name, int added)
 }
 
 
-int o2_service_new(char *service_name)
+int o2_service_new(const char *service_name)
 {    
 //#if defined(WIN32) || defined(_MSC_VER)
     /* Windows Server 2003 or later (Vista, 7, etc.) must join the
