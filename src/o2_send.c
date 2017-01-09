@@ -201,16 +201,10 @@ int o2_send_remote(o2_msg_data_ptr msg, int tcp_flag, generic_entry_ptr service)
 }
 
 
+// Note: the message is converted to network byte order. Free the
+// message after calling this.
 int send_by_tcp_to_process(fds_info_ptr info, o2_msg_data_ptr msg)
 {
-    // printf("+    %s send by tcp %s\n", o2_debug_prefix, msg->data.address);
-    // Send the length of the message
-    int32_t len = htonl(MSG_DATA_LENGTH(msg));
-    SOCKET fd = INFO_TO_FD(info);
-    if (send(fd, (char *) &len, sizeof(int32_t), MSG_NOSIGNAL) < 0) {
-        perror("send_by_tcp_to_process writing length");
-        goto send_error;
-    }
     O2_DBs(if (msg->address[1] != '_' && !isdigit(msg->address[1]))
            o2_dbg_msg("sending TCP", msg, "to", info->proc.name));
     O2_DBS(if (msg->address[1] == '_' || isdigit(msg->address[1]))
@@ -218,18 +212,23 @@ int send_by_tcp_to_process(fds_info_ptr info, o2_msg_data_ptr msg)
 #if IS_LITTLE_ENDIAN
     o2_msg_swap_endian(msg, TRUE);
 #endif
-    // Send the message body
-    if (send(fd, (char *) msg, MSG_DATA_LENGTH(msg), MSG_NOSIGNAL) < 0) {
-        perror("send_by_tcp_to_process writing data");
-        goto send_error;
+    // Send the length of the message followed by the message.
+    // We want to do this in one send; otherwise, we'll send 2 
+    // network packets due to the NODELAY socket option.
+    int32_t len = MSG_DATA_LENGTH(msg);
+    MSG_DATA_LENGTH(msg) = htonl(len);
+    SOCKET fd = INFO_TO_FD(info);
+    if (send(fd, (char *) &MSG_DATA_LENGTH(msg), len + sizeof(int32_t),
+             MSG_NOSIGNAL) < 0) {
+        if (errno != EAGAIN && errno != EINTR) {
+            o2_remove_remote_process(info);
+        } else {
+            perror("send_by_tcp_to_process");
+        }
+        return O2_FAIL;
     }
+    // restore len just in case caller needs it to skip over the
+    // message, which has now been byte-swapped and should not be read
+    MSG_DATA_LENGTH(msg) = len;
     return O2_SUCCESS;
-  send_error:
-    if (errno != EAGAIN && errno != EINTR) {
-        o2_remove_remote_process(info);
-    }
-    return O2_FAIL;
 }    
-
-
-
