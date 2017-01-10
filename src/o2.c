@@ -346,7 +346,7 @@ void *o2_calloc(size_t n, size_t s)
 #endif
 
 
-int o2_initialize(char *application_name)
+int o2_initialize(const char *application_name)
 {
     int err;
     if (o2_application_name) return O2_ALREADY_RUNNING;
@@ -412,7 +412,7 @@ o2_time o2_set_discovery_period(o2_time period)
 }
 
 
-void o2_notify_others(char *service_name, int added)
+void o2_notify_others(const char *service_name, int added)
 {
     // when we add or remove a service, we must tell all other
     // processes about it. To find all other processes, use the o2_fds_info

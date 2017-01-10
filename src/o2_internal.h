@@ -173,7 +173,7 @@ extern o2_time o2_discovery_period;
 
 // The structure of the local service, needed to construct discovery messages
 typedef struct service_table {
-    char *name;
+    const char *name;
 } service_table;
 
 // global variables
@@ -182,7 +182,7 @@ extern o2_arg_ptr *o2_argv; // arg vector extracted by calls to o2_get_next()
 extern int o2_argc; // length of argv
 
 // shared internal functions
-void o2_notify_others(char *service_name, int added);
+void o2_notify_others(const char *service_name, int added);
 
 #endif /* O2_INTERNAL_H */
 /// \endcond

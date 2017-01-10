@@ -166,7 +166,7 @@ static void call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg,
 //
 // key is "owned" by caller
 //
-static node_entry_ptr create_node(char *key)
+static node_entry_ptr create_node(const char *key)
 {
     node_entry_ptr node = (node_entry_ptr) O2_MALLOC(sizeof(node_entry));
     if (!node) return NULL;
@@ -590,7 +590,7 @@ void o2_node_finish(node_entry_ptr node)
             e = next;
         }
     }
-    O2_FREE(node->key);
+    O2_FREE((void *) node->key);
 }
 
 
@@ -614,7 +614,7 @@ char *o2_heapify(const char *path)
 //
 // key is "owned" by the caller
 //
-node_entry_ptr o2_node_initialize(node_entry_ptr node, char *key)
+node_entry_ptr o2_node_initialize(node_entry_ptr node, const char *key)
 {
     node->tag = PATTERN_NODE;
     node->key = o2_heapify(key);
@@ -920,7 +920,7 @@ int o2_remove_remote_process(fds_info_ptr info)
 //
 // key is "owned" by caller and must be aligned to 4-byte word boundary
 //
-node_entry_ptr o2_tree_insert_node(node_entry_ptr node, char *key)
+node_entry_ptr o2_tree_insert_node(node_entry_ptr node, const char *key)
 {
     int index; // location returned by o2_lookup
     assert(node->children.length > 0);

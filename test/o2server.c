@@ -86,14 +86,14 @@ int main(int argc, const char *argv[])
     o2_clock_set(NULL, NULL);
     
     // wait for client service to be discovered
-    while (o2_status("client") < O2_LOCAL) {
+    while (o2_status("client") < O2_REMOTE) {
         o2_poll();
         usleep(2000); // 2ms
     }
     
     printf("We discovered the client at time %g.\n", o2_time_get());
     
-    // delay 5 seconds
+    // delay 1 second
     double now = o2_time_get();
     while (o2_time_get() < now + 1) {
         o2_poll();

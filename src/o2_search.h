@@ -31,7 +31,7 @@ typedef struct generic_entry {
 // Hash table's entry for node
 typedef struct node_entry {
     int tag; // must be PATTERN_NODE
-    char *key; // key is "owned" by this node_entry struct
+    const char *key; // key is "owned" by this node_entry struct
     generic_entry_ptr next;
     int num_children;
     dyn_array children; // children is a dynamic array of generic_entry_ptr
@@ -160,7 +160,7 @@ char *o2_heapify(const char *path);
  *
  *  @return O2_SUCCESS or O2_FAIL
  */
-node_entry_ptr o2_node_initialize(node_entry_ptr node, char *key);
+node_entry_ptr o2_node_initialize(node_entry_ptr node, const char *key);
 
 /**
  *  Look up the key in certain table and return the pointer to the entry.
@@ -175,7 +175,7 @@ generic_entry_ptr *o2_lookup(node_entry_ptr dict, const char *key, int *index);
 
 int o2_remove_remote_process(fds_info_ptr info);
 
-node_entry_ptr o2_tree_insert_node(node_entry_ptr node, char *key);
+node_entry_ptr o2_tree_insert_node(node_entry_ptr node, const char *key);
 
 
 #endif /* o2_search_h */

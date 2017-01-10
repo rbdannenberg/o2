@@ -628,7 +628,7 @@ typedef void (*o2_method_handler)(const o2_msg_data_ptr msg, const char *types,
  *  #O2_RUNNING if already running, #O2_BAD_NAME if `application_name`
  *  is NULL.
  */
-int o2_initialize(char *application_name);
+int o2_initialize(const char *application_name);
 
 
 /**

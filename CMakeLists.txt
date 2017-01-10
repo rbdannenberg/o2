@@ -1,9 +1,11 @@
-cmake_minimum_required(VERSION 3.2.2)
+cmake_minimum_required(VERSION 2.8.0)
 
 project(o2)
 
+set(BUILD_TESTS ON CACHE BOOL "Compile regression and other tests")
+
 set(BUILD_TESTS_WITH_LIBLO OFF CACHE BOOL "Compile tests that use liblo,
-requiring liblo library")
+requiring liblo library (only enabled if BUILD_TESTS is ON)")
 
 set(BUILD_MIDI_EXAMPLE OFF CACHE BOOL "Compile midiclient & midiserver,
 requiring portmidi library")
@@ -46,6 +48,9 @@ add_library(o2_static STATIC ${O2_SRC})
 #######################
 
 set(LIBRARIES o2_static ${EXTRA_LIBS} CACHE INTERNAL "") 
+
+if(BUILD_TESTS)
+message(STATUS "Building test programs")
 
 # EXECUTABLE
 # Create executables 
@@ -112,7 +117,8 @@ target_link_libraries(oscbndlsend ${LIBRARIES})
 add_executable(oscbndlrecv test/oscbndlrecv.c)   
 target_include_directories(oscbndlrecv PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(oscbndlrecv ${LIBRARIES}) 
-  
+endif(BUILD_TESTS)
+
 if(UNIX)
   if(BUILD_MIDI_EXAMPLE)
     # Use PortMidi Library
@@ -155,16 +161,16 @@ if(UNIX)
                    ${PORTMIDI_PATH} ${PORTMIDI_PATH}/Debug
                    ${PORTMIDI_PATH}/x64/Debug)
     endif(USE_STATIC_LIBS)
+
+    add_executable(midiclient test/midiclient.c test/cmtio.c test/cmtio.h) 
+    target_include_directories(midiclient PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+    target_link_libraries(midiclient ${LIBRARIES})
+
+    add_executable(midiserver test/midiserver.c)
+    target_include_directories(midiserver PRIVATE ${CMAKE_SOURCE_DIR}/src
+          ${PORTMIDI_PATH} ${PORTMIDI_PATH}/../porttime)
+    target_link_libraries(midiserver ${LIBRARIES} ${PORTMIDI_DBG_LIB}) 
   endif(BUILD_MIDI_EXAMPLE) 
-
-  add_executable(midiclient test/midiclient.c test/cmtio.c test/cmtio.h) 
-  target_include_directories(midiclient PRIVATE ${CMAKE_SOURCE_DIR}/src) 
-  target_link_libraries(midiclient ${LIBRARIES})
-
-  add_executable(midiserver test/midiserver.c)
-  target_include_directories(midiserver PRIVATE ${CMAKE_SOURCE_DIR}/src
-        ${PORTMIDI_PATH} ${PORTMIDI_PATH}/../porttime)
-  target_link_libraries(midiserver ${LIBRARIES} ${PORTMIDI_DBG_LIB}) 
 endif(UNIX)
 
 message(STATUS LIBRARIES=${LIBRARIES}) 
@@ -191,6 +197,7 @@ message(STATUS LIBRARIES=${LIBRARIES})
 # library dependencies from this CMakeLists.txt file 
 ##########################################################
 
+if(BUILD_TESTS)
 if(BUILD_TESTS_WITH_LIBLO)
   set(LIBLO_PATH "${CMAKE_SOURCE_DIR}/../liblo-0.28" CACHE PATH
                  "Where to find liblo_64s.a, the liblo library.") 
@@ -227,3 +234,4 @@ if(BUILD_TESTS_WITH_LIBLO)
   target_include_directories(lo_bndlrecv PRIVATE ${LIBLO_INCLUDE_PATH})  
   target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})     
 endif(BUILD_TESTS_WITH_LIBLO)
+endif(BUILD_TESTS)
