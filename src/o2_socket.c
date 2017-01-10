@@ -298,7 +298,7 @@ int o2_sockets_initialize()
 #endif // WIN32
     
     DA_INIT(o2_fds_info, struct fds_info, 5);
-    memset(o2_fds_info.array, 5 * sizeof(fds_info), 0);
+    memset(o2_fds_info.array, 0, 5 * sizeof(fds_info));
     
     // Set a broadcast socket. If cannot set up,
     //   print the error and return O2_FAIL
