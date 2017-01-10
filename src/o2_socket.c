@@ -690,7 +690,7 @@ static int read_whole_message(SOCKET sock, struct fds_info *info)
         // int, so int is ok for n
         int n = (int) recvfrom(sock, PTR(&(info->length)) + info->length_got,
                                4 - info->length_got, 0, NULL, NULL);
-        if (n <= 0) { /* error: close the socket */
+        if (n < 0) { /* error: close the socket */
 #ifdef WIN32
             if ((errno != EAGAIN && errno != EINTR) ||
                 (GetLastError() != WSAEWOULDBLOCK &&

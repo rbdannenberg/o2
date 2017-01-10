@@ -1595,7 +1595,7 @@ from o2_get_next(), where NULL indicates incompatible types.
  *
  * @return the next message parameter or NULL if no more parameters
 */
-o2_arg_ptr o2_get_next(char type_code);
+o2_arg_ptr o2_get_next(o2_type type_code);
 
 /** @} */
 

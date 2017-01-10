@@ -108,7 +108,9 @@ void service_h(o2_msg_data_ptr data, const char *types,
     assert(strcmp(types, "h") == 0);
     o2_arg_ptr arg = o2_get_next('h');
     assert(arg->h == 12345);
-    printf("service_h types=%s int64=%lld\n", types, arg->h);
+    // long long "coercion" to make gcc happy
+    printf("service_h types=%s int64=%lld\n", types,
+           (long long) arg->h);
     got_the_message = TRUE;
 }
 
@@ -119,7 +121,9 @@ void service_hp(o2_msg_data_ptr data, const char *types,
     assert(strcmp(types, "h") == 0);
     assert(argc == 1);
     assert(argv[0]->h == 12345);
-    printf("service_hp types=%s int64=%lld\n", types, argv[0]->h);
+    // long long "coercion" to make gcc happy
+    printf("service_hp types=%s int64=%lld\n", types, 
+           (long long) argv[0]->h);
     got_the_message = TRUE;
 }
 

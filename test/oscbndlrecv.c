@@ -123,14 +123,15 @@ int main(int argc, const char * argv[])
 
     o2_initialize("test");
     printf("tcpflag %d\n", tcpflag);
-    assert(o2_osc_port_new("osc", 8100, tcpflag) == O2_SUCCESS);
+    assert(o2_osc_port_new("oscrecv", 8100, tcpflag) == O2_SUCCESS);
     printf("created osc server port 8100\n");
 
     o2_clock_set(NULL, NULL);
     
-    o2_method_new("/osc/xyz/msg1", "is", msg1_handler, NULL, FALSE, TRUE);
-    o2_method_new("/osc/abcdefg/msg2", "is", msg2_handler, NULL, FALSE, TRUE);
-    o2_method_new("/osc/first", "is", first_handler, NULL, FALSE, TRUE);
+    o2_method_new("/oscrecv/xyz/msg1", "is", msg1_handler, NULL, FALSE, TRUE);
+    o2_method_new("/oscrecv/abcdefg/msg2", "is", msg2_handler, 
+                  NULL, FALSE, TRUE);
+    o2_method_new("/oscrecv/first", "is", first_handler, NULL, FALSE, TRUE);
     while (msg_count < 16) {
         o2_poll();
         usleep(1000); // 1ms

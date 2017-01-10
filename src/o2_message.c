@@ -95,9 +95,9 @@ static void message_check_length(int needed)
 }
 
 
-static void add_type(char type_char)
+static void add_type(o2_type type_code)
 {
-    DA_APPEND(msg_types, char, type_char);
+    DA_APPEND(msg_types, char, type_code);
 }
 
 
@@ -754,6 +754,7 @@ int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
         }
         switch (*types) {
             case O2_INT32:
+            case O2_BOOL:
             case O2_MIDI:
             case O2_FLOAT:
             case O2_CHAR: {
@@ -815,7 +816,7 @@ int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
                 if (end > end_of_msg) return O2_INVALID_MSG;
                 // swap each vector element
                 len /= 4; // assuming 32-bit elements
-                char vtype = *types++;
+                o2_type vtype = *types++;
                 if (vtype == O2_DOUBLE || vtype == O2_INT64) {
                     len /= 2; // half as many elements if they are 64-bits
                 }
@@ -901,7 +902,7 @@ int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
                 break;
                 
             case O2_MIDI:
-                o2_add_midi(va_arg(ap, uint8_t *));
+                o2_add_midi(va_arg(ap, uint32_t));
                 break;
                 
             case O2_BOOL:
@@ -1007,7 +1008,7 @@ int o2_extract_start(o2_msg_data_ptr msg)
 }
 
 
-static o2_arg_ptr convert_int(char to_type, int64_t i, int siz)
+static o2_arg_ptr convert_int(o2_type to_type, int64_t i, int siz)
 {
     o2_arg_ptr rslt = ARG_NEXT;
     switch (to_type) {
@@ -1046,7 +1047,7 @@ static o2_arg_ptr convert_int(char to_type, int64_t i, int siz)
 }
 
 
-static o2_arg_ptr convert_float(char to_type, double d, int siz)
+static o2_arg_ptr convert_float(o2_type to_type, double d, int siz)
 {
     o2_arg_ptr rslt = (o2_arg_ptr) (o2_arg_data.array + o2_arg_data.length);
     switch (to_type) {
@@ -1107,7 +1108,7 @@ o2_arg_ptr o2_got_start_array = &sa;
 //       array to vector
 //       vector to vector - done
 //       array to array
-o2_arg_ptr o2_get_next(char to_type)
+o2_arg_ptr o2_get_next(o2_type to_type)
 {
     o2_arg_ptr rslt = (o2_arg_ptr) mx_data_next;
     if (mx_type_next >= mx_barrier) return NULL; // overrun
@@ -1273,7 +1274,8 @@ o2_arg_ptr o2_get_next(char to_type)
         }
         mx_array_to_vector_pending = FALSE;
     } else {
-        switch (*mx_type_next++) {
+        o2_type type_code = *mx_type_next++;
+        switch (type_code) {
             case O2_INT32:
                 if (to_type != O2_INT32) {
                     rslt = convert_int(to_type, MX_INT32, sizeof(int32_t));
@@ -1342,7 +1344,7 @@ o2_arg_ptr o2_get_next(char to_type)
                 break;
             case O2_NIL:
             case O2_INFINITUM:
-                if (to_type != mx_type_next[-1]) {
+                if (to_type != type_code) {
                     rslt = NULL;
                 }
                 break;
@@ -1395,8 +1397,8 @@ o2_arg_ptr o2_get_next(char to_type)
                 }
                 break;
             default: // could be O2_ARRAY_END or EOS among others
-                fprintf(stderr, "O2 warning: unhandled OSC type '%c'\n",
-                        *mx_type_next);
+                fprintf(stderr, "O2 warning: unhandled OSC type '%c'\n", 
+                        type_code);
                 return NULL;
         }
         if (mx_data_next > mx_barrier) {
@@ -1478,7 +1480,8 @@ static void o2_print_msg_data_2(o2_msg_data_ptr msg, int tcp_flag)
                 break;
             }
             case O2_INT64:
-                printf(" %lld", *((int64_t *) data_next));
+                // note: gcc complained about %lld with int64_t:
+                printf(" %lld", *((long long *) data_next));
                 data_next += sizeof(int64_t);
                 break;
             case O2_DOUBLE:
@@ -1506,6 +1509,11 @@ static void o2_print_msg_data_2(o2_msg_data_ptr msg, int tcp_flag)
                 printf(">");
                 data_next += 4;
                 break;
+            case O2_BOOL:
+                printf(" %s", (*(int32_t *) data_next) ?
+                             "Bool:true" : "Bool:false");
+                data_next += sizeof(int32_t);
+                break;
             case O2_TRUE:
                 printf(" #T");
                 break;
@@ -1528,14 +1536,15 @@ static void o2_print_msg_data_2(o2_msg_data_ptr msg, int tcp_flag)
                 int len = *((int32_t *) data_next);
                 data_next += sizeof(int32_t);
                 printf(" <");
-                char vtype = *types++;
+                o2_type vtype = *types++;
                 for (i = 0; i < len; i++) {
                     if (i > 0) printf(" ");
                     if (vtype == O2_INT32) {
                         printf(" %d", *((int32_t *) data_next));
                         data_next += sizeof(int32_t);
                     } else if (vtype == O2_INT64) {
-                        printf(" %lld", *((int64_t *) data_next));
+                        // note: gcc complains about %lld and int64_t
+                        printf(" %lld", *((long long *) data_next));
                         data_next += sizeof(int64_t);
                     } else if (vtype == O2_FLOAT) {
                         printf(" %gf", *((float *) data_next));

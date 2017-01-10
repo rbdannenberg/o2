@@ -281,13 +281,13 @@ void o2_debug_flags(const char *flags)
 void o2_dbg_msg(const char *src, o2_msg_data_ptr msg,
                 const char *extra_label, const char *extra_data)
 {
-    printf("%s %s at %gs (local %gs)", o2_debug_prefix,
+    fprintf(stderr, "%s %s at %gs (local %gs)", o2_debug_prefix,
            src, o2_time_get(), o2_local_time());
     if (extra_label)
         printf(" %s: %s", extra_label, extra_data);
-    printf("\n    ");
+    fprintf(stderr, "\n    ");
     o2_msg_data_print(msg);
-    printf("\n");
+    fprintf(stderr, "\n");
 }
 #endif
 
@@ -370,8 +370,6 @@ int o2_initialize(const char *application_name)
     
     o2_service_new("_o2");
     o2_method_new("/_o2/dy", "ssii", &o2_discovery_handler, NULL, FALSE, FALSE);
-    // TODO: DELETE     o2_method_new("/_o2/in", "siii", &o2_discovery_init_handler,
-    //                                NULL, FALSE, FALSE);
     // "/sv/" service messages are sent by tcp as ordinary O2 messages, so they
     // are addressed by full name (IP:PORT). We cannot call them /_o2/sv:
     char address[32];
@@ -478,7 +476,7 @@ int o2_poll()
         o2_global_now = -1.0;
     }
     o2_sched_poll(); // deal with the timestamped message
-    o2_recv(); // recieve and dispatch messages
+    o2_recv(); // receive and dispatch messages
     o2_deliver_pending();
     return O2_SUCCESS;
 }

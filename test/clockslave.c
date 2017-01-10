@@ -26,10 +26,16 @@ void clockslave(o2_msg_data_ptr msg, const char *types,
            "ss %d cs %d mean %g min %g\n",
            o2_local_time(), o2_time_get(), ss, cs, mean_rtt, min_rtt);
     if (ss == O2_REMOTE) {
-        if (o2_time_get() < cs_time) cs_time = o2_time_get();
+        if (o2_time_get() < cs_time) {
+            cs_time = o2_time_get();
+            printf("clockslave sync time %g\n", cs_time);
+        }
     }
     // stop 10s later
-    if (o2_time_get() + 10 > cs_time) o2_stop_flag = TRUE;
+    if (o2_time_get() > cs_time + 10) {
+        o2_stop_flag = TRUE;
+        printf("clockslave set stop flag TRUE at %g\n", o2_time_get());
+    }
     // Since the clock slave cannot immediately send scheduled messages
     // due to there being no global time reference, we will schedule
     // messages directly on the local scheduler
@@ -42,6 +48,16 @@ void clockslave(o2_msg_data_ptr msg, const char *types,
 
 int main(int argc, const char * argv[])
 {
+    printf("Usage: clockslave [debugflags] "
+           "(see o2.h for flags, use a for all)\n");
+    if (argc == 2) {
+        o2_debug_flags(argv[1]);
+        printf("debug flags are: %s\n", argv[1]);
+    }
+    if (argc > 2) {
+        printf("WARNING: clockslave ignoring extra command line argments\n");
+    }
+
     o2_initialize("test");
     o2_service_new("client");
     o2_method_new("/client/clockslave", "", &clockslave, NULL, FALSE, FALSE);

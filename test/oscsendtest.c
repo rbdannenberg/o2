@@ -45,12 +45,13 @@ int main(int argc, const char * argv[])
         o2_poll();
     }
 
-    assert(o2_osc_delegate("osc", "localhost", 8100, tcpflag) == O2_SUCCESS);
+    assert(o2_osc_delegate("oscsend", 
+                           "localhost", 8100, tcpflag) == O2_SUCCESS);
     
     // send 12 messages, 1 every 0.5s, and stop
     for (int n = 0; n < 12; n++) {
-        assert(o2_send("/osc/i", 0, "i", 1234) == O2_SUCCESS);
-        printf("sent 1234 to /osc/i\n");
+        assert(o2_send("/oscsend/i", 0, "i", 1234) == O2_SUCCESS);
+        printf("sent 1234 to /oscsend/i\n");
         // pause for 0.5s, but keep running O2 by polling
         for (int i = 0; i < 250; i++) {
             o2_poll();
@@ -60,14 +61,14 @@ int main(int argc, const char * argv[])
     // send 10 messages with timestamps spaced by 0.1s
     o2_time now = o2_time_get();
     for (int n = 0; n < 10; n++) {
-        o2_send("/osc/i", now + n * 0.1, "i", 2000 + n);
+        o2_send("/oscsend/i", now + n * 0.1, "i", 2000 + n);
     }
     // pause for 1s to make sure messages are sent
     for (int i = 0; i < 500; i++) {
         o2_poll();
         usleep(2000); // 2ms
     }
-    o2_service_free("osc");
+    o2_service_free("oscsend");
     o2_finish();
     sleep(1); // finish closing sockets
     printf("OSCSEND DONE\n");

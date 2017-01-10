@@ -28,7 +28,7 @@ void osc_i_handler(o2_msg_data_ptr data, const char *types,
     assert(argc == 1);
     int i = argv[0]->i;
     if (i == 1234) {
-        printf("osc_i_handler received 1234 at /osc/i\n");
+        printf("osc_i_handler received 1234 at /oscrecv/i\n");
         message_count++;
     } else if (i == 2000) {
         timed_start = o2_time_get();
@@ -38,7 +38,8 @@ void osc_i_handler(o2_msg_data_ptr data, const char *types,
                o2_time_get() - timed_start);
         i -= 2000;
         assert(i == timed_count);
-        assert(small(timed_start + i * 0.1 - o2_time_get()));
+        o2_time now = o2_time_get();
+        assert(small(timed_start + i * 0.1 - now));
         timed_count++;
     } else {
         assert(FALSE); // unexpected message
@@ -62,13 +63,13 @@ int main(int argc, const char * argv[])
     o2_initialize("test");
 
     printf("tcpflag %d\n", tcpflag);
-    assert(o2_osc_port_new("osc", 8100, tcpflag) == O2_SUCCESS);
+    assert(o2_osc_port_new("oscrecv", 8100, tcpflag) == O2_SUCCESS);
     
     o2_clock_set(NULL, NULL);
-    o2_method_new("/osc/i", "i", osc_i_handler, NULL, FALSE, TRUE);
+    o2_method_new("/oscrecv/i", "i", osc_i_handler, NULL, FALSE, TRUE);
     while (message_count < 10 || timed_count < 10) {
         o2_poll();
-        usleep(10000); // 10ms
+        usleep(2000); // 2ms
     }
     o2_osc_port_free(8100);
     o2_finish();

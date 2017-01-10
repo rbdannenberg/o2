@@ -1,6 +1,10 @@
 #!/bin/sh
 
-BIN="../Debug"
+if [ -d "../Debug" ]; then
+    BIN="../Debug"
+else
+    BIN=".."
+fi
 
 # runtest testname - runs testname, saving output in output.txt,
 #    searches output.txt for single full line containing "DONE",
@@ -8,7 +12,7 @@ BIN="../Debug"
 #    else status=-1 (indicating failure).
 runtest(){
     printf "%30s: "  "$1"
-    ../Debug/$1 > output.txt
+    $BIN/$1 > output.txt
     if grep -Fxq "DONE" output.txt
     then
         echo "PASS"
@@ -21,7 +25,7 @@ runtest(){
 
 rundouble(){
     printf "%30s: "  "$1+$3"
-    ./regression_run_two.sh "$BIN//$1" "$BIN/$3" &>misc.txt 2>&1
+    ./regression_run_two.sh "$BIN/$1" "$BIN/$3" &>misc.txt 2>&1
     if grep -Fxq "$2" output.txt
     then
         if grep -Fxq "$4" output2.txt

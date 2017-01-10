@@ -42,7 +42,7 @@ static o2_time time_offset = 0.0; // added to time_callback()
 #ifdef __APPLE__
     #include "CoreAudio/HostTime.h"
     static uint64_t start_time;
-#elif __UNIX__
+#elif __linux__
     static long start_time;
 #elif WIN32
     static long start_time;
@@ -52,12 +52,14 @@ void o2_time_initialize()
 {
 #ifdef __APPLE__
     start_time = AudioGetCurrentHostTime();
-#elif __UNIX__
+#elif __linux__
     struct timeval tv;
     gettimeofday(&tv, NULL);
     start_time = tv.tv_sec;
 #elif WIN32
     start_time = timeGetTime();
+#else
+#error o2_clock has no implementation for this system
 #endif
     // until local clock is synchronized, LOCAL_TO_GLOBAL will return -1:
     local_time_base = 0;
@@ -420,12 +422,14 @@ o2_time o2_local_time()
     clock_time = AudioGetCurrentHostTime() - start_time;
     nsec_time = AudioConvertHostTimeToNanos(clock_time);
     return ((o2_time) (nsec_time * 1.0E-9)) - time_offset;
-#elif __UNIX__
+#elif __linux__
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return ((tv.tv_sec - start_time) + (tv.tv_usec * 0.000001)) - time_offset;
 #elif WIN32
     return ((timeGetTime() - start_time) * 0.001) - time_offset;
+#else
+#error o2_clock has no implementation for this system
 #endif
 }
 

@@ -482,15 +482,16 @@ int o2_service_free(char *service_name)
 {
     generic_entry_ptr *entry_ptr = o2_service_find(service_name);
     if (!*entry_ptr) return O2_FAIL;
-    switch ((*entry_ptr)->tag) {
-        case O2_REMOTE_SERVICE:
-        case O2_BRIDGE_SERVICE:
-        default:
-            return O2_FAIL; // not implemented yet
+    int tag = (*entry_ptr)->tag;
+    switch (tag) {
+        case O2_REMOTE_SERVICE: 
+            // fails because you can only remove a local service
+        case O2_BRIDGE_SERVICE: // fails because not implemented yet
+        default: // fails because service is unrecognized
+            return O2_FAIL; 
         case PATTERN_NODE:
-        case PATTERN_HANDLER: {
+        case PATTERN_HANDLER:
             break;
-        }
         case OSC_REMOTE_SERVICE: {
             // shut down any OSC connection
             osc_entry_ptr osc_entry = (osc_entry_ptr) (*entry_ptr);
@@ -511,7 +512,15 @@ int o2_remote_service_remove(const char *service)
 {
     generic_entry_ptr *node_ptr = o2_service_find(service);
     if (*node_ptr) {
-        assert((*node_ptr)->tag == O2_REMOTE_SERVICE);
+        int tag = (*node_ptr)->tag;
+        if (tag != O2_REMOTE_SERVICE) {
+            fprintf(stderr, "O2 WARNING: some other process claims it "
+                    "is deleting service %s, but %s is local to THIS "
+                    "process. Perhaps both created the same service. "
+                    "This would be an error: services must be unique.\n",
+                    service, service);
+            return O2_FAIL;
+        }
         return entry_remove(&path_tree_table, node_ptr, TRUE);
     }
     return O2_FAIL;

@@ -29,7 +29,6 @@
 #include "o2_send.h"
 #include "o2_interoperation.h"
 
-
 static o2_message_ptr osc_to_o2(int32_t len, char *oscmsg, char *service);
 
 static uint64_t osc_time_offset = 0;

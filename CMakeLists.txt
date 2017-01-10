@@ -120,6 +120,11 @@ target_link_libraries(oscbndlrecv ${LIBRARIES})
 endif(BUILD_TESTS)
 
 if(UNIX)
+  if(APPLE)
+  else(APPLE)
+    # linux
+    set(CMAKE_C_FLAGS "-std=gnu99")
+  endif(APPLE)
   if(BUILD_MIDI_EXAMPLE)
     # Use PortMidi Library
     set(PORTMIDI_DBG_LIB PORTMIDI_DBG_LIB-NOTFOUND)
