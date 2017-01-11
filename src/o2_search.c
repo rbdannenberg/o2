@@ -470,7 +470,7 @@ remote_service_entry_ptr o2_remote_process_new_at(
     process->tag = O2_REMOTE_SERVICE;
     process->key = o2_heapify(name);
     process->next = NULL;
-    process->process_index = INFO_TO_INDEX(info);
+    process->process_index = (int) INFO_TO_INDEX(info);
     add_entry_at(&path_tree_table, entry_ptr, (generic_entry_ptr) process);
     return process;
 }
@@ -885,7 +885,7 @@ static int o2_pattern_match(const char *str, const char *p)
 int o2_remove_method(const char *path)
 {
     // make a zero-padded copy of path
-    long len = strlen(path) + 1;
+    long len = (long) strlen(path) + 1;
     char *path_copy = (char *) alloca(len);
     if (!path_copy) return O2_FAIL;
     memcpy(path_copy, path, len);
@@ -915,7 +915,7 @@ int o2_remove_remote_process(fds_info_ptr info)
         
     } // else if (info->tag == OSC_TCP_SOCKET) do nothing special
     // else if (info->tag == OSC_REMOTE_SERVICE
-    o2_socket_mark_to_free(INFO_TO_INDEX(info)); // close the TCP socket
+    o2_socket_mark_to_free((int) INFO_TO_INDEX(info)); // close the TCP socket
     return O2_SUCCESS;
 }
 
