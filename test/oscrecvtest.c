@@ -10,6 +10,10 @@
 
 #ifdef WIN32
 #include <windows.h> 
+void sleep(int i)
+{
+    Sleep(i * 1000);
+}
 #else
 #include <unistd.h>
 #endif
@@ -18,7 +22,7 @@ int message_count = 0;
 o2_time timed_start = 0;
 int timed_count = 0;
 
-int small(double x) { return (x > -0.02) && (x < 0.02); }
+int approx(double x) { return (x > -0.02) && (x < 0.02); }
 
 
 void osc_i_handler(o2_msg_data_ptr data, const char *types,
@@ -39,7 +43,7 @@ void osc_i_handler(o2_msg_data_ptr data, const char *types,
         i -= 2000;
         assert(i == timed_count);
         o2_time now = o2_time_get();
-        assert(small(timed_start + i * 0.1 - now));
+        assert(approx(timed_start + i * 0.1 - now));
         timed_count++;
     } else {
         assert(FALSE); // unexpected message
