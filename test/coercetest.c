@@ -257,7 +257,10 @@ void service_T(o2_msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     assert(strcmp(types, send_types) == 0);
-    o2_arg_ptr arg = o2_get_next('T');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed for assert()
+#endif
+    o2_get_next('T');
     printf("service_T types=%s\n", types);
     assert(arg);
     got_the_message = TRUE;
@@ -280,7 +283,10 @@ void service_F(o2_msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     assert(strcmp(types, send_types) == 0);
-    o2_arg_ptr arg = o2_get_next('F');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed for assert()
+#endif
+    o2_get_next('F');
     assert(arg);
     printf("service_F types=%s\n", types);
     got_the_message = TRUE;

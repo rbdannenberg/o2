@@ -414,7 +414,8 @@ int *o2_msg_len_ptr()
 
 int o2_set_msg_length(int32_t *msg_len_ptr)
 {
-    int32_t len = (msg_data.array + msg_data.length) - PTR(msg_len_ptr + 1);
+    int32_t len = (int32_t) ((msg_data.array + msg_data.length) -
+                             PTR(msg_len_ptr + 1));
 #if IS_LITTLE_ENDIAN
     len = swap32(len);
 #endif
@@ -940,10 +941,12 @@ int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
     va_end(ap);
     *msg = o2_service_message_finish(timestamp, service_name, path, tcp_flag);
     return (*msg ? O2_SUCCESS : O2_FAIL);
+#ifndef USE_ANSI_C
   error_exit:
     fprintf(stderr, "o2 error: o2_send or o2_send_cmd called with mismatching types and data.\n");
     va_end(ap);
-    return O2_BAD_ARGS;    
+    return O2_BAD_ARGS;
+#endif
 }
 
 

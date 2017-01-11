@@ -22,7 +22,10 @@ void service_f(o2_msg_data_ptr data, const char *types,
     o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
         assert(*types ==  'f');
-        o2_arg_ptr arg = o2_get_next('f');
+#ifndef NDEBUG
+        o2_arg_ptr arg = // only needed for assert()
+#endif
+        o2_get_next('f');
         assert(arg);
         assert(arg->f == i + 123);
         types++;
@@ -39,7 +42,10 @@ void service_d(o2_msg_data_ptr data, const char *types,
     o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
         assert(*types ==  'd');
-        o2_arg_ptr arg = o2_get_next('d');
+#ifndef NDEBUG
+        o2_arg_ptr arg = // only needed for assert()
+#endif
+        o2_get_next('d');
         assert(arg);
         assert(arg->d == i + 1234);
         types++;
@@ -58,7 +64,10 @@ void service_fc(o2_msg_data_ptr data, const char *types,
     for (int i = 0; i < arg_count; i++) {
         assert(*types == 'i');
         assert(argv[i]);
-        int actual = argv[i]->i;
+#ifndef NDEBUG
+        int actual = // only needed for assert
+#endif
+        argv[i]->i;
         assert(actual == i + 123);
         types++;
     }
@@ -76,7 +85,9 @@ void service_dc(o2_msg_data_ptr data, const char *types,
     for (int i = 0; i < arg_count; i++) {
         assert(*types ==  'h');
         assert(argv[i]);
-        int64_t actual = argv[i]->h;
+#ifndef NDEBUG
+        int64_t actual = argv[i]->h; // only needed for assert()
+#endif
         assert(actual == i + 1234);
         types++;
     }

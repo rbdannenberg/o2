@@ -42,7 +42,9 @@ void osc_i_handler(o2_msg_data_ptr data, const char *types,
                o2_time_get() - timed_start);
         i -= 2000;
         assert(i == timed_count);
-        o2_time now = o2_time_get();
+#ifndef NDEBUG
+        o2_time now = o2_time_get(); // only needed in assert()
+#endif
         assert(approx(timed_start + i * 0.1 - now));
         timed_count++;
     } else {

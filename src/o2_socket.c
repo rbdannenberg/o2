@@ -119,7 +119,7 @@ static void freeifaddrs(struct ifaddrs *ifp)
 {
     struct ifaddrs *next;
     while (ifp) {
-        next = ifp->next;
+        next = ifp->ifa_next;
         free(ifp);
         ifp = next;
     }
@@ -149,8 +149,8 @@ static int getifaddrs(struct ifaddrs **ifpp)
         ZeroMemory(intarray, intarray_len);
 
         if (WSAIoctl(sock, SIO_GET_INTERFACE_LIST, NULL, 0,
-            (LPVOID) intarray, (DWORD) intarray_len, &cbret,
-            NULL, NULL) == 0) {
+                     (LPVOID) intarray, (DWORD) intarray_len, &cbret,
+                     NULL, NULL) == 0) {
             intarray_len = cbret;
             break;
         }
@@ -169,8 +169,8 @@ static int getifaddrs(struct ifaddrs **ifpp)
         goto _exit;
 
     /* intarray is an array of INTERFACE_INFO structures.  intarray_len has the
-    actual size of the buffer.  The number of elements is
-    intarray_len/sizeof(INTERFACE_INFO) */
+       actual size of the buffer.  The number of elements is
+       intarray_len/sizeof(INTERFACE_INFO) */
 
     {
         size_t n = intarray_len / sizeof(INTERFACE_INFO);
@@ -245,7 +245,7 @@ fds_info_ptr o2_add_new_socket(SOCKET sock, int tag, o2_socket_handler handler)
 {
     int o2_process_index;
     if (o2_process)
-        o2_process_index = INFO_TO_INDEX(o2_process);
+        o2_process_index = (int) INFO_TO_INDEX(o2_process);
 
     // expand socket arrays for new port
     DA_EXPAND(o2_fds_info, struct fds_info);
@@ -290,9 +290,6 @@ int o2_sockets_initialize()
     // Initialize (in Windows)
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (!initWSock()) {
-        return O2_FAIL;
-    }
 #else
     DA_INIT(o2_fds, struct pollfd, 5);
 #endif // WIN32
@@ -367,7 +364,7 @@ int o2_make_tcp_recv_socket(int tag, int port,
         // to name. If you find one that is not 127.0.0.1, then
         // stop looking.
         
-        if (getifaddrs (&ifap)) {
+        if (getifaddrs(&ifap)) {
             perror("getting IP address");
             return O2_FAIL;
         }
@@ -447,11 +444,11 @@ static void socket_remove(int i)
 {
     struct pollfd *pfd = DA_GET(o2_fds, struct pollfd, i);
 
-    O2_DBo(printf("%s socket_remove(%d), tag %d port %d closing socket %d\n",
+    O2_DBo(printf("%s socket_remove(%d), tag %d port %d closing socket %lld\n",
                   o2_debug_prefix, i,
                   DA_GET(o2_fds_info, fds_info, i)->tag,
                   DA_GET(o2_fds_info, fds_info, i)->port,
-                  pfd->fd));
+                  (long long) pfd->fd));
     SOCKET sock = pfd->fd;
 #ifdef SHUT_WR
     shutdown(sock, SHUT_WR);
@@ -645,7 +642,13 @@ int o2_osc_tcp_accept_handler(SOCKET sock, fds_info_ptr info)
         return O2_FAIL;
     }
     o2_disable_sigpipe(connection);
+    int info_index = INFO_TO_INDEX(info);
     fds_info_ptr conn_info = o2_add_new_socket(connection, OSC_TCP_SOCKET, &osc_tcp_handler);
+    // surprise! at this point info is no longer valid because o2_add_new_socket() might
+    // have expanded the dynamic array o2_fds_info into which info is a pointer. Probably
+    // I should have used the index rather than a pointer. Instead, we recompute info to
+    // make it valid. Since at most we added a new socket, the index has not changed.
+    info = DA_GET(o2_fds_info, fds_info, info_index);
     assert(info->osc_service_name);
     conn_info->osc_service_name = info->osc_service_name;
     assert(info->port != 0);

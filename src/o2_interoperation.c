@@ -281,9 +281,9 @@ static o2_message_ptr osc_to_o2(int32_t len, char *oscmsg, char *service)
         o2_ptr = PTR(fill_ptr + 1); // get location after O2 address
         // copy type string and OSC message data
         char *osc_ptr = WORD_ALIGN_PTR(oscmsg + addr_len + 4);
-        o2len = oscmsg + len - osc_ptr; // how much payload to copy
+        o2len = (int) (oscmsg + len - osc_ptr); // how much payload to copy
         memcpy(o2_ptr, osc_ptr, o2len);
-        o2msg->length = o2_ptr + o2len - PTR(&(o2msg->data));
+        o2msg->length = (int32_t) (o2_ptr + o2len - PTR(&(o2msg->data)));
 #if IS_LITTLE_ENDIAN
         o2_msg_swap_endian(&(o2msg->data), FALSE);
 #endif
@@ -355,8 +355,8 @@ static int msg_data_to_osc_data(osc_entry_ptr service, o2_msg_data_ptr msg,
         // Get the address of the rest of the message:
         char *types_ptr = msg->address + 4;
         while (types_ptr[-1]) types_ptr += 4;
-        o2_add_raw_bytes(PTR(msg) + MSG_DATA_LENGTH(msg) -
-                         types_ptr, types_ptr);
+        o2_add_raw_bytes((int32_t) (PTR(msg) + MSG_DATA_LENGTH(msg) -
+                                    types_ptr), types_ptr);
     }
     return O2_SUCCESS;
 }

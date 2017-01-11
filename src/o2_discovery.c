@@ -94,7 +94,7 @@ int o2_discovery_initialize()
         perror("Create local discovery send socket");
         return O2_FAIL;
     }
-    O2_DBo(printf("%s discovery send socket (UDP) %d created\n",
+    O2_DBo(printf("%s discovery send socket (UDP) %lld created\n",
                   o2_debug_prefix, local_send_sock));
 
     // Initialize addr for local sending

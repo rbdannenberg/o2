@@ -17,11 +17,6 @@
 #include <errno.h>
 
 
-#if defined(WIN32) || defined(_MSC_VER)
-int initWSock();
-#endif
-
-
 // to prevent deep recursion, messages go into a queue if we are already
 // delivering a message via o2_msg_data_deliver:
 static int in_find_and_call_handlers = FALSE;

@@ -4,7 +4,6 @@
 
 #include "o2_internal.h"
 #include "o2_sched.h"
-#include "sys/time.h"
 
 // get the master clock - clock time is estimated as
 //   global_time_base + elapsed_time * clock_rate, where
@@ -40,12 +39,14 @@ static o2_time master_minus_local[CLOCK_SYNC_HISTORY_LEN];
 static o2_time time_offset = 0.0; // added to time_callback()
 
 #ifdef __APPLE__
-    #include "CoreAudio/HostTime.h"
-    static uint64_t start_time;
+#include "sys/time.h"
+#include "CoreAudio/HostTime.h"
+static uint64_t start_time;
 #elif __linux__
-    static long start_time;
+#include "sys/time.h"
+static long start_time;
 #elif WIN32
-    static long start_time;
+static long start_time;
 #endif
 
 void o2_time_initialize()

@@ -305,7 +305,7 @@ o2_time o2_global_now = 0.0;
 #ifndef O2_NO_DEBUG
 void *o2_dbg_malloc(size_t size, char *file, int line)
 {
-    O2_DBM(printf("%s malloc %ld in %s:%d", o2_debug_prefix, size, file, line));
+    O2_DBM(printf("%s malloc %lld in %s:%d", o2_debug_prefix, (long long) size, file, line));
     fflush(stdout);
     void *obj = (*o2_malloc)(size);
     O2_DBM(printf(" -> %p\n", obj));

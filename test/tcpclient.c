@@ -10,6 +10,10 @@
 
 #ifdef WIN32
 #include <windows.h> 
+void sleep(int i)
+{
+    Sleep(i * 1000);
+}
 #else
 #include <unistd.h>
 #endif

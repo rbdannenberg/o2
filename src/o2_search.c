@@ -1095,7 +1095,10 @@ void show_table(node_entry_ptr node, int indent)
 
         // see if each entry can be found
         int index;
-        generic_entry_ptr *ptr = o2_lookup(node, entry->key, &index);
+#ifndef NDEBUG
+        generic_entry_ptr *ptr = // only needed in assert()
+#endif
+        o2_lookup(node, entry->key, &index);
         assert(*ptr == entry);
 
         if (entry->tag == PATTERN_NODE) {
@@ -1122,60 +1125,3 @@ static void string_pad(char *dst, char *src)
     // now copy the string; this may overwrite some zero-pad bytes:
     strncpy(dst, src, len);
 }
-
-
-
-//Recieving messages.
-/* TODO DELETE THIS
-ssize_t o2_get_length(o2_type type, void *data)
-{
-    switch (type) {
-        case O2_TRUE:
-        case O2_FALSE:
-        case O2_NIL:
-        case O2_INFINITUM:
-            return 0;
-            
-        case O2_INT32:
-        case O2_FLOAT:
-        case O2_MIDI:
-        case O2_CHAR:
-            return 4;
-            
-        case O2_INT64:
-        case O2_TIME:
-        case O2_DOUBLE:
-            return 8;
-            
-        case O2_STRING:
-        case O2_SYMBOL:
-        {
-            int i = 0, len = 0;
-            char *pos = data;
-            
-            for (i = 0; ; ++i) {
-                if (pos[i] == '\0') {
-                    len = 4 * (i / 4 + 1);
-                    break;
-                }
-            }
-            for (; i < len; ++i) {
-                if (pos[i] != '\0') {
-                    return O2_FAIL;    // non-zero char found in pad area
-                }
-            }
-            
-            return len;
-
-        }
-            
-        //case O2_BLOB:
-            //return o2_validate_blob((o2_blob) data, size);
-            
-        default:
-            return -O2_EINVALIDTYPE;
-    }
-    return -O2_INT_ERR;
-}
-*/
-
