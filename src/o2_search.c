@@ -1095,7 +1095,10 @@ void show_table(node_entry_ptr node, int indent)
 
         // see if each entry can be found
         int index;
-        generic_entry_ptr *ptr = o2_lookup(node, entry->key, &index);
+#ifndef NDEBUG
+        generic_entry_ptr *ptr = // only needed in assert()
+#endif
+        o2_lookup(node, entry->key, &index);
         assert(*ptr == entry);
 
         if (entry->tag == PATTERN_NODE) {

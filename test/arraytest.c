@@ -48,15 +48,24 @@ void service_ai(o2_msg_data_ptr data, const char *types,
     o2_extract_start(data);
 
     assert(*types++ == '[');
-    o2_arg_ptr arg = o2_get_next('[');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed by assert()
+#endif
+    o2_get_next('[');
     assert(arg == o2_got_start_array);
 
     assert(*types++ == 'i');
-    arg = o2_get_next('i');
+#ifndef NDEBUG
+    arg = // only needed by assert()
+#endif
+    o2_get_next('i');
     assert(arg->i == 3456);
 
     assert(*types++ == ']');
-    arg = o2_get_next(']');
+#ifndef NDEBUG
+    arg = // only needed by assert()
+#endif
+    o2_get_next(']');
     assert(arg == o2_got_end_array);
 
     assert(*types == 0);
@@ -71,11 +80,17 @@ void service_a(o2_msg_data_ptr data, const char *types,
     o2_extract_start(data);
 
     assert(*types++ == '[');
-    o2_arg_ptr arg = o2_get_next('[');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed by assert()
+#endif
+    o2_get_next('[');
     assert(arg == o2_got_start_array);
 
     assert(*types++ == ']');
-    arg = o2_get_next(']');
+#ifndef NDEBUG
+    arg = // only needed by assert()
+#endif
+    o2_get_next(']');
     assert(arg == o2_got_end_array);
 
     assert(*types == 0);
@@ -91,19 +106,31 @@ void service_aii(o2_msg_data_ptr data, const char *types,
     o2_extract_start(data);
 
     assert(*types++ == '[');
-    o2_arg_ptr arg = o2_get_next('[');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed by assert()
+#endif
+    o2_get_next('[');
     assert(arg == o2_got_start_array);
 
     assert(*types++ == 'i');
-    arg = o2_get_next('i');
+#ifndef NDEBUG
+    arg = // only needed by assert()
+#endif
+    o2_get_next('i');
     assert(arg->i == 123);
 
     assert(*types++ == 'i');
-    arg = o2_get_next('i');
+#ifndef NDEBUG
+    arg = // only needed by assert()
+#endif
+    o2_get_next('i');
     assert(arg->i == 234);
 
     assert(*types++ == ']');
-    arg = o2_get_next(']');
+#ifndef NDEBUG
+    arg = // only needed by assert()
+#endif
+    o2_get_next(']');
     assert(arg == o2_got_end_array);
 
     assert(*types == 0);
@@ -166,7 +193,10 @@ void check_val(char actual_type)
 void icheck(char typ, int val)
 {
     assert(typ == 'i');
-    o2_arg_ptr arg = o2_get_next('i');
+#ifndef NDEBUG
+    o2_arg_ptr arg =  // only needed for assert()
+#endif
+    o2_get_next('i');
     assert(arg && arg->i == val);
 }
 
@@ -174,7 +204,10 @@ void icheck(char typ, int val)
 void hcheck(char typ, int64_t val)
 {
     assert(typ == 'h');
-    o2_arg_ptr arg = o2_get_next('h');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed for assert()
+#endif
+    o2_get_next('h');
     assert(arg && arg->h == val);
 }
 
@@ -182,7 +215,10 @@ void hcheck(char typ, int64_t val)
 void dcheck(char typ, double val)
 {
     assert(typ == 'd');
-    o2_arg_ptr arg = o2_get_next('d');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed for assert()
+#endif
+    o2_get_next('d');
     assert(arg && arg->d == val);
 }
 
@@ -190,7 +226,10 @@ void dcheck(char typ, double val)
 void tcheck(char typ, double val)
 {
     assert(typ == 't');
-    o2_arg_ptr arg = o2_get_next('t');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed for assert()
+#endif
+    o2_get_next('t');
     assert(arg && arg->t == val);
 }
 
@@ -198,7 +237,10 @@ void tcheck(char typ, double val)
 void fcheck(char typ, float val)
 {
     assert(typ == 'f');
-    o2_arg_ptr arg = o2_get_next('f');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed for assert()
+#endif
+    o2_get_next('f');
     assert(arg && arg->f == val);
 }
 
@@ -206,14 +248,20 @@ void fcheck(char typ, float val)
 void acheck(char typ)
 {
     assert(typ == '[');
-    o2_arg_ptr arg = o2_get_next('[');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed for assert()
+#endif
+    o2_get_next('[');
     assert(arg && arg == o2_got_start_array);
 }
 
 void zcheck(char typ)
 {
     assert(typ == ']');
-    o2_arg_ptr arg = o2_get_next(']');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed for assert()
+#endif
+    o2_get_next(']');
     assert(arg && arg == o2_got_end_array);
 }
 
@@ -292,10 +340,16 @@ void service_vi(o2_msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     assert(*types++ == 'v');
-    o2_arg_ptr arg = o2_get_next('v');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed for assert()
+#endif
+    o2_get_next('v');
     assert(arg);
     assert(*types++ == 'i');
-    o2_arg_ptr arg2 = o2_get_next('i');
+#ifndef NDEBUG
+    o2_arg_ptr arg2 = // only needed for assert()
+#endif
+    o2_get_next('i');
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
@@ -308,7 +362,6 @@ void service_vi(o2_msg_data_ptr data, const char *types,
     got_the_message = TRUE;
 }
 
-
 // 8. sending typestring vf (with length 0 to 100)
 //
 void service_vf(o2_msg_data_ptr data, const char *types,
@@ -316,16 +369,24 @@ void service_vf(o2_msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     assert(*types++ == 'v');
-    o2_arg_ptr arg = o2_get_next('v');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed by assert()
+#endif
+    o2_get_next('v');
     assert(arg);
     assert(*types++ == 'f');
-    o2_arg_ptr arg2 = o2_get_next('f');
+#ifndef NDEBUG
+    o2_arg_ptr arg2 = // only needed by assert()
+#endif
+    o2_get_next('f');
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
     assert(arg->v.typ == 'f');
     for (int i = 0; i < arg_count; i++) {
-        float correct = 123.456F + i;
+#ifndef NDEBUG
+        float correct = 123.456F + i; // only used by asserts
+#endif
         assert(arg->v.vf);
         assert(arg->v.vf[i] == correct);
     }
@@ -340,16 +401,24 @@ void service_vh(o2_msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     assert(*types++ == 'v');
-    o2_arg_ptr arg = o2_get_next('v');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed by assert()
+#endif
+    o2_get_next('v');
     assert(arg);
     assert(*types++ == 'h');
-    o2_arg_ptr arg2 = o2_get_next('h');
+#ifndef NDEBUG
+    o2_arg_ptr arg2 = // only needed by assert()
+#endif
+    o2_get_next('h');
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
     assert(arg->v.typ == 'h');
     for (int i = 0; i < arg_count; i++) {
-        int64_t correct = 123456 + i;
+#ifndef NDEBUG
+        int64_t correct = 123456 + i; // only used by asserts
+#endif
         assert(arg->v.vh);
         assert(arg->v.vh[i] == correct);
     }
@@ -364,16 +433,24 @@ void service_vd(o2_msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     assert(*types++ == 'v');
-    o2_arg_ptr arg = o2_get_next('v');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed by assert()
+#endif
+    o2_get_next('v');
     assert(arg);
     assert(*types++ == 'd');
-    o2_arg_ptr arg2 = o2_get_next('d');
+#ifndef NDEBUG
+    o2_arg_ptr arg2 = // only needed by assert()
+#endif
+    o2_get_next('d');
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
     assert(arg->v.typ == 'd');
     for (int i = 0; i < arg_count; i++) {
+#ifndef NDEBUG
         double correct = 1234.567 + i;
+#endif
         assert(arg->v.vd);
         assert(arg->v.vd[i] == correct);
     }
@@ -392,10 +469,16 @@ void service_ifvxif(o2_msg_data_ptr data, const char *types,
     fcheck(*types++, 345.67F);
     
     assert(*types++ == 'v');
-    o2_arg_ptr arg = o2_get_next('v');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed by assert()
+#endif
+    o2_get_next('v');
     assert(arg);
     assert(*types++ == xtype);
-    o2_arg_ptr arg2 = o2_get_next(xtype);
+#ifndef NDEBUG
+    o2_arg_ptr arg2 = // only needed by assert()
+#endif
+    o2_get_next(xtype);
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
@@ -440,10 +523,16 @@ void service_vivd(o2_msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     assert(*types++ == 'v');
-    o2_arg_ptr arg = o2_get_next('v');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed by assert()
+#endif
+    o2_get_next('v');
     assert(arg);
     assert(*types++ == 'i');
-    o2_arg_ptr arg2 = o2_get_next('i');
+#ifndef NDEBUG
+    o2_arg_ptr arg2 = // only needed by assert()
+#endif
+    o2_get_next('i');
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
@@ -453,10 +542,16 @@ void service_vivd(o2_msg_data_ptr data, const char *types,
         assert(arg->v.vi[i] == 1234 + i);
     }
     assert(*types++ == 'v');
-    arg = o2_get_next('v');
+#ifndef NDEBUG
+    arg = // only needed by assert()
+#endif
+    o2_get_next('v');
     assert(arg);
     assert(*types++ == 'd');
-    arg2 = o2_get_next('d');
+#ifndef NDEBUG
+    arg2 = // only needed by assert()
+#endif
+    o2_get_next('d');
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
@@ -477,9 +572,15 @@ void service_coerce(o2_msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     icheck(*types++, 5678);
-    o2_arg_ptr arg = o2_get_next('v');
+#ifndef NDEBUG
+    o2_arg_ptr arg = // only needed by assert()
+#endif
+    o2_get_next('v');
     assert(*types++ == '[');
-    o2_arg_ptr arg2 = o2_get_next(ytype);
+#ifndef NDEBUG
+    o2_arg_ptr arg2 = // only needed by assert()
+#endif
+    o2_get_next(ytype);
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
@@ -503,7 +604,10 @@ void service_coerce(o2_msg_data_ptr data, const char *types,
         assert(*types++ == xtype);
     }
     assert(*types++ == ']');
-    arg2 = o2_get_next(']');
+#ifndef NDEBUG
+    arg2 = // only needed by assert()
+#endif
+    o2_get_next(']');
     assert(arg2 == o2_got_end_array);
     icheck(*types++, 6789);
     assert(*types == 0); // got all of typestring
@@ -558,7 +662,10 @@ void service_coerce2(o2_msg_data_ptr data, const char *types,
             default: assert(FALSE);
         }
     }
-    arg = o2_get_next(']');
+#ifndef NDEBUG
+    arg = // only needed by assert()
+#endif
+    o2_get_next(']');
     assert(arg == o2_got_end_array);
     icheck(*types++, 6789);
     fcheck(*types++, 567.89F);
