@@ -65,7 +65,8 @@ int main(int argc, const char * argv[])
     o2_initialize("test");
 
     printf("tcpflag %d\n", tcpflag);
-    assert(o2_osc_port_new("oscrecv", 8100, tcpflag) == O2_SUCCESS);
+    int err = o2_osc_port_new("oscrecv", 8100, tcpflag);
+    assert(err == O2_SUCCESS);
     
     o2_clock_set(NULL, NULL);
     o2_method_new("/oscrecv/i", "i", osc_i_handler, NULL, FALSE, TRUE);

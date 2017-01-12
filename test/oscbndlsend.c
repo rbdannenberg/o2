@@ -117,8 +117,8 @@ int main(int argc, const char * argv[])
         o2_poll();
     }
 
-    assert(o2_osc_delegate("oscsend", "localhost", 8100, tcpflag) == 
-           O2_SUCCESS);
+    int err = o2_osc_delegate("oscsend", "localhost", 8100, tcpflag);
+    assert(err == O2_SUCCESS);
     printf("connected to port 8100\n");
     
     o2_time now = o2_time_get();

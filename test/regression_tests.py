@@ -27,7 +27,10 @@ if os.path.isdir(os.path.join(os.getcwd(), '../Debug')):
    BIN="../Debug"
 else:
    BIN=".."
-
+# In linux, there is likely to be a debug version of the
+# library copied to ../Debug, but tests are built in ..
+if os.name == 'posix':
+    BIN=".."
 
 def findLineInString(line, aString):
     return ('\n' + line + '\n') in aString

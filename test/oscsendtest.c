@@ -46,12 +46,13 @@ int main(int argc, const char * argv[])
         o2_poll();
     }
 
-    assert(o2_osc_delegate("oscsend", 
-                           "localhost", 8100, tcpflag) == O2_SUCCESS);
+    int err = o2_osc_delegate("oscsend", "localhost", 8100, tcpflag);
+    assert(err == O2_SUCCESS);
     
     // send 12 messages, 1 every 0.5s, and stop
     for (int n = 0; n < 12; n++) {
-        assert(o2_send("/oscsend/i", 0, "i", 1234) == O2_SUCCESS);
+        err = o2_send("/oscsend/i", 0, "i", 1234);
+        assert(err == O2_SUCCESS);
         printf("sent 1234 to /oscsend/i\n");
         // pause for 0.5s, but keep running O2 by polling
         for (int i = 0; i < 250; i++) {

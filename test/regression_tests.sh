@@ -5,6 +5,12 @@ if [ -d "../Debug" ]; then
 else
     BIN=".."
 fi
+# for linux, ../Debug may exist to hold a debug copy of the
+# O2 library, but we need to indicate BIN is .. to find tests
+if [ `uname` == 'Linux' ]; then
+    BIN=".."
+fi
+
 
 # runtest testname - runs testname, saving output in output.txt,
 #    searches output.txt for single full line containing "DONE",
