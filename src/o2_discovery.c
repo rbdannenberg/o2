@@ -95,7 +95,7 @@ int o2_discovery_initialize()
         return O2_FAIL;
     }
     O2_DBo(printf("%s discovery send socket (UDP) %lld created\n",
-                  o2_debug_prefix, local_send_sock));
+                  o2_debug_prefix, (long long) local_send_sock));
 
     // Initialize addr for local sending
     local_to_addr.sin_family = AF_INET;
