@@ -52,6 +52,27 @@ set(LIBRARIES o2_static ${EXTRA_LIBS} CACHE INTERNAL "")
 if(BUILD_TESTS)
 message(STATUS "Building test programs")
 
+set(BUILD_STATIC_LIB TRUE CACHE BOOL "Build a static lib -- currently the only thing supported, turning OFF probably gives you a static library without a static runtime library option.")
+
+# DEAL WITH WINDOWS OPTIONS: DEATH BY A THOUSAND CUTS
+if(WIN32)
+  if(USE_STATIC_LIBS)
+    # release will use static runtime library
+    foreach(flag_var CMAKE_CXX_FLAGS_RELEASE CMAKE_C_FLAGS_RELEASE
+        CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_MINSIZEREL
+        CMAKE_CXX_FLAGS_RELWITHDEBINFO CMAKE_CFLAGS CMAKE_C_FLAGS_MINSIZEREL
+        CMAKE_C_FLAGS_RELWITHDEBINFO)
+      if(${flag_var} MATCHES "/MD")
+        string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+      endif(${flag_var} MATCHES "/MD")
+    endforeach(flag_var)
+    message(STATUS 
+      "Note: overriding CMAKE_*_FLAGS_* to use Visual C static multithread library")
+    set(VERBOSE_WARNINGS 0 CACHE BOOL "Do not use _CRT_SECURE_NO_WARNINGS to disable suggestions to use 'secure' versions of strcpy, etc.")
+  endif(USE_STATIC_LIBS)
+endif(WIN32)
+
+
 # EXECUTABLE
 # Create executables 
 add_executable(dispatchtest test/dispatchtest.c)  
