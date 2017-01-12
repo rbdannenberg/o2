@@ -8,7 +8,8 @@
 #include "string.h"
 
 #ifdef WIN32
-#include <windows.h> 
+#define usleep(x) Sleep((x)/1000)
+
 void sleep(int i)
 {
     Sleep(i * 1000);

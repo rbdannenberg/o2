@@ -9,11 +9,7 @@
 #include "assert.h"
 
 #ifdef WIN32
-#include <windows.h> 
-void sleep(int i)
-{
-    Sleep(i * 1000);
-}
+#include "usleep.h"
 #else
 #include <unistd.h>
 #endif

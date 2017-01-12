@@ -484,6 +484,10 @@ int o2_poll()
 
 int o2_stop_flag = FALSE;
 
+#ifdef WIN32
+#define usleep(x) Sleep((x)/1000)
+#endif
+
 int o2_run(int rate)
 {
     if (rate <= 0) rate = 1000; // poll about every ms

@@ -91,8 +91,6 @@ void o2_sched_start(o2_sched_ptr s, o2_time start_time)
     s->last_bin = SCHED_BIN(start_time);
     if (s == &o2_gtsched) {
         o2_gtsched_started = TRUE;
-        // set last_time so that all messages seem to be in the future
-        o2_gtsched.last_time = -1.0;
     }
     s->last_time = start_time;
 }

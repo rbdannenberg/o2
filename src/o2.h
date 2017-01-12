@@ -125,10 +125,6 @@ Some major components and concepts of O2 are the following:
 #include <stdlib.h>
 #include <stdint.h>
 
-#ifdef WIN32
-#define usleep(x) Sleep(x/1000)
-#endif
-
 #ifndef TRUE
 #define TRUE  1
 #define FALSE 0

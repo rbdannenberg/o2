@@ -10,7 +10,7 @@
 #include "assert.h"
 
 #ifdef WIN32
-#include <windows.h> 
+#include "usleep.h"
 #else
 #include <unistd.h>
 #endif

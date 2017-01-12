@@ -118,8 +118,10 @@ static void will_catch_up_after(double delay)
 
 static void set_clock(double local_time, double new_master)
 {
+    global_time_base = LOCAL_TO_GLOBAL(local_time); // current estimate
     local_time_base = local_time;
-    global_time_base = LOCAL_TO_GLOBAL(local_time_base); // current estimate
+    O2_DBK(printf("%s set_clock: using %g, should be %g\n",
+        o2_debug_prefix, global_time_base, new_master));
     double clock_advance = new_master - global_time_base; // how far to catch up
     clock_rate_id++; // cancel any previous calls to catch_up_handler()
     // compute when we will catch up: estimate will increase at clock_rate
@@ -148,7 +150,7 @@ static void set_clock(double local_time, double new_master)
         //       way out of sync and do not know if master time is running
     }
     O2_DBK(printf("%s adjust clock to %g, rate %g\n",
-                  o2_debug_prefix, local_time, clock_rate));
+                  o2_debug_prefix, LOCAL_TO_GLOBAL(local_time), clock_rate));
 }
 
 
@@ -260,6 +262,28 @@ static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
     ping_reply_count++;
     O2_DBK(printf("%s got clock reply, master_time %g, rtt %g, count %d\n",
                   o2_debug_prefix, master_time, rtt, ping_reply_count));
+    if (o2_debug & O2_DBK_FLAG) {
+        int start, count;
+        if (ping_reply_count < CLOCK_SYNC_HISTORY_LEN) {
+            start = 0; count = ping_reply_count;
+        } else {
+            start = ping_reply_count % CLOCK_SYNC_HISTORY_LEN;
+            count = CLOCK_SYNC_HISTORY_LEN;
+        }
+        printf("%s master minus local:", o2_debug_prefix);
+        int k = start;
+        for (int j = 0; j < count; j++) {
+            printf(" %g", master_minus_local[k]);
+            k = (k + 1) % CLOCK_SYNC_HISTORY_LEN;
+        }
+        printf("\n%s round trip:", o2_debug_prefix);
+        for (int j = 0; j < count; j++) {
+            printf(" %g", round_trip_time[start]);
+            start = (start + 1) % CLOCK_SYNC_HISTORY_LEN;
+        }
+        printf("\n");
+    }
+
     if (ping_reply_count >= CLOCK_SYNC_HISTORY_LEN) {
         // find minimum round trip time
         min_rtt = 9999.0;
@@ -278,6 +302,7 @@ static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
         o2_time new_master = now + master_minus_local[best_i];
         if (!o2_clock_is_synchronized) {
             o2_clock_synchronized(now, new_master);
+            printf("clock set, time is %g\n", o2_time_get());
             announce_synchronized(new_master);
         } else {
             set_clock(now, new_master);

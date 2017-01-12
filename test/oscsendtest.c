@@ -8,11 +8,7 @@
 #include "assert.h"
 
 #ifdef WIN32
-#include <windows.h> 
-void sleep(int i)
-{
-    Sleep(i * 1000);
-}
+#include "usleep.h"
 #else
 #include <unistd.h>
 #endif
@@ -22,6 +18,7 @@ int main(int argc, const char * argv[])
 {
     printf("Usage: oscsendtest [flags] (see o2.h for flags, "
            "use a for all, also u for UDP, M for master)\n");
+
     int tcpflag = TRUE;
     int master = FALSE;
     if (argc == 2) {
