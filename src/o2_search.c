@@ -142,14 +142,19 @@ static void call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg,
 
     if (handler->parse_args) {
         o2_extract_start(msg);
-        char *typ;
-        for (typ = handler->type_string; *typ; typ++) {
-            o2_arg_ptr next = o2_get_next(*typ);
+        char *typ = handler->type_string;
+        if (!typ) { // if handler type_string is NULL, use message types
+            typ = types;
+        }
+        while (*typ) {
+            o2_arg_ptr next = o2_get_next(*typ++);
             if (!next) {
                 return; // type mismatch, do not deliver the message
             }
         }
-        types = handler->type_string; // so that handler gets coerced types
+        if (handler->type_string) {
+            types = handler->type_string; // so that handler gets coerced types
+        }
         extern dyn_array o2_argv_data;   // these are (mostly) private
         extern dyn_array o2_arg_data;    //     to o2_message.c
         assert(o2_arg_data.allocated >= o2_arg_data.length);

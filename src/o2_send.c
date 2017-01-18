@@ -75,13 +75,13 @@ int o2_send_marker(const char *path, double time, int tcp_flag, const char *type
     int rslt = o2_message_build(&msg, time, NULL, path, typestring, tcp_flag,
                                 ap);
 #ifndef O2_NO_DEBUGGING
-    if (o2_debug > 2 || // non-o2-system messages only if o2_debug <= 2
-        (o2_debug > 1 && msg->data.address[1] != '_' &&
-         !isdigit(msg->data.address[1]))) {
-            printf("O2: sending%s ", (tcp_flag ? " cmd" : ""));
-            o2_msg_data_print(&(msg->data));
-            printf("\n");
-        }
+    if (o2_debug & // either non-system (s) or system (S) mask
+        (msg->data.address[1] != '_' && !isdigit(msg->data.address[1]) ?
+         O2_DBs_FLAG : O2_DBS_FLAG)) {
+        printf("O2: sending%s ", (tcp_flag ? " cmd" : ""));
+        o2_msg_data_print(&(msg->data));
+        printf("\n");
+    }
 #endif
     if (rslt != O2_SUCCESS) {
         return rslt; // could not allocate a message!
