@@ -302,7 +302,6 @@ static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
         o2_time new_master = now + master_minus_local[best_i];
         if (!o2_clock_is_synchronized) {
             o2_clock_synchronized(now, new_master);
-            printf("clock set, time is %g\n", o2_time_get());
             announce_synchronized(new_master);
         } else {
             set_clock(now, new_master);
