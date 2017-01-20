@@ -262,20 +262,20 @@ int o2_debug = 0;
 void o2_debug_flags(const char *flags)
 {
     o2_debug = 0;
-    if (strchr(flags, 'c')) o2_debug |= O2_DBC_FLAG;
+    if (strchr(flags, 'c')) o2_debug |= O2_DBc_FLAG;
     if (strchr(flags, 'r')) o2_debug |= O2_DBr_FLAG;
     if (strchr(flags, 's')) o2_debug |= O2_DBs_FLAG;
     if (strchr(flags, 'R')) o2_debug |= O2_DBR_FLAG;
     if (strchr(flags, 'S')) o2_debug |= O2_DBS_FLAG;
-    if (strchr(flags, 'k')) o2_debug |= O2_DBK_FLAG;
-    if (strchr(flags, 'd')) o2_debug |= O2_DBD_FLAG;
+    if (strchr(flags, 'k')) o2_debug |= O2_DBk_FLAG;
+    if (strchr(flags, 'd')) o2_debug |= O2_DBd_FLAG;
     if (strchr(flags, 't')) o2_debug |= O2_DBt_FLAG;
     if (strchr(flags, 'T')) o2_debug |= O2_DBT_FLAG;
-    if (strchr(flags, 'm')) o2_debug |= O2_DBM_FLAG;
+    if (strchr(flags, 'm')) o2_debug |= O2_DBm_FLAG;
     if (strchr(flags, 'o')) o2_debug |= O2_DBo_FLAG;
     if (strchr(flags, 'O')) o2_debug |= O2_DBO_FLAG;
-    if (strchr(flags, 'g')) o2_debug |= O2_DBG_FLAG;
-    if (strchr(flags, 'a')) o2_debug |= O2_DBA_FLAGS;
+    if (strchr(flags, 'g')) o2_debug |= O2_DBg_FLAGS;
+    if (strchr(flags, 'a')) o2_debug |= O2_DBa_FLAGS;
 }
 
 void o2_dbg_msg(const char *src, o2_msg_data_ptr msg,
@@ -305,16 +305,16 @@ o2_time o2_global_now = 0.0;
 #ifndef O2_NO_DEBUG
 void *o2_dbg_malloc(size_t size, char *file, int line)
 {
-    O2_DBM(printf("%s malloc %lld in %s:%d", o2_debug_prefix, (long long) size, file, line));
+    O2_DBm(printf("%s malloc %lld in %s:%d", o2_debug_prefix, (long long) size, file, line));
     fflush(stdout);
     void *obj = (*o2_malloc)(size);
-    O2_DBM(printf(" -> %p\n", obj));
+    O2_DBm(printf(" -> %p\n", obj));
     return obj;
 }
 
 void o2_dbg_free(void *obj, char *file, int line)
 {
-    O2_DBM(printf("%s free in %s:%d <- %p\n", o2_debug_prefix, file, line, obj));
+    O2_DBm(printf("%s free in %s:%d <- %p\n", o2_debug_prefix, file, line, obj));
     (*free)(obj);
 }
 
@@ -416,12 +416,12 @@ void o2_notify_others(const char *service_name, int added)
     // processes about it. To find all other processes, use the o2_fds_info
     // table since all but a few of the entries are connections to processes
     for (int i = 0; i < o2_fds_info.length; i++) {
-        fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
+        process_info_ptr info = GET_PROCESS(i);
         if (info->tag == TCP_SOCKET) {
             char address[32];
             snprintf(address, 32, "!%s/sv", info->proc.name);
             o2_send_cmd(address, 0.0, "ssB", o2_process->proc.name, service_name, added);
-            O2_DBD(printf("%s o2_notify_others sent %s to %s (%s)\n", o2_debug_prefix,
+            O2_DBd(printf("%s o2_notify_others sent %s to %s (%s)\n", o2_debug_prefix,
                           service_name, info->proc.name, added ? "added" : "removed"));
         }
     }
@@ -447,7 +447,7 @@ int o2_service_new(const char *service_name)
     DA_LAST(o2_process->proc.services, service_table)->name = service_name;
     
     if (!o2_tree_insert_node(&path_tree_table, service_name)) {
-        O2_DBD(printf("%s o2_service_new failed at o2_tree_insert_node (%s)\n",
+        O2_DBd(printf("%s o2_service_new failed at o2_tree_insert_node (%s)\n",
                       o2_debug_prefix, service_name));
         return O2_FAIL;
     }
@@ -507,8 +507,7 @@ int o2_status(const char *service)
     if (!entry) return O2_FAIL;
     switch (entry->tag) {
         case O2_REMOTE_SERVICE: {
-            int i = ((remote_service_entry_ptr) entry)->process_index;
-            fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
+            process_info_ptr info = ((remote_service_entry_ptr) entry)->process;
             if (o2_clock_is_synchronized &&
                 info->proc.status == PROCESS_OK) {
                 return O2_REMOTE;
@@ -602,7 +601,7 @@ int o2_finish()
         if (closesocket(sock)) perror("closing socket");
         O2_DBo(printf("%s In o2_finish, close socket %ld\n", o2_debug_prefix,
                       (long) (DA_GET(o2_fds, struct pollfd, i)->fd)));
-        fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
+        process_info_ptr info = GET_PROCESS(i);
         if (info->message) O2_FREE(info->message);
         if (info->tag == TCP_SOCKET) {
             O2_FREE(info->proc.services.array);
@@ -614,6 +613,7 @@ int o2_finish()
             assert(info->osc_service_name);
             O2_FREE(info->osc_service_name);
         }
+        O2_FREE(info);
     }
     DA_FINISH(o2_fds);
     DA_FINISH(o2_fds_info);

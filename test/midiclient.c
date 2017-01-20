@@ -45,7 +45,7 @@ int main(int argc, const char * argv[])
             char *keys = "qwertyuiopasdfghjklzxcvbnm";
             char *keyloc = strchr(keys, input);
             if (keyloc) {
-                input = (keyloc - keys) + 48; // index of found key to pitch
+                input = (int) ((keyloc - keys) + 48); // index of found key to pitch
                 double now = o2_time_get();
                 o2_send_cmd("/midi/midi", 0.0, "iii", 0x90, input, 127);
                 o2_send_cmd("/midi/midi", now + 1.0, "iii", 0x90, input, 0);
@@ -54,7 +54,5 @@ int main(int argc, const char * argv[])
         }
         usleep(2000); // 2ms
     }
-
-    o2_finish();
     return 0;
 }

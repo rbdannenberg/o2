@@ -39,6 +39,6 @@ int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag);
 int o2_send_remote(o2_msg_data_ptr msg, int tcp_flag,
                      generic_entry_ptr service);
 
-int send_by_tcp_to_process(fds_info_ptr proc, o2_msg_data_ptr msg);
+int send_by_tcp_to_process(process_info_ptr proc, o2_msg_data_ptr msg);
 
 #endif /* o2_send_h */

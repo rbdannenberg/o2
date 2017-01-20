@@ -65,8 +65,8 @@ typedef struct remote_service_entry {
     int tag;   // must be O2_REMOTE_SERVICE
     char *key; // key is "owned" by this remote_service_entry struct
     generic_entry_ptr next;
-    int process_index;   // points to its host process for the service,
-    // -1 indicates the remote service is discovered but not connected
+    process_info_ptr process;   // points to its host process for the service,
+    // the remote service might be discovered but not connected
 } remote_service_entry, *remote_service_entry_ptr;
 
 
@@ -121,11 +121,11 @@ int o2_entry_add(node_entry_ptr node, generic_entry_ptr entry);
  *
  *  @return If succeed, return O2_SUCCESS. If not, return O2_FAIL.
  */
-int o2_remote_service_add(fds_info_ptr info, const char *service);
+int o2_remote_service_add(process_info_ptr info, const char *service);
 
 
 remote_service_entry_ptr o2_remote_process_new_at(
-        const char *name, generic_entry_ptr *entry_ptr, fds_info_ptr info);
+        const char *name, generic_entry_ptr *entry_ptr, process_info_ptr info);
 
 
 int o2_remote_service_remove(const char *service);
@@ -173,7 +173,7 @@ node_entry_ptr o2_node_initialize(node_entry_ptr node, const char *key);
  */
 generic_entry_ptr *o2_lookup(node_entry_ptr dict, const char *key, int *index);
 
-int o2_remove_remote_process(fds_info_ptr info);
+int o2_remove_remote_process(process_info_ptr info);
 
 node_entry_ptr o2_tree_insert_node(node_entry_ptr node, const char *key);
 

@@ -60,29 +60,9 @@ typedef int SOCKET;     // In O2, we'll use SOCKET to denote the type of a socke
 
 struct process_info;
 
-#ifdef WIN32
-typedef struct ifaddrs
-{
-    struct ifaddrs  *ifa_next;    /* Next item in list */
-    char            *ifa_name;    /* Name of interface */
-    unsigned int     ifa_flags;   /* Flags from SIOCGIFFLAGS */
-    struct sockaddr *ifa_addr;    /* Address of interface */
-    struct sockaddr *ifa_netmask; /* Netmask of interface */
-    union {
-        struct sockaddr *ifu_broadaddr; /* Broadcast address of interface */
-        struct sockaddr *ifu_dstaddr; /* Point-to-point destination address */
-    } ifa_ifu;
-#define              ifa_broadaddr ifa_ifu.ifu_broadaddr
-#define              ifa_dstaddr   ifa_ifu.ifu_dstaddr
-    void            *ifa_data;    /* Address-specific data */
-} ifaddrs;
-
-
-#endif
-
 struct fds_info; // recursive declarations o2_socket_handler and fds_info
 
-typedef int (*o2_socket_handler)(SOCKET sock, struct fds_info *info);
+typedef int (*o2_socket_handler)(SOCKET sock, struct process_info *info);
 
 /* info->proc.status values */
 #define PROCESS_LOCAL 0       // process is the local process
@@ -90,11 +70,13 @@ typedef int (*o2_socket_handler)(SOCKET sock, struct fds_info *info);
 #define PROCESS_NO_CLOCK 2    // process initial message received, not clock synced
 #define PROCESS_OK 3          // process is clock synced
 
-typedef struct fds_info {
+typedef struct process_info {
     int tag;  // UDP_SOCKET, TCP_SOCKET, DISCOVER_SOCKET, TCP_SERVER_SOCKET
               // OSC_SOCKET, OSC_TCP_SERVER_SOCKET,
               // OSC_TCP_SOCKET, OSC_TCP_CLIENT
 
+    int fds_index;              // index of socket in o2_fds and o2_fds_info
+                                //   -1 if process known but not connected
     int delete_me;              // set to TRUE when socket should be removed
     int32_t length;             // message length
     o2_message_ptr message;     // message data from TCP stream goes here
@@ -126,15 +108,14 @@ typedef struct fds_info {
         } proc;
         char *osc_service_name; // if this forwards messages to an OSC server
     };        
-} fds_info, *fds_info_ptr;
+} process_info, *process_info_ptr;
 
-
-#define INFO_TO_INDEX(info) ((info) - (fds_info_ptr) o2_fds_info.array)
-#define INFO_TO_FD(info) ((DA_GET(o2_fds, struct pollfd, INFO_TO_INDEX(info)))->fd)
 
 extern char o2_local_ip[24];
 extern int o2_local_tcp_port;
 extern dyn_array o2_fds_info;
+#define GET_PROCESS(i) (*DA_GET(o2_fds_info, process_info_ptr, (i)))
+
 extern int o2_found_network; // true if we have an IP address, which implies a
 // network connection; if false, we only talk to 127.0.0.1 (localhost)
 
@@ -151,22 +132,22 @@ extern int o2_socket_delete_flag;
 int o2_initWSock();
 #endif
 
-fds_info_ptr o2_add_new_socket(SOCKET sock, int tag, o2_socket_handler handler);
+process_info_ptr o2_add_new_socket(SOCKET sock, int tag, o2_socket_handler handler);
 
 void o2_disable_sigpipe(SOCKET sock);
 
-int o2_process_initialize(fds_info_ptr info, int status);
+int o2_process_initialize(process_info_ptr info, int status);
 
-void o2_socket_mark_to_free(int i);
+void o2_socket_mark_to_free(process_info_ptr info);
 
 int o2_sockets_initialize();
 
 int o2_make_tcp_recv_socket(int tag, int port, o2_socket_handler handler,
-                            fds_info_ptr *info);
+                            process_info_ptr *info);
 
-int o2_make_udp_recv_socket(int tag, int *port, fds_info_ptr *info);
+int o2_make_udp_recv_socket(int tag, int *port, process_info_ptr *info);
 
-int o2_osc_delegate_handler(SOCKET sock, fds_info_ptr info);
+int o2_osc_delegate_handler(SOCKET sock, process_info_ptr info);
 
 void o2_free_deleted_sockets();
 
@@ -182,8 +163,8 @@ void o2_free_deleted_sockets();
 int o2_recv();
 
 
-int o2_tcp_initial_handler(SOCKET sock, fds_info_ptr info);
+int o2_tcp_initial_handler(SOCKET sock, process_info_ptr info);
 
-int o2_osc_tcp_accept_handler(SOCKET sock, fds_info_ptr info);
+int o2_osc_tcp_accept_handler(SOCKET sock, process_info_ptr info);
 
 #endif /* o2_socket_h */

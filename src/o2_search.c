@@ -70,7 +70,7 @@ static int entry_remove(node_entry_ptr node, generic_entry_ptr *child, int resiz
 static int remove_method_from_tree(char *remaining, char *name,
                                    node_entry_ptr node);
 static int remove_node(node_entry_ptr node, const char *key);
-static int remove_remote_services(fds_info_ptr info);
+static int remove_remote_services(process_info_ptr info);
 static int resize_table(node_entry_ptr node, int new_locs);
 
 #if IS_LITTLE_ENDIAN
@@ -298,10 +298,9 @@ static void free_entry(generic_entry_ptr entry)
         if (handler->type_string)
             O2_FREE(handler->type_string);
     } else if (entry->tag == O2_REMOTE_SERVICE) {
-        // nothing special to do here. "parent" is a process,
-        // but it is "owned" by pointer in o2_fds_info.
+        // nothing special to do here.
     } // else if OSC_REMOTE_SERVICE: TCP socket, if any, is deleted by
-      // o2_service_free()
+      // o2_service_free()
     O2_FREE(entry->key);
     O2_FREE(entry);
 }
@@ -456,7 +455,7 @@ int o2_method_new(const char *path, const char *typespec,
 //
 // service is "owned" by the caller
 //
-int o2_remote_service_add(fds_info_ptr info, const char *service)
+int o2_remote_service_add(process_info_ptr info, const char *service)
 {
     int index;
     generic_entry_ptr *entry_ptr = o2_lookup(&path_tree_table, service, &index);
@@ -469,13 +468,13 @@ int o2_remote_service_add(fds_info_ptr info, const char *service)
 // by the fds_info record for the remote process TCP_SOCKET.
 //
 remote_service_entry_ptr o2_remote_process_new_at(
-        const char *name, generic_entry_ptr *entry_ptr, fds_info_ptr info)
+        const char *name, generic_entry_ptr *entry_ptr, process_info_ptr info)
 {
     remote_service_entry_ptr process = O2_MALLOC(sizeof(remote_service_entry));
     process->tag = O2_REMOTE_SERVICE;
     process->key = o2_heapify(name);
     process->next = NULL;
-    process->process_index = (int) INFO_TO_INDEX(info);
+    process->process = info;
     add_entry_at(&path_tree_table, entry_ptr, (generic_entry_ptr) process);
     return process;
 }
@@ -501,7 +500,7 @@ int o2_service_free(char *service_name)
             // shut down any OSC connection
             osc_entry_ptr osc_entry = (osc_entry_ptr) (*entry_ptr);
             if (osc_entry->fds_index >= 0) { // TCP
-                o2_socket_mark_to_free(osc_entry->fds_index); // close the TCP socket
+                o2_socket_mark_to_free(GET_PROCESS(osc_entry->fds_index)); // close the TCP socket
                 osc_entry->fds_index = -1;   // just to be safe
             }
             break;
@@ -903,7 +902,7 @@ int o2_remove_method(const char *path)
 }
 
 
-int o2_remove_remote_process(fds_info_ptr info)
+int o2_remove_remote_process(process_info_ptr info)
 {
     if (info->tag == TCP_SOCKET) {
         // remove the remote services provided by the proc
@@ -912,7 +911,7 @@ int o2_remove_remote_process(fds_info_ptr info)
         if (info->proc.name) {
             // remove the remote service associated with the ip_port string
             o2_remote_service_remove(info->proc.name);
-            O2_DBD(printf("%s removing remote process %s\n",
+            O2_DBd(printf("%s removing remote process %s\n",
                           o2_debug_prefix, info->proc.name));
             O2_FREE(info->proc.name);
             info->proc.name = NULL;
@@ -920,7 +919,7 @@ int o2_remove_remote_process(fds_info_ptr info)
         
     } // else if (info->tag == OSC_TCP_SOCKET) do nothing special
     // else if (info->tag == OSC_REMOTE_SERVICE
-    o2_socket_mark_to_free((int) INFO_TO_INDEX(info)); // close the TCP socket
+    o2_socket_mark_to_free(info); // close the TCP socket
     return O2_SUCCESS;
 }
 
@@ -1050,7 +1049,7 @@ static int remove_node(node_entry_ptr node, const char *key)
 }
 
 
-static int remove_remote_services(fds_info_ptr info)
+static int remove_remote_services(process_info_ptr info)
 {
     int i, index;
     for (i = 0; i < info->proc.services.length; i++) {

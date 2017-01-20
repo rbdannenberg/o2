@@ -37,9 +37,9 @@ int o2_discovery_msg_initialize();
 void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
                                o2_arg_ptr *argv, int argc, void *user_data);
 
-int o2_send_initialize(fds_info_ptr process);
+int o2_send_initialize(process_info_ptr process);
 
-int o2_send_services(fds_info_ptr process);
+int o2_send_services(process_info_ptr process);
 
 void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
                           o2_arg_ptr *argv, int argc, void *user_data);

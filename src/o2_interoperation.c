@@ -70,7 +70,7 @@ uint64_t o2_time_to_osc(o2_time o2time)
  */
 int o2_osc_port_new(const char *service_name, int port_num, int tcp_flag)
 {
-    fds_info_ptr info;
+    process_info_ptr info;
     if (tcp_flag) {
         RETURN_IF_ERROR(o2_make_tcp_recv_socket(OSC_TCP_SERVER_SOCKET, port_num,
                                                 &o2_osc_tcp_accept_handler, &info));
@@ -87,7 +87,7 @@ int o2_osc_port_free(int port_num)
     int result = O2_FAIL;
     char *service_name_copy = NULL;
     for (int i = 0; i < o2_fds_info.length; i++) {
-        fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
+        process_info_ptr info = GET_PROCESS(i);
         if ((info->tag == OSC_TCP_SERVER_SOCKET ||
              info->tag == OSC_TCP_SOCKET ||
              info->tag == OSC_SOCKET) &&
@@ -101,7 +101,7 @@ int o2_osc_port_free(int port_num)
                 service_name_copy = info->osc_service_name;
                 info->osc_service_name = NULL;
             }
-            o2_socket_mark_to_free(i);
+            o2_socket_mark_to_free(info);
             result = O2_SUCCESS; // actuall found and removed a port
         }
     }
@@ -150,7 +150,7 @@ int o2_osc_delegate(const char *service_name, const char *ip, int port_num, int 
     entry->port = port_num;
 
     if (tcp_flag) {
-        fds_info_ptr info;
+        process_info_ptr info;
         RETURN_IF_ERROR(o2_make_tcp_recv_socket(
                 OSC_TCP_SOCKET, 0, &o2_osc_delegate_handler, &info));
         // make the connection
@@ -293,11 +293,11 @@ static o2_message_ptr osc_to_o2(int32_t len, char *oscmsg, char *service)
 
 
 // forward an OSC message to an O2 service
-int o2_deliver_osc(fds_info_ptr info)
+int o2_deliver_osc(process_info_ptr info)
 {
     char *msg_data = (char *) &(info->message->data); // OSC address starts here
-    O2_DBO(printf("os_deliver_osc got OSC message %s length %d for service %s\n",
-                  msg_data, info->message->length, info->osc_service_name));
+    O2_DBO(printf("%s os_deliver_osc got OSC message %s length %d for service %s\n",
+                  o2_debug_prefix, msg_data, info->message->length, info->osc_service_name));
     o2_message_ptr o2msg = osc_to_o2(info->message->length, msg_data,
                                      info->osc_service_name);
     o2_message_free(info->message);
@@ -369,9 +369,9 @@ int o2_send_osc(osc_entry_ptr service, o2_msg_data_ptr msg)
     RETURN_IF_ERROR(msg_data_to_osc_data(service, msg, 0.0));
     int32_t osc_len;
     char *osc_msg = o2_msg_data_get(&osc_len);
-    O2_DBO(printf("o2_send_osc sending OSC message %s length %d as "
+    O2_DBO(printf("%s o2_send_osc sending OSC message %s length %d as "
                   "service %s fds_index %d\n",
-                  osc_msg, osc_len, service->key, service->fds_index));
+                  o2_debug_prefix, osc_msg, osc_len, service->key, service->fds_index));
     O2_DBO(o2_dbg_msg("original O2 msg is", msg, NULL, NULL));
     // Now we have an OSC message at msg->address. Send it.
     if (service->fds_index < 0) { // must be UDP

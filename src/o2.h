@@ -355,8 +355,10 @@ void o2_dbg_free(void *obj, char *file, int line);
 /** \brief allocate and zero memory (see #O2_MALLOC) */
 #ifndef O2_CALLOC
 #ifdef NO_O2_DEBUG
+void *o2_calloc(size_t n, size_t s);
 #define O2_CALLOC(n, s) o2_calloc((n), (s))
 #else
+void *o2_dbg_calloc(size_t n, size_t s, char *file, int line);
 #define O2_CALLOC(n, s) o2_dbg_calloc((n), (s), __FILE__, __LINE__)
 #endif
 #endif

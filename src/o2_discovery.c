@@ -76,7 +76,7 @@ int o2_discovery_initialize()
     int ret;
     for (disc_port_index = 0; disc_port_index < PORT_MAX; disc_port_index++) {
         broadcast_recv_port = o2_port_map[disc_port_index];
-        fds_info_ptr info;
+        process_info_ptr info;
         ret = o2_make_udp_recv_socket(DISCOVER_SOCKET, &broadcast_recv_port, &info);
         if (ret == O2_SUCCESS) break;
     }
@@ -109,7 +109,7 @@ int o2_discovery_initialize()
 
 // we are the "client" connecting to a remote process acting as the "server"
 static int make_tcp_connection(char *ip, int tcp_port,
-                               o2_socket_handler handler, fds_info_ptr *info)
+                               o2_socket_handler handler, process_info_ptr *info)
 {
     // We are the client because our ip:port string is lower
     struct sockaddr_in remote_addr;
@@ -129,7 +129,8 @@ static int make_tcp_connection(char *ip, int tcp_port,
     // get the socket just created by o2_make_tcp_recv_socket
     SOCKET sock = DA_LAST(o2_fds, struct pollfd)->fd;
 
-    // printf("%s: connecting to %s:%d index %d\n", o2_debug_prefix, ip, tcp_port, o2_fds.length - 1);
+    O2_DBo(printf("%s connect to %s:%d with socket %ld\n",
+                  o2_debug_prefix, ip, tcp_port, (long) sock));
     if (connect(sock, (struct sockaddr *) &remote_addr,
                 sizeof(remote_addr)) == -1) {
         perror("Connect Error!\n");
@@ -138,7 +139,7 @@ static int make_tcp_connection(char *ip, int tcp_port,
         return O2_FAIL;
     }
     o2_disable_sigpipe(sock);
-    O2_DBD(printf("%s connected to %s:%d index %d\n",
+    O2_DBd(printf("%s connected to %s:%d index %d\n",
                   o2_debug_prefix, ip, tcp_port, o2_fds.length - 1));
     return O2_SUCCESS;
 }
@@ -163,7 +164,7 @@ int o2_discovery_msg_initialize()
     if (!((o2_discovery_msg = (o2_message_ptr) o2_malloc(size)))) {
         return O2_FAIL;
     }
-    O2_DBD(printf("%s broadcast discovery message created:\n    ", o2_debug_prefix);
+    O2_DBd(printf("%s broadcast discovery message created:\n    ", o2_debug_prefix);
            o2_message_print(msg);
            printf("\n"));
 #if IS_LITTLE_ENDIAN
@@ -171,7 +172,7 @@ int o2_discovery_msg_initialize()
 #endif
     memcpy(o2_discovery_msg, msg, size);
     o2_message_free(msg);
-    O2_DBG(printf("%s in o2_initialize,\n    name is %s, local IP is %s, \n"
+    O2_DBg(printf("%s in o2_initialize,\n    name is %s, local IP is %s, \n"
             "    udp receive port is %d,\n"
             "    tcp connection port is %d,\n    broadcast recv port is %d\n",
             o2_debug_prefix, o2_application_name, o2_local_ip, o2_process->port,
@@ -202,7 +203,7 @@ static void o2_broadcast_message(int port)
     
     // broadcast the message
     if (o2_found_network) {
-        O2_DBD(printf("%s broadcasting discovery msg to port %d\n",
+        O2_DBd(printf("%s broadcasting discovery msg to port %d\n",
                       o2_debug_prefix, port));
         if (sendto(broadcast_sock, (char *) msg, len, 0,
                    (struct sockaddr *) &broadcast_to_addr,
@@ -215,7 +216,7 @@ static void o2_broadcast_message(int port)
     // since we own broadcast_recv_port, there is no need to send in that case
     if (port != broadcast_recv_port) {
         local_to_addr.sin_port = broadcast_to_addr.sin_port; // copy the port number
-        O2_DBD(printf("%s sending localhost discovery msg to port %d\n",
+        O2_DBd(printf("%s sending localhost discovery msg to port %d\n",
                       o2_debug_prefix, port));
         if (sendto(local_send_sock, (char *) msg, len, 0,
                    (struct sockaddr *) &local_to_addr,
@@ -255,7 +256,7 @@ void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
 }
 
 
-int o2_send_initialize(fds_info_ptr process)
+int o2_send_initialize(process_info_ptr process)
 {
     assert(o2_process->port);
     // send initial message to newly connected process
@@ -275,7 +276,7 @@ int o2_send_initialize(fds_info_ptr process)
 }
 
 
-int o2_send_services(fds_info_ptr process)
+int o2_send_services(process_info_ptr process)
 {
     // send services if any
     if (o2_process->proc.services.length <= 0) {
@@ -289,7 +290,7 @@ int o2_send_services(fds_info_ptr process)
         if ((*((int32_t *) service) != *((int32_t *) "_o2"))) {
             o2_add_string(service);
             o2_add_true();
-            O2_DBD(printf("%s o2_send_services sending %s to %s\n",
+            O2_DBd(printf("%s o2_send_services sending %s to %s\n",
                           o2_debug_prefix, service, process->proc.name));
         }
     }
@@ -304,6 +305,7 @@ int o2_send_services(fds_info_ptr process)
 void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
                           o2_arg_ptr *argv, int argc, void *user_data)
 {
+    O2_DBd(o2_dbg_msg("o2_discovery_handler gets", msg, NULL, NULL));
     o2_arg_ptr app_arg, ip_arg, tcp_arg, udp_arg;
     // get the arguments: application name, ip as string,
     //                    tcp port, discovery port
@@ -317,21 +319,25 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
     char *ip = ip_arg->s;
     int tcp = tcp_arg->i32;
     
-    if (!streql(app_arg->s, o2_application_name)) return;
-    
+    if (!streql(app_arg->s, o2_application_name)) {
+        O2_DBd(printf("    Ignored: application name is not %s\n", o2_application_name));
+        return;
+    }
     char name[32];
     // ip:port + pad with zeros
     snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp, 0, 0, 0, 0);
     int compare = strcmp(o2_process->proc.name, name);
     if (compare == 0) {
+        O2_DBd(printf("    Ignored: I received my own broadcast message\n"));
         return; // the "discovered process" is this one
     }
     int index;
     generic_entry_ptr *entry_ptr = o2_lookup(&path_tree_table, name, &index);
     // if process is connected, ignore it
-    remote_service_entry_ptr process = (remote_service_entry_ptr) *entry_ptr;
-    if (process && process->tag == O2_REMOTE_SERVICE /* type checking */ &&
-        process->process_index != -1) {
+    remote_service_entry_ptr remote = (remote_service_entry_ptr) *entry_ptr;
+    if (remote && remote->tag == O2_REMOTE_SERVICE /* type checking */ &&
+        remote->process && remote->process->fds_index != -1) {
+        O2_DBd(printf("    Ignored: already connected\n"));
         return; // we've already connected or accepted, so ignore the /dy data
     }
     if (compare > 0) { // we are server, the other party should connect
@@ -343,11 +349,11 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
                    sizeof(local_to_addr)) < 0) {
             perror("Error attepting to send discovery message directly");
         }
-        O2_DBD(printf("%s o2_discovery_handler to become server for %s\n",
+        O2_DBd(printf("%s o2_discovery_handler to become server for %s\n",
                       o2_debug_prefix, name));
     } else { // we are the client
-        fds_info_ptr info;
-        O2_DBG(printf("%s ** Discovered and connecting to %s\n",
+        process_info_ptr info;
+        O2_DBg(printf("%s ** Discovered and connecting to %s\n",
                       o2_debug_prefix, name));
         if (make_tcp_connection(ip, tcp, &o2_tcp_initial_handler, &info)) {
             return;
@@ -391,7 +397,7 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
     
     // if path_tree_table entry does not exist, create it
     int index;
-    fds_info_ptr info = (fds_info_ptr) user_data;
+    process_info_ptr info = (process_info_ptr) user_data;
     assert(info->proc.status == PROCESS_CONNECTED);
     generic_entry_ptr *entry_ptr = o2_lookup(&path_tree_table, name, &index);
     if (*entry_ptr) { // we are the client, and we connected after receiving a
@@ -419,8 +425,8 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
     inet_pton(AF_INET, ip, &(info->proc.udp_sa.sin_addr.s_addr));
     info->proc.udp_sa.sin_port = htons(udp_port);
 
-    O2_DBD(printf("%s init msg from %s (udp port %ld)\n   to local socket %ld fds_info %p\n",
-                  o2_debug_prefix, name, (long) udp_port, (long) INFO_TO_FD(info), info));
+    O2_DBd(printf("%s init msg from %s (udp port %ld)\n   to local socket %ld process_info %p\n",
+                  o2_debug_prefix, name, (long) udp_port, (long) (info->fds_index), info));
     return;
 }
 
@@ -441,13 +447,12 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
     if (*entry_ptr) {
         assert((*entry_ptr)->tag == O2_REMOTE_SERVICE);
         remote_service_entry_ptr service = (remote_service_entry_ptr) *entry_ptr;
-        int process_index = service->process_index;
-        fds_info_ptr info = DA_GET(o2_fds_info, fds_info, process_index);
+        process_info_ptr info = service->process;
         // insert the services
         o2_arg_ptr addarg;
         while ((arg = o2_get_next('s')) && (addarg = o2_get_next('B'))) {
             if (addarg->B) {
-                O2_DBD(printf("%s found service /%s offered by /%s\n",
+                O2_DBd(printf("%s found service /%s offered by /%s\n",
                              o2_debug_prefix, arg->s, info->proc.name));
                 o2_remote_service_add(info, arg->s);
             } else {

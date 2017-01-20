@@ -120,7 +120,7 @@ static void set_clock(double local_time, double new_master)
 {
     global_time_base = LOCAL_TO_GLOBAL(local_time); // current estimate
     local_time_base = local_time;
-    O2_DBK(printf("%s set_clock: using %g, should be %g\n",
+    O2_DBk(printf("%s set_clock: using %g, should be %g\n",
         o2_debug_prefix, global_time_base, new_master));
     double clock_advance = new_master - global_time_base; // how far to catch up
     clock_rate_id++; // cancel any previous calls to catch_up_handler()
@@ -149,12 +149,12 @@ static void set_clock(double local_time, double new_master)
         // TODO: maybe we should try to run clock sync soon since we are
         //       way out of sync and do not know if master time is running
     }
-    O2_DBK(printf("%s adjust clock to %g, rate %g\n",
+    O2_DBk(printf("%s adjust clock to %g, rate %g\n",
                   o2_debug_prefix, LOCAL_TO_GLOBAL(local_time), clock_rate));
 }
 
 
-static int o2_send_clocksync(fds_info_ptr info)
+static int o2_send_clocksync(process_info_ptr info)
 {
     if (!o2_clock_is_synchronized)
         return O2_SUCCESS;
@@ -194,7 +194,7 @@ static void compute_osc_time_offset(o2_time now)
 #endif
     osc_time -= (uint64_t) (now * 4294967296.0);
     o2_osc_time_offset(osc_time);
-    O2_DBK(printf("%s osc_time_offset (in sec) %g\n",
+    O2_DBk(printf("%s osc_time_offset (in sec) %g\n",
                   o2_debug_prefix, osc_time / 4294967296.0));
 }
 
@@ -205,7 +205,7 @@ static void announce_synchronized(o2_time now)
     // processes about it. To find all other processes, use the o2_fds_info
     // table since all but a few of the entries are connections to processes
     for (int i = 0; i < o2_fds_info.length; i++) {
-        fds_info_ptr info = DA_GET(o2_fds_info, fds_info, i);
+        process_info_ptr info = GET_PROCESS(i);
         if (info->tag == TCP_SOCKET) {
             o2_send_clocksync(info);
         }
@@ -213,7 +213,7 @@ static void announce_synchronized(o2_time now)
     // in addition, compute the offset to absolute time in case we need an
     // OSC timestamp
     compute_osc_time_offset(now);
-    O2_DBG(printf("%s obtained clock sync at %g\n",
+    O2_DBg(printf("%s obtained clock sync at %g\n",
                   o2_debug_prefix, o2_time_get()));
 }
 
@@ -230,9 +230,7 @@ void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
     if (entry) {
         assert(entry->tag == O2_REMOTE_SERVICE);
         remote_service_entry_ptr service = (remote_service_entry_ptr) entry;
-        fds_info_ptr process_info = DA_GET(o2_fds_info, fds_info,
-                                           service->process_index);
-        process_info->proc.status = PROCESS_OK;
+        service->process->proc.status = PROCESS_OK;
         return;
     }
 }
@@ -260,9 +258,9 @@ static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
     round_trip_time[i] = rtt;
     master_minus_local[i] = master_time - now;
     ping_reply_count++;
-    O2_DBK(printf("%s got clock reply, master_time %g, rtt %g, count %d\n",
+    O2_DBk(printf("%s got clock reply, master_time %g, rtt %g, count %d\n",
                   o2_debug_prefix, master_time, rtt, ping_reply_count));
-    if (o2_debug & O2_DBK_FLAG) {
+    if (o2_debug & O2_DBk_FLAG) {
         int start, count;
         if (ping_reply_count < CLOCK_SYNC_HISTORY_LEN) {
             start = 0; count = ping_reply_count;
@@ -359,7 +357,7 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
     if (found_clock_service) { // found service, but it's non-local
         clock_sync_id++;
         o2_send("!_cs/get", 0, "is", clock_sync_id, clock_sync_reply_to); // TODO: test return?
-        O2_DBK(printf("%s clock request sent\n", o2_debug_prefix));
+        O2_DBk(printf("%s clock request sent\n", o2_debug_prefix));
         // run every 1/2 second until at least CLOCK_SYNC_HISTORY_LEN pings
         // have been sent to get a fast start, then ping every 10s. Here, we
         // add 1.0 to allow for round-trip time and an extra ping just in case:
@@ -410,7 +408,7 @@ static void cs_ping_handler(o2_msg_data_ptr msg, const char *types,
 int o2_clock_set(o2_time_callback callback, void *data)
 {
     if (!o2_application_name) {
-        O2_DBK(printf("%s o2_clock_set cannot be called before o2_initialize.\n",
+        O2_DBk(printf("%s o2_clock_set cannot be called before o2_initialize.\n",
                       o2_debug_prefix));
         return O2_FAIL;
     }
@@ -428,7 +426,7 @@ int o2_clock_set(o2_time_callback callback, void *data)
         o2_clock_synchronized(new_local_time, new_local_time);
         o2_service_new("_cs");
         o2_method_new("/_cs/get", "is", &cs_ping_handler, NULL, FALSE, FALSE);
-        O2_DBG(printf("%s master clock established, time is now %g\n",
+        O2_DBg(printf("%s ** master clock established, time is now %g\n",
                      o2_debug_prefix, o2_local_time()));
         is_master = TRUE;
         announce_synchronized(new_local_time);
