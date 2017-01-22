@@ -44,6 +44,7 @@ void service_two(o2_msg_data_ptr data, const char *types,
 
 int main(int argc, const char * argv[])
 {
+    // o2_debug_flags("a");
     o2_initialize("test");    
     o2_service_new("one");
     for (int i = 0; i < N_ADDRS; i++) {

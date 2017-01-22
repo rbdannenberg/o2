@@ -46,7 +46,14 @@ typedef struct dyn_array {
         DA_EXPAND(a, typ);        \
         DA_SET(a, typ, (a).length - 1, data); }
 
-#define DA_FINISH(a) O2_FREE((a).array)
+/* remove an element at index i, replacing with last */
+#define DA_REMOVE(a, typ, i) { \
+        *DA_GET(a, typ, i) = *DA_LAST(a, typ); \
+        (a).length--; }
+
+
+#define DA_FINISH(a) { (a).length = (a).allocated = 0; \
+                       O2_FREE((a).array); (a).array = NULL; }
 
 void o2_da_expand(dyn_array_ptr array, int siz);
 

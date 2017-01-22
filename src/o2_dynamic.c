@@ -11,6 +11,6 @@ void o2_da_expand(dyn_array_ptr array, int siz)
     void *bigger = O2_MALLOC(array->allocated * siz);
     assert(bigger);
     memcpy(bigger, array->array, array->length * siz);
-    if (array-> array) O2_FREE(array->array);
+    if (array->array) O2_FREE(array->array);
     array->array = bigger;
 }

@@ -331,37 +331,48 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
         O2_DBd(printf("    Ignored: I received my own broadcast message\n"));
         return; // the "discovered process" is this one
     }
-    int index;
-    generic_entry_ptr *entry_ptr = o2_lookup(&path_tree_table, name, &index);
+    o2_entry_ptr *entry_ptr = o2_lookup(&o2_path_tree, name);
     // if process is connected, ignore it
-    remote_service_entry_ptr remote = (remote_service_entry_ptr) *entry_ptr;
-    if (remote && remote->tag == O2_REMOTE_SERVICE /* type checking */ &&
-        remote->process && remote->process->fds_index != -1) {
+    if (*entry_ptr) {
+#ifndef NDEBUG
+        process_info_ptr remote = NULL;
+        services_entry_ptr services = (services_entry_ptr) *entry_ptr;
+        assert(services && services->tag == SERVICES && services->services.length == 1);
+        remote = (process_info_ptr) GET_SERVICE(services->services, 0);
+        assert(remote && remote->tag == TCP_SOCKET && remote->fds_index != -1);
         O2_DBd(printf("    Ignored: already connected\n"));
+#endif
         return; // we've already connected or accepted, so ignore the /dy data
     }
     if (compare > 0) { // we are server, the other party should connect
         // send a discover message back to sender's UDP port, which is now known
-        local_to_addr.sin_port = htons(udp_arg->i32);
+        struct sockaddr_in udp_sa;
+        udp_sa.sin_family = AF_INET;
+#ifdef __APPLE__
+        udp_sa.sin_len = sizeof(udp_sa);
+#endif
+        inet_pton(AF_INET, ip, &(udp_sa.sin_addr.s_addr));
+        udp_sa.sin_port = htons(udp_arg->i32);
         if (sendto(local_send_sock, (char *) &o2_discovery_msg->data,
-                   o2_discovery_msg->length, 0, 
-                   (struct sockaddr *) &local_to_addr, 
-                   sizeof(local_to_addr)) < 0) {
+                   o2_discovery_msg->length, 0,
+                   (struct sockaddr *) &udp_sa,
+                   sizeof(udp_sa)) < 0) {
             perror("Error attepting to send discovery message directly");
         }
         O2_DBd(printf("%s o2_discovery_handler to become server for %s\n",
                       o2_debug_prefix, name));
     } else { // we are the client
-        process_info_ptr info;
+        process_info_ptr remote;
         O2_DBg(printf("%s ** Discovered and connecting to %s\n",
                       o2_debug_prefix, name));
-        if (make_tcp_connection(ip, tcp, &o2_tcp_initial_handler, &info)) {
+        if (make_tcp_connection(ip, tcp, &o2_tcp_initial_handler, &remote)) {
             return;
         }
-        info->proc.name = o2_heapify(name);
-        o2_remote_process_new_at(name, entry_ptr, info);
-        o2_send_initialize(info);
-        o2_send_services(info);
+        remote->proc.name = o2_heapify(name);
+        assert(remote->tag == TCP_SOCKET);
+        o2_service_provider_new(name, (o2_info_ptr) remote, remote);
+        o2_send_initialize(remote);
+        o2_send_services(remote);
     }
 }
 
@@ -395,18 +406,17 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
     // no byte-swap check needed for clocksync because it is just zero/non-zero
     int status = (clocksync_arg->i32 ? PROCESS_OK : PROCESS_NO_CLOCK);
     
-    // if path_tree_table entry does not exist, create it
-    int index;
+    // if o2_path_tree entry does not exist, create it
     process_info_ptr info = (process_info_ptr) user_data;
     assert(info->proc.status == PROCESS_CONNECTED);
-    generic_entry_ptr *entry_ptr = o2_lookup(&path_tree_table, name, &index);
+    o2_entry_ptr *entry_ptr = o2_lookup(&o2_path_tree, name);
     if (*entry_ptr) { // we are the client, and we connected after receiving a
         // /dy message, also created a service named for server's IP:port
         if (o2_process_initialize(info, status)) return;
     } else { // we are the server, and we accepted a client connection,
         // but we did not yet create a service named for client's IP:port
-        generic_entry_ptr *entry_ptr = o2_lookup(&path_tree_table, name, &index);
-        o2_remote_process_new_at(name, entry_ptr, info);
+        assert(info->tag == TCP_SOCKET);
+        o2_service_provider_new(name, (o2_info_ptr) info, info);
         assert(info->proc.name == NULL);
         info->proc.name = o2_heapify(name);
         // now that we have a name and service, we can send init message back:
@@ -441,23 +451,22 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
     o2_arg_ptr arg = o2_get_next('s');
     if (!arg) return;
     char *name = arg->s;
-    int i;
     // note that name is padded with zeros to 32-bit boundary
-    generic_entry_ptr *entry_ptr = o2_lookup(&path_tree_table, name, &i);
-    if (*entry_ptr) {
-        assert((*entry_ptr)->tag == O2_REMOTE_SERVICE);
-        remote_service_entry_ptr service = (remote_service_entry_ptr) *entry_ptr;
-        process_info_ptr info = service->process;
-        // insert the services
-        o2_arg_ptr addarg;
-        while ((arg = o2_get_next('s')) && (addarg = o2_get_next('B'))) {
-            if (addarg->B) {
-                O2_DBd(printf("%s found service /%s offered by /%s\n",
-                             o2_debug_prefix, arg->s, info->proc.name));
-                o2_remote_service_add(info, arg->s);
-            } else {
-                o2_remote_service_remove(arg->s);
-            }
+    process_info_ptr proc = (process_info_ptr) o2_service_find(name);
+    if (!proc || proc->tag != TCP_SOCKET) {
+        O2_DBg(printf("%s ### ERROR: o2_services_handler did not find %s\n", o2_debug_prefix, name));
+        return; // message is bogus (should we report this?)
+    }
+    o2_arg_ptr addarg;
+    while ((arg = o2_get_next('s')) && (addarg = o2_get_next('B'))) {
+        if (strchr(arg->s, '/')) {
+            O2_DBg(printf("%s ### ERROR: o2_services_handler got bad service name - %s\n", o2_debug_prefix, arg->s));
+        } else if (addarg->B) {
+            O2_DBd(printf("%s found service /%s offered by /%s\n",
+                          o2_debug_prefix, arg->s, proc->proc.name));
+            o2_service_provider_new(arg->s, (o2_info_ptr) proc, proc);
+        } else {
+            o2_service_provider_replace(proc, arg->s, NULL);
         }
     }
 }

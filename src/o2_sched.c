@@ -179,7 +179,7 @@ static void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
             O2_DBT(if (m->data.address[1] == '_' ||
                        isdigit(m->data.address[1]))
                        o2_dbg_msg("sched_dispatch", &m->data, NULL, NULL));
-            o2_message_send2(m, FALSE); // don't assume local and call
+            o2_message_send_sched(m, FALSE); // don't assume local and call
             // o2_msg_data_deliver; maybe this is an OSC message
         }
         s->last_bin++;

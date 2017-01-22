@@ -26,7 +26,7 @@ endif(APPLE)
 # o2
  
 set(O2_SRC  
-  src/o2_dynamic.c src/o2_dynamic.c 
+  src/o2_dynamic.c src/o2_dynamic.h
   src/o2.c src/o2.h src/o2_internal.h 
   src/o2_discovery.c src/o2_discovery.h
   src/o2_message.c src/o2_message.h 

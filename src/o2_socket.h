@@ -44,19 +44,22 @@ typedef int SOCKET;     // In O2, we'll use SOCKET to denote the type of a socke
 #endif
 
 /**
- * The fds_info structure tells us info about each socket. For Unix, there
+ * The porcess_info structure tells us info about each socket. For Unix, there
  * is a parallel structure, fds, that contains an fds parameter for poll().
  *
- * In fds_info, we have the socket, a handler for the socket, and buffer info
- * to store incoming data, and the service the socket is attached to.
+ * In process_info, we have the socket, a handler for the socket, and buffer 
+ * info to store incoming data, and the service the socket is attached to.
+ * This structure is also used to represent a remote service if the
+ * tag is TCP_SOCKET.
+ * 
  */
-#define UDP_SOCKET 0
-#define TCP_SOCKET 1
-#define OSC_SOCKET 2
-#define DISCOVER_SOCKET 3
-#define TCP_SERVER_SOCKET 4
-#define OSC_TCP_SERVER_SOCKET 5
-#define OSC_TCP_SOCKET 6
+#define UDP_SOCKET 100
+#define TCP_SOCKET 101
+#define OSC_SOCKET 102
+#define DISCOVER_SOCKET 103
+#define TCP_SERVER_SOCKET 104
+#define OSC_TCP_SERVER_SOCKET 105
+#define OSC_TCP_SOCKET 106
 
 struct process_info;
 
@@ -70,7 +73,15 @@ typedef int (*o2_socket_handler)(SOCKET sock, struct process_info *info);
 #define PROCESS_NO_CLOCK 2    // process initial message received, not clock synced
 #define PROCESS_OK 3          // process is clock synced
 
-typedef struct process_info {
+
+// anything with a tag is of the "abstract superclass" o2_info
+// subclasses are process_info, osc_info, and o2_entry
+typedef struct o2_info {
+    int tag;
+} o2_info, *o2_info_ptr;
+
+
+typedef struct process_info { // "subclass" of o2_info
     int tag;  // UDP_SOCKET, TCP_SOCKET, DISCOVER_SOCKET, TCP_SERVER_SOCKET
               // OSC_SOCKET, OSC_TCP_SERVER_SOCKET,
               // OSC_TCP_SOCKET, OSC_TCP_CLIENT
@@ -95,7 +106,7 @@ typedef struct process_info {
               // o2_osc_port_free() to identify the sockets to close.)
     union {
         struct {
-            char *name; // e.g. "128.2.1.100:55765", this is used so that when
+            o2string name; // e.g. "128.2.1.100:55765", this is used so that when
             // we add a service, we can enumerate all the processes and send
             // them updates. Updates are addressed using this name field. Also,
             // when a new process is connected, we send an /in message to this
@@ -106,7 +117,9 @@ typedef struct process_info {
                         // objects, owned by the service entries (do not free)
             struct sockaddr_in udp_sa;  // address for sending UDP messages
         } proc;
-        char *osc_service_name; // if this forwards messages to an OSC server
+        struct {
+            o2string service_name;
+        } osc;
     };        
 } process_info, *process_info_ptr;
 

@@ -33,19 +33,16 @@ void o2_deliver_pending()
         } else {
             pending_head = pending_head->next;
         }
-        o2_message_send2(msg, TRUE);
+        o2_message_send_sched(msg, TRUE);
     }
 }
 
 
-generic_entry_ptr *o2_service_find(const char *service_name)
+/*o2string o2_key_pad(char *padded, const char *key)
 {
-    // all callers are passing in (possibly) unaligned strings, so we
-    // need to copy the service_name to aligned storage and pad it
     int i;
-    char padded[MAX_SERVICE_LEN + 8]; // 8 allows for padding
     for (i = 0; i < MAX_SERVICE_LEN; i++) {
-        char c = (padded[i] = service_name[i]);
+        char c = (padded[i] = key[i]);
         if (c == '/') {
             padded[i] = 0;
             break;
@@ -59,8 +56,42 @@ generic_entry_ptr *o2_service_find(const char *service_name)
     padded[i++] = 0;
     padded[i++] = 0;
     padded[i++] = 0;
+    return padded;
+}
+*/
 
-    return o2_lookup(&path_tree_table, padded, &i);
+/* prereq: service_name does not contain '/'
+ */
+services_entry_ptr *o2_services_find(const char *service_name)
+{
+    // all callers are passing in (possibly) unaligned strings, so we
+    // need to copy the service_name to aligned storage and pad it
+    char key[NAME_BUF_LEN];
+    o2_string_pad(key, service_name);
+    return (services_entry_ptr *) o2_lookup(&o2_path_tree, key);
+}    
+
+
+o2_info_ptr o2_msg_service(o2_msg_data_ptr msg)
+{
+    char *service_name = msg->address + 1;
+    char *slash = strchr(service_name, '/');
+    if (slash) *slash = 0;
+    o2_info_ptr rslt = o2_service_find(service_name);
+    if (slash) *slash = '/';
+    return rslt;
+}
+
+
+/* prereq: service_name does not contain '/'
+ */
+o2_info_ptr o2_service_find(const char *service_name)
+{
+    services_entry_ptr services = *o2_services_find(service_name);
+    if (!services)
+        return NULL;
+    assert(services->services.length > 0);
+    return GET_SERVICE(services->services, 0);
 }
 
 
@@ -86,14 +117,14 @@ int o2_send_marker(const char *path, double time, int tcp_flag, const char *type
     if (rslt != O2_SUCCESS) {
         return rslt; // could not allocate a message!
     }
-    return o2_message_send2(msg, TRUE);
+    return o2_message_send_sched(msg, TRUE);
 }
 
 // This is the externally visible message send function.
 //
 int o2_message_send(o2_message_ptr msg)
 {
-    return o2_message_send2(msg, TRUE);
+    return o2_message_send_sched(msg, TRUE);
 }
 
 // Internal message send function.
@@ -102,15 +133,15 @@ int o2_message_send(o2_message_ptr msg)
 // by o2_ltsched, schedulable will be FALSE and we should ignore
 // the timestamp, which has already been observed by o2_ltsched.
 //
-int o2_message_send2(o2_message_ptr msg, int schedulable)
+int o2_message_send_sched(o2_message_ptr msg, int schedulable)
 {
     // Find the remote service, note that we skip over the leading '/':
-    generic_entry_ptr service = *o2_service_find(msg->data.address + 1);
+    o2_info_ptr service = o2_msg_service(&msg->data);
     if (!service) {
         o2_message_free(msg);
         return O2_FAIL;
-    } else if (service->tag == O2_REMOTE_SERVICE) { // remote delivery?
-        o2_send_remote(&msg->data, msg->tcp_flag, service);
+    } else if (service->tag == TCP_SOCKET) { // remote delivery?
+        o2_send_remote(&msg->data, msg->tcp_flag, (process_info_ptr) service);
         o2_message_free(msg);
     } else if (service->tag == OSC_REMOTE_SERVICE) {
         // this is a bit complicated: send immediately if it is a bundle
@@ -118,7 +149,7 @@ int o2_message_send2(o2_message_ptr msg, int schedulable)
         if (!schedulable || IS_BUNDLE(&msg->data) ||
              msg->data.timestamp == 0.0 ||
              msg->data.timestamp <= o2_gtsched.last_time) {
-            o2_send_osc((osc_entry_ptr) service, &msg->data);
+            o2_send_osc((osc_info_ptr) service, &msg->data);
             o2_message_free(msg);
         } else {
             return o2_schedule(&o2_gtsched, msg); // delivery on time
@@ -147,14 +178,14 @@ int o2_message_send2(o2_message_ptr msg, int schedulable)
 //     delivery requires the creation of an o2_message
 int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag)
 {
-    generic_entry_ptr service = *o2_service_find(msg->address + 1);
+    o2_info_ptr service = o2_msg_service(msg);
     if (!service) return O2_FAIL;
-    if (service->tag == O2_REMOTE_SERVICE) {
-        return o2_send_remote(msg, tcp_flag, service);
+    if (service->tag == TCP_SOCKET) {
+        return o2_send_remote(msg, tcp_flag, (process_info_ptr) service);
     } else if (service->tag == OSC_REMOTE_SERVICE) {
         if (IS_BUNDLE(msg) || (msg->timestamp == 0.0 ||
                                msg->timestamp <= o2_gtsched.last_time)) {
-            return o2_send_osc((osc_entry_ptr) service, msg);
+            return o2_send_osc((osc_info_ptr) service, msg);
         }
     } else if (msg->timestamp == 0.0 ||
                msg->timestamp <= o2_gtsched.last_time) {
@@ -170,10 +201,9 @@ int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag)
 }
 
 
-int o2_send_remote(o2_msg_data_ptr msg, int tcp_flag, generic_entry_ptr service)
+int o2_send_remote(o2_msg_data_ptr msg, int tcp_flag, process_info_ptr info)
 {
     // send the message to remote process
-    process_info_ptr info = ((remote_service_entry_ptr) service)->process;
     if (tcp_flag) {
         return send_by_tcp_to_process(info, msg);
     } else { // send via UDP

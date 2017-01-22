@@ -4,6 +4,7 @@
 
 #include "o2_internal.h"
 #include "o2_sched.h"
+#include "o2_send.h"
 
 // get the master clock - clock time is estimated as
 //   global_time_base + elapsed_time * clock_rate, where
@@ -24,7 +25,7 @@ static int found_clock_service = FALSE; // set when service appears
 static o2_time start_sync_time; // local time when we start syncing
 static int clock_sync_id = 0;
 static o2_time clock_sync_send_time;
-static char *clock_sync_reply_to;
+static o2string clock_sync_reply_to;
 static o2_time_callback time_callback = NULL;
 static void *time_callback_data = NULL;
 static int clock_rate_id = 0;
@@ -225,14 +226,14 @@ void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
     o2_arg_ptr arg = o2_get_next('s');
     if (!arg) return;
     char *name = arg->s;
-    int i;
-    generic_entry_ptr entry = *o2_lookup(&path_tree_table, name, &i);
+    o2_info_ptr entry = o2_service_find(name);
     if (entry) {
-        assert(entry->tag == O2_REMOTE_SERVICE);
-        remote_service_entry_ptr service = (remote_service_entry_ptr) entry;
-        service->process->proc.status = PROCESS_OK;
+        assert(entry->tag == TCP_SOCKET);
+        process_info_ptr info = (process_info_ptr) entry;
+        info->proc.status = PROCESS_OK;
         return;
     }
+    O2_DBg(printf("%s ### ERROR in o2_clocksynced_handler, bad service %s\n", o2_debug_prefix, name));
 }
 
 
@@ -338,6 +339,8 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
         int status = o2_status("_cs");
         found_clock_service = (status >= 0);
         if (found_clock_service) {
+            O2_DBc(printf("%s ** found clock service, is_master=%d",
+                          o2_debug_prefix, is_master));
             if (status == O2_LOCAL || status == O2_LOCAL_NOTIME) {
                 assert(is_master);
             } else { // record when we started to send clock sync messages

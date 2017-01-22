@@ -104,20 +104,17 @@ static void deliver_or_schedule(process_info_ptr info)
     O2_DBr(if (info->message->data.address[1] != '_' &&
                !isdigit(info->message->data.address[1]))
                o2_dbg_msg("msg received", &info->message->data,
-                          "type", (info->tag == UDP_SOCKET ? "UDP_SOCKET" :
-                                   (info->tag == TCP_SOCKET ? "TCP_SOCKET" :
-                                    (info->tag == DISCOVER_SOCKET ?
-                                     "DISCOVER_SOCKET" :
-                                     "other")))));
+                          "type", o2_tag_to_string(info->tag)));
     O2_DBR(if (info->message->data.address[1] == '_' ||
                isdigit(info->message->data.address[1]))
                o2_dbg_msg("msg received", &info->message->data,
-                          "type", (info->tag == UDP_SOCKET ? "UDP_SOCKET" :
-                                   (info->tag == TCP_SOCKET ? "TCP_SOCKET" :
-                                    (info->tag == DISCOVER_SOCKET ?
-                                     "DISCOVER_SOCKET" :
-                                     "other")))));
-    o2_message_send2(info->message, TRUE);
+                          "type", o2_tag_to_string(info->tag)));
+    //DEBUG
+    if (strstr(info->message->data.address, "/sv")) {
+        printf("***** got sv msg\n");
+        o2_show_info((o2_info_ptr) &o2_path_tree, 1);
+    }
+    o2_message_send_sched(info->message, TRUE);
 }
 
 
@@ -283,7 +280,7 @@ process_info_ptr o2_add_new_socket(SOCKET sock, int tag, o2_socket_handler handl
 int o2_process_initialize(process_info_ptr info, int status)
 {
     info->proc.status = status;
-    DA_INIT(info->proc.services, char *, 0);
+    DA_INIT(info->proc.services, o2string, 0);
     info->port = 0;
     memset(&info->proc.udp_sa, 0, sizeof(info->proc.udp_sa));
     return O2_SUCCESS;
@@ -355,11 +352,7 @@ int o2_make_tcp_recv_socket(int tag, int port,
         return O2_FAIL;
     }
     O2_DBo(printf("%s created tcp socket %ld tag %s\n",
-                  o2_debug_prefix, (long) sock,
-                  (tag == TCP_SERVER_SOCKET ? "TCP_SERVER_SOCKET" :
-                   (tag == OSC_TCP_SERVER_SOCKET ? "OSC_TCP_SERVER_SOCKET" :
-                    (tag == TCP_SOCKET ? "TCP_SOCKET" :
-                     (tag == OSC_TCP_SOCKET ? "OSC_TCP_SOCKET" : "?"))))));
+                  o2_debug_prefix, (long) sock, o2_tag_to_string(tag)));
     if (tag == TCP_SERVER_SOCKET || tag == OSC_TCP_SERVER_SOCKET) {
         // only bind server port
         RETURN_IF_ERROR(bind_recv_socket(sock, &port, TRUE));
@@ -397,8 +390,6 @@ int o2_make_tcp_recv_socket(int tag, int port,
         freeifaddrs(ifap);
         (*info)->proc.name = o2_heapify(name);
         RETURN_IF_ERROR(o2_process_initialize(*info, PROCESS_LOCAL));
-    } else if (tag == OSC_TCP_SERVER_SOCKET) {
-        (*info)->port = port;
     } else { // a "normal" TCP connection: set NODELAY option
         // (NODELAY means that TCP messages will be delivered immediately
         // rather than waiting a short period for additional data to be
@@ -407,6 +398,9 @@ int o2_make_tcp_recv_socket(int tag, int port,
         int option = 1;
         setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (const char *) &option,
                    sizeof(option));
+        if (tag == OSC_TCP_SERVER_SOCKET) {
+            (*info)->port = port;
+        }
     }
     return O2_SUCCESS;
 }
@@ -443,7 +437,7 @@ int o2_osc_delegate_handler(SOCKET sock, process_info_ptr info)
     } else if (n != O2_SUCCESS) {
         return n;
     }
-    o2_deliver_osc(info);
+    O2_DBg(printf("%s ### ERROR: unexpected message from OSC server providing service %s\n", o2_debug_prefix, info->osc.service_name));
     tcp_message_cleanup(info);
     return O2_SUCCESS;
 }
@@ -648,12 +642,12 @@ int o2_osc_tcp_accept_handler(SOCKET sock, process_info_ptr info)
     }
     o2_disable_sigpipe(connection);
     process_info_ptr conn_info = o2_add_new_socket(connection, OSC_TCP_SOCKET, &osc_tcp_handler);
-    assert(info->osc_service_name);
-    conn_info->osc_service_name = info->osc_service_name;
+    assert(info->osc.service_name);
+    conn_info->osc.service_name = info->osc.service_name;
     assert(info->port != 0);
     conn_info->port = info->port;
     O2_DBoO(printf("%s OSC server on port %d accepts client as socket %ld for service %s\n",
-                  o2_debug_prefix, info->port, (long) connection, info->osc_service_name));
+                  o2_debug_prefix, info->port, (long) connection, info->osc.service_name));
     return O2_SUCCESS;
 }
 

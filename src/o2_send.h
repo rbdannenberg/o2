@@ -17,6 +17,10 @@
 
 void o2_deliver_pending();
 
+services_entry_ptr *o2_services_find(const char *service_name);
+
+o2_info_ptr o2_msg_service(o2_msg_data_ptr msg);
+
 /**
  *  \brief Use initial part of an O2 address to find an o2_service using
  *  a hash table lookup.
@@ -24,20 +28,20 @@ void o2_deliver_pending();
  *  @param name points to the service name (do not include the
  *              initial '!' or '/' from the O2 address).
  *
- *  @return The pointer to the table entry pointing to service,
- *          or NULL if none found.
- * 
- *  Note: The table entry is not dereferenced so that the result
- *  can be used to remove the entry from the table. (See entry_remove()).
+ *  @return The pointer to the service, tag may be TCP_SOCKET 
+ *          (remote process), PATTERN_NODE (local service), 
+ *          PATTERN_HANDLER (local service with single handler),
+ *          or OSC_REMOTE_SERVICE (redirect to OSC server),
+ *          or NULL if name is not found.
  */
-generic_entry_ptr *o2_service_find(const char *name);
+o2_info_ptr o2_service_find(const char *name);
 
-int o2_message_send2(o2_message_ptr msg, int schedulable);
+int o2_message_send_sched(o2_message_ptr msg, int schedulable);
 
 int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag);
 
 int o2_send_remote(o2_msg_data_ptr msg, int tcp_flag,
-                     generic_entry_ptr service);
+                   process_info_ptr info);
 
 int send_by_tcp_to_process(process_info_ptr proc, o2_msg_data_ptr msg);
 

@@ -9,26 +9,36 @@
 /*
 Design Notes
 ============
-                         service
-o2_fds   o2_fds_info      names
-+----+   +---------+      ______
-|    |   |        -+---->|______|
-|----|   |---------|     |______|
-|    |   |         |       
-|----|   |---------|
-|    |   |         |
-+----+   +---------+
+                                    service
+o2_fds   o2_fds_info                 names
++----+   +---------+  +---------+    ______
+|    |   |        -+->| process +-->|______|
+|----|   |---------|  |  info   |   |______|
+|    |   |         |  +-----^---+
+|----|   |---------|        |
+|    |   |         |        |
++----+   +---------+        |
+                            | 
+o2_path_tree             |
++----------+    +--------+  |
+|         -+--->|services+--+
++----------+    | entry  |
+|         -+->  |        |   +--------+
++----------+    |       -+-->|(local)-+---> etc
+                +--------+   | node   |  +---------+
+                             | entry  |->| handler |
+                             +--------+  |  entry  |
+                                         +---------+
 
-path_tree_table
-+----------+             +--------+   +--------+
-|         -+------------>| entry -+-->| handler|
-+----------+  +-------+  | node   |   |  node  |
-|         -+->| entry |  |        |   +--------+
-+----------+  | node  |  |        |   +--------+
-              +-------+  |       -+-->| entry -+-> etc
-                         +--------+   |  node -+-> etc
-                                      +--------+
-master_table
+Note: o2_path_tree is a node_entry (hash table)
+node_entry (hash table) entries can be:
+    node_entry - the next node in a path
+    handler_entry - handler at end of path
+    services_entry - in o2_path_tree only, a list
+        of services of the same name, the highest
+        IP:Port string overrides any others.
+
+o2_full_path_table
 +----------+             +--------+
 |         -+------------>| handler|
 +----------+  +--------+ |  node  |
@@ -39,33 +49,54 @@ master_table
 
 
 Each application has:
-path_tree_table - a dictionary mapping service names to services
-    (handler_entry, node_entry, remote_service_entry, osc_entry). 
-    Local services are represented by a handler_entry if there is
-    a single handler for all messages to the service, or a
-    node_entry which is the root dictionary for a tree of path 
-    nodes. (A node is a slash-delimited element of an address, 
-    e.g. /synth/lfo/freq has nodes synth, lfo and freq). Each node
-    is represented by either a node_entry for internal nodes or
-    a handler_entry for leaf nodes. The path_tree_table itself is
-    a node_entry.  The path_tree_table also maps IP addresses + 
-    ports (as strings that begin with a digit and have the form 
-    128.2.100.120:4000) to a remote_service_entry.
+o2_path_tree - a dictionary mapping service names to a
+    services_entry, which keeps a list of who offers the service.
+    Only the highest IP:port string (lexicographically) is valid.
+    Generally, trying to offer identical service names from 
+    multiple processes is a bad idea, and note that until the 
+    true provider with the highest IP:port string is discovered,
+    messages may be sent to a different service with the same name.
 
-master_table is a dictionary for full paths, permitting a single hash 
+    Each services_entry has an array (not a hash table) of entries 
+    of the following types:
+        node_entry: a local service. This is the root of a tree
+            of hash tables where leaves are handler_entry's.
+        handler_entry: a local service. If there is a 
+            handler_entry at this level, it is the single handler
+            for all messages to this local service.
+        remote_service_entry: includes index of the socket and 
+            IP:port name of the service provider
+        osc_entry: delegates to an OSC server. For the purposes of
+            finding the highest IP:port string, this is considered
+            to be a local service. A services_entry can have at 
+            most one of node_entry, handler_entry, osc_entry, but
+            any number of remote_service_entry's.
+
+    The first element in the array of entries in a service_entry 
+    is the "active" service -- the one with the highest IP:port
+    string. Other elements are not sorted, so when a service is 
+    removed, a linear search to find the largest remaining offering
+    (if any) is performed.
+
+    The o2_path_tree also maps IP addresses + ports (as strings
+    that begin with a digit and have the form 128.2.100.120:4000) 
+    to a services_entry that contains one remote_service_entry.
+
+o2_full_path_table is a dictionary for full paths, permitting a single hash 
     table lookup for addresses of the form !synth/lfo/freq. In practice
     an additional lookup of just the service name is required to 
     determine if the service is local and if there is a single handler
     for all messages to that service.
 
-Each handler object is referenced by some node in the path_tree_table
-    and by the master_table dictionary, except for handlers that handle
+Each handler object is referenced by some node in the o2_path_tree
+    and by the o2_full_path_table dictionary, except for handlers that handle
     all service messages. These are only referenced by the 
-    path_tree_table.
+    o2_path_tree.
 
 o2_fds is a dynamic array of sockets for poll
-o2_fds_info is a parallel array of additional information
-    includes a tag: UDP_SOCKET is for all incoming UDP messages
+o2_fds_info is a parallel dynamic array of pointers to process info
+process_info includes a tag: 
+        UDP_SOCKET is for all incoming UDP messages
         TCP_SOCKET makes a TCP connection to a remote process
         DISCOVER_SOCKET is a UDP socket for incoming discovery messages
         TCP_SERVER_SOCKET is the server socket, representing local process
@@ -73,7 +104,8 @@ o2_fds_info is a parallel array of additional information
         OSC_TCP_SERVER_SOCKET is a server socket for OSC TCP connections
         OSC_TCP_SOCKET is for incoming OSC messages via TCP
         OSC_TCP_CLIENT is for outgoing OSC messages via TCP
-
+    All process info records contain an index into o2_fds (and
+        o2_fds_info and the index must be updated if a socket is moved.)
     If the tag is TCP_SOCKET or TCP_SERVER_SOCKET, fields are:
         name - the ip address:port number used as a service name
         status - PROCESS_DISCOVERED through PROCESS_OK
@@ -130,15 +162,17 @@ Process Creation
 o2_discovery_handler() receives !_o2/dy message. There are two cases
 based on whether the local host is the server or client. The server is
 the host with the greater IP:Port string. The client connects to the
-server.
+server. If the server gets a discovery message from the client, it
+can't connect because it's the server, so it merely generates an
+!_o2/dy message to the client to prompt the client to connect. 
 
 Info for each process is stored in fds_info, which has one entry per
 socket. Most sockets are TCP sockets and the associated process info
-in fds_info represents a remote process. However, the info associated
-with the TCP server port (every process has one of these) represents
-the local process and is created when O2 is initialized. There are a
-few other sockets: discovery socket, UDP send socket, UDP receive
-socket, and OSC sockets (if created by the user).
+pointed to by fds_info represents a remote process. However, the 
+info associated with the TCP server port (every process has one of these)
+represents the local process and is created when O2 is initialized. 
+There are a few other sockets: discovery socket, UDP send socket, UDP 
+receive socket, and OSC sockets (if created by the user).
 
 The message sequence is:
 Client broadcasts /dy (discovery) to all, including server. This
@@ -168,9 +202,10 @@ The /in message updates the status of the remote process to
 Services and Processes
 ----------------------
 A process includes a list of services (strings). Each 
-service is mapped by path_tree_table to a 
-remote_service_entry, which has an integer index of the
-corresponding remote process (both the socket in the fds 
+of these services is mapped by o2_path_tree to a 
+services_entry that contains a remote_service_entry,
+which has an integer index of the corresponding 
+remote process (both the socket in the fds 
 array and the process info in the fds_info array).
 
 When sockets are closed, the last socket in fds is moved
@@ -186,17 +221,17 @@ when the socket connecting to the process is closed.
 
 Remote Process Name: Allocation, References, Freeing
 ----------------------------------------------------
-Each remote process has a name, e.g. ""128.2.1.100:55765"
+Each remote process has a name, e.g. "128.2.1.100:55765"
 that can be used as a service name in an O2 address, e.g.
 to announce a new local service to that remote process.
-The name is on the heap and is "owned" by the fds_info
+The name is on the heap and is "owned" by the process_info
 record associated with the TCP_SOCKET socket for remote
 processes. Also, the local process has its name owned by
 the TCP_SERVER socket.
 
 The process name is *copied* and used as the key for a
-remote_service_entry_ptr to represent the process as a
-service in the path_tree_table.
+service_entry_ptr to represent the service in the 
+o2_path_tree.
 
 The process name is freed by o2_remove_remote_process().
 
@@ -204,15 +239,32 @@ OSC Service Name: Allocation, References, Freeing
 -------------------------------------------------
 o2_osc_port_new() creates a tcp service or incoming udp port
 for OSC messages that are redirected to an O2 service. The
-service name is copied to the heap and stored as
-osc_service_name in the fds_info record associated with the
-socket. For UDP, there are no other references, and the
-osc_service_name is freed when the UDP socket is removed by
-calling o2_osc_port_free(). For TCP, the osc_service_name
-is shared between the OSC_TCP_SERVER_SOCKET and any 
-OSC_TCP_SOCKET that was accepted from the server socket.
-These sockets and their shared osc_service_name are also
-removed by o2_osc_port_free().
+service_entry record "owns" the servier name which is on the 
+heap. This name is shared by osc.service_name in the osc_info
+record.  For UDP, there are no other references, and the
+osc.service_name is not freed when the UDP socket is removed
+(unless this is the last provider of the service, in which
+case the service_entry record and is removed and its key is
+freed). For TCP, the osc.service_name is *copied* to the 
+OSC_TCP_SERVER_SOCKET and shared with any OSC_TCP_SOCKET 
+that was accepted from the server socket.  These sockets 
+and their shared osc service name are freed when the OSC
+service is removed.
+
+PATTERN_NODE and PATTERN_HANDLER keys at top level
+----------------------------------------------------
+If a node_entry (tag == PATTERN_NODE) or handler_entry
+(tag == PATTERN_HANDLER) exists as a service provider, i.e.
+in the services list of a services_entry record, the key 
+field is not really needed because the service lookup takes
+you to the services list, and the first element there offers
+the service. E.g. if there's a (local) handler for 
+/service1/bar, then we lookup "service1" in the o2_path_tree,
+which takes us to a services_entry, the first element on its
+services list should be a node_entry. There, we do a hash lookup
+of "bar" to get to a handler_entry. The key is set to NULL for
+node_entry and handler_entry records that represent services and
+are directly pointed to from a services list.
 
 
 Byte Order
@@ -228,22 +280,11 @@ to host byte order if necessary.
 
 /**
  *  TO DO:
- *  1. OSC - done
- *  1A. test compatibility with liblo receiving
- *  1B. test compatibility with liblo sending
- *  2. Bundles
- *  2A. test compatibility with liblo receiving
- *  2B. test compatibility with liblo sending
- *  3. IPv6
- *  3A. test compatibility with liblo receiving
- *  3B. test compatibility with liblo sending
+ *  see each error return has the right error code
+ *  tests that generate error messages
  */
 
-#include "o2.h"
 #include <stdio.h>
-#include "o2_dynamic.h"
-#include "o2_socket.h"
-#include "o2_search.h"
 #include "o2_internal.h"
 #include "o2_discovery.h"
 #include "o2_message.h"
@@ -281,20 +322,20 @@ void o2_debug_flags(const char *flags)
 void o2_dbg_msg(const char *src, o2_msg_data_ptr msg,
                 const char *extra_label, const char *extra_data)
 {
-    fprintf(stderr, "%s %s at %gs (local %gs)", o2_debug_prefix,
+    printf("%s %s at %gs (local %gs)", o2_debug_prefix,
            src, o2_time_get(), o2_local_time());
     if (extra_label)
-        printf(" %s: %s", extra_label, extra_data);
-    fprintf(stderr, "\n    ");
+        printf(" %s: %s ", extra_label, extra_data);
+    printf("\n    ");
     o2_msg_data_print(msg);
-    fprintf(stderr, "\n");
+    printf("\n");
 }
 #endif
 
 void *((*o2_malloc)(size_t size)) = &malloc;
 void ((*o2_free)(void *)) = &free;
 // also used to detect initialization:
-char *o2_application_name = NULL;
+const char *o2_application_name = NULL;
 
 // these times are set when poll is called to avoid the need to
 //   call o2_time_get() repeatedly
@@ -355,8 +396,8 @@ int o2_initialize(const char *application_name)
     o2_argv_initialize();
     
     // Initialize the hash tables
-    o2_node_initialize(&master_table, "");
-    o2_node_initialize(&path_tree_table, "");
+    o2_node_initialize(&o2_full_path_table, NULL);
+    o2_node_initialize(&o2_path_tree, NULL);
     
     // Initialize the application name.
     o2_application_name = o2_heapify(application_name);
@@ -428,30 +469,87 @@ void o2_notify_others(const char *service_name, int added)
 }
 
 
+o2_info_ptr o2_local_service_find(services_entry_ptr *services)
+{
+    // search for local service
+    if (!*services) return FALSE;
+    for (int i = 0; i < (*services)->services.length; i++) {
+        o2_info_ptr service = GET_SERVICE((*services)->services, i);
+        if (service->tag != TCP_SOCKET) {
+            return service; // local service already exists
+        }
+    }
+    return NULL;
+}
+
+/* adds a service provider - a service is added to the list of services in 
+ *    a service_entry struct.
+ * 1) create the service_entry struct if none exists
+ * 2) put the service onto process's list of service names
+ * 3) add new service to the list
+ */
+int o2_service_provider_new(o2string service_name, o2_info_ptr service, process_info_ptr process)
+{
+    services_entry_ptr *services = (services_entry_ptr *) o2_lookup(&o2_path_tree, service_name);
+    services_entry_ptr s;
+    // 1) if no entry, create an empty one
+    if (!*services) {
+        s = O2_CALLOC(1, sizeof(services_entry));
+        s->tag = SERVICES;
+        s->key = o2_heapify(service_name);
+        s->next = NULL;
+        DA_INIT(s->services, o2_entry_ptr, 1);
+        o2_add_entry_at(&o2_path_tree, (o2_entry_ptr *) services, 
+                        (o2_entry_ptr) s);
+    } else { // if this is local and a local service exists already, fail
+        if (process == o2_process && (o2_local_service_find(services) != NULL)) {
+            return O2_SERVICE_EXISTS;
+        }
+        s = *services;
+    }
+    // Now we know it's safe to add a local service and we have a
+    // place to put it
+    // 2) add the service name to the process so we can enumerate
+    //    local services
+    DA_APPEND(process->proc.services, o2string, s->key);
+    // 3) find insert location: either at front or at back of services->services
+    DA_EXPAND(s->services, o2_entry_ptr);
+    int index = s->services.length - 1;
+    if (index > 0) { // see if we should go first
+        o2string our_ip_port = process->proc.name;
+        // find the top entry
+        o2_info_ptr top_entry = GET_SERVICE(s->services, 0);
+        o2string top_ip_port = (top_entry->tag == TCP_SOCKET ?
+                                ((process_info_ptr) top_entry)->proc.name :
+                                o2_process->proc.name);
+        if (strcmp(our_ip_port, top_ip_port) > 0) {
+            DA_SET(s->services, o2_info_ptr, index, top_entry);
+            index = 0; // put new service at the top of the list
+        }
+    }
+    DA_SET(s->services, o2_info_ptr, index, service);
+    // special case for osc: need service name
+    if (service->tag == OSC_REMOTE_SERVICE) {
+        ((osc_info_ptr) service)->service_name = (*services)->key;
+    }
+    return O2_SUCCESS;
+}
+
+
 int o2_service_new(const char *service_name)
 {    
-//#if defined(WIN32) || defined(_MSC_VER)
-    /* Windows Server 2003 or later (Vista, 7, etc.) must join the
-     * multicast group before bind(), but Windows XP must join
-     * after bind(). */
-    // int wins2003_or_later = detect_windows_server_2003_or_later();
-//#endif
-
-    // make sure service does not already exist
-    generic_entry_ptr entry = *o2_service_find(service_name);
-    if (entry) return O2_FAIL;
-    
-    // Add a o2_local_service structure for the o2 service.
-    DA_EXPAND(o2_process->proc.services, service_table);
-    service_name = o2_heapify(service_name);
-    DA_LAST(o2_process->proc.services, service_table)->name = service_name;
-    
-    if (!o2_tree_insert_node(&path_tree_table, service_name)) {
-        O2_DBd(printf("%s o2_service_new failed at o2_tree_insert_node (%s)\n",
-                      o2_debug_prefix, service_name));
-        return O2_FAIL;
+    // find services_node if any
+    char padded_name[NAME_BUF_LEN];
+    if (strchr(service_name, "/")) return O2_BAD_SERVICE_NAME;
+    o2_string_pad(padded_name, service_name);
+    node_entry_ptr node = o2_node_new(NULL);
+    if (!node) return O2_FAIL;
+    int rslt = o2_service_provider_new(padded_name, (o2_info_ptr) node, o2_process);
+    if (rslt != O2_SUCCESS) {
+        O2_FREE(node);
+        return rslt;
     }
-    o2_notify_others(service_name, TRUE);
+    o2_notify_others(padded_name, TRUE);
     return O2_SUCCESS;
 }
 
@@ -503,11 +601,13 @@ int o2_run(int rate)
 
 int o2_status(const char *service)
 {
-    generic_entry_ptr entry = *o2_service_find(service);
+    if (!service || strchr(service, '/'))
+        return O2_BAD_SERVICE_NAME;
+    o2_info_ptr entry = o2_service_find(service);
     if (!entry) return O2_FAIL;
     switch (entry->tag) {
-        case O2_REMOTE_SERVICE: {
-            process_info_ptr info = ((remote_service_entry_ptr) entry)->process;
+        case TCP_SOCKET: {
+            process_info_ptr info = (process_info_ptr) entry;
             if (o2_clock_is_synchronized &&
                 info->proc.status == PROCESS_OK) {
                 return O2_REMOTE;
@@ -604,29 +704,29 @@ int o2_finish()
         process_info_ptr info = GET_PROCESS(i);
         if (info->message) O2_FREE(info->message);
         if (info->tag == TCP_SOCKET) {
-            O2_FREE(info->proc.services.array);
+            DA_FINISH(info->proc.services);
         } else if (info->tag == OSC_SOCKET ||
                    info->tag == OSC_TCP_SERVER_SOCKET) {
             // free the osc service name; this is shared
             // by any OSC_TCP_SOCKET, so we can ignore
             // OSC_TCP_SOCKETs.
-            assert(info->osc_service_name);
-            O2_FREE(info->osc_service_name);
+            assert(info->osc.service_name);
+            O2_FREE((void *) info->osc.service_name);
         }
         O2_FREE(info);
     }
     DA_FINISH(o2_fds);
     DA_FINISH(o2_fds_info);
     
-    o2_node_finish(&path_tree_table);
-    o2_node_finish(&master_table);
+    o2_node_finish(&o2_path_tree);
+    o2_node_finish(&o2_full_path_table);
     
     o2_argv_finish();
     o2_sched_finish(&o2_gtsched);
     o2_sched_finish(&o2_ltsched);
     o2_discovery_finish();
 
-    if (o2_application_name) O2_FREE(o2_application_name);
+    if (o2_application_name) O2_FREE((void *) o2_application_name);
     o2_application_name = NULL;
     return O2_SUCCESS;
 }

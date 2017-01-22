@@ -222,6 +222,12 @@ void o2_debug_flags(const char *flags);
 // an error return value: could not write to socket or send datagram
 #define O2_SEND_FAIL (-15)
 
+// an error return value: a service name was NULL or contained a slash (/)
+#define O2_BAD_SERVICE_NAME (-16)
+
+// an error return value: attempt to create a local service when one exists already
+#define O2_SERVICE_EXISTS (-17)
+
 // Status return codes for o2_status function:
 
 /// \brief return value for o2_status() function: this is a local service
@@ -563,7 +569,7 @@ extern o2_arg_ptr o2_got_end_array;
  * Do not set, modify or free this variable! Consider it to be
  * read-only. It is managed by O2 using o2_initialize() and o2_finish().
  */
-extern char *o2_application_name;
+extern const char *o2_application_name;
 
 /** \brief set this flag to stop o2_run()
  *

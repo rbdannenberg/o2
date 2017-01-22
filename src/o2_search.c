@@ -28,12 +28,12 @@
 //         (Defined in o2_sched.c)
 //         msg could be local or for delivery to an OSC server
 //         Caller gives msg to callee. msg is freed eventually.
-//         Calls o2_message_send2(msg, FALSE) to send message
+//         Calls o2_message_send_sched(msg, FALSE) to send message
 //         (FALSE prevents a locally scheduled message you are trying
 //         to dispatch from being considered for scheduling using the
 //         o2_gtsched, which may not be working yet.)
 // o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
-//                     generic_entry_ptr service)
+//                     o2_entry_ptr service)
 //         delivers a message or bundle locally. Calls
 //         o2_embedded_msgs_deliver() if this is a bundle.
 //         Otherwise, uses find_and_call_handlers_rec().
@@ -62,16 +62,17 @@
 #define allloca _alloca
 #endif
 
-static void free_entry(generic_entry_ptr entry);
-static void free_node(node_entry_ptr node);
-static void string_pad(char *dst, char *src);
+static void entry_free(o2_entry_ptr entry);
 static int o2_pattern_match(const char *str, const char *p);
-static int entry_remove(node_entry_ptr node, generic_entry_ptr *child, int resize);
+static int entry_remove(node_entry_ptr node, o2_entry_ptr *child, int resize);
 static int remove_method_from_tree(char *remaining, char *name,
                                    node_entry_ptr node);
-static int remove_node(node_entry_ptr node, const char *key);
+static int remove_node(node_entry_ptr node, o2string key);
 static int remove_remote_services(process_info_ptr info);
 static int resize_table(node_entry_ptr node, int new_locs);
+static node_entry_ptr tree_insert_node(node_entry_ptr node, o2string key);
+
+
 
 #if IS_LITTLE_ENDIAN
 // for little endian machines
@@ -81,23 +82,109 @@ static int resize_table(node_entry_ptr node, int new_locs);
 #endif
 #define SCRAMBLE 2686453351680
 
-#define O2_MAX_NODE_NAME_LEN 1020
-#define NAME_BUF_LEN ((O2_MAX_NODE_NAME_LEN) + 4)
-
 #define MAX_SERVICE_NUM  1024
 
-node_entry master_table;
-node_entry path_tree_table;
+node_entry o2_full_path_table;
+node_entry o2_path_tree;
 
 
-// add_entry_at inserts an entry into the hash table. If the
+static void enumerate_begin(enumerate *enumerator, dyn_array_ptr dict)
+{
+    enumerator->dict = dict;
+    enumerator->index = 0;
+    enumerator->entry = NULL;
+}
+
+
+// return next entry from table. Entries can be inserted into
+// a new table because enumerate_next does not depend upon the
+// pointers in each entry once the entry is enumerated.
+//
+static o2_entry_ptr enumerate_next(enumerate_ptr enumerator)
+{
+    while (!enumerator->entry) {
+        int i = enumerator->index++;
+        if (i >= enumerator->dict->length) {
+            return NULL; // no more entries
+        }
+        enumerator->entry = *DA_GET(*(enumerator->dict),
+                                    o2_entry_ptr, i);
+    }
+    o2_entry_ptr ret = enumerator->entry;
+    enumerator->entry = enumerator->entry->next;
+    return ret;
+}
+
+#ifndef O2_NO_DEBUGGING
+static const char *entry_tags[5] = { "PATTERN_NODE", "PATTERN_HANDLER", "SERVICES",
+                              "O2_BRIDGE_SERVICE", "OSC_REMOTE_SERVICE" };
+static const char *info_tags[7] = { "UDP_SOCKET", "TCP_SOCKET", "OSC_SOCKET",
+                             "DISCOVER_SOCKET", "TCP_SERVER_SOCKET",
+                             "OSC_TCP_SERVER_SOCKET", "OSC_TCP_SOCKET" };
+const char *o2_tag_to_string(int tag)
+{
+    if (tag <= OSC_REMOTE_SERVICE) return entry_tags[tag];
+    if (tag >= UDP_SOCKET && tag <= OSC_TCP_SOCKET)
+        return info_tags[tag - UDP_SOCKET];
+    static char unknown[32];
+    snprintf(unknown, 32, "Tag-%d", tag);
+    return unknown;
+}
+#endif 
+
+#ifdef SEARCH_DEBUG
+// debugging code to print o2_entry and o2_info structures
+void o2_show_info(o2_info_ptr info, int indent)
+{
+    for (int i = 0; i < indent; i++) printf("  ");
+    printf("%s@%p", o2_tag_to_string(info->tag), info);
+    if (info->tag == PATTERN_NODE || info->tag == PATTERN_HANDLER || info->tag == SERVICES) {
+        o2_entry_ptr entry = (o2_entry_ptr) info;
+        if (entry->key) printf(" key=%s", entry->key);
+    }
+    if (info->tag == PATTERN_NODE) {
+        printf("\n");
+        node_entry_ptr node = (node_entry_ptr) info;
+        enumerate en;
+        enumerate_begin(&en, &(node->children));
+        o2_entry_ptr entry;
+        while ((entry = enumerate_next(&en))) {
+            // see if each entry can be found
+#ifndef NDEBUG
+            o2_entry_ptr *ptr = // only needed in assert()
+#endif
+            o2_lookup(node, entry->key);
+            assert(*ptr == entry);
+            o2_show_info((o2_info_ptr) entry, indent + 1);
+        }
+    } else if (info->tag == SERVICES) {
+        services_entry_ptr s = (services_entry_ptr) info;
+        printf("\n");
+        for (int j = 0; j < s->services.length; j++) {
+            o2_show_info(*DA_GET(s->services, o2_info_ptr, j), indent + 1);
+        }
+    } else if (info->tag == PATTERN_HANDLER) {
+        handler_entry_ptr h = (handler_entry_ptr) info;
+        if (h->full_path) printf(" full_path=%s", h->full_path);
+        printf("\n");
+    } else if (info->tag == TCP_SOCKET) {
+        process_info_ptr proc = (process_info_ptr) info;
+        printf(" port=%d name=%s\n", proc->port, proc->proc.name);
+    } else {
+        printf("\n");
+    }
+}
+#endif
+
+
+// o2_add_entry_at inserts an entry into the hash table. If the
 // table becomes too full, a new larger table is created. 
 // This function is called after o2_lookup() has been used to
 // determine a pointer to the new entry. This pointer is
 // passed in loc.
 //
-static int add_entry_at(node_entry_ptr node, generic_entry_ptr *loc,
-                        generic_entry_ptr entry)
+int o2_add_entry_at(node_entry_ptr node, o2_entry_ptr *loc,
+                    o2_entry_ptr entry)
 {
     node->num_children++;
     entry->next = *loc;
@@ -124,7 +211,7 @@ static int add_entry_at(node_entry_ptr node, generic_entry_ptr *loc,
 // to pass it in.
 //
 static void call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg,
-                         char *types)
+                         const char *types)
 {
     // coerce to avoid compiler warning -- even 2^31 is absurdly big
     //     for the type string length
@@ -142,7 +229,7 @@ static void call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg,
 
     if (handler->parse_args) {
         o2_extract_start(msg);
-        char *typ = handler->type_string;
+        o2string typ = handler->type_string;
         if (!typ) { // if handler type_string is NULL, use message types
             typ = types;
         }
@@ -171,39 +258,11 @@ static void call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg,
 //
 // key is "owned" by caller
 //
-static node_entry_ptr create_node(const char *key)
+node_entry_ptr o2_node_new(const char *key)
 {
     node_entry_ptr node = (node_entry_ptr) O2_MALLOC(sizeof(node_entry));
     if (!node) return NULL;
     return o2_node_initialize(node, key);
-}
-
-
-static void enumerate_begin(enumerate *enumerator, dyn_array_ptr dict)
-{
-    enumerator->dict = dict;
-    enumerator->index = 0;
-    enumerator->entry = NULL;
-}
-
-
-// return next entry from table. Entries can be inserted into
-// a new table because enumerate_next does not depend upon the
-// pointers in each entry once the entry is enumerated.
-//
-static generic_entry_ptr enumerate_next(enumerate_ptr enumerator)
-{
-    while (!enumerator->entry) {
-        int i = enumerator->index++;
-        if (i >= enumerator->dict->length) {
-            return NULL; // no more entries
-        }
-        enumerator->entry = *DA_GET(*(enumerator->dict),
-                                    generic_entry_ptr, i);
-    }
-    generic_entry_ptr ret = enumerator->entry;
-    enumerator->entry = enumerator->entry->next;
-    return ret;
 }
 
 
@@ -222,15 +281,16 @@ static generic_entry_ptr enumerate_next(enumerate_ptr enumerator)
 // msg is message to be dispatched
 //
 static void find_and_call_handlers_rec(char *remaining, char *name,
-        generic_entry_ptr node, o2_msg_data_ptr msg, char *types)
+        o2_entry_ptr node, o2_msg_data_ptr msg, char *types)
 {
     char *slash = strchr(remaining, '/');
-    // if (slash) *slash = 0;
+    if (slash) *slash = 0;
     char *pattern = strpbrk(remaining, "*?[{");
+    if (slash) *slash = '/';
     if (pattern) { // this is a pattern 
         enumerate enumerator;
         enumerate_begin(&enumerator, &(((node_entry_ptr)node)->children));
-        generic_entry_ptr entry;
+        o2_entry_ptr entry;
         while ((entry = enumerate_next(&enumerator))) {
             if (slash && (entry->tag == PATTERN_NODE) &&
                 (o2_pattern_match(entry->key, remaining) == O2_SUCCESS)) {
@@ -242,11 +302,10 @@ static void find_and_call_handlers_rec(char *remaining, char *name,
             }
         }
     } else { // no pattern characters so do hash lookup
-        int index;
         if (slash) *slash = 0;
-        string_pad(name, remaining);
+        o2_string_pad(name, remaining);
         if (slash) *slash = '/';
-        generic_entry_ptr entry = *o2_lookup((node_entry_ptr) node, name, &index);
+        o2_entry_ptr entry = *o2_lookup((node_entry_ptr) node, name);
         if (entry) {
             if (slash && (entry->tag == PATTERN_NODE)) {
                 find_and_call_handlers_rec(slash + 1, name, entry,
@@ -261,7 +320,20 @@ static void find_and_call_handlers_rec(char *remaining, char *name,
 }
 
 
-// free_entry - when an entry is inserted into a table, it
+void osc_info_free(osc_info_ptr osc)
+{
+    if (osc->tcp_socket_info) { // TCP: close the TCP socket
+        o2_socket_mark_to_free(osc->tcp_socket_info);
+        O2_FREE((void *) osc->tcp_socket_info->osc.service_name);
+        osc->tcp_socket_info->osc.service_name = NULL;
+        osc->tcp_socket_info = NULL;   // just to be safe
+        osc->service_name = NULL; // shared pointer with services_entry
+    }
+    O2_FREE(osc);
+}
+
+
+// entry_free - when an entry is inserted into a table, it
 // may conflict with a previous entry. For example, if you
 // define a handler for /a/b/1 and /a/b/2, then define a
 // handler for /a/b, the table representing /a/b/ and
@@ -270,46 +342,53 @@ static void find_and_call_handlers_rec(char *remaining, char *name,
 // and frees subtrees (such as the one rooted at /a/b).
 // As a side-effect, the full paths (such as /a/b/1 and
 // /a/b/2) corresponding to leaf nodes in the tree will be
-// removed from the master_table, which hashes full paths.
-// Note that the master_table entries do not have full_path
+// removed from the o2_full_path_table, which hashes full paths.
+// Note that the o2_full_path_table entries do not have full_path
 // fields (the .full_path field is NULL), so we know that
-// an entry is in the path_tree_table by looking at the
+// an entry is in the o2_path_tree by looking at the
 // .full_path field.
 //
 // The parameter should be an entry to remove -- either an
 // internal entry (PATTERN_NODE) or a leaf entry (PATTERN_HANDLER)
 // 
-static void free_entry(generic_entry_ptr entry)
+static void entry_free(o2_entry_ptr entry)
 {
     if (entry->tag == PATTERN_NODE) {
-        free_node((node_entry_ptr) entry);
+        o2_node_finish((node_entry_ptr) entry);
+        O2_FREE(entry);
         return;
     } else if (entry->tag == PATTERN_HANDLER) {
         handler_entry_ptr handler = (handler_entry_ptr) entry;
         // if we remove a leaf node from the tree, remove the
         //  corresponding full path:
         if (handler->full_path) {
-            remove_node(&master_table, handler->full_path);
+            remove_node(&o2_full_path_table, handler->full_path);
             handler->full_path = NULL; // this string should be freed
                 // in the previous call to remove_node(); remove the
                 // pointer so if anyone tries to reference it, it will
                 // generate a more obvious and immediate runtime error.
         }
         if (handler->type_string)
-            O2_FREE(handler->type_string);
-    } else if (entry->tag == O2_REMOTE_SERVICE) {
-        // nothing special to do here.
-    } // else if OSC_REMOTE_SERVICE: TCP socket, if any, is deleted by
-      // o2_service_free()
-    O2_FREE(entry->key);
+            O2_FREE((void *) handler->type_string);
+    } else if (entry->tag == SERVICES) {
+        // free the service providers here; a non-empty services_entry will
+        // only be freed if we are shutting down, so we don't have to clean
+        // up the links from process_info_ptr->services lists here.
+        services_entry_ptr s = (services_entry_ptr) entry;
+        for (int i = 0; i < s->services.length; i++) {
+            o2_info_ptr info = GET_SERVICE(s->services, i);
+            if (info->tag == PATTERN_NODE) {
+                entry_free((o2_entry_ptr) info);
+            } else if (info->tag == PATTERN_HANDLER) {
+                entry_free((o2_entry_ptr) info);
+            } else if (info->tag == OSC_REMOTE_SERVICE) {
+                osc_info_free((osc_info_ptr) info);
+            } else assert(info->tag == TCP_SOCKET);
+        }
+        DA_FINISH(s->services);
+    } else assert(FALSE); // nothing else should be freed
+    O2_FREE((void *) entry->key);
     O2_FREE(entry);
-}
-
-
-static void free_node(node_entry_ptr node)
-{
-    o2_node_finish(node);
-    O2_FREE(node);
 }
 
 
@@ -319,7 +398,11 @@ static void free_node(node_entry_ptr node)
 // all characters are used. The SCRAMBLE number is (5 << 8) +
 // ((5 * 5) << 16 + ..., so it is similar to doing the multiplies
 // and adds all in parallel for 4 bytes at a time.
-static int64_t get_hash(const char *key)
+//
+// In O2, o2string means "const char *" with zero padding to a
+// 32-bit word boundary.
+//
+static int64_t get_hash(o2string key)
 {
     int32_t *ikey = (int32_t *) key;
     uint64_t hash = 0;
@@ -334,15 +417,11 @@ static int64_t get_hash(const char *key)
 
 static int initialize_table(dyn_array_ptr table, int locations)
 {
-    DA_INIT(*table, generic_entry_ptr, locations);
+    DA_INIT(*table, o2_entry_ptr, locations);
     if (!table->array) return O2_FAIL;
-    memset(table->array, 0, locations * sizeof(generic_entry_ptr));
+    memset(table->array, 0, locations * sizeof(o2_entry_ptr));
     table->allocated = locations;
     table->length = locations;
-/*    printf("initialize_table %p len %d, array %p\n", table, table->length, table->array);
-    int i;
-    for (i = 0; i < table->length; i++)
-        printf("   %d: %p\n", i, ((generic_entry_ptr *)(table->array))[i]); */
     return O2_SUCCESS;
 }
 
@@ -350,18 +429,13 @@ static int initialize_table(dyn_array_ptr table, int locations)
 // o2_entry_add inserts an entry into the hash table. If the table becomes
 // too full, a new larger table is created.
 //
-int o2_entry_add(node_entry_ptr node, generic_entry_ptr entry)
+int o2_entry_add(node_entry_ptr node, o2_entry_ptr entry)
 {
-    int index;
-    generic_entry_ptr *ptr = o2_lookup(node, entry->key, &index);
+    o2_entry_ptr *ptr = o2_lookup(node, entry->key);
     if (*ptr) { // if we found it, this is a replacement
         entry_remove(node, ptr, FALSE); // splice out existing entry and delete it
-    } else {
-        assert(index < node->children.length);
-        // where to put new entry:
-        ptr = DA_GET(node->children, generic_entry_ptr, index);
     }
-    return add_entry_at(node, ptr, entry);
+    return o2_add_entry_at(node, ptr, entry);
 }
 
 
@@ -373,161 +447,229 @@ int o2_entry_add(node_entry_ptr node, generic_entry_ptr entry)
 int o2_method_new(const char *path, const char *typespec,
                   o2_method_handler h, void *user_data, int coerce, int parse)
 {
-    char *key = o2_heapify(path);
+    // o2_heapify result is declared as const, but if we don't share it, there's
+    // no reason we can't write into it, so this is a safe cast to (char *):
+    char *key = (char *) o2_heapify(path);
     *key = '/'; // force key's first character to be '/', not '!'
     
     // add path elements as tree nodes -- to get the keys, replace each
     // "/" with EOS and o2_heapify to copy it, then restore the "/"
     char *remaining = key + 1;
-    node_entry_ptr table;
     char name[NAME_BUF_LEN];
-    char *slash;
-    
-    table = &path_tree_table;
-    
-    while ((slash = strchr(remaining, '/'))) {
-        *slash = 0; // terminate the string at the "/"
-        string_pad(name, remaining);
-        *slash = '/'; // restore the string
-        remaining = slash + 1;
-        // if necessary, allocate a new entry for name
-        table = o2_tree_insert_node(table, name);
-        assert(table);
-        // table is now the node for name
-    }
-    
-    // now table is where we should put the final path name with the handler
-    // remaining points to the final segment of the path
-    string_pad(name, remaining);
-    
-    // entry is now a valid location. Insert a new node:
-    handler_entry_ptr handler = (handler_entry_ptr) O2_MALLOC(sizeof(handler_entry));
-    if (!handler) {
-        return O2_FAIL;
-    }
+    char *slash = strchr(remaining, '/');
+    if (slash) *slash = 0;
+    services_entry_ptr *services = o2_services_find(remaining);
+
+    // note that slash has not been restored (see o2_service_replace below)
+
+    int ret = O2_NO_SERVICE;
+    if (!services) goto error_return; // cleanup and return
+    node_entry_ptr node = (node_entry_ptr) o2_local_service_find(services);
+    if (!node)  goto error_return; // cleanup and return
+    assert(node->tag == PATTERN_NODE || node->tag == PATTERN_HANDLER);
+
+    ret = O2_FAIL; // set to prepare for failure in O2_MALLOC
+    handler_entry_ptr handler = (handler_entry_ptr)
+            O2_MALLOC(sizeof(handler_entry));
+    if (!handler) goto error_return; // using default O2_FAIL
     handler->tag = PATTERN_HANDLER;
-    handler->key = o2_heapify(remaining);
+    handler->key = NULL;
     handler->handler = h;
     handler->user_data = user_data;
-    handler->full_path = key; // key will also be master_table key
-    char *types_copy = NULL;
+    handler->full_path = key;
+    o2string types_copy = NULL;
     int types_len = 0;
     if (typespec) {
         types_copy = o2_heapify(typespec);
-        if (!types_copy) {
-            return O2_FAIL;
-        }
-        // coerce to int to avoid compiler warning -- this could overflow but only
-        // in cases where it would be impossible to construct a message
+        if (!types_copy) goto error_return_2;
+        // coerce to int to avoid compiler warning -- this could overflow but
+        // only in cases where it would be impossible to construct a message
         types_len = (int) strlen(typespec);
     }
     handler->type_string = types_copy;
     handler->types_len = types_len;
     handler->coerce_flag = coerce;
     handler->parse_args = parse;
-    int ret = o2_entry_add(table, (generic_entry_ptr) handler);
-    if (ret) {
-        // TODO CLEANUP
-        return ret;
+    
+    // case 1: method is global handler for entire service replacing a
+    //         PATTERN_NODE with specific handlers: remove the PATTERN_NODE
+    //         and insert a new PATTERN_HANDLER as local service.
+    // case 2: method is a global handler, replacing an existing global handler:
+    //         same as case 1 so we can use o2_service_replace to clean up the
+    //         old handler rather than duplicate that code.
+    // case 2: method is a specific handler and a global handler exists:
+    //         replace the global handler with a PATTERN_NODE and continue to 
+    //         case 3
+    // case 3: method is a specific handler and a PATTERN_NODE exists as the
+    //         local service: build the path in the tree according to the
+    //         the remaining address string
+
+    // slash here means path has nodes, e.g. /serv/foo vs. just /serv
+    if (!slash) { // (cases 1 and 2)
+        O2_FREE(key); // do not need full path for global handler
+        handler->key = NULL;
+        return o2_service_provider_replace(o2_process, key + 1, (o2_info_ptr) handler);
+    }
+    if (node->tag == PATTERN_HANDLER) { // change it to an empty node_entry
+        node = o2_node_new(NULL);
+        if (!node) goto error_return_3;
+        if ((ret = o2_service_provider_replace(o2_process, key + 1, (o2_info_ptr) node))) {
+            goto error_return_3;
+        }
+    }
+    // now node is the root of a path tree for all paths for this service
+    if (slash) {
+        *slash = '/'; // restore the full path in key
+        remaining = slash + 1;
+    }
+    while ((slash = strchr(remaining, '/'))) {
+        *slash = 0; // terminate the string at the "/"
+        o2_string_pad(name, remaining);
+        *slash = '/'; // restore the string
+        remaining = slash + 1;
+        // if necessary, allocate a new entry for name
+        node = tree_insert_node(node, name);
+        assert(node);
+        // node is now the node for the path up to name
+    }
+    // node is now where we should put the final path name with the handler;
+    // remaining points to the final segment of the path
+    handler->key = o2_heapify(remaining);
+    if ((ret = o2_entry_add(node, (o2_entry_ptr) handler))) {
+        goto error_return_3;
     }
     
     // make an entry for the master table
-    handler = (handler_entry_ptr) O2_MALLOC(sizeof(handler_entry));
-    
-    handler->tag = PATTERN_HANDLER;
-    handler->key = key; // this key has already been copied
-    handler->handler = h;
-    handler->user_data = user_data;
-    handler->full_path = NULL; // only leaf nodes have full_path pointer
-    // typespec will be freed, so we can't share copies
+    handler_entry_ptr mhandler = (handler_entry_ptr) O2_MALLOC(sizeof(handler_entry));
+    if (!mhandler) goto error_return_3;
+    memcpy(mhandler, handler, sizeof(handler_entry)); // copy the handler info
+    mhandler->key = key; // this key has already been copied
+    mhandler->full_path = NULL; // only leaf nodes have full_path pointer
     if (types_copy) types_copy = o2_heapify(typespec);
-    handler->type_string = types_copy;
-    handler->types_len = types_len;
-    handler->coerce_flag = coerce;
-    handler->parse_args = parse;
-    
+    mhandler->type_string = types_copy;
     // put the entry in the master table
-    return o2_entry_add(&master_table, (generic_entry_ptr) handler);
+    ret = o2_entry_add(&o2_full_path_table, (o2_entry_ptr) mhandler);
+    goto just_return;
+  error_return_3:
+    if (types_copy) O2_FREE((void *) types_copy);
+  error_return_2:
+    O2_FREE(handler);
+  error_return:
+    O2_FREE(key);
+  just_return:
+    return ret;
 }
 
 
-// Add remote service to the path_tree_table
-//
-// service is "owned" by the caller
-//
-int o2_remote_service_add(process_info_ptr info, const char *service)
+const char *info_to_ipport(o2_info_ptr info)
 {
-    int index;
-    generic_entry_ptr *entry_ptr = o2_lookup(&path_tree_table, service, &index);
-    o2_remote_process_new_at(service, entry_ptr, info);
-    return O2_SUCCESS;
+    return info->tag == TCP_SOCKET ?
+           ((process_info_ptr) info)->proc.name :
+           o2_process->proc.name;
 }
 
 
-// note name should be heapified and owned by caller, eventually it is owned
-// by the fds_info record for the remote process TCP_SOCKET.
-//
-remote_service_entry_ptr o2_remote_process_new_at(
-        const char *name, generic_entry_ptr *entry_ptr, process_info_ptr info)
+void pick_service_provider(dyn_array_ptr list)
 {
-    remote_service_entry_ptr process = O2_MALLOC(sizeof(remote_service_entry));
-    process->tag = O2_REMOTE_SERVICE;
-    process->key = o2_heapify(name);
-    process->next = NULL;
-    process->process = info;
-    add_entry_at(&path_tree_table, entry_ptr, (generic_entry_ptr) process);
-    return process;
+    int top_index = 0;
+    if (top_index >= list->length) return;
+    o2_info_ptr top_info = GET_SERVICE(*list, top_index);
+    const char *top_name = info_to_ipport(top_info);
+    for (int i = 1; i < list->length; i++) {
+        o2_info_ptr info = GET_SERVICE(*list, i);
+        const char *name = info_to_ipport(info);
+        if (strcmp(name, top_name) > 0) {
+            top_info = info;
+            top_name = name;
+            top_index = i;
+        }
+    }
+    // swap top_index and 0
+    DA_SET(*list, o2_info_ptr, top_index, GET_SERVICE(*list, 0));
+    DA_SET(*list, o2_info_ptr, 0, top_info);
+}
+
+/** replace the service named service_name offered by proc with new_service.
+ * if new_service is NULL, remove the service, and if this is the last service,
+ * remove the whole services entry.
+ *
+ * prereq: service_name does not have '/'
+ */
+int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
+                                o2_info_ptr new_service)
+{
+    services_entry_ptr *services = o2_services_find(service_name);
+    if (!*services || (*services)->tag != SERVICES) {
+        O2_DBg(printf("%s o2_service_provider_replace(%s, %s) did not find "
+                      "service\n",
+                      o2_debug_prefix, proc->proc.name, service_name));
+        return O2_FAIL;
+    }
+    dyn_array_ptr list = &((*services)->services); // list of services
+    int i;
+    for (i = 0; i < list->length; i++) {
+        o2_info_ptr service = GET_SERVICE(*list, i);
+        int tag = service->tag;
+        if (tag == TCP_SOCKET && (process_info_ptr) service == proc) {
+            break;
+        } else if ((tag == PATTERN_NODE || tag == PATTERN_HANDLER) &&
+                   proc == o2_process) {
+            entry_free((o2_entry_ptr) service);
+            break;
+        } else if (tag == OSC_REMOTE_SERVICE && proc == o2_process) {
+            // shut down any OSC connection
+            osc_info_free((osc_info_ptr) service);
+            break;
+        } else {
+            assert(tag != O2_BRIDGE_SERVICE);
+        }
+    }
+    // if we did not find what we wanted to replace, stop here
+    if (i >= list->length) {
+        O2_DBg(printf("%s o2_service_provider_replace(%s, %s) did not find "
+                      "service offered by this process\n",
+                      o2_debug_prefix, proc->proc.name, service_name));
+        return O2_FAIL;
+    }
+    // we found the service to replace; finalized the info depending on the
+    // type, so now we have a dangling pointer in the services list
+    if (new_service) {  // replace and we're finished
+        DA_SET(*list, o2_info_ptr, i, new_service);
+        return O2_SUCCESS;
+    }
+    // "replacement" is NULL, so we have to remove the listing
+    DA_REMOVE(*list, process_info_ptr, i);
+    if (list->length == 0) {
+        entry_remove(&o2_path_tree, (o2_entry_ptr *) services, TRUE);
+    } else if (i == 0) { // move top ip:port provider to top spot
+        pick_service_provider(list);
+    }
+    // if the service was local, tell other processes that it is gone
+    if (proc == o2_process) {
+        o2_notify_others(service_name, FALSE);
+    }
+    // proc also has a list of services it provides; remove service
+    list = &(proc->proc.services);
+    for (int j = 0; j < proc->proc.services.length; j++) {
+        if (streql(*DA_GET(*list, char *, i), service_name)) {
+            DA_REMOVE(*list, char *, i);
+            return O2_SUCCESS;
+        }
+    }
+    O2_DBg(printf("%s o2_service_provider_replace(%s, %s) did not find "
+                  "service in process_info's services list\n",
+                  o2_debug_prefix, proc->proc.name, service_name));
+    return O2_FAIL;
 }
 
 
-// remove a service from path_tree_table
+// remove a service from o2_path_tree
 //
 int o2_service_free(char *service_name)
 {
-    generic_entry_ptr *entry_ptr = o2_service_find(service_name);
-    if (!*entry_ptr) return O2_FAIL;
-    int tag = (*entry_ptr)->tag;
-    switch (tag) {
-        case O2_REMOTE_SERVICE: 
-            // fails because you can only remove a local service
-        case O2_BRIDGE_SERVICE: // fails because not implemented yet
-        default: // fails because service is unrecognized
-            return O2_FAIL; 
-        case PATTERN_NODE:
-        case PATTERN_HANDLER:
-            break;
-        case OSC_REMOTE_SERVICE: {
-            // shut down any OSC connection
-            osc_entry_ptr osc_entry = (osc_entry_ptr) (*entry_ptr);
-            if (osc_entry->fds_index >= 0) { // TCP
-                o2_socket_mark_to_free(GET_PROCESS(osc_entry->fds_index)); // close the TCP socket
-                osc_entry->fds_index = -1;   // just to be safe
-            }
-            break;
-        }
-    }
-    entry_remove(&path_tree_table, entry_ptr, TRUE);
-    o2_notify_others(service_name, FALSE);
-    return O2_SUCCESS;
-}
-
-
-int o2_remote_service_remove(const char *service)
-{
-    generic_entry_ptr *node_ptr = o2_service_find(service);
-    if (*node_ptr) {
-        int tag = (*node_ptr)->tag;
-        if (tag != O2_REMOTE_SERVICE) {
-            fprintf(stderr, "O2 WARNING: some other process claims it "
-                    "is deleting service %s, but %s is local to THIS "
-                    "process. Perhaps both created the same service. "
-                    "This would be an error: services must be unique.\n",
-                    service, service);
-            return O2_FAIL;
-        }
-        return entry_remove(&path_tree_table, node_ptr, TRUE);
-    }
-    return O2_FAIL;
+    if (!service_name || strchr(service_name, '/'))
+        return O2_BAD_SERVICE_NAME;
+    return o2_service_provider_replace(o2_process, service_name, NULL);
 }
 
 
@@ -546,7 +688,7 @@ int o2_embedded_msgs_deliver(o2_msg_data_ptr msg, int tcp_flag)
 
 // deliver msg locally and immediately
 void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
-                         generic_entry_ptr service)
+                         o2_info_ptr service)
 {
     if (IS_BUNDLE(msg)) {
         o2_embedded_msgs_deliver(msg, tcp_flag);
@@ -555,7 +697,7 @@ void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
 
     char *address = msg->address;
     if (!service) {
-        service = *o2_service_find(address + 1);
+        service = o2_msg_service(msg);
         if (!service) return; // service must have been removed
     }
 
@@ -573,9 +715,8 @@ void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
     if (service->tag == PATTERN_HANDLER) {
         call_handler((handler_entry_ptr) service, msg, types);
     } else if ((address[0]) == '!') { // do full path lookup
-        int index;
         address[0] = '/'; // must start with '/' to get consistent hash value
-        generic_entry_ptr handler = *o2_lookup(&master_table, address, &index);
+        o2_entry_ptr handler = *o2_lookup(&o2_full_path_table, address);
         address[0] = '!'; // restore address for no particular reason
         if (handler && handler->tag == PATTERN_HANDLER) {
             call_handler((handler_entry_ptr) handler, msg, types);
@@ -587,7 +728,7 @@ void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
             // address is "/service", but "/service" is not a PATTERN_HANDLER
             ;
         } else {
-            find_and_call_handlers_rec(address + 1, name, service, msg, types);
+            find_and_call_handlers_rec(address + 1, name, (o2_entry_ptr) service, msg, types);
         }
     } // the assumption that the service is local fails, drop the message
 }
@@ -596,21 +737,22 @@ void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
 void o2_node_finish(node_entry_ptr node)
 {
     for (int i = 0; i < node->children.length; i++) {
-        generic_entry_ptr e = *DA_GET(node->children, generic_entry_ptr, i);
+        o2_entry_ptr e = *DA_GET(node->children, o2_entry_ptr, i);
         while (e) {
-            generic_entry_ptr next = e->next;
-            free_entry(e);
+            o2_entry_ptr next = e->next;
+            entry_free(e);
             e = next;
         }
     }
-    O2_FREE((void *) node->key);
+    // not all nodes have keys, top-level nodes have key == NULL
+    if (node->key) O2_FREE((void *) node->key);
 }
 
 
 // copy a string to the heap, result is 32-bit word aligned, has
 //   at least one zero end-of-string byte and is
 //   zero-padded to the next word boundary
-char *o2_heapify(const char *path)
+o2string o2_heapify(const char *path)
 {
     long len = o2_strsize(path);
     char *rslt = (char *) O2_MALLOC(len);
@@ -630,10 +772,13 @@ char *o2_heapify(const char *path)
 node_entry_ptr o2_node_initialize(node_entry_ptr node, const char *key)
 {
     node->tag = PATTERN_NODE;
-    node->key = o2_heapify(key);
-    if (!node->key) {
-        O2_FREE(node);
-        return NULL;
+    node->key = key;
+    if (key) { // note: top level and services don't have keys
+        node->key = o2_heapify(key);
+        if (!node->key) {
+            O2_FREE(node);
+            return NULL;
+        }
     }
     node->num_children = 0;
     initialize_table(&(node->children), 2);
@@ -645,14 +790,13 @@ node_entry_ptr o2_node_initialize(node_entry_ptr node, const char *key)
 // The hash table uses linked lists for collisions to make
 // deletion simple. key must be aligned on a 32-bit word boundary
 // and must be padded with zeros to a 32-bit boundary
-generic_entry_ptr *o2_lookup(node_entry_ptr node, const char *key, int *index)
+o2_entry_ptr *o2_lookup(node_entry_ptr node, o2string key)
 {
     int n = node->children.length;
     int64_t hash = get_hash(key);
-    *index = hash % n;
+    int index = hash % n;
     // printf("o2_lookup %s in %s hash %ld index %d\n", key, node->key, hash, *index);
-    generic_entry_ptr *ptr = DA_GET(node->children, generic_entry_ptr,
-                                    *index);
+    o2_entry_ptr *ptr = DA_GET(node->children, o2_entry_ptr, index);
     while (*ptr) {
         if (streql(key, (*ptr)->key)) {
             break;
@@ -888,17 +1032,16 @@ static int o2_pattern_match(const char *str, const char *p)
  */
 int o2_remove_method(const char *path)
 {
-    // make a zero-padded copy of path
-    long len = (long) strlen(path) + 1;
-    char *path_copy = (char *) alloca(len);
+    // this is one of the few times where we need the result of o2_heapify
+    // to be writeable, so coerce from o2string to (char *)
+    char *path_copy = (char *) o2_heapify(path);
     if (!path_copy) return O2_FAIL;
-    memcpy(path_copy, path, len);
     char name[NAME_BUF_LEN];
     
     // search path elements as tree nodes -- to get the keys, replace each
     // "/" with EOS and o2_heapify to copy it, then restore the "/"
     char *remaining = path_copy + 1; // skip the initial "/"
-    return remove_method_from_tree(remaining, name, &path_tree_table);
+    return remove_method_from_tree(remaining, name, &o2_path_tree);
 }
 
 
@@ -910,13 +1053,13 @@ int o2_remove_remote_process(process_info_ptr info)
         // proc.name may be NULL if we have not received an init (/_o2/dy) message
         if (info->proc.name) {
             // remove the remote service associated with the ip_port string
-            o2_remote_service_remove(info->proc.name);
+            o2_service_provider_replace(info, info->proc.name, NULL);
             O2_DBd(printf("%s removing remote process %s\n",
                           o2_debug_prefix, info->proc.name));
-            O2_FREE(info->proc.name);
+            O2_FREE((void *) info->proc.name);
             info->proc.name = NULL;
         }
-        
+        O2_FREE(info);
     } // else if (info->tag == OSC_TCP_SOCKET) do nothing special
     // else if (info->tag == OSC_REMOTE_SERVICE
     o2_socket_mark_to_free(info); // close the TCP socket
@@ -924,20 +1067,19 @@ int o2_remove_remote_process(process_info_ptr info)
 }
 
 
-// o2_tree_insert_node -- insert a node for pattern matching.
+// tree_insert_node -- insert a node for pattern matching.
 // on entry, table points to a tree node pointer, initially it is the
-// address of path_tree_table. If key is already in the table and the
+// address of o2_path_tree. If key is already in the table and the
 // entry is another node, then just return a pointer to the node address.
 // Otherwise, if key is a handler, remove it, and then create a new node
 // to represent this key.
 //
 // key is "owned" by caller and must be aligned to 4-byte word boundary
 //
-node_entry_ptr o2_tree_insert_node(node_entry_ptr node, const char *key)
+static node_entry_ptr tree_insert_node(node_entry_ptr node, o2string key)
 {
-    int index; // location returned by o2_lookup
     assert(node->children.length > 0);
-    generic_entry_ptr *entry_ptr = o2_lookup(node, key, &index);
+    o2_entry_ptr *entry_ptr = o2_lookup(node, key);
     // 3 outcomes: entry exists and is a PATTERN_NODE: return location
     //    entry exists but is something else: delete old and create one
     //    entry does not exist: create one
@@ -948,32 +1090,29 @@ node_entry_ptr o2_tree_insert_node(node_entry_ptr node, const char *key)
             // this node cannot be a handler (leaf) and a (non-leaf) node
             entry_remove(node, entry_ptr, FALSE);
         }
-    } else {
-        assert(index < node->children.length);
-        entry_ptr = DA_GET(node->children, generic_entry_ptr, index);
     }
     // entry is a valid location. Insert a new node:
-    node_entry_ptr new_entry = create_node(key);
-    add_entry_at(node, entry_ptr, (generic_entry_ptr) new_entry);
+    node_entry_ptr new_entry = o2_node_new(key);
+    o2_add_entry_at(node, entry_ptr, (o2_entry_ptr) new_entry);
     return new_entry;
 }
 
 
 // remove a child from a node. Then free the child
 // (deleting its entire subtree, or if it is a leaf, removing the
-// entry from the master_table).
+// entry from the o2_full_path_table).
 // ptr is the address of the pointer to the table entry to be removed.
 // This ptr must be a value returned by o2_lookup or o2_service_find
 // Often, we remove an entry to make room for an insertion, so
 // we do not want to resize the table. The resize parameter must
 // be true to enable resizing.
 //
-static int entry_remove(node_entry_ptr node, generic_entry_ptr *child, int resize)
+static int entry_remove(node_entry_ptr node, o2_entry_ptr *child, int resize)
 {
     node->num_children--;
-    generic_entry_ptr entry = *child;
+    o2_entry_ptr entry = *child;
     *child = entry->next;
-    free_entry(entry);
+    entry_free(entry);
     // if the table is too big, rehash to smaller table
     if (resize && (node->num_children * 3 < node->children.length) &&
         (node->num_children > 3)) {
@@ -1000,13 +1139,12 @@ static int remove_method_from_tree(char *remaining, char *name,
                                    node_entry_ptr node)
 {
     char *slash = strchr(remaining, '/');
-    int index; // return value from o2_lookup
-    generic_entry_ptr *entry_ptr; // another return value from o2_lookup
+    o2_entry_ptr *entry_ptr; // another return value from o2_lookup
     if (slash) { // we have an internal node name
         *slash = 0; // terminate the string at the "/"
-        string_pad(name, remaining);
+        o2_string_pad(name, remaining);
         *slash = '/'; // restore the string
-        entry_ptr = o2_lookup(node, name, &index);
+        entry_ptr = o2_lookup(node, name);
         if ((!*entry_ptr) || ((*entry_ptr)->tag != PATTERN_NODE)) {
             printf("could not find method\n");
             return O2_FAIL;
@@ -1022,8 +1160,8 @@ static int remove_method_from_tree(char *remaining, char *name,
     }
     // now table is where we find the final path name with the handler
     // remaining points to the final segment of the path
-    string_pad(name, remaining);
-    entry_ptr = o2_lookup(node, name, &index);
+    o2_string_pad(name, remaining);
+    entry_ptr = o2_lookup(node, name);
     // there should be an entry, remove it
     if (*entry_ptr) {
         entry_remove(node, entry_ptr, TRUE);
@@ -1038,10 +1176,9 @@ static int remove_method_from_tree(char *remaining, char *name,
 // in which case *node is written with a pointer to the new table
 // and the old table is freed
 //
-static int remove_node(node_entry_ptr node, const char *key)
+static int remove_node(node_entry_ptr node, o2string key)
 {
-    int index;
-    generic_entry_ptr *ptr = o2_lookup(node, key, &index);
+    o2_entry_ptr *ptr = o2_lookup(node, key);
     if (*ptr) {
         return entry_remove(node, ptr, TRUE);
     }
@@ -1051,15 +1188,14 @@ static int remove_node(node_entry_ptr node, const char *key)
 
 static int remove_remote_services(process_info_ptr info)
 {
-    int i, index;
-    for (i = 0; i < info->proc.services.length; i++) {
-        char *service = *DA_GET(info->proc.services, char *, i);
-        generic_entry_ptr *node_ptr = o2_lookup(&path_tree_table, service, &index);
+    for (int i = 0; i < info->proc.services.length; i++) {
+        o2string service = *DA_GET(info->proc.services, o2string, i);
+        o2_entry_ptr *node_ptr = o2_lookup(&o2_path_tree, service);
         assert(*node_ptr);
         // wait and resize later
-        entry_remove(&path_tree_table, node_ptr, FALSE);
+        entry_remove(&o2_path_tree, node_ptr, FALSE);
     }
-    info->proc.services.length = 0;
+    DA_FINISH(info->proc.services);
     return O2_SUCCESS;
 }
 
@@ -1074,7 +1210,7 @@ static int resize_table(node_entry_ptr node, int new_locs)
     assert(node->children.array != NULL);
     enumerate enumerator;
     enumerate_begin(&enumerator, &old);
-    generic_entry_ptr entry;
+    o2_entry_ptr entry;
     while ((entry = enumerate_next(&enumerator))) {
         o2_entry_add(node, entry);
     }
@@ -1085,39 +1221,11 @@ static int resize_table(node_entry_ptr node, int new_locs)
 }
 
 
-#define SEARCH_DEBUG
-#ifdef SEARCH_DEBUG
-void show_table(node_entry_ptr node, int indent)
-{
-    enumerate en;
-    enumerate_begin(&en, &(node->children));
-    generic_entry_ptr entry;
-    while ((entry = enumerate_next(&en))) {
-        int i;
-        for (i = 0; i < indent; i++) printf("  ");
-        printf("%s (%d) @ %p\n", entry->key, entry->tag, entry);
-
-        // see if each entry can be found
-        int index;
-#ifndef NDEBUG
-        generic_entry_ptr *ptr = // only needed in assert()
-#endif
-        o2_lookup(node, entry->key, &index);
-        assert(*ptr == entry);
-
-        if (entry->tag == PATTERN_NODE) {
-            show_table((node_entry_ptr) entry, indent + 1);
-        }
-    }
-}
-#endif
-
-
-// string_pad -- copy src to dst, adding zero padding to word boundary
+// o2_string_pad -- copy src to dst, adding zero padding to word boundary
 //
 // dst MUST point to a buffer of size NAME_BUF_LEN or bigger
 //
-static void string_pad(char *dst, char *src)
+void o2_string_pad(char *dst, const char *src)
 {
     size_t len = strlen(src);
     if (len >= NAME_BUF_LEN) {

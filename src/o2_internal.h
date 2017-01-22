@@ -12,6 +12,8 @@
 
 #include "o2.h"
 #include "o2_dynamic.h"
+
+typedef const char *o2string; // string padded to 4-byte boundary
 #include "o2_socket.h"
 #include "o2_search.h"
 
@@ -151,6 +153,11 @@ extern o2_time o2_discovery_period;
 /** Default max send and recieve buffer. */
 #define MAX_BUFFER 1024
 
+/** \brief Maximum length of address node names
+ */
+#define O2_MAX_NODE_NAME_LEN 1020
+#define NAME_BUF_LEN ((O2_MAX_NODE_NAME_LEN) + 4)
+
 /* \brief Maximum length of UDP messages in bytes
  */
 #define O2_MAX_MSG_SIZE 32768
@@ -172,10 +179,8 @@ extern o2_time o2_discovery_period;
 
 #define MESSAGE_DEFAULT_SIZE 240
 
-// The structure of the local service, needed to construct discovery messages
-typedef struct service_table {
-    const char *name;
-} service_table;
+#define GET_SERVICE(list, i) (*DA_GET((list), o2_info_ptr, (i)))
+
 
 // global variables
 extern process_info_ptr o2_process;
@@ -184,6 +189,10 @@ extern int o2_argc; // length of argv
 
 // shared internal functions
 void o2_notify_others(const char *service_name, int added);
+
+o2_info_ptr o2_local_service_find(services_entry_ptr *services);
+
+int o2_service_provider_new(o2string key, o2_info_ptr service, process_info_ptr process);
 
 #endif /* O2_INTERNAL_H */
 /// \endcond

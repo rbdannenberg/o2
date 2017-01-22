@@ -965,7 +965,7 @@ int o2_send_finish(o2_time time, const char *address, int tcp_flag)
 {
     o2_message_ptr msg = o2_message_finish(time, address, tcp_flag);
     if (!msg) return O2_FAIL;
-    return o2_message_send2(msg, TRUE);
+    return o2_message_send_sched(msg, TRUE);
 }
 
 
@@ -1418,14 +1418,14 @@ o2_arg_ptr o2_get_next(o2_type to_type)
 }
 
 
-// o2_print_msg_data - print message as text to stdout
+// o2_msg_data_print_2 - print message as text to stdout
 //
 // It would be most convenient to use o2_extract_start() and o2_get_next()
 // here, but this would overwrite extracted parameters if called from a
 // message handler, so here we duplicate some code to pull parameters from
 // messages (although the code is simple since there's no coercion).
 //
-static void o2_print_msg_data_2(o2_msg_data_ptr msg, int tcp_flag)
+static void o2_msg_data_print_2(o2_msg_data_ptr msg, int tcp_flag)
 {
     int i;
     printf("%s @ %g", msg->address, msg->timestamp);
@@ -1442,7 +1442,7 @@ static void o2_print_msg_data_2(o2_msg_data_ptr msg, int tcp_flag)
     
     if (IS_BUNDLE(msg)) {
         FOR_EACH_EMBEDDED(msg, printf(" <ELEM ");
-                          o2_print_msg_data_2(embedded, -1);
+                          o2_msg_data_print_2(embedded, -1);
                           printf(" >");
                           len = MSG_DATA_LENGTH(embedded))
         return;
@@ -1571,13 +1571,13 @@ static void o2_print_msg_data_2(o2_msg_data_ptr msg, int tcp_flag)
 
 void o2_message_print(o2_message_ptr msg)
 {
-    o2_print_msg_data_2(&msg->data, msg->tcp_flag ? TRUE : FALSE);
+    o2_msg_data_print_2(&msg->data, msg->tcp_flag ? TRUE : FALSE);
     fflush(stdout);
 }
 
 
 void o2_msg_data_print(o2_msg_data_ptr msg)
 {
-    o2_print_msg_data_2(msg, -1);
+    o2_msg_data_print_2(msg, -1);
     fflush(stdout);
 }
