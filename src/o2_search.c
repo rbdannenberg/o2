@@ -134,7 +134,7 @@ const char *o2_tag_to_string(int tag)
 
 #ifdef SEARCH_DEBUG
 // debugging code to print o2_entry and o2_info structures
-void o2_show_info(o2_info_ptr info, int indent)
+void o2_info_show(o2_info_ptr info, int indent)
 {
     for (int i = 0; i < indent; i++) printf("  ");
     printf("%s@%p", o2_tag_to_string(info->tag), info);
@@ -155,13 +155,13 @@ void o2_show_info(o2_info_ptr info, int indent)
 #endif
             o2_lookup(node, entry->key);
             assert(*ptr == entry);
-            o2_show_info((o2_info_ptr) entry, indent + 1);
+            o2_info_show((o2_info_ptr) entry, indent + 1);
         }
     } else if (info->tag == SERVICES) {
         services_entry_ptr s = (services_entry_ptr) info;
         printf("\n");
         for (int j = 0; j < s->services.length; j++) {
-            o2_show_info(*DA_GET(s->services, o2_info_ptr, j), indent + 1);
+            o2_info_show(*DA_GET(s->services, o2_info_ptr, j), indent + 1);
         }
     } else if (info->tag == PATTERN_HANDLER) {
         handler_entry_ptr h = (handler_entry_ptr) info;
@@ -324,7 +324,6 @@ void osc_info_free(osc_info_ptr osc)
 {
     if (osc->tcp_socket_info) { // TCP: close the TCP socket
         o2_socket_mark_to_free(osc->tcp_socket_info);
-        O2_FREE((void *) osc->tcp_socket_info->osc.service_name);
         osc->tcp_socket_info->osc.service_name = NULL;
         osc->tcp_socket_info = NULL;   // just to be safe
         osc->service_name = NULL; // shared pointer with services_entry
@@ -353,6 +352,8 @@ void osc_info_free(osc_info_ptr osc)
 // 
 static void entry_free(o2_entry_ptr entry)
 {
+    // printf("entry_free: freeing %s %s\n",
+    //        o2_tag_to_string(entry->tag), entry->key);
     if (entry->tag == PATTERN_NODE) {
         o2_node_finish((node_entry_ptr) entry);
         O2_FREE(entry);
@@ -464,7 +465,7 @@ int o2_method_new(const char *path, const char *typespec,
 
     int ret = O2_NO_SERVICE;
     if (!services) goto error_return; // cleanup and return
-    node_entry_ptr node = (node_entry_ptr) o2_local_service_find(services);
+    node_entry_ptr node = (node_entry_ptr) o2_proc_service_find(o2_process, services);
     if (!node)  goto error_return; // cleanup and return
     assert(node->tag == PATTERN_NODE || node->tag == PATTERN_HANDLER);
 
@@ -1045,23 +1046,54 @@ int o2_remove_method(const char *path)
 }
 
 
+
+// Called when TCP_SOCKET gets a TCP_HUP (hang-up) error;
+// Delete the socket and data associated with it:
+//    for TCP_SOCKET:
+//        remove all services for this process, these all point to a single
+//            process_info_ptr
+//        if the services_entry becomes empty (and it will for the ip:port
+//            service), remove the services_entry
+//        delete this process_info_ptr contents, including:
+//            proc.name
+//            array of service names (names themselves are keys to 
+//                services_entry, so they are not freed (or maybe they are
+//                already freed by the time we free this array)
+//            any message
+//        mark the socket to be freed, and in a deferred action, the 
+//            socket is closed and removed from the o2_fds array. The 
+//            corresponding o2_fds_info entry is freed then too
+//    for UDP_SOCKET, OSC_DISCOVER_SOCKET, OSC_TCP_SOCKET, 
+//        TCP_SERVER_SOCKET, TCP_SERVER_SOCKET, OSC_TCP_SOCKET (name is 
+//        "owned" by OSC_TCP_SERVER_SOCKET):
+//            free any message
+//            mark the socket to be freed later
+//    for OSC_SOCKET, OSC_TCP_SERVER_SOCKET, OSC_TCP_CLIENT:
+//        (it must be the case that we're shutting down: when we free the
+//         osc.service_name, all the OSC_TCP_SOCKETS accepted from this 
+//         socket will have freed osc.service_name fields)
+//        free the osc.service_name (it's a copy)
+//        free any message
+//        mark the socket to be freed later
+//
 int o2_remove_remote_process(process_info_ptr info)
 {
     if (info->tag == TCP_SOCKET) {
         // remove the remote services provided by the proc
         remove_remote_services(info);
-        // proc.name may be NULL if we have not received an init (/_o2/dy) message
+        // proc.name may be NULL if we have not received an init (/_o2/dy)
+        // message
         if (info->proc.name) {
-            // remove the remote service associated with the ip_port string
-            o2_service_provider_replace(info, info->proc.name, NULL);
             O2_DBd(printf("%s removing remote process %s\n",
                           o2_debug_prefix, info->proc.name));
             O2_FREE((void *) info->proc.name);
             info->proc.name = NULL;
         }
-        O2_FREE(info);
-    } // else if (info->tag == OSC_TCP_SOCKET) do nothing special
-    // else if (info->tag == OSC_REMOTE_SERVICE
+    } else if (info->tag == OSC_SOCKET || info->tag == OSC_TCP_SERVER_SOCKET ||
+               info->tag == OSC_TCP_CLIENT) {
+        O2_FREE((void *) info->osc.service_name);
+    }
+    if (info->message) O2_FREE(info->message);
     o2_socket_mark_to_free(info); // close the TCP socket
     return O2_SUCCESS;
 }
@@ -1186,14 +1218,26 @@ static int remove_node(node_entry_ptr node, o2string key)
 }
 
 
+// for each service named in info (a process_info_ptr),
+//     find the service offered by this process and remove it:
+//         since info has tag TCP_SOCKET, each service will be a
+//         pointer back to this process_info_ptr, so do not delete info
+//     if a service is the last service in services, remove the 
+//         services_entry as well
+// deallocate the dynamic array holding service names
+//
 static int remove_remote_services(process_info_ptr info)
 {
-    for (int i = 0; i < info->proc.services.length; i++) {
-        o2string service = *DA_GET(info->proc.services, o2string, i);
-        o2_entry_ptr *node_ptr = o2_lookup(&o2_path_tree, service);
-        assert(*node_ptr);
-        // wait and resize later
-        entry_remove(&o2_path_tree, node_ptr, FALSE);
+    assert(info->tag == TCP_SOCKET);
+    while (info->proc.services.length > 0) {
+        o2string service_name = *DA_GET(info->proc.services, o2string, 0);
+        o2_service_provider_replace(info, service_name, NULL);
+        // note: o2_service_provider_replace will, as a side effect, remove
+        // service_name from info->proc.services. In fact, it will search
+        // the array for a matching string, which is a bit silly, but since
+        // we're always deleting the first element, the search will always
+        // find service_name immediately (at the cost of 1 string compare),
+        // so the operation is pretty efficient.
     }
     DA_FINISH(info->proc.services);
     return O2_SUCCESS;

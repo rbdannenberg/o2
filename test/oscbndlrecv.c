@@ -127,6 +127,7 @@ int main(int argc, const char * argv[])
 
     o2_initialize("test");
     printf("tcpflag %d\n", tcpflag);
+    o2_service_new("oscrecv");
     int err = o2_osc_port_new("oscrecv", 8100, tcpflag);
     assert(err == O2_SUCCESS);
     printf("created osc server port 8100\n");

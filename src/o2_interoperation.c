@@ -165,7 +165,7 @@ int o2_osc_delegate(const char *service_name, const char *ip, int port_num, int 
     if (tcp_flag) {
         process_info_ptr info;
         RETURN_IF_ERROR(o2_make_tcp_recv_socket(
-                OSC_TCP_SOCKET, 0, &o2_osc_delegate_handler, &info));
+                OSC_TCP_CLIENT, 0, &o2_osc_delegate_handler, &info));
         // make the connection
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_protocol = IPPROTO_TCP;
@@ -319,7 +319,13 @@ int o2_deliver_osc(process_info_ptr info)
     }
     // if this came by UDP, tag is OSC_SOCKET, and tcp_flag should be false
     o2msg->tcp_flag = (info->tag != OSC_SOCKET);
-    return o2_message_send_sched(o2msg, TRUE);
+    if (o2_message_send_sched(o2msg, TRUE)) { // failure to deliver message will NOT
+            // cause the connection to be closed; only the current message
+            // will be dropped
+        O2_DBO(printf("%s os_deliver_osc: message %s forward to %s failed\n",
+                      o2_debug_prefix, msg_data, info->osc.service_name));
+    }
+    return O2_SUCCESS;
 }
 
 

@@ -109,11 +109,6 @@ static void deliver_or_schedule(process_info_ptr info)
                isdigit(info->message->data.address[1]))
                o2_dbg_msg("msg received", &info->message->data,
                           "type", o2_tag_to_string(info->tag)));
-    //DEBUG
-    if (strstr(info->message->data.address, "/sv")) {
-        printf("***** got sv msg\n");
-        o2_show_info((o2_info_ptr) &o2_path_tree, 1);
-    }
     o2_message_send_sched(info->message, TRUE);
 }
 
@@ -252,6 +247,31 @@ int o2_initWSock()
     return stateWSock;
 }
 
+#endif
+
+
+#ifdef SOCKET_DEBUG
+void o2_sockets_show()
+{
+    printf("Sockets:\n");
+    for (int i = 0; i < o2_fds.length; i++) {
+        process_info_ptr info = GET_PROCESS(i); 
+        printf("%d: fd_index %d fd %d tag %s info %p", i, info->fds_index,
+               (DA_GET(o2_fds, struct pollfd, i))->fd,
+               o2_tag_to_string(info->tag), info);
+        if (info->tag == TCP_SOCKET) {
+            printf(" services:");
+            for (int j = 0; j < info->proc.services.length; j++) {
+                printf("\n    %s", *DA_GET(info->proc.services, char *, j));
+            }
+        } else if (info->tag == OSC_SOCKET || 
+                   info->tag == OSC_TCP_SERVER_SOCKET ||
+                   info->tag == OSC_TCP_CLIENT) {
+            printf("osc service %s", info->osc.service_name);
+        }
+        printf("\n");
+    }
+}
 #endif
 
 
@@ -468,23 +488,20 @@ static void socket_remove(int i)
     }
     o2_fds.length--;
     o2_fds_info.length--;
-    // if we ever remove our o2_process socket, we're done for
-    // in o2_finish, we close sockets directly and do not call socket_remove()
-    assert(o2_process->tag == TCP_SERVER_SOCKET);
 }
 
 
 void o2_free_deleted_sockets()
 {
-    if (o2_socket_delete_flag) {
-        for (int i = 0; i < o2_fds_info.length; i++) {
-            if (GET_PROCESS(i)->delete_me) {
-                socket_remove(i);
-                i--;
-            }
+    for (int i = 0; i < o2_fds_info.length; i++) {
+        process_info_ptr info = GET_PROCESS(i);
+        if (info->delete_me) {
+            socket_remove(i);
+            O2_FREE(info);
+            i--;
         }
-        o2_socket_delete_flag = FALSE;
     }
+    o2_socket_delete_flag = FALSE;
 }
 
 

@@ -44,7 +44,7 @@ typedef int SOCKET;     // In O2, we'll use SOCKET to denote the type of a socke
 #endif
 
 /**
- * The porcess_info structure tells us info about each socket. For Unix, there
+ * The process_info structure tells us info about each socket. For Unix, there
  * is a parallel structure, fds, that contains an fds parameter for poll().
  *
  * In process_info, we have the socket, a handler for the socket, and buffer 
@@ -60,6 +60,7 @@ typedef int SOCKET;     // In O2, we'll use SOCKET to denote the type of a socke
 #define TCP_SERVER_SOCKET 104
 #define OSC_TCP_SERVER_SOCKET 105
 #define OSC_TCP_SOCKET 106
+#define OSC_TCP_CLIENT 107
 
 struct process_info;
 
@@ -143,6 +144,13 @@ extern int o2_socket_delete_flag;
  */
 #ifdef WIN32
 int o2_initWSock();
+#endif
+
+#ifndef O2_NO_DEBUGGING
+#define SOCKET_DEBUG
+#ifdef SOCKET_DEBUG
+void o2_sockets_show();
+#endif
 #endif
 
 process_info_ptr o2_add_new_socket(SOCKET sock, int tag, o2_socket_handler handler);

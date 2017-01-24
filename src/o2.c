@@ -346,7 +346,8 @@ o2_time o2_global_now = 0.0;
 #ifndef O2_NO_DEBUG
 void *o2_dbg_malloc(size_t size, char *file, int line)
 {
-    O2_DBm(printf("%s malloc %lld in %s:%d", o2_debug_prefix, (long long) size, file, line));
+    O2_DBm(printf("%s malloc %lld in %s:%d", o2_debug_prefix, 
+                  (long long) size, file, line));
     fflush(stdout);
     void *obj = (*o2_malloc)(size);
     O2_DBm(printf(" -> %p\n", obj));
@@ -355,7 +356,8 @@ void *o2_dbg_malloc(size_t size, char *file, int line)
 
 void o2_dbg_free(void *obj, char *file, int line)
 {
-    O2_DBm(printf("%s free in %s:%d <- %p\n", o2_debug_prefix, file, line, obj));
+    O2_DBm(printf("%s free in %s:%d <- %p\n", 
+                  o2_debug_prefix, file, line, obj));
     (*free)(obj);
 }
 
@@ -414,6 +416,7 @@ int o2_initialize(const char *application_name)
     // "/sv/" service messages are sent by tcp as ordinary O2 messages, so they
     // are addressed by full name (IP:PORT). We cannot call them /_o2/sv:
     char address[32];
+    o2_service_new(o2_process->proc.name);
     snprintf(address, 32, "/%s/sv", o2_process->proc.name);
     o2_method_new(address, NULL, &o2_services_handler, NULL, FALSE, FALSE);
     snprintf(address, 32, "/%s/cs/cs", o2_process->proc.name);
@@ -424,8 +427,11 @@ int o2_initialize(const char *application_name)
     o2_sched_initialize();
     o2_clock_initialize();
     
-    o2_discovery_send_handler(NULL, "", NULL, 0, NULL); // start sending discovery messages
-    o2_ping_send_handler(NULL, "", NULL, 0, NULL); // start sending clock sync messages
+    // start sending discovery messages
+    o2_discovery_send_handler(NULL, "", NULL, 0, NULL); 
+
+    // start sending clock sync messages
+    o2_ping_send_handler(NULL, "", NULL, 0, NULL);
     
     return O2_SUCCESS;
   cleanup:
@@ -461,22 +467,30 @@ void o2_notify_others(const char *service_name, int added)
         if (info->tag == TCP_SOCKET) {
             char address[32];
             snprintf(address, 32, "!%s/sv", info->proc.name);
-            o2_send_cmd(address, 0.0, "ssB", o2_process->proc.name, service_name, added);
-            O2_DBd(printf("%s o2_notify_others sent %s to %s (%s)\n", o2_debug_prefix,
-                          service_name, info->proc.name, added ? "added" : "removed"));
+            o2_send_cmd(address, 0.0, "ssB", o2_process->proc.name, 
+                        service_name, added);
+            O2_DBd(printf("%s o2_notify_others sent %s to %s (%s)\n", 
+                          o2_debug_prefix, service_name, info->proc.name, 
+                          added ? "added" : "removed"));
         }
     }
 }
 
-
-o2_info_ptr o2_local_service_find(services_entry_ptr *services)
+/** find service in services offered by proc, if any */
+o2_info_ptr o2_proc_service_find(process_info_ptr proc,
+                                 services_entry_ptr *services)
 {
-    // search for local service
     if (!*services) return FALSE;
     for (int i = 0; i < (*services)->services.length; i++) {
         o2_info_ptr service = GET_SERVICE((*services)->services, i);
-        if (service->tag != TCP_SOCKET) {
-            return service; // local service already exists
+        if (service->tag == TCP_SOCKET) {
+            if ((process_info_ptr) service == proc) {
+                return service;
+            }
+        } else { // not TCP_SOCKET so must be local
+            if (o2_process == proc) {
+                return service; // local service already exists
+            }
         }
     }
     return NULL;
@@ -488,9 +502,11 @@ o2_info_ptr o2_local_service_find(services_entry_ptr *services)
  * 2) put the service onto process's list of service names
  * 3) add new service to the list
  */
-int o2_service_provider_new(o2string service_name, o2_info_ptr service, process_info_ptr process)
+int o2_service_provider_new(o2string service_name, o2_info_ptr service, 
+                            process_info_ptr process)
 {
-    services_entry_ptr *services = (services_entry_ptr *) o2_lookup(&o2_path_tree, service_name);
+    services_entry_ptr *services = (services_entry_ptr *)
+            o2_lookup(&o2_path_tree, service_name);
     services_entry_ptr s;
     // 1) if no entry, create an empty one
     if (!*services) {
@@ -501,8 +517,8 @@ int o2_service_provider_new(o2string service_name, o2_info_ptr service, process_
         DA_INIT(s->services, o2_entry_ptr, 1);
         o2_add_entry_at(&o2_path_tree, (o2_entry_ptr *) services, 
                         (o2_entry_ptr) s);
-    } else { // if this is local and a local service exists already, fail
-        if (process == o2_process && (o2_local_service_find(services) != NULL)) {
+    } else { // if this service already exists for process, don't add it again
+        if (o2_proc_service_find(process, services) != NULL) {
             return O2_SERVICE_EXISTS;
         }
         s = *services;
@@ -530,7 +546,7 @@ int o2_service_provider_new(o2string service_name, o2_info_ptr service, process_
     DA_SET(s->services, o2_info_ptr, index, service);
     // special case for osc: need service name
     if (service->tag == OSC_REMOTE_SERVICE) {
-        ((osc_info_ptr) service)->service_name = (*services)->key;
+        ((osc_info_ptr) service)->service_name = s->key;
     }
     return O2_SUCCESS;
 }
@@ -540,11 +556,12 @@ int o2_service_new(const char *service_name)
 {    
     // find services_node if any
     char padded_name[NAME_BUF_LEN];
-    if (strchr(service_name, "/")) return O2_BAD_SERVICE_NAME;
+    if (strchr(service_name, '/')) return O2_BAD_SERVICE_NAME;
     o2_string_pad(padded_name, service_name);
     node_entry_ptr node = o2_node_new(NULL);
     if (!node) return O2_FAIL;
-    int rslt = o2_service_provider_new(padded_name, (o2_info_ptr) node, o2_process);
+    int rslt = o2_service_provider_new(padded_name, (o2_info_ptr) node, 
+                                       o2_process);
     if (rslt != O2_SUCCESS) {
         O2_FREE(node);
         return rslt;
@@ -634,7 +651,8 @@ int o2_status(const char *service)
 #ifdef WIN32
 int gettimeofday(struct timeval * tp, struct timezone * tzp)
 {
-    // Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
+    // Note: some broken versions only have 8 trailing zero's, the correct 
+    //       epoch has 9 trailing zero's
     static const uint64_t EPOCH = ((uint64_t)116444736000000000ULL);
     
     SYSTEMTIME  system_time;
@@ -694,30 +712,13 @@ int o2_finish()
     }
     // Close all the sockets.
     for (int i = 0 ; i < o2_fds.length; i++) {
-        SOCKET sock = DA_GET(o2_fds, struct pollfd, i)->fd;
-#ifdef SHUT_WR
-        shutdown(sock, SHUT_WR);
-#endif
-        if (closesocket(sock)) perror("closing socket");
-        O2_DBo(printf("%s In o2_finish, close socket %ld\n", o2_debug_prefix,
-                      (long) (DA_GET(o2_fds, struct pollfd, i)->fd)));
-        process_info_ptr info = GET_PROCESS(i);
-        if (info->message) O2_FREE(info->message);
-        if (info->tag == TCP_SOCKET) {
-            DA_FINISH(info->proc.services);
-        } else if (info->tag == OSC_SOCKET ||
-                   info->tag == OSC_TCP_SERVER_SOCKET) {
-            // free the osc service name; this is shared
-            // by any OSC_TCP_SOCKET, so we can ignore
-            // OSC_TCP_SOCKETs.
-            assert(info->osc.service_name);
-            O2_FREE((void *) info->osc.service_name);
-        }
-        O2_FREE(info);
+        o2_remove_remote_process(GET_PROCESS(i));
     }
+    o2_free_deleted_sockets(); // deletes process_info structs
+
     DA_FINISH(o2_fds);
     DA_FINISH(o2_fds_info);
-    
+
     o2_node_finish(&o2_path_tree);
     o2_node_finish(&o2_full_path_table);
     

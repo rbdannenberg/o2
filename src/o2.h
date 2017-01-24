@@ -696,6 +696,17 @@ o2_time o2_set_discovery_period(o2_time period);
  * \endcode
  * and define `synth_volume_handler` (see the type declaration for
  * #o2_method_handler and o2_method_new())
+ * Normally, services should be *unique* across the application. If 
+ * #service_name is already locally defined in this process (by a previous
+ * call to #o2_service_new or #o2_osc_delegate), this call will fail,
+ * returning #O2_SERVICE_EXISTS. If matching service names are defined
+ * in two different processes, the process with the highest IP and port
+ * number (lexicographically) will provide the service. However, due to
+ * the distributed and asynchronous nature of O2, there may be some 
+ * intervening time (typically a fraction of a second) during which a
+ * service is handled by two different processes. Furthermore, the switch
+ * to a new service provider could redirect a stream of messages, causing
+ * unexpected behavior in the application.
  *
  *  @param service_name the name of the service
  *
@@ -1012,7 +1023,9 @@ int o2_finish();
  *  OSC messages are converted to O2 messages and directed to the service.
  *  E.g. if the service is "maxmsp" and the message address is
  *  `/foo/x`, then the message is directed to and handled by
- *  `/maxmsp/foo/x`.
+ *  `/maxmsp/foo/x`. If the #service_name does not exist at any time
+ *  after calling #o2_osc_port_new, incoming OSC messages will be dropped
+ *  until the service is available again.
  *
  *  @param service_name The name of the service to which messages are delivered
  *  @param port_num     Port number.

@@ -190,7 +190,7 @@ extern int o2_argc; // length of argv
 // shared internal functions
 void o2_notify_others(const char *service_name, int added);
 
-o2_info_ptr o2_local_service_find(services_entry_ptr *services);
+o2_info_ptr o2_proc_service_find(process_info_ptr proc, services_entry_ptr *services);
 
 int o2_service_provider_new(o2string key, o2_info_ptr service, process_info_ptr process);
 

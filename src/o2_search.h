@@ -111,7 +111,7 @@ extern node_entry o2_full_path_table;
 const char *o2_tag_to_string(int tag);
 #define SEARCH_DEBUG
 #ifdef SEARCH_DEBUG
-void o2_show_info(o2_info_ptr info, int indent);
+void o2_info_show(o2_info_ptr info, int indent);
 #endif
 #endif
 

@@ -339,7 +339,7 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
         int status = o2_status("_cs");
         found_clock_service = (status >= 0);
         if (found_clock_service) {
-            O2_DBc(printf("%s ** found clock service, is_master=%d",
+            O2_DBc(printf("%s ** found clock service, is_master=%d\n",
                           o2_debug_prefix, is_master));
             if (status == O2_LOCAL || status == O2_LOCAL_NOTIME) {
                 assert(is_master);

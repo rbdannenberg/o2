@@ -72,12 +72,13 @@ int o2_discovery_initialize()
 
     // Create socket to receive broadcasts
     // Try to find an available port number from the discover port map.
-    // If there are no available port number, print the error and return O2_FAIL.
+    // If there are no available port number, print the error & return O2_FAIL.
     int ret;
     for (disc_port_index = 0; disc_port_index < PORT_MAX; disc_port_index++) {
         broadcast_recv_port = o2_port_map[disc_port_index];
         process_info_ptr info;
-        ret = o2_make_udp_recv_socket(DISCOVER_SOCKET, &broadcast_recv_port, &info);
+        ret = o2_make_udp_recv_socket(DISCOVER_SOCKET, &broadcast_recv_port, 
+                                      &info);
         if (ret == O2_SUCCESS) break;
     }
     if (disc_port_index >= PORT_MAX) {
@@ -109,7 +110,7 @@ int o2_discovery_initialize()
 
 // we are the "client" connecting to a remote process acting as the "server"
 static int make_tcp_connection(char *ip, int tcp_port,
-                               o2_socket_handler handler, process_info_ptr *info)
+                            o2_socket_handler handler, process_info_ptr *info)
 {
     // We are the client because our ip:port string is lower
     struct sockaddr_in remote_addr;
@@ -164,7 +165,8 @@ int o2_discovery_msg_initialize()
     if (!((o2_discovery_msg = (o2_message_ptr) o2_malloc(size)))) {
         return O2_FAIL;
     }
-    O2_DBd(printf("%s broadcast discovery message created:\n    ", o2_debug_prefix);
+    O2_DBd(printf("%s broadcast discovery message created:\n    ", 
+                  o2_debug_prefix);
            o2_message_print(msg);
            printf("\n"));
 #if IS_LITTLE_ENDIAN
@@ -215,7 +217,7 @@ static void o2_broadcast_message(int port)
     // so we have to send separately to localhost using the same port;
     // since we own broadcast_recv_port, there is no need to send in that case
     if (port != broadcast_recv_port) {
-        local_to_addr.sin_port = broadcast_to_addr.sin_port; // copy the port number
+        local_to_addr.sin_port = broadcast_to_addr.sin_port; // copy port number
         O2_DBd(printf("%s sending localhost discovery msg to port %d\n",
                       o2_debug_prefix, port));
         if (sendto(local_send_sock, (char *) msg, len, 0,
@@ -320,7 +322,8 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
     int tcp = tcp_arg->i32;
     
     if (!streql(app_arg->s, o2_application_name)) {
-        O2_DBd(printf("    Ignored: application name is not %s\n", o2_application_name));
+        O2_DBd(printf("    Ignored: application name is not %s\n", 
+                      o2_application_name));
         return;
     }
     char name[32];
@@ -337,7 +340,8 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
 #ifndef NDEBUG
         process_info_ptr remote = NULL;
         services_entry_ptr services = (services_entry_ptr) *entry_ptr;
-        assert(services && services->tag == SERVICES && services->services.length == 1);
+        assert(services && services->tag == SERVICES &&
+               services->services.length == 1);
         remote = (process_info_ptr) GET_SERVICE(services->services, 0);
         assert(remote && remote->tag == TCP_SOCKET && remote->fds_index != -1);
         O2_DBd(printf("    Ignored: already connected\n"));
@@ -410,10 +414,7 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
     process_info_ptr info = (process_info_ptr) user_data;
     assert(info->proc.status == PROCESS_CONNECTED);
     o2_entry_ptr *entry_ptr = o2_lookup(&o2_path_tree, name);
-    if (*entry_ptr) { // we are the client, and we connected after receiving a
-        // /dy message, also created a service named for server's IP:port
-        if (o2_process_initialize(info, status)) return;
-    } else { // we are the server, and we accepted a client connection,
+    if (!*entry_ptr) { // we are the server, and we accepted a client connection,
         // but we did not yet create a service named for client's IP:port
         assert(info->tag == TCP_SOCKET);
         o2_service_provider_new(name, (o2_info_ptr) info, info);
@@ -422,7 +423,8 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
         // now that we have a name and service, we can send init message back:
         o2_send_initialize(info);
         o2_send_services(info);
-    }
+    } // else we are the client, and we connected after receiving a
+      // /dy message, also created a service named for server's IP:port
     info->proc.status = status;
     info->proc.udp_sa.sin_family = AF_INET;
     assert(info != o2_process);
@@ -435,8 +437,9 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
     inet_pton(AF_INET, ip, &(info->proc.udp_sa.sin_addr.s_addr));
     info->proc.udp_sa.sin_port = htons(udp_port);
 
-    O2_DBd(printf("%s init msg from %s (udp port %ld)\n   to local socket %ld process_info %p\n",
-                  o2_debug_prefix, name, (long) udp_port, (long) (info->fds_index), info));
+    O2_DBd(printf("%s init msg from %s (udp port %ld)\n   to local socket "
+                  "%ld process_info %p\n", o2_debug_prefix, name, 
+                  (long) udp_port, (long) (info->fds_index), info));
     return;
 }
 
@@ -454,13 +457,15 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
     // note that name is padded with zeros to 32-bit boundary
     process_info_ptr proc = (process_info_ptr) o2_service_find(name);
     if (!proc || proc->tag != TCP_SOCKET) {
-        O2_DBg(printf("%s ### ERROR: o2_services_handler did not find %s\n", o2_debug_prefix, name));
+        O2_DBg(printf("%s ### ERROR: o2_services_handler did not find %s\n", 
+                      o2_debug_prefix, name));
         return; // message is bogus (should we report this?)
     }
     o2_arg_ptr addarg;
     while ((arg = o2_get_next('s')) && (addarg = o2_get_next('B'))) {
         if (strchr(arg->s, '/')) {
-            O2_DBg(printf("%s ### ERROR: o2_services_handler got bad service name - %s\n", o2_debug_prefix, arg->s));
+            O2_DBg(printf("%s ### ERROR: o2_services_handler got bad service "
+                          "name - %s\n", o2_debug_prefix, arg->s));
         } else if (addarg->B) {
             O2_DBd(printf("%s found service /%s offered by /%s\n",
                           o2_debug_prefix, arg->s, proc->proc.name));

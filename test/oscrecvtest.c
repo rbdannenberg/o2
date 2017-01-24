@@ -69,6 +69,7 @@ int main(int argc, const char * argv[])
     assert(err == O2_SUCCESS);
     
     o2_clock_set(NULL, NULL);
+    o2_service_new("oscrecv");
     o2_method_new("/oscrecv/i", "i", osc_i_handler, NULL, FALSE, TRUE);
     while (message_count < 10 || timed_count < 10) {
         o2_poll();
