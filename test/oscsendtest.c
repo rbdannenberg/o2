@@ -8,7 +8,12 @@
 #include "assert.h"
 
 #ifdef WIN32
-#include "usleep.h"
+#define usleep(x) Sleep((x)/1000)
+
+void sleep(int i)
+{
+	Sleep(i * 1000);
+}
 #else
 #include <unistd.h>
 #endif

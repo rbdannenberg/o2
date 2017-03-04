@@ -29,6 +29,10 @@
 #include "assert.h"
 #include "string.h"
 
+#ifdef WIN32
+#define snprintf _snprintf
+#endif
+
 int got_the_message = FALSE;
 
 o2_blob_ptr a_blob;
