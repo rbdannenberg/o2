@@ -34,7 +34,10 @@ typedef const char *o2string; // string padded to 4-byte boundary
 
 // OS X and Linux call it "snprintf":
 // snprintf seems to be defined Visual Studio now,
-//#define snprintf _snprintf
+// Visual Studio 2015 is the first version which defined snprintf, and its _MSC_VER is 1900.
+#if _MSC_VER < 1900
+#define snprintf _snprintf
+#endif
 
 #else    // Linux or OS X
 

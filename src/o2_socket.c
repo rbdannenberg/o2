@@ -536,7 +536,7 @@ int o2_recv()
         if (FD_ISSET(d->fd, &o2_read_set)) {
             process_info_ptr info = GET_PROCESS(i);
             if (((*(info->handler))(d->fd, info)) == O2_TCP_HUP) {
-                O2_DBo(printf("%s removing remote process after O2_TCP_HUP to socket %ld", o2_debug_prefix, (long) fd));
+				O2_DBo(printf("%s removing remote process after O2_TCP_HUP to socket %ld", o2_debug_prefix, (long)d->fd));
                 o2_remove_remote_process(info);
             }
         }
