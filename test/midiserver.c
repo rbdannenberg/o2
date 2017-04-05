@@ -20,7 +20,6 @@ PmStream *midi_out = NULL; // MIDI output stream
 #include <unistd.h>
 #endif
 
-#pragma comment(lib,"o2_static.lib")
 
 // this is a handler for incoming messages. It simply builds a
 // MIDI message and sends it using portmidi

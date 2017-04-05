@@ -553,7 +553,10 @@ int o2_service_provider_new(o2string service_name, o2_info_ptr service,
 
 
 int o2_service_new(const char *service_name)
-{    
+{
+    if (!o2_application_name) {
+        return O2_NOT_INITIALIZED;
+    }
     // find services_node if any
     char padded_name[NAME_BUF_LEN];
     if (strchr(service_name, '/')) return O2_BAD_SERVICE_NAME;
@@ -618,7 +621,7 @@ int o2_run(int rate)
 
 int o2_status(const char *service)
 {
-    if (!service || strchr(service, '/'))
+    if (!service || !*service || strchr(service, '/') || strchr(service, '!'))
         return O2_BAD_SERVICE_NAME;
     o2_info_ptr entry = o2_service_find(service);
     if (!entry) return O2_FAIL;

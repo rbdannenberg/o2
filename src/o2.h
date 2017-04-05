@@ -228,6 +228,10 @@ void o2_debug_flags(const char *flags);
 // an error return value: attempt to create a local service when one exists already
 #define O2_SERVICE_EXISTS (-17)
 
+// an error return value: O2 has not been initialized
+#define O2_NOT_INITIALIZED (-18)
+
+
 // Status return codes for o2_status function:
 
 /// \brief return value for o2_status() function: this is a local service
@@ -1049,51 +1053,6 @@ int o2_osc_port_new(const char *service_name, int port_num, int tcp_flag);
  */
 int o2_osc_port_free(int port_num);
 
-
-/**
- *  \brief Send an OSC message.
- *
- * This function (mostly) bypasses O2 and just constructs a message
- * and sends it directly to an OSC server. This is very similar to
- * o2_send(), except (1) with o2_send(), an O2 message is constructed,
- * then converted to an OSC message, whereas o2_osc_message_send
- * constructs the OSC message directly, which is slightly faster;
- * (2) with o2_send(), the message can be sent from any host. If
- * o2_osc_delegate() was executed on a different host, the O2 
- * message will be sent to that host; then, the message will be 
- * converted to an OSC message and sent to the OSC server. (You could
- * send the message directly by calling o2_osc_delegate() on the
- * local host, but service names must be unique across all hosts of 
- * an O2 application, so you must be careful to use distinct service 
- * names. In constrast, o2_osc_message_send() will return an error if 
- * the OSC connection was not made locally; (3) This function cannot
- * be used to send an OSC bundle. To send a bundle, create an O2 bundle
- * message and send it as an O2 message to an OSC service. The bundle
- * will be converted to an OSC bundle.
- *
- * Note: Before calling o2_osc_message_send(), you should first use
- * o2_osc_delegate() to connect to the osc service and give it a
- * service name. Then you can use the service name to send the message.
- * The choice of UDP or TCP depends on the tcp_flag parameter to
- * o2_osc_delegate().
- *
- * @param service_name The o2 name for the remote osc server, named by calling
- *                     o2_osc_delegate(). Do not prefix this name with "/".
- * @param path         The osc path, starting with "/".
- * @param typestring   The type string for the message, not including ",".
- * @param ...          The data values to be transmitted.
- *
- * @return O2_SUCCESS if success, O2_FAIL if not.
- */
-/** \hideinitializer */
-#define o2_osc_message_send(service_name, path, typestring, ...) \
-    o2_osc_message_send_marker(service_name, path, typestring, \
-                               O2_MARKER_A, O2_MARKER_B)
-
-/** \cond INTERNAL */ \
-int o2_osc_message_send_marker(char *service_name, const char *path,
-                               const char *typestring, ...);
-/** \endcond */
 
 /**
  *  \brief Create a service that forwards O2 messages to an OSC server.

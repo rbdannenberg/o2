@@ -111,25 +111,6 @@ int o2_osc_port_free(int port_num)
 }
 
 
-/** send an OSC message directly. The service_name is the O2 equivalent
- * of an address. path is a normal OSC address string and is not prefixed
- * with an O2 service name.
- */
-int o2_osc_message_send_marker(char *service_name, const char *path,
-                               const char *typestring, ...)
-{
-    va_list ap;
-    va_start(ap, typestring);
-    
-    o2_message_ptr msg;
-    int rslt = o2_message_build(&msg, 0.0, service_name, path, typestring, FALSE, ap);
-    if (rslt == O2_SUCCESS) {
-        // TODO: send the message, set tcp_flag
-    }
-    return rslt;
-}
-
-
 // messages to this service are forwarded as OSC messages
 // does the service exist as a local service? If so, fail.
 // make an osc_info record for this delegation of service

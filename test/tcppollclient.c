@@ -22,17 +22,12 @@
 #include <time.h>
 #include <signal.h>
 
-#pragma comment(lib,"ws2_32.lib")
 
 #ifndef TRUE
 #define TRUE 1
 #define FALSE 0
 #endif
 
-#ifndef TRUE
-#define TRUE 1
-#define FALSE 0
-#endif
 
 /*
  * This function reports the error and

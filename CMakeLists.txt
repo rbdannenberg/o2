@@ -103,14 +103,22 @@ add_executable(o2server test/o2server.c)
 target_include_directories(o2server PRIVATE ${CMAKE_SOURCE_DIR}/src) 
 target_link_libraries(o2server ${LIBRARIES}) 
 
-add_executable(tcpclient test/tcpclient.c)  
-target_include_directories(tcpclient PRIVATE ${CMAKE_SOURCE_DIR}/src)  
-target_link_libraries(tcpclient ${LIBRARIES}) 
+add_executable(statusclient test/statusclient.c)
+target_include_directories(statusclient PRIVATE ${CMAKE_SOURCE_DIR}/src)   
+target_link_libraries(statusclient ${LIBRARIES}) 
+  
+add_executable(statusserver test/statusserver.c)   
+target_include_directories(statusserver PRIVATE ${CMAKE_SOURCE_DIR}/src)   
+target_link_libraries(statusserver ${LIBRARIES}) 
  
-add_executable(tcpserver test/tcpserver.c)  
-target_include_directories(tcpserver PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+add_executable(tcpclient test/tcpclient.c)   
+target_include_directories(tcpclient PRIVATE ${CMAKE_SOURCE_DIR}/src)   
+target_link_libraries(tcpclient ${LIBRARIES}) 
+  
+add_executable(tcpserver test/tcpserver.c)   
+target_include_directories(tcpserver PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(tcpserver ${LIBRARIES}) 
-
+ 
 add_executable(clockslave test/clockslave.c) 
 target_include_directories(clockslave PRIVATE ${CMAKE_SOURCE_DIR}/src) 
 target_link_libraries(clockslave ${LIBRARIES}) 
@@ -123,10 +131,14 @@ add_executable(oscsendtest test/oscsendtest.c)
 target_include_directories(oscsendtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(oscsendtest ${LIBRARIES}) 
  
-add_executable(oscrecvtest test/oscrecvtest.c)  
-target_include_directories(oscrecvtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+add_executable(oscrecvtest test/oscrecvtest.c)   
+target_include_directories(oscrecvtest PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(oscrecvtest ${LIBRARIES}) 
- 
+  
+add_executable(oscanytest test/oscanytest.c)   
+target_include_directories(oscanytest PRIVATE ${CMAKE_SOURCE_DIR}/src)   
+target_link_libraries(oscanytest ${LIBRARIES}) 
+  
 add_executable(bundletest test/bundletest.c)   
 target_include_directories(bundletest PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(bundletest ${LIBRARIES}) 

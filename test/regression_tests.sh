@@ -74,6 +74,9 @@ while true; do
     runtest "bundletest"
     if [ $status == -1 ]; then break; fi
 
+    rundouble "statusserver" "SERVER DONE" "statusclient" "CLIENT DONE"
+    if [ $status == -1 ]; then break; fi
+
     rundouble "clockmaster" "CLOCKMASTER DONE" "clockslave" "CLOCKSLAVE DONE"
     if [ $status == -1 ]; then break; fi
 
@@ -81,6 +84,9 @@ while true; do
     if [ $status == -1 ]; then break; fi
 
     rundouble "oscsendtest u" "OSCSEND DONE" "oscrecvtest u" "OSCRECV DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "oscsendtest u" "OSCSEND DONE" "oscanytest u" "OSCANY DONE"
     if [ $status == -1 ]; then break; fi
 
     rundouble "oscsendtest" "OSCSEND DONE" "oscrecvtest" "OSCRECV DONE"

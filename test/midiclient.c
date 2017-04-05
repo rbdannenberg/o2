@@ -13,7 +13,6 @@
 #include <unistd.h>
 #endif
 
-#pragma comment(lib,"o2_static.lib")
 
 #define N_ADDRS 20
 

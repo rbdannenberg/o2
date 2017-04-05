@@ -21,9 +21,6 @@
 #include <string.h>
 #include <time.h>
 
-#pragma comment(lib,"ws2_32.lib")
-#pragma comment(lib, "Kernel32.lib")
- 
 #ifndef TRUE
 #define TRUE 1
 #define FALSE 0

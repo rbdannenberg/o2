@@ -22,7 +22,6 @@
 #include <time.h>
 #include <signal.h>
 
-#pragma comment(lib,"ws2_32.lib")
 
 #ifndef TRUE
 #define TRUE 1

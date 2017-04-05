@@ -19,6 +19,7 @@
 /**
  *  Structures for hash look up.
  */
+
 // The structure of an entry in hash table. Subclasses o2_info
 // subclasses are node_entry, handler_entry, and services_entry
 typedef struct o2_entry { // "subclass" of o2_info
@@ -26,6 +27,7 @@ typedef struct o2_entry { // "subclass" of o2_info
     o2string key; // key is "owned" by this generic entry struct
     struct o2_entry *next;
 } o2_entry, *o2_entry_ptr;
+
 
 // Hash table's entry for node, another hash table
 typedef struct node_entry { // "subclass" of o2_entry
@@ -37,6 +39,7 @@ typedef struct node_entry { // "subclass" of o2_entry
     // a o2_entry_ptr can point to a node_entry, a handler_entry, a
     //   remote_service_entry, or an osc_entry (are there more?)
 } node_entry, *node_entry_ptr;
+
 
 // Hash table's entry for handler
 typedef struct handler_entry { // "subclass" of o2_entry
@@ -68,7 +71,6 @@ typedef struct services_entry { // "subclass" of o2_entry
             // (local service), handler_entry (local service with just one
             // handler for all messages), process_info (for remote
             // service), osc_info (for service delegated to OSC server)
-
 } services_entry, *services_entry_ptr;
 
 

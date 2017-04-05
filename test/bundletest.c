@@ -6,7 +6,6 @@
 #include "assert.h"
 #include "o2_message.h"
 
-#pragma comment(lib,"o2_static.lib")
 
 #define N_ADDRS 20
 

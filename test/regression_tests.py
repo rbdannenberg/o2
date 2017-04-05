@@ -10,6 +10,7 @@
 from __future__ import print_function
 
 import os
+import platform
 import subprocess
 import shlex
 import threading
@@ -29,7 +30,7 @@ else:
    BIN=".."
 # In linux, there is likely to be a debug version of the
 # library copied to ../Debug, but tests are built in ..
-if os.name == 'posix':
+if platform.system() == 'Linux':
     BIN=".."
 
 def findLineInString(line, aString):
@@ -129,6 +130,8 @@ def runAllTests():
                      "o2server", "SERVER DONE"): return
     if not runDouble("oscsendtest u", "OSCSEND DONE",
                      "oscrecvtest u", "OSCRECV DONE"): return
+    if not runDouble("oscsendtest u", "OSCSEND DONE",
+                     "oscanytest u", "OSCANY DONE"): return
     if not runDouble("oscsendtest", "OSCSEND DONE",
                      "oscrecvtest", "OSCRECV DONE"): return
     if not runDouble("tcpclient", "CLIENT DONE",
