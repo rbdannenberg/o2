@@ -6,7 +6,6 @@
 #include "assert.h"
 #include "string.h"
 
-
 int got_the_message = FALSE;
 
 o2_blob_ptr a_blob;

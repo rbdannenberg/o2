@@ -206,29 +206,29 @@ void o2_debug_flags(const char *flags);
 // string to an IP address
 #define O2_HOSTNAME_TO_NETADDR_FAIL (-10)
 
-// an error return value: attempt to make a TCP connection failed
+/// an error return value: attempt to make a TCP connection failed
 #define O2_TCP_CONNECT_FAIL (-11)
 
-// an error return value: message was not scheduled or delivered because
-// the current time is not available
+/// an error return value: message was not scheduled or delivered because
+/// the current time is not available
 #define O2_NO_CLOCK (-12)
 
-// an error return value: no handler for an address
+/// an error return value: no handler for an address
 #define O2_NO_HANDLER (-13)
 
-// an error return value: an O2 message is invalid
+/// an error return value: an O2 message is invalid
 #define O2_INVALID_MSG (-14)
 
-// an error return value: could not write to socket or send datagram
+/// an error return value: could not write to socket or send datagram
 #define O2_SEND_FAIL (-15)
 
-// an error return value: a service name was NULL or contained a slash (/)
+/// an error return value: a service name was NULL or contained a slash (/)
 #define O2_BAD_SERVICE_NAME (-16)
 
-// an error return value: attempt to create a local service when one exists already
+/// an error return value: attempt to create a local service when one exists already
 #define O2_SERVICE_EXISTS (-17)
 
-// an error return value: O2 has not been initialized
+/// an error return value: O2 has not been initialized
 #define O2_NOT_INITIALIZED (-18)
 
 
@@ -613,9 +613,6 @@ extern int o2_stop_flag;
  *             nothing to the argc count or argv vector.
  * @param user_data This contains the user_data value passed in the call
  *             to the method creation call.
- * @return O2_SUCCESS (0) indicates that the message was succesfully
- *         handled. This value is currently ignored.
- *
  */
 typedef void (*o2_method_handler)(const o2_msg_data_ptr msg, const char *types,
                                   o2_arg_ptr *argv, int argc, void *user_data);

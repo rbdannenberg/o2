@@ -320,7 +320,8 @@ int o2_roundtrip(double *mean, double *min)
 
 // o2_ping_send_handler -- handler for /_o2/ps (short for "ping send")
 //   wait for clock sync service to be established,
-//   then send ping every 0.5s for 5s, then every 10s
+//   then send ping every 0.1s CLICK_SYNC_HISTORY_LEN times, 
+//   then every 0.5s for 5s, then every 10s
 //
 void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
                           o2_arg_ptr *argv, int argc, void *user_data)
@@ -355,17 +356,19 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
             }
         }
     }
-    // default time to call this action again is clock_sync_send_time + 0.5s:
-    o2_time when = clock_sync_send_time + 0.5;
+    // earliest time to call this action again is clock_sync_send_time + 0.1s:
+    o2_time when = clock_sync_send_time + 0.1;
     if (found_clock_service) { // found service, but it's non-local
         clock_sync_id++;
         o2_send("!_cs/get", 0, "is", clock_sync_id, clock_sync_reply_to); // TODO: test return?
-        O2_DBk(printf("%s clock request sent\n", o2_debug_prefix));
-        // run every 1/2 second until at least CLOCK_SYNC_HISTORY_LEN pings
-        // have been sent to get a fast start, then ping every 10s. Here, we
-        // add 1.0 to allow for round-trip time and an extra ping just in case:
-        o2_time t1 = CLOCK_SYNC_HISTORY_LEN * 0.5 + 1.0;
-        if (clock_sync_send_time - start_sync_time > t1) when += 9.5;
+        // run every 0.1 second until at least CLOCK_SYNC_HISTORY_LEN pings
+        // have been sent to get a fast start, then ping every 0.5s until 5s, 
+        // then every 10s.
+        o2_time t1 = CLOCK_SYNC_HISTORY_LEN * 0.1 - 0.01;
+        if (clock_sync_send_time - start_sync_time > t1) when += 0.4;
+        if (clock_sync_send_time - start_sync_time > 5.0) when += 9.5;
+        O2_DBk(printf("%s clock request sent at %g\n",
+                      o2_debug_prefix, clock_sync_send_time));
     }
     // schedule another call to o2_ping_send_handler
     o2_send_start();

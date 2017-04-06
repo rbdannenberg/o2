@@ -507,9 +507,10 @@ int o2_method_new(const char *path, const char *typespec,
 
     // slash here means path has nodes, e.g. /serv/foo vs. just /serv
     if (!slash) { // (cases 1 and 2)
-        O2_FREE(key); // do not need full path for global handler
         handler->key = NULL;
-        return o2_service_provider_replace(o2_process, key + 1, (o2_info_ptr) handler);
+        int rslt = o2_service_provider_replace(o2_process, key + 1, (o2_info_ptr) handler);
+        O2_FREE(key); // do not need full path for global handler
+        return rslt;
     }
     if (node->tag == PATTERN_HANDLER) { // change it to an empty node_entry
         node = o2_node_new(NULL);
