@@ -131,9 +131,6 @@ Macros</h2></td></tr>
 <tr class="memitem:ga40e138392a070ca4e285361859451ed3"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__basics.html#ga40e138392a070ca4e285361859451ed3">o2_send_cmd</a>(path,  time, ...)</td></tr>
 <tr class="memdesc:ga40e138392a070ca4e285361859451ed3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Construct and send an O2 message reliably.  <a href="#ga40e138392a070ca4e285361859451ed3">More...</a><br /></td></tr>
 <tr class="separator:ga40e138392a070ca4e285361859451ed3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga54091327d07dce33b210d65691fe81bb"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__basics.html#ga54091327d07dce33b210d65691fe81bb">o2_osc_message_send</a>(service_name,  path,  typestring, ...)</td></tr>
-<tr class="memdesc:ga54091327d07dce33b210d65691fe81bb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Send an OSC message.  <a href="#ga54091327d07dce33b210d65691fe81bb">More...</a><br /></td></tr>
-<tr class="separator:ga54091327d07dce33b210d65691fe81bb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="typedef-members"></a>
 Typedefs</h2></td></tr>
@@ -306,58 +303,6 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <h2 class="groupheader">Macro Definition Documentation</h2>
-<a class="anchor" id="ga54091327d07dce33b210d65691fe81bb"></a>
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define o2_osc_message_send</td>
-          <td>(</td>
-          <td class="paramtype">&#160;</td>
-          <td class="paramname">service_name, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">&#160;</td>
-          <td class="paramname">path, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">&#160;</td>
-          <td class="paramname">typestring, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">&#160;</td>
-          <td class="paramname"><em>...</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Send an OSC message. </p>
-<p>This function (mostly) bypasses O2 and just constructs a message and sends it directly to an OSC server. This is very similar to <a class="el" href="group__basics.html#ga5cc673b5516b18a164b5977798cf9b50" title="Construct and send O2 message with best effort protocol. ">o2_send()</a>, except (1) with <a class="el" href="group__basics.html#ga5cc673b5516b18a164b5977798cf9b50" title="Construct and send O2 message with best effort protocol. ">o2_send()</a>, an O2 message is constructed, then converted to an OSC message, whereas o2_osc_message_send constructs the OSC message directly, which is slightly faster; (2) with <a class="el" href="group__basics.html#ga5cc673b5516b18a164b5977798cf9b50" title="Construct and send O2 message with best effort protocol. ">o2_send()</a>, the message can be sent from any host. If <a class="el" href="group__basics.html#gac4744322896863a159a920ce798fe718" title="Create a service that forwards O2 messages to an OSC server. ">o2_osc_delegate()</a> was executed on a different host, the O2 message will be sent to that host; then, the message will be converted to an OSC message and sent to the OSC server. (You could send the message directly by calling <a class="el" href="group__basics.html#gac4744322896863a159a920ce798fe718" title="Create a service that forwards O2 messages to an OSC server. ">o2_osc_delegate()</a> on the local host, but service names must be unique across all hosts of an O2 application, so you must be careful to use distinct service names. In constrast, <a class="el" href="group__basics.html#ga54091327d07dce33b210d65691fe81bb" title="Send an OSC message. ">o2_osc_message_send()</a> will return an error if the OSC connection was not made locally; (3) This function cannot be used to send an OSC bundle. To send a bundle, create an O2 bundle message and send it as an O2 message to an OSC service. The bundle will be converted to an OSC bundle.</p>
-<p>Note: Before calling <a class="el" href="group__basics.html#ga54091327d07dce33b210d65691fe81bb" title="Send an OSC message. ">o2_osc_message_send()</a>, you should first use <a class="el" href="group__basics.html#gac4744322896863a159a920ce798fe718" title="Create a service that forwards O2 messages to an OSC server. ">o2_osc_delegate()</a> to connect to the osc service and give it a service name. Then you can use the service name to send the message. The choice of UDP or TCP depends on the tcp_flag parameter to <a class="el" href="group__basics.html#gac4744322896863a159a920ce798fe718" title="Create a service that forwards O2 messages to an OSC server. ">o2_osc_delegate()</a>.</p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">service_name</td><td>The o2 name for the remote osc server, named by calling <a class="el" href="group__basics.html#gac4744322896863a159a920ce798fe718" title="Create a service that forwards O2 messages to an OSC server. ">o2_osc_delegate()</a>. Do not prefix this name with "/". </td></tr>
-    <tr><td class="paramname">path</td><td>The osc path, starting with "/". </td></tr>
-    <tr><td class="paramname">typestring</td><td>The type string for the message, not including ",". </td></tr>
-    <tr><td class="paramname">...</td><td>The data values to be transmitted.</td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>O2_SUCCESS if success, O2_FAIL if not. </dd></dl>
-
-</div>
-</div>
 <a class="anchor" id="ga5cc673b5516b18a164b5977798cf9b50"></a>
 <div class="memitem">
 <div class="memproto">
@@ -399,7 +344,7 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not. </dd></dl>
 
 </div>
 </div>
@@ -444,7 +389,7 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not. </dd></dl>
 
 </div>
 </div>
@@ -520,7 +465,6 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>O2_SUCCESS (0) indicates that the message was succesfully handled. This value is currently ignored. </dd></dl>
 
 </div>
 </div>
@@ -661,7 +605,7 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
   </dd>
 </dl>
 <p>rock an arbitrary value that is passed to the gettime function. This may be need to provide context. Use NULL if no context is required.</p>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not. </dd></dl>
 
 </div>
 </div>
@@ -746,7 +690,7 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
 
 <p>release the memory and shut down O2. </p>
 <p>Close all sockets, free all memory, and restore critical variables so that O2 behaves as if it was never initialized.</p>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not. </dd></dl>
 
 </div>
 </div>
@@ -772,7 +716,7 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if an error occurs, #O2_RUNNING if already running, <a class="el" href="group__returncodes.html#ga8c9ef89180c2df1a5aa09f3bda593742" title="an error return value for o2_initialize(): invalid name parameter. ">O2_BAD_NAME</a> if <code>application_name</code> is NULL. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if an error occurs, #O2_RUNNING if already running, <a class="el" href="group__returncodes.html#ga8c9ef89180c2df1a5aa09f3bda593742" title="an error return value for o2_initialize(): invalid name parameter. ">O2_BAD_NAME</a> if <code>application_name</code> is NULL. </dd></dl>
 
 </div>
 </div>
@@ -852,7 +796,7 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not.</dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not.</dd></dl>
 <p>After the call, the <code>msg</code> parameter is "owned" by O2, which will free it. Therefore, do <em>not</em> free msg after calling <a class="el" href="group__basics.html#ga7546187d25f2de9550078ddae9ce504e" title="Send an O2 message. (See also macros o2_send and o2_send_cmd). ">o2_message_send()</a>. </p>
 
 </div>
@@ -967,7 +911,7 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not.</dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not.</dd></dl>
 <p>If <code>tcp_flag</code> is set, a TCP connection will be established with the OSC server. When the created service receives any O2 messages, it will send the message to the OSC server. If the incoming message has a timestamp for some future time, the message will be held until that time, then sent to the OSC server. (Ideally, O2 could convert the message to an OSC timestamped bundle and send it immediately to achieve precise forward-synchronous timing, but this requires clock synchronization with the OSC server, which is normally unimplemented.)</p>
 <p>If this is a tcp connection, close it by calling <a class="el" href="group__basics.html#ga316a1d88c3c728d6c0a4ba49228a8f35" title="Remove a local service. ">o2_service_free()</a>. </p>
 
@@ -995,7 +939,7 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not. </dd></dl>
 
 </div>
 </div>
@@ -1039,7 +983,7 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not. </dd></dl>
 
 </div>
 </div>
@@ -1196,7 +1140,7 @@ messages" queue and delivered after the handler returns. </p>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>#O2_SUCCSS if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>#O2_SUCCSS if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not. </dd></dl>
 
 </div>
 </div>
@@ -1215,14 +1159,14 @@ messages" queue and delivered after the handler returns. </p>
 </div><div class="memdoc">
 
 <p>Add a service to the current application. </p>
-<p>Once created, services are "advertised" to other processes with matching application names, and messages are delivered accordingly. E.g. to handle messages addressed to "/synth/volume" you call </p><div class="fragment"><div class="line"><a class="code" href="group__basics.html#gacd22196d91300f33ba67d596549d2a69">o2_service_new</a>(<span class="stringliteral">&quot;synth&quot;</span>);</div><div class="line"><a class="code" href="group__basics.html#ga5681e480b085ea6552a2456f1a3709de">o2_method_new</a>(<span class="stringliteral">&quot;/synth/volume&quot;</span>, <span class="stringliteral">&quot;f&quot;</span>, synth_volume_handler, NULL, NULL, TRUE);</div></div><!-- fragment --><p> and define <code>synth_volume_handler</code> (see the type declaration for <a class="el" href="group__basics.html#ga1c378242c7b1a32846b0bbbfa6d795a7" title="callback function to receive an O2 message ">o2_method_handler</a> and <a class="el" href="group__basics.html#ga5681e480b085ea6552a2456f1a3709de" title="Add a handler for an address. ">o2_method_new()</a>) Normally, services should be <em>unique</em> across the application. If #service_name is already locally defined in this process (by a previous call to <a class="el" href="group__basics.html#gacd22196d91300f33ba67d596549d2a69" title="Add a service to the current application. ">o2_service_new</a> or <a class="el" href="group__basics.html#gac4744322896863a159a920ce798fe718" title="Create a service that forwards O2 messages to an OSC server. ">o2_osc_delegate</a>), this call will fail, returning #O2_SERVICE_EXISTS. If matching service names are defined in two different processes, the process with the highest IP and port number (lexicographically) will provide the service. However, due to the distributed and asynchronous nature of O2, there may be some intervening time (typically a fraction of a second) during which a service is handled by two different processes. Furthermore, the switch to a new service provider could redirect a stream of messages, causing unexpected behavior in the application.</p>
+<p>Once created, services are "advertised" to other processes with matching application names, and messages are delivered accordingly. E.g. to handle messages addressed to "/synth/volume" you call </p><div class="fragment"><div class="line"><a class="code" href="group__basics.html#gacd22196d91300f33ba67d596549d2a69">o2_service_new</a>(<span class="stringliteral">&quot;synth&quot;</span>);</div><div class="line"><a class="code" href="group__basics.html#ga5681e480b085ea6552a2456f1a3709de">o2_method_new</a>(<span class="stringliteral">&quot;/synth/volume&quot;</span>, <span class="stringliteral">&quot;f&quot;</span>, synth_volume_handler, NULL, NULL, TRUE);</div></div><!-- fragment --><p> and define <code>synth_volume_handler</code> (see the type declaration for <a class="el" href="group__basics.html#ga1c378242c7b1a32846b0bbbfa6d795a7" title="callback function to receive an O2 message ">o2_method_handler</a> and <a class="el" href="group__basics.html#ga5681e480b085ea6552a2456f1a3709de" title="Add a handler for an address. ">o2_method_new()</a>) Normally, services should be <em>unique</em> across the application. If #service_name is already locally defined in this process (by a previous call to <a class="el" href="group__basics.html#gacd22196d91300f33ba67d596549d2a69" title="Add a service to the current application. ">o2_service_new</a> or <a class="el" href="group__basics.html#gac4744322896863a159a920ce798fe718" title="Create a service that forwards O2 messages to an OSC server. ">o2_osc_delegate</a>), this call will fail, returning <a class="el" href="group__returncodes.html#ga7e7ac8498a39d0d9ffcaa505570795cb" title="an error return value: attempt to create a local service when one exists already ">O2_SERVICE_EXISTS</a>. If matching service names are defined in two different processes, the process with the highest IP and port number (lexicographically) will provide the service. However, due to the distributed and asynchronous nature of O2, there may be some intervening time (typically a fraction of a second) during which a service is handled by two different processes. Furthermore, the switch to a new service provider could redirect a stream of messages, causing unexpected behavior in the application.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">service_name</td><td>the name of the service</td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not. </dd></dl>
 
 </div>
 </div>
@@ -1275,26 +1219,26 @@ messages" queue and delivered after the handler returns. </p>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd><ul>
-<li><a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if no service is found,</li>
-<li><a class="el" href="group__returncodes.html#gafbebc6ebd6db0ab58a673502c46d2196" title="return value for o2_status() function: this is a local service but clock sync has not yet been establ...">O2_LOCAL_NOTIME</a> if the service is local but we have no clock sync yet,</li>
-<li><a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status() function: this is a remote service but clock sync has not yet been estab...">O2_REMOTE_NOTIME</a> if the service is remote but we have no clock sync yet,</li>
-<li><a class="el" href="group__returncodes.html#ga9574f9ef2e2e2076ce70158b8065b92a" title="return value for o2_status() function: this service is connected. The service is attached to this pro...">O2_BRIDGE_NOTIME</a> if service is attached by a non-IP link, but we have no clock sync yet (if the non-IP connection is not handled by this process, the service status will be <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status() function: this is a remote service but clock sync has not yet been estab...">O2_REMOTE_NOTIME</a>),</li>
-<li><a class="el" href="group__returncodes.html#ga68ce31f5324da491a1f0ef28514277d9" title="return value for o2_status() function: this service is connected. The service is local and forwards m...">O2_TO_OSC_NOTIME</a> if service forwards to an OSC server but we have no clock sync yet (if the OSC connection is not handled by this process, the service status will be <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status() function: this is a remote service but clock sync has not yet been estab...">O2_REMOTE_NOTIME</a>),</li>
-<li><a class="el" href="group__returncodes.html#gaab995c8652da0f9c9b093c1218a0910c" title="return value for o2_status() function: this is a local service and clock sync has been established...">O2_LOCAL</a> if service is local and we have clock sync,</li>
-<li><a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status() function: this is a remote service and clock sync has been established...">O2_REMOTE</a> if service is remote and we have clock sync,</li>
-<li><a class="el" href="group__returncodes.html#ga632b32393049a19bbf6c43c112da82f5" title="return value for o2_status() function: this service is connected. The service is attached by non-IP l...">O2_BRIDGE</a> if service is handled locally by forwarding to an attached non-IP link, and we have clock sync. (If the non-IP connection is not local, the service status will be <a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status() function: this is a remote service and clock sync has been established...">O2_REMOTE</a>).</li>
-<li><a class="el" href="group__returncodes.html#gaf8c31b4fcc08f69cdd30751108fc044b" title="return value for o2_status() function: this service is connected and clock sync has been established...">O2_TO_OSC</a> if service is handled locally by forwarding to an OSC server and this process has clock sync. (If the OSC connection is not handled locally, the service status will be <a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status() function: this is a remote service and clock sync has been established...">O2_REMOTE</a>).</li>
+<li><a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if no service is found,</li>
+<li><a class="el" href="group__returncodes.html#gafbebc6ebd6db0ab58a673502c46d2196" title="return value for o2_status(): local service, no clock sync yet ">O2_LOCAL_NOTIME</a> if the service is local but we have no clock sync yet,</li>
+<li><a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status(): remote service but no clock sync yet ">O2_REMOTE_NOTIME</a> if the service is remote but we have no clock sync yet,</li>
+<li><a class="el" href="group__returncodes.html#ga9574f9ef2e2e2076ce70158b8065b92a" title="return value for o2_status(): service is connected but no clock sync yet. ">O2_BRIDGE_NOTIME</a> if service is attached by a non-IP link, but we have no clock sync yet (if the non-IP connection is not handled by this process, the service status will be <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status(): remote service but no clock sync yet ">O2_REMOTE_NOTIME</a>),</li>
+<li><a class="el" href="group__returncodes.html#ga68ce31f5324da491a1f0ef28514277d9" title="return value for o2_status(): service is connected but no clock sync yet. ">O2_TO_OSC_NOTIME</a> if service forwards to an OSC server but we have no clock sync yet (if the OSC connection is not handled by this process, the service status will be <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status(): remote service but no clock sync yet ">O2_REMOTE_NOTIME</a>),</li>
+<li><a class="el" href="group__returncodes.html#gaab995c8652da0f9c9b093c1218a0910c" title="return value for o2_status(): local service with clock sync. ">O2_LOCAL</a> if service is local and we have clock sync,</li>
+<li><a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status(): remote service with clock sync. ">O2_REMOTE</a> if service is remote and we have clock sync,</li>
+<li><a class="el" href="group__returncodes.html#ga632b32393049a19bbf6c43c112da82f5" title="return value for o2_status(): connected with clock sync. ">O2_BRIDGE</a> if service is handled locally by forwarding to an attached non-IP link, and we have clock sync. (If the non-IP connection is not local, the service status will be <a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status(): remote service with clock sync. ">O2_REMOTE</a>).</li>
+<li><a class="el" href="group__returncodes.html#gaf8c31b4fcc08f69cdd30751108fc044b" title="return value for o2_status(): connected with clock sync. ">O2_TO_OSC</a> if service is handled locally by forwarding to an OSC server and this process has clock sync. (If the OSC connection is not handled locally, the service status will be <a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status(): remote service with clock sync. ">O2_REMOTE</a>).</li>
 </ul>
 </dd>
 <dd>
 Note that codes are carefully ordered to allow testing for categories:<ul>
 <li>to test if delivery is possible with a zero (immediate) timestamp, use <code>o2_status(service) &gt; O2_FAIL</code>, <code>o2_status(service) &gt;= 0</code>, or <code>o2_status(service) &gt;= O2_LOCAL_NOTIME</code>.</li>
-<li>to test if delivery is possible with a non-zero timestamp, use <code>o2_status(service) &gt;= O2_LOCAL</code>. Note that status can change over time, e.g. the status of a remote service will be <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> until the service is discovered. It will then change to <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status() function: this is a remote service but clock sync has not yet been estab...">O2_REMOTE_NOTIME</a> until both the sender and receiver achieve clock synchronization and share their synchronized status, and finally the status will become <a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status() function: this is a remote service and clock sync has been established...">O2_REMOTE</a>.</li>
+<li>to test if delivery is possible with a non-zero timestamp, use <code>o2_status(service) &gt;= O2_LOCAL</code>. Note that status can change over time, e.g. the status of a remote service will be <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> until the service is discovered. It will then change to <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status(): remote service but no clock sync yet ">O2_REMOTE_NOTIME</a> until both the sender and receiver achieve clock synchronization and share their synchronized status, and finally the status will become <a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status(): remote service with clock sync. ">O2_REMOTE</a>.</li>
 </ul>
 </dd></dl>
 <p>In the cases with no clock sync, it is safe to send an immediate message with timestamp = 0, but non-zero timestamps are meaningless because either the sending process has no way to obtain a valid timestamp or the receiver has no way to schedule delivery according to a timestamp.</p>
 <p>Messages to services are <em>dropped</em> if the service has not been discovered. Timestamped messages (timestamp != 0) are <em>dropped</em> if the sender and receiver are not clock-synchronized. (<code>o2_status(service) &gt;= O2_LOCAL</code>).</p>
-<p>A special case is with <code>BRIDGE</code> and <code>OSC</code> services. In these cases, the O2 process offering the service can either schedule the messages locally, sending them according to the timestamp (and suffering some network latency), or if the destination process is synchronized, messages can be forwarded immediately for more precise scheduling at their final destination. O2 does not provide any way for clients/users to determine which of these methods is in effect, and in the case of messages being forwarded by an intermediary O2 process, the originator of the message cannot determine whether the service is offered by an O2 server on the local network, by an OSC server, or through a bridge to another network such as Bluetooth. The status at the originator will be simply <a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status() function: this is a remote service and clock sync has been established...">O2_REMOTE</a> or <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status() function: this is a remote service but clock sync has not yet been estab...">O2_REMOTE_NOTIME</a>. </p>
+<p>A special case is with <code>BRIDGE</code> and <code>OSC</code> services. In these cases, the O2 process offering the service can either schedule the messages locally, sending them according to the timestamp (and suffering some network latency), or if the destination process is synchronized, messages can be forwarded immediately for more precise scheduling at their final destination. O2 does not provide any way for clients/users to determine which of these methods is in effect, and in the case of messages being forwarded by an intermediary O2 process, the originator of the message cannot determine whether the service is offered by an O2 server on the local network, by an OSC server, or through a bridge to another network such as Bluetooth. The status at the originator will be simply <a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status(): remote service with clock sync. ">O2_REMOTE</a> or <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status(): remote service but no clock sync yet ">O2_REMOTE_NOTIME</a>. </p>
 
 </div>
 </div>

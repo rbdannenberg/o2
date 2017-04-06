@@ -170,7 +170,8 @@ void o2_debug_flags(const char *flags);
 #define O2_SUCCESS 0    ///< function was successful
 
 /// \brief an error return value: a non-specific error occurred.
-/// In general, any return value <0 indicates an error. Testing for
+///
+/// In general, any return value < 0 indicates an error. Testing for
 /// only O2_FAIL will not detect more specific error return values
 /// such as O2_SERVICE_CONFLICT, O2_NO_MEMORY, etc.
 #define O2_FAIL (-1)
@@ -202,15 +203,15 @@ void o2_debug_flags(const char *flags);
 /// an error return value for o2_initialize(): the socket is closed.
 #define O2_TCP_HUP (-9)
 
-// an error return value indicating inet_pton() failed to convert a
-// string to an IP address
+/// \brief an error return value indicating inet_pton() failed to convert a
+/// string to an IP address
 #define O2_HOSTNAME_TO_NETADDR_FAIL (-10)
 
 /// an error return value: attempt to make a TCP connection failed
 #define O2_TCP_CONNECT_FAIL (-11)
 
-/// an error return value: message was not scheduled or delivered because
-/// the current time is not available
+/// \brief an error return value: message was not scheduled or delivered
+/// because the current time is not available
 #define O2_NO_CLOCK (-12)
 
 /// an error return value: no handler for an address
@@ -234,19 +235,25 @@ void o2_debug_flags(const char *flags);
 
 // Status return codes for o2_status function:
 
-/// \brief return value for o2_status() function: this is a local service
+/// \brief return value for o2_status(): local service, no clock sync yet
+///
+/// This is a local service
 /// but clock sync has not yet been established so messages with non-zero
 /// timestamps will be dropped.
 #define O2_LOCAL_NOTIME 0
 
-/// \brief return value for o2_status() function: this is a remote service
-/// but clock sync has not yet been established. The remote service
+/// \brief return value for o2_status(): remote service but no clock sync yet
+///
+/// This is a remote service but clock sync has not yet been established so
+/// messages with non-zero timestamps will be dropped. The remote service
 /// may represent a bridge to a non-IP destination or to an OSC
-/// server. Messages to this service with non-zero timestamps will be dropped.
+/// server.
 #define O2_REMOTE_NOTIME 1
 
-/// \brief return value for o2_status() function: this service is connected.
-/// The service is attached to this process by non-IP link. Clock sync
+/// \brief return value for o2_status(): service is connected but no
+///    clock sync yet.
+///
+/// The service is attached to this process by a non-IP link. Clock sync
 /// has not yet been established between the master clock and this
 /// process, so non-zero timestamped messages to this service will be
 /// dropped. Note that within other processes,
@@ -257,7 +264,9 @@ void o2_debug_flags(const char *flags);
 /// (and will not) schedule a timestamped message for timed delivery.
 #define O2_BRIDGE_NOTIME 2
 
-/// \brief return value for o2_status() function: this service is connected.
+/// \brief return value for o2_status(): service is connected but no
+///    clock sync yet.
+///
 /// The service is local and forwards messages to an OSC server. The status
 /// of the OSC server is not reported by O2 (and in the typical UDP case,
 /// there is no way to determine if the OSC server is operational, so
@@ -272,21 +281,25 @@ void o2_debug_flags(const char *flags);
 /// (and will not) schedule a timestamped message for timed delivery.
 #define O2_TO_OSC_NOTIME 3
 
-/// \brief return value for o2_status() function: this is a local service
-/// and clock sync has been established. Note that even though the
+/// \brief return value for o2_status(): local service with clock sync.
+///
+/// Note that even though the
 /// service is local to the process and therefore shares a local
 /// clock, clocks are not considered to be synchronized until the
 /// local clock is synchronized to the master clock. If this process
 /// provides the master clock, it is considered to be synchronized
-/// immediately.)
+/// immediately.
 #define O2_LOCAL 4
 
-/// \brief return value for o2_status() function: this is a remote service
-/// and clock sync has been established.
+/// \brief return value for o2_status(): remote service with clock sync.
+///
+/// Messages with non-zero timestamps can be sent because
+/// clock sync has been established.
 #define O2_REMOTE 5
 
-/// \brief return value for o2_status() function: this service is connected.
-/// The service is attached by non-IP link, and this process is synchronized.
+/// \brief return value for o2_status(): connected with clock sync.
+///
+/// The service is attached by a non-IP link, and this process is synchronized.
 /// If the bridged process is also synchronized, timed messages are
 /// sent immediately and dispatched according to the synchronized
 /// clock; if the bridged process is *not* synchronized, timed
@@ -294,8 +307,8 @@ void o2_debug_flags(const char *flags);
 /// timestamp, resulting in some added network latency.
 #define O2_BRIDGE 6
 
-/// \brief return value for o2_status() function: this service is
-/// connected and clock sync has been established.
+/// \brief return value for o2_status(): connected with clock sync.
+///
 /// The service forwards messages directly from the current process
 /// to an OSC server, and the process is synchronized. The status of
 /// the OSC server is not reported by O2 (and in the typical UDP case,

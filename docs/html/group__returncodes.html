@@ -91,9 +91,8 @@ Macros</h2></td></tr>
 #define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079">O2_SUCCESS</a>&#160;&#160;&#160;0</td></tr>
 <tr class="memdesc:gabdd1c898b818fc47b744e42b401a3079"><td class="mdescLeft">&#160;</td><td class="mdescRight">function was successful <br /></td></tr>
 <tr class="separator:gabdd1c898b818fc47b744e42b401a3079"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga8f5f040b03042ee184f7f5bae734026d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga8f5f040b03042ee184f7f5bae734026d"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d">O2_FAIL</a>&#160;&#160;&#160;(-1)</td></tr>
-<tr class="memdesc:ga8f5f040b03042ee184f7f5bae734026d"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an error. Testing for only O2_FAIL will not detect more specific error return values such as O2_SERVICE_CONFLICT, O2_NO_MEMORY, etc. <br /></td></tr>
+<tr class="memitem:ga8f5f040b03042ee184f7f5bae734026d"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d">O2_FAIL</a>&#160;&#160;&#160;(-1)</td></tr>
+<tr class="memdesc:ga8f5f040b03042ee184f7f5bae734026d"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value: a non-specific error occurred.  <a href="#ga8f5f040b03042ee184f7f5bae734026d">More...</a><br /></td></tr>
 <tr class="separator:ga8f5f040b03042ee184f7f5bae734026d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga12eecb8f0dbb107d6195888352908d45"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga12eecb8f0dbb107d6195888352908d45"></a>
 #define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga12eecb8f0dbb107d6195888352908d45">O2_SERVICE_CONFLICT</a>&#160;&#160;&#160;(-2)</td></tr>
@@ -128,63 +127,203 @@ Macros</h2></td></tr>
 <tr class="memdesc:gaa8e79156b75ed0b9597cca762e5a4c90"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value for <a class="el" href="group__basics.html#ga54991832ea34fc9a0a14b5a6669c3e6c" title="Start O2. ">o2_initialize()</a>: the socket is closed. <br /></td></tr>
 <tr class="separator:gaa8e79156b75ed0b9597cca762e5a4c90"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gae8c46058549b3b02cb4863eb72105af1"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="gae8c46058549b3b02cb4863eb72105af1"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><b>O2_HOSTNAME_TO_NETADDR_FAIL</b>&#160;&#160;&#160;(-10)</td></tr>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gae8c46058549b3b02cb4863eb72105af1">O2_HOSTNAME_TO_NETADDR_FAIL</a>&#160;&#160;&#160;(-10)</td></tr>
+<tr class="memdesc:gae8c46058549b3b02cb4863eb72105af1"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value indicating inet_pton() failed to convert a string to an IP address <br /></td></tr>
 <tr class="separator:gae8c46058549b3b02cb4863eb72105af1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gaf7f2c7273d38f6ca2a1782cf0c92410b"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="gaf7f2c7273d38f6ca2a1782cf0c92410b"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><b>O2_TCP_CONNECT_FAIL</b>&#160;&#160;&#160;(-11)</td></tr>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gaf7f2c7273d38f6ca2a1782cf0c92410b">O2_TCP_CONNECT_FAIL</a>&#160;&#160;&#160;(-11)</td></tr>
+<tr class="memdesc:gaf7f2c7273d38f6ca2a1782cf0c92410b"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value: attempt to make a TCP connection failed <br /></td></tr>
 <tr class="separator:gaf7f2c7273d38f6ca2a1782cf0c92410b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga40089bbfa3e61c35ca07d1fac4fbaef9"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga40089bbfa3e61c35ca07d1fac4fbaef9"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><b>O2_NO_CLOCK</b>&#160;&#160;&#160;(-12)</td></tr>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga40089bbfa3e61c35ca07d1fac4fbaef9">O2_NO_CLOCK</a>&#160;&#160;&#160;(-12)</td></tr>
+<tr class="memdesc:ga40089bbfa3e61c35ca07d1fac4fbaef9"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value: message was not scheduled or delivered because the current time is not available <br /></td></tr>
 <tr class="separator:ga40089bbfa3e61c35ca07d1fac4fbaef9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga210fa4d74159d2734f604cacf0ada4cc"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga210fa4d74159d2734f604cacf0ada4cc"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><b>O2_NO_HANDLER</b>&#160;&#160;&#160;(-13)</td></tr>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga210fa4d74159d2734f604cacf0ada4cc">O2_NO_HANDLER</a>&#160;&#160;&#160;(-13)</td></tr>
+<tr class="memdesc:ga210fa4d74159d2734f604cacf0ada4cc"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value: no handler for an address <br /></td></tr>
 <tr class="separator:ga210fa4d74159d2734f604cacf0ada4cc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga5ad018f2d0b0dc692d4ff115da658cf1"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga5ad018f2d0b0dc692d4ff115da658cf1"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><b>O2_INVALID_MSG</b>&#160;&#160;&#160;(-14)</td></tr>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga5ad018f2d0b0dc692d4ff115da658cf1">O2_INVALID_MSG</a>&#160;&#160;&#160;(-14)</td></tr>
+<tr class="memdesc:ga5ad018f2d0b0dc692d4ff115da658cf1"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value: an O2 message is invalid <br /></td></tr>
 <tr class="separator:ga5ad018f2d0b0dc692d4ff115da658cf1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gaeeae127d2a90eeba9efa3dc1511fe2f8"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="gaeeae127d2a90eeba9efa3dc1511fe2f8"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><b>O2_SEND_FAIL</b>&#160;&#160;&#160;(-15)</td></tr>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gaeeae127d2a90eeba9efa3dc1511fe2f8">O2_SEND_FAIL</a>&#160;&#160;&#160;(-15)</td></tr>
+<tr class="memdesc:gaeeae127d2a90eeba9efa3dc1511fe2f8"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value: could not write to socket or send datagram <br /></td></tr>
 <tr class="separator:gaeeae127d2a90eeba9efa3dc1511fe2f8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga3d42c5f2867c5d25fcf2686539626005"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga3d42c5f2867c5d25fcf2686539626005"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><b>O2_BAD_SERVICE_NAME</b>&#160;&#160;&#160;(-16)</td></tr>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga3d42c5f2867c5d25fcf2686539626005">O2_BAD_SERVICE_NAME</a>&#160;&#160;&#160;(-16)</td></tr>
+<tr class="memdesc:ga3d42c5f2867c5d25fcf2686539626005"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value: a service name was NULL or contained a slash (/) <br /></td></tr>
 <tr class="separator:ga3d42c5f2867c5d25fcf2686539626005"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga7e7ac8498a39d0d9ffcaa505570795cb"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga7e7ac8498a39d0d9ffcaa505570795cb"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><b>O2_SERVICE_EXISTS</b>&#160;&#160;&#160;(-17)</td></tr>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga7e7ac8498a39d0d9ffcaa505570795cb">O2_SERVICE_EXISTS</a>&#160;&#160;&#160;(-17)</td></tr>
+<tr class="memdesc:ga7e7ac8498a39d0d9ffcaa505570795cb"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value: attempt to create a local service when one exists already <br /></td></tr>
 <tr class="separator:ga7e7ac8498a39d0d9ffcaa505570795cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gafbebc6ebd6db0ab58a673502c46d2196"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="gafbebc6ebd6db0ab58a673502c46d2196"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gafbebc6ebd6db0ab58a673502c46d2196">O2_LOCAL_NOTIME</a>&#160;&#160;&#160;0</td></tr>
-<tr class="memdesc:gafbebc6ebd6db0ab58a673502c46d2196"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a> function: this is a local service but clock sync has not yet been established so messages with non-zero timestamps will be dropped. <br /></td></tr>
+<tr class="memitem:ga4f21d161dff904ec70556f18c9095549"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga4f21d161dff904ec70556f18c9095549"></a>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga4f21d161dff904ec70556f18c9095549">O2_NOT_INITIALIZED</a>&#160;&#160;&#160;(-18)</td></tr>
+<tr class="memdesc:ga4f21d161dff904ec70556f18c9095549"><td class="mdescLeft">&#160;</td><td class="mdescRight">an error return value: O2 has not been initialized <br /></td></tr>
+<tr class="separator:ga4f21d161dff904ec70556f18c9095549"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gafbebc6ebd6db0ab58a673502c46d2196"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gafbebc6ebd6db0ab58a673502c46d2196">O2_LOCAL_NOTIME</a>&#160;&#160;&#160;0</td></tr>
+<tr class="memdesc:gafbebc6ebd6db0ab58a673502c46d2196"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: local service, no clock sync yet  <a href="#gafbebc6ebd6db0ab58a673502c46d2196">More...</a><br /></td></tr>
 <tr class="separator:gafbebc6ebd6db0ab58a673502c46d2196"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gab65d15242eba537719936420ffea3766"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="gab65d15242eba537719936420ffea3766"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766">O2_REMOTE_NOTIME</a>&#160;&#160;&#160;1</td></tr>
-<tr class="memdesc:gab65d15242eba537719936420ffea3766"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a> function: this is a remote service but clock sync has not yet been established. The remote service may represent a bridge to a non-IP destination or to an OSC server. Messages to this service with non-zero timestamps will be dropped. <br /></td></tr>
+<tr class="memitem:gab65d15242eba537719936420ffea3766"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766">O2_REMOTE_NOTIME</a>&#160;&#160;&#160;1</td></tr>
+<tr class="memdesc:gab65d15242eba537719936420ffea3766"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: remote service but no clock sync yet  <a href="#gab65d15242eba537719936420ffea3766">More...</a><br /></td></tr>
 <tr class="separator:gab65d15242eba537719936420ffea3766"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga9574f9ef2e2e2076ce70158b8065b92a"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga9574f9ef2e2e2076ce70158b8065b92a"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga9574f9ef2e2e2076ce70158b8065b92a">O2_BRIDGE_NOTIME</a>&#160;&#160;&#160;2</td></tr>
-<tr class="memdesc:ga9574f9ef2e2e2076ce70158b8065b92a"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a> function: this service is connected. The service is attached to this process by non-IP link. Clock sync has not yet been established between the master clock and this process, so non-zero timestamped messages to this service will be dropped. Note that within other processes, the status for this service will be <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status() function: this is a remote service but clock sync has not yet been estab...">O2_REMOTE_NOTIME</a> rather than <a class="el" href="group__returncodes.html#ga9574f9ef2e2e2076ce70158b8065b92a" title="return value for o2_status() function: this service is connected. The service is attached to this pro...">O2_BRIDGE_NOTIME</a>. Note also that O2 does not require the remote bridged process to have a synchronized clock, so "NOTIME" only means that <em>this</em> process is not synchronized and therefore cannot (and will not) schedule a timestamped message for timed delivery. <br /></td></tr>
+<tr class="memitem:ga9574f9ef2e2e2076ce70158b8065b92a"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga9574f9ef2e2e2076ce70158b8065b92a">O2_BRIDGE_NOTIME</a>&#160;&#160;&#160;2</td></tr>
+<tr class="memdesc:ga9574f9ef2e2e2076ce70158b8065b92a"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: service is connected but no clock sync yet.  <a href="#ga9574f9ef2e2e2076ce70158b8065b92a">More...</a><br /></td></tr>
 <tr class="separator:ga9574f9ef2e2e2076ce70158b8065b92a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga68ce31f5324da491a1f0ef28514277d9"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga68ce31f5324da491a1f0ef28514277d9"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga68ce31f5324da491a1f0ef28514277d9">O2_TO_OSC_NOTIME</a>&#160;&#160;&#160;3</td></tr>
-<tr class="memdesc:ga68ce31f5324da491a1f0ef28514277d9"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a> function: this service is connected. The service is local and forwards messages to an OSC server. The status of the OSC server is not reported by O2 (and in the typical UDP case, there is no way to determine if the OSC server is operational, so "connected" may just mean that the service has been defined). Clock sync has not yet been established between the master clock and this process, so messages with non-zero timestamps to this service will be dropped. Note that within other processes, the status for this service will be <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status() function: this is a remote service but clock sync has not yet been estab...">O2_REMOTE_NOTIME</a> rather than <a class="el" href="group__returncodes.html#ga68ce31f5324da491a1f0ef28514277d9" title="return value for o2_status() function: this service is connected. The service is local and forwards m...">O2_TO_OSC_NOTIME</a>. Note also that O2 does not require the OSC server to have a synchronized clock, so "NOTIME" only means that <em>this</em> process is not synchronized to O2 and therefore cannot (and will not) schedule a timestamped message for timed delivery. <br /></td></tr>
+<tr class="memitem:ga68ce31f5324da491a1f0ef28514277d9"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga68ce31f5324da491a1f0ef28514277d9">O2_TO_OSC_NOTIME</a>&#160;&#160;&#160;3</td></tr>
+<tr class="memdesc:ga68ce31f5324da491a1f0ef28514277d9"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: service is connected but no clock sync yet.  <a href="#ga68ce31f5324da491a1f0ef28514277d9">More...</a><br /></td></tr>
 <tr class="separator:ga68ce31f5324da491a1f0ef28514277d9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaab995c8652da0f9c9b093c1218a0910c"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="gaab995c8652da0f9c9b093c1218a0910c"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gaab995c8652da0f9c9b093c1218a0910c">O2_LOCAL</a>&#160;&#160;&#160;4</td></tr>
-<tr class="memdesc:gaab995c8652da0f9c9b093c1218a0910c"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a> function: this is a local service and clock sync has been established. Note that even though the service is local to the process and therefore shares a local clock, clocks are not considered to be synchronized until the local clock is synchronized to the master clock. If this process provides the master clock, it is considered to be synchronized immediately.) <br /></td></tr>
+<tr class="memitem:gaab995c8652da0f9c9b093c1218a0910c"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gaab995c8652da0f9c9b093c1218a0910c">O2_LOCAL</a>&#160;&#160;&#160;4</td></tr>
+<tr class="memdesc:gaab995c8652da0f9c9b093c1218a0910c"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: local service with clock sync.  <a href="#gaab995c8652da0f9c9b093c1218a0910c">More...</a><br /></td></tr>
 <tr class="separator:gaab995c8652da0f9c9b093c1218a0910c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga4734fb75ba6972f958f09a027445a1f5"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga4734fb75ba6972f958f09a027445a1f5"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5">O2_REMOTE</a>&#160;&#160;&#160;5</td></tr>
-<tr class="memdesc:ga4734fb75ba6972f958f09a027445a1f5"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a> function: this is a remote service and clock sync has been established. <br /></td></tr>
+<tr class="memitem:ga4734fb75ba6972f958f09a027445a1f5"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5">O2_REMOTE</a>&#160;&#160;&#160;5</td></tr>
+<tr class="memdesc:ga4734fb75ba6972f958f09a027445a1f5"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: remote service with clock sync.  <a href="#ga4734fb75ba6972f958f09a027445a1f5">More...</a><br /></td></tr>
 <tr class="separator:ga4734fb75ba6972f958f09a027445a1f5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga632b32393049a19bbf6c43c112da82f5"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga632b32393049a19bbf6c43c112da82f5"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga632b32393049a19bbf6c43c112da82f5">O2_BRIDGE</a>&#160;&#160;&#160;6</td></tr>
-<tr class="memdesc:ga632b32393049a19bbf6c43c112da82f5"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a> function: this service is connected. The service is attached by non-IP link, and this process is synchronized. If the bridged process is also synchronized, timed messages are sent immediately and dispatched according to the synchronized clock; if the bridged process is <em>not</em> synchronized, timed messages are scheduled locally and sent according to the timestamp, resulting in some added network latency. <br /></td></tr>
+<tr class="memitem:ga632b32393049a19bbf6c43c112da82f5"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#ga632b32393049a19bbf6c43c112da82f5">O2_BRIDGE</a>&#160;&#160;&#160;6</td></tr>
+<tr class="memdesc:ga632b32393049a19bbf6c43c112da82f5"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: connected with clock sync.  <a href="#ga632b32393049a19bbf6c43c112da82f5">More...</a><br /></td></tr>
 <tr class="separator:ga632b32393049a19bbf6c43c112da82f5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaf8c31b4fcc08f69cdd30751108fc044b"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="gaf8c31b4fcc08f69cdd30751108fc044b"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gaf8c31b4fcc08f69cdd30751108fc044b">O2_TO_OSC</a>&#160;&#160;&#160;7</td></tr>
-<tr class="memdesc:gaf8c31b4fcc08f69cdd30751108fc044b"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a> function: this service is connected and clock sync has been established. The service forwards messages directly from the current process to an OSC server, and the process is synchronized. The status of the OSC server is not reported by O2 (and in the typical UDP case, there is no way to determine if the OSC server is operational). Non-bundle O2 messages will be scheduled locally and sent according to the timestamp to avoid creating a timestamped bundle, but this will result in some added network latency. O2 bundles will be converted to OSC bundles with timestamps based on Unix gettimeofday() or Windows GetSystemTimeAsFileTime() which are then converted to OSC-compatible NTP timestamps (this is all based on liblo; timestamped message to liblo implementations of OSC will be correctly interpreted). The resulting OSC bundles are sent immediately. <br /></td></tr>
+<tr class="memitem:gaf8c31b4fcc08f69cdd30751108fc044b"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__returncodes.html#gaf8c31b4fcc08f69cdd30751108fc044b">O2_TO_OSC</a>&#160;&#160;&#160;7</td></tr>
+<tr class="memdesc:gaf8c31b4fcc08f69cdd30751108fc044b"><td class="mdescLeft">&#160;</td><td class="mdescRight">return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: connected with clock sync.  <a href="#gaf8c31b4fcc08f69cdd30751108fc044b">More...</a><br /></td></tr>
 <tr class="separator:gaf8c31b4fcc08f69cdd30751108fc044b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<h2 class="groupheader">Macro Definition Documentation</h2>
+<a class="anchor" id="ga632b32393049a19bbf6c43c112da82f5"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define O2_BRIDGE&#160;&#160;&#160;6</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: connected with clock sync. </p>
+<p>The service is attached by a non-IP link, and this process is synchronized. If the bridged process is also synchronized, timed messages are sent immediately and dispatched according to the synchronized clock; if the bridged process is <em>not</em> synchronized, timed messages are scheduled locally and sent according to the timestamp, resulting in some added network latency. </p>
+
+</div>
+</div>
+<a class="anchor" id="ga9574f9ef2e2e2076ce70158b8065b92a"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define O2_BRIDGE_NOTIME&#160;&#160;&#160;2</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: service is connected but no clock sync yet. </p>
+<p>The service is attached to this process by a non-IP link. Clock sync has not yet been established between the master clock and this process, so non-zero timestamped messages to this service will be dropped. Note that within other processes, the status for this service will be <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status(): remote service but no clock sync yet ">O2_REMOTE_NOTIME</a> rather than <a class="el" href="group__returncodes.html#ga9574f9ef2e2e2076ce70158b8065b92a" title="return value for o2_status(): service is connected but no clock sync yet. ">O2_BRIDGE_NOTIME</a>. Note also that O2 does not require the remote bridged process to have a synchronized clock, so "NOTIME" only means that <em>this</em> process is not synchronized and therefore cannot (and will not) schedule a timestamped message for timed delivery. </p>
+
+</div>
+</div>
+<a class="anchor" id="ga8f5f040b03042ee184f7f5bae734026d"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define O2_FAIL&#160;&#160;&#160;(-1)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>an error return value: a non-specific error occurred. </p>
+<p>In general, any return value &lt; 0 indicates an error. Testing for only O2_FAIL will not detect more specific error return values such as O2_SERVICE_CONFLICT, O2_NO_MEMORY, etc. </p>
+
+</div>
+</div>
+<a class="anchor" id="gaab995c8652da0f9c9b093c1218a0910c"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define O2_LOCAL&#160;&#160;&#160;4</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: local service with clock sync. </p>
+<p>Note that even though the service is local to the process and therefore shares a local clock, clocks are not considered to be synchronized until the local clock is synchronized to the master clock. If this process provides the master clock, it is considered to be synchronized immediately. </p>
+
+</div>
+</div>
+<a class="anchor" id="gafbebc6ebd6db0ab58a673502c46d2196"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define O2_LOCAL_NOTIME&#160;&#160;&#160;0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: local service, no clock sync yet </p>
+<p>This is a local service but clock sync has not yet been established so messages with non-zero timestamps will be dropped. </p>
+
+</div>
+</div>
+<a class="anchor" id="ga4734fb75ba6972f958f09a027445a1f5"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define O2_REMOTE&#160;&#160;&#160;5</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: remote service with clock sync. </p>
+<p>Messages with non-zero timestamps can be sent because clock sync has been established. </p>
+
+</div>
+</div>
+<a class="anchor" id="gab65d15242eba537719936420ffea3766"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define O2_REMOTE_NOTIME&#160;&#160;&#160;1</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: remote service but no clock sync yet </p>
+<p>This is a remote service but clock sync has not yet been established so messages with non-zero timestamps will be dropped. The remote service may represent a bridge to a non-IP destination or to an OSC server. </p>
+
+</div>
+</div>
+<a class="anchor" id="gaf8c31b4fcc08f69cdd30751108fc044b"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define O2_TO_OSC&#160;&#160;&#160;7</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: connected with clock sync. </p>
+<p>The service forwards messages directly from the current process to an OSC server, and the process is synchronized. The status of the OSC server is not reported by O2 (and in the typical UDP case, there is no way to determine if the OSC server is operational). Non-bundle O2 messages will be scheduled locally and sent according to the timestamp to avoid creating a timestamped bundle, but this will result in some added network latency. O2 bundles will be converted to OSC bundles with timestamps based on Unix gettimeofday() or Windows GetSystemTimeAsFileTime() which are then converted to OSC-compatible NTP timestamps (this is all based on liblo; timestamped message to liblo implementations of OSC will be correctly interpreted). The resulting OSC bundles are sent immediately. </p>
+
+</div>
+</div>
+<a class="anchor" id="ga68ce31f5324da491a1f0ef28514277d9"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define O2_TO_OSC_NOTIME&#160;&#160;&#160;3</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>return value for <a class="el" href="group__basics.html#ga46819340ca66f61bb17059e5542f763a" title="Check the status of the service. ">o2_status()</a>: service is connected but no clock sync yet. </p>
+<p>The service is local and forwards messages to an OSC server. The status of the OSC server is not reported by O2 (and in the typical UDP case, there is no way to determine if the OSC server is operational, so "connected" may just mean that the service has been defined). Clock sync has not yet been established between the master clock and this process, so messages with non-zero timestamps to this service will be dropped. Note that within other processes, the status for this service will be <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status(): remote service but no clock sync yet ">O2_REMOTE_NOTIME</a> rather than <a class="el" href="group__returncodes.html#ga68ce31f5324da491a1f0ef28514277d9" title="return value for o2_status(): service is connected but no clock sync yet. ">O2_TO_OSC_NOTIME</a>. Note also that O2 does not require the OSC server to have a synchronized clock, so "NOTIME" only means that <em>this</em> process is not synchronized to O2 and therefore cannot (and will not) schedule a timestamped message for timed delivery. </p>
+
+</div>
+</div>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

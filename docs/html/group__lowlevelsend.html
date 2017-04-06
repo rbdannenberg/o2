@@ -428,7 +428,7 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not. </dd></dl>
 
 </div>
 </div>
@@ -446,7 +446,7 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
 </div><div class="memdoc">
 
 <p>Prepare to build a message. </p>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. In general, any return value &lt;0 indicates an er...">O2_FAIL</a> if not.</dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not.</dd></dl>
 <p>Allocates a "hidden" message in preparation for adding parameters. After calling this, you should call <code>o2_add_</code> functions such as <a class="el" href="group__lowlevelsend.html#ga67cc4cb3061d887e10d353cde06153a8" title="add an int32 to the message (see o2_send_start()) ">o2_add_int32()</a> to add parameters. Then call <a class="el" href="group__lowlevelsend.html#ga428d8fa33d334b0106f2856b4ab3c275" title="send a message allocated by o2_send_start(). ">o2_send_finish()</a> to send the message. </p>
 
 </div>
