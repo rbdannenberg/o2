@@ -12,6 +12,7 @@ requiring portmidi library")
 
 if(WIN32)
   add_definitions("-D_CRT_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -DIS_BIG_ENDIAN=0")
+  include(static.cmake)
   set(EXTRA_LIBS winmm.lib ws2_32.lib Iphlpapi.lib)
 endif(WIN32)
 
