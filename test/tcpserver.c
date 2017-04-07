@@ -10,12 +10,7 @@
 #include "assert.h"
 
 #ifdef WIN32
-#define usleep(x) Sleep((x)/1000)
-
-void sleep(int i)
-{
-    Sleep(i * 1000);
-}
+#include "usleep.h" // special windows implementation of sleep/usleep
 #else
 #include <unistd.h>
 #endif

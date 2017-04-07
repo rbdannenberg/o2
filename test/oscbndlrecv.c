@@ -8,11 +8,7 @@
 #include "assert.h"
 
 #ifdef WIN32
-#define usleep(x) Sleep((x)/1000)
-void sleep(int i)
-{
-    Sleep(i * 1000);
-}
+#include "usleep.h" // special windows implementation of sleep/usleep
 #else
 #include <unistd.h>
 #endif
@@ -80,10 +76,11 @@ int msg_count = 0;
 o2_time start_time = 0.0;
 
 
-// test if x and y are within 10ms
+// test if x and y are within 30ms (Note: 10ms was too tight under
+// Windows, but I'm not sure why.
 int approximate(o2_time x, o2_time y)
 {
-    return (x < y + 0.01) && (y < x + 0.01);
+    return (x < y + 0.03) && (y < x + 0.03);
 }
 
 

@@ -256,8 +256,8 @@ void o2_sockets_show()
     printf("Sockets:\n");
     for (int i = 0; i < o2_fds.length; i++) {
         process_info_ptr info = GET_PROCESS(i); 
-        printf("%d: fd_index %d fd %d tag %s info %p", i, info->fds_index,
-               (DA_GET(o2_fds, struct pollfd, i))->fd,
+        printf("%d: fd_index %d fd %lld tag %s info %p", i, info->fds_index,
+               (long long) ((DA_GET(o2_fds, struct pollfd, i))->fd),
                o2_tag_to_string(info->tag), info);
         if (info->tag == TCP_SOCKET) {
             printf(" services:");

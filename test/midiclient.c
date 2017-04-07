@@ -8,7 +8,7 @@
 #include "cmtio.h"
 
 #ifdef WIN32
-#include <windows.h> 
+#include "usleep.h" // special windows implementation of sleep/usleep
 #else
 #include <unistd.h>
 #endif
