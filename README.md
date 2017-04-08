@@ -12,3 +12,5 @@ Aside from these new features, O2 owes much of its design
 to OSC and is mostly compatible with and similar to
 OSC. O2 addresses the problems of inter-process communication
 with a minimum of complexity.
+
+[O2 web pages with documentation](https://rbdannenberg.github.io/o2/)

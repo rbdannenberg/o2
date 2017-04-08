@@ -1,6 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
 <html> <head>
 <title>O2 Home</title>
+<style>body {max-width: 40em}</style>
 </head>
 
 <body>
@@ -12,4 +13,39 @@
 <li><a href="html/index.html">O2 Library Reference</a><br></br>
 </ul>
 </h3>
+<h2>Build and Installation</h2>
+O2 uses CMake. For Windows and Mac, use CMake to build a solution or
+project for Visual Studio or Xcode, then build the ALL_BUILD project.
+
+<p>For Linux, use "ccmake ." to create a Makefile, then run make.
+
+<p>Currently, there is no installer -- you should explicitly link to
+libo2_static.a. Note that we only build a static library using the
+current CMakeLists.txt configuration file.
+
+<p>O2 is not compatible with recent changes in C compilers enabled by
+the _FORTIFY_SOURCE macro. Therefore, we pass the command line flag
+-D_FORTIFY_SOURCE to the compiler, and you may see some associated
+warnings. (We're currently investigating how to best to get otherwise correct
+code to compile without disabling the FORTIFY option or generate warnings.)
+
+<h2>Helpful Hints</h2>
+If O2 is not making connections or discovering services:
+<ul>
+<li>
+Make sure you have a network connection. See if you can browse to some
+Internet site on each machine that is not connecting via O2.
+<li>
+Check for firewalls. If you have a firewall, it must allow O2's
+discovery ports and other ports that O2 creates, so you pretty much
+have to enable all ports, at least while you are using O2. Try turning
+off your firewall completely, at least to see if that fixes your
+problems.
+<li>
+If you have a VPN connection, then O2 discovery messages will be
+tunneled to some remote network. That might be what you want, but if
+you are trying to connect to a local machine via O2 while you are
+VPN'ed to some remote site (perhaps to read email securely?), then
+close the VPN connection and try again.
+</ul>
 </body> </html>
