@@ -10,6 +10,14 @@ requiring liblo library (only enabled if BUILD_TESTS is ON)")
 set(BUILD_MIDI_EXAMPLE OFF CACHE BOOL "Compile midiclient & midiserver,
 requiring portmidi library")
 
+# O2 intentionally writes outside of declared array bounds (and
+#  carefully insures that space is allocated beyond array bounds,
+#  especially for message data, which is declared char[4], but can
+#  be arbitrariily long -- well, at least up to O2_MAX_MSG_SIZE)
+# Newer compilers will try to enforce char[4] in memcpy and strcpy
+#  unless we turn off this behavior with the following macro definition:
+add_definitions("-D_FORTIFY_SOURCE=0")
+
 if(WIN32)
   add_definitions("-D_CRT_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -DIS_BIG_ENDIAN=0")
   include(static.cmake)
