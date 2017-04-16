@@ -55,6 +55,7 @@ typedef const char *o2string; // string padded to 4-byte boundary
 #define O2_DBS(x)
 #define O2_DBk(x)
 #define O2_DBd(x)
+#define O2_DBh(x)
 #define O2_DBt(x)
 #define O2_DBT(x)
 #define O2_DBm(x)
@@ -75,13 +76,14 @@ void o2_dbg_msg(const char *src, o2_msg_data_ptr msg,
 #define O2_DBS_FLAG 0x10
 #define O2_DBk_FLAG 0x20
 #define O2_DBd_FLAG 0x40
-#define O2_DBt_FLAG 0x80
-#define O2_DBT_FLAG 0x100
-#define O2_DBm_FLAG 0x200
-#define O2_DBo_FLAG 0x400
-#define O2_DBO_FLAG 0x800
-// All flags but DBM (malloc/free) enabled by "a"
-#define O2_DBa_FLAGS (0xFFF-0x200)
+#define O2_DBh_FLAG 0x80
+#define O2_DBt_FLAG 0x100
+#define O2_DBT_FLAG 0x200
+#define O2_DBm_FLAG 0x400
+#define O2_DBo_FLAG 0x800
+#define O2_DBO_FLAG 0x1000
+// All flags but DBm (malloc/free) enabled by "a"
+#define O2_DBa_FLAGS (0x1FFF-O2_DBm_FLAG)
 
 #define O2_DB(flags, x) if (o2_debug & (flags)) { x; }
 #define O2_DBc(x) O2_DB(O2_DBc_FLAG, x)
@@ -91,6 +93,7 @@ void o2_dbg_msg(const char *src, o2_msg_data_ptr msg,
 #define O2_DBS(x) O2_DB(O2_DBS_FLAG, x)
 #define O2_DBk(x) O2_DB(O2_DBk_FLAG, x)
 #define O2_DBd(x) O2_DB(O2_DBd_FLAG, x)
+#define O2_DBh(x) O2_DB(O2_DBh_FLAG, x)
 #define O2_DBt(x) O2_DB(O2_DBt_FLAG, x)
 #define O2_DBT(x) O2_DB(O2_DBT_FLAG, x)
 #define O2_DBm(x) O2_DB(O2_DBm_FLAG, x)
@@ -196,6 +199,14 @@ void o2_notify_others(const char *service_name, int added);
 o2_info_ptr o2_proc_service_find(process_info_ptr proc, services_entry_ptr *services);
 
 int o2_service_provider_new(o2string key, o2_info_ptr service, process_info_ptr process);
+
+#define O2_NO_HUB 0
+#define O2_CLIENT_IS_HUB 1
+#define O2_SERVER_IS_HUB 2
+#define O2_FROM_HUB 3 // this discovery message came from the hub
+
+extern int o2_using_a_hub; // set to true if o2_hub() is called;
+                           // turns of broadcasting
 
 #endif /* O2_INTERNAL_H */
 /// \endcond

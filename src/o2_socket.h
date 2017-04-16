@@ -114,6 +114,8 @@ typedef struct process_info { // "subclass" of o2_info
             // name. name is "owned" by the process_info struct and will be
             // deleted when the struct is freed
             int status; // PROCESS_LOCAL through PROCESS_OK
+            int uses_hub; // indicates the remote process treats this as 
+            // its hub -- discovery messages are sent over TCP
             dyn_array services; // these are the keys of remote_service_entry
                         // objects, owned by the service entries (do not free)
             struct sockaddr_in udp_sa;  // address for sending UDP messages
@@ -124,6 +126,7 @@ typedef struct process_info { // "subclass" of o2_info
     };        
 } process_info, *process_info_ptr;
 
+extern process_info_ptr o2_message_source;
 
 extern char o2_local_ip[24];
 extern int o2_local_tcp_port;
@@ -155,9 +158,11 @@ void o2_sockets_show();
 
 process_info_ptr o2_add_new_socket(SOCKET sock, int tag, o2_socket_handler handler);
 
+void o2_socket_remove(int i);
+
 void o2_disable_sigpipe(SOCKET sock);
 
-int o2_process_initialize(process_info_ptr info, int status);
+int o2_process_initialize(process_info_ptr info, int status, int hub_flag);
 
 void o2_socket_mark_to_free(process_info_ptr info);
 

@@ -109,8 +109,8 @@ int o2_discovery_initialize()
 }
 
 // we are the "client" connecting to a remote process acting as the "server"
-static int make_tcp_connection(char *ip, int tcp_port,
-                            o2_socket_handler handler, process_info_ptr *info)
+int o2_make_tcp_connection(const char *ip, int tcp_port,
+        o2_socket_handler handler, process_info_ptr *info, int hub_flag)
 {
     // We are the client because our ip:port string is lower
     struct sockaddr_in remote_addr;
@@ -118,9 +118,9 @@ static int make_tcp_connection(char *ip, int tcp_port,
 #ifndef WIN32
     bzero(&remote_addr, sizeof(remote_addr));
 #endif
-    // expand socket arrays for new port
+    // expand socket arrays for new port, also allocates info
     RETURN_IF_ERROR(o2_make_tcp_recv_socket(TCP_SOCKET, 0, handler, info));
-    o2_process_initialize(*info, PROCESS_CONNECTED);    
+    o2_process_initialize(*info, PROCESS_CONNECTED, hub_flag);
     // set up the connection
     remote_addr.sin_family = AF_INET;      //AF_INET means using IPv4
     inet_pton(AF_INET, ip, &(remote_addr.sin_addr));
@@ -154,6 +154,7 @@ o2_message_ptr o2_discovery_msg = NULL;
 int o2_discovery_msg_initialize()
 {
     int err = o2_send_start() ||
+        o2_add_int32(O2_NO_HUB) || // hub flag
         o2_add_string(o2_application_name) ||
         o2_add_string(o2_local_ip) ||
         o2_add_int32(o2_local_tcp_port) ||
@@ -192,7 +193,7 @@ int o2_discovery_finish()
 
 
 /**
- *  Broadcast o2_discovery_msg to a discovery port.
+ *  Broadcast o2_discovery_msg (!o2/dy) to a discovery port.
  *
  *  @param port_s  the destination port number
  */
@@ -236,6 +237,9 @@ static void o2_broadcast_message(int port)
 void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
                                o2_arg_ptr *argv, int argc, void *user_data)
 {
+    if (o2_using_a_hub) {
+        return; // end discovery broadcasts after o2_hub()
+    }
     // O2 is not going to work if we did not get a discovery port
     if (disc_port_index < 0) return;
     next_discovery_index = (next_discovery_index + 1) % (disc_port_index + 1);
@@ -247,18 +251,24 @@ void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
     if (o2_discovery_send_interval > o2_discovery_period) {
         o2_discovery_send_interval = o2_discovery_period;
     }
+
+    o2_send_discovery_at(next_time);
+}
+
+
+void o2_send_discovery_at(o2_time when)
+{
     // want to schedule another call to send again. Do not use send()
     // because we are operating off of local time, not synchronized
     // global time. Instead, form a message and schedule it:
     if (o2_send_start()) return;
-    o2_message_ptr ds_msg = o2_message_finish(next_time, "!_o2/ds", TRUE);
-    // printf("ds_msg %p\n", ds_msg);
+    o2_message_ptr ds_msg = o2_message_finish(when, "!_o2/ds", TRUE);
     if (!ds_msg) return;
     o2_schedule(&o2_ltsched, ds_msg);
 }
 
 
-int o2_send_initialize(process_info_ptr process)
+int o2_send_initialize(process_info_ptr process, int32_t hub_flag)
 {
     assert(o2_process->port);
     // send initial message to newly connected process
@@ -266,7 +276,8 @@ int o2_send_initialize(process_info_ptr process)
         o2_add_string(o2_local_ip) ||
         o2_add_int32(o2_local_tcp_port) ||
         o2_add_int32(o2_process->port) ||
-        o2_add_int32(o2_clock_is_synchronized);
+        o2_add_int32(o2_clock_is_synchronized) ||
+        o2_add_int32(hub_flag);
     if (err) return err;
     // This will be expected as first TCP message and directly
     // delivered by the o2_tcp_initial_handler() callback
@@ -302,17 +313,112 @@ int o2_send_services(process_info_ptr process)
 }
 
 
-// /_o2/dy handler, parameters are: application name, ip, tcp, and upd
+// send discovery message to inform process about all known hosts
+// this gets called as a result of a call to o2_hub(), and messages
+// are sent via TCP
+//
+int o2_send_discovery(process_info_ptr process)
+{
+    // now send info on every host
+    for (int i = 0; i < o2_fds_info.length; i++) {
+        process_info_ptr info = GET_PROCESS(i);
+        // parse ip & port from info. If we do not have a proc.name, this
+        // info may be the result of a client running o2_hub() and making
+        // a TCP connection solely for the purpose of sending a discovery
+        // message. This tells us, the receiver, to make a TCP connection
+        // in the other direction, so the "real" TCP socket pair is not
+        // represented by this info, and this connection will soon be
+        // closed by the connected process. (All this is explaining why
+        // we have to check for info->proc.name in the next line...)
+        if (info->tag == TCP_SOCKET && info->proc.name) {
+            char ipaddress[32];
+            strcpy(ipaddress, info->proc.name);
+            char *colon = strchr(ipaddress, ':');
+            if (!colon) {
+                return O2_FAIL;
+            }
+            *colon = 0; // isolate the ipaddress from ip:port
+            int port = atoi(colon + 1);
+
+            // if this fails, we'll continue with other hosts
+            int err = o2_send_start() ||
+                      o2_add_int32(O2_FROM_HUB) || // hub flag
+                      o2_add_string(o2_application_name) ||
+                      o2_add_string(ipaddress) ||
+                      o2_add_int32(port) || // the TCP port
+                      o2_add_int32(-1); // broadcast receive port is not needed
+            o2_message_ptr msg;
+            if (err || !(msg = o2_message_finish(0.0, "!_o2/dy", TRUE)))
+                return O2_FAIL;
+            err = send_by_tcp_to_process(process, &msg->data);
+            o2_message_free(msg);
+            if (err) {
+                return err;
+            }
+            O2_DBd(printf("%s o2_send_discovery sent %s,%d to %s\n",
+                          o2_debug_prefix, ipaddress, port, process->proc.name));
+        }            
+    }
+    return O2_SUCCESS;
+}
+
+
+// send discovery message via tcp as the result of a call to o2_hub()
+// ipaddress:port is the remote process TCP address and ID
+// be_server means this local process is the server (remote process must
+//    initiate the connection)
+// hub_flag means the remote process is a hub for the local process
+//
+int o2_discovery_by_tcp(const char *ipaddress, int port, char *name,
+                        int be_server, int32_t hub_flag)
+{
+    int err = O2_SUCCESS;
+    process_info_ptr remote;
+    RETURN_IF_ERROR(o2_make_tcp_connection(ipaddress, port, &o2_tcp_initial_handler,
+                                           &remote, O2_NO_HUB));
+    if (be_server) { // we are server; connect to deliver a /dy message
+        // we do not use o2_discovery_msg because it is byte-swapped and missing hub_flag
+        // it seems easier just to make a new one:
+        int err = o2_send_start() ||
+                  // if we were called by o2_hub(), we're trying to tell the receiver
+                  // that it is the HUB, so use O2_CLIENT_IS_HUB. The other possibility
+                  // is a hub sent us a discovery message revealing another process,
+                  // but we're the server, so we need the other process to connect to
+                  // us. We tell it that with an !_o2/dy message with O2_NO_HUB
+                  o2_add_int32(hub_flag ? O2_CLIENT_IS_HUB : O2_NO_HUB) || // hub flag
+                  o2_add_string(o2_application_name) ||
+                  o2_add_string(o2_local_ip) ||
+                  o2_add_int32(o2_local_tcp_port) ||
+                  o2_add_int32(broadcast_recv_port); // not used
+        o2_message_ptr msg;
+        if (err || !(msg = o2_message_finish(0.0, "!_o2/dy", TRUE)))
+            return O2_FAIL;
+        O2_DBh(printf("%s in o2_discovery_by_tcp, we are server sending /dy to %s:%d\n",
+                      o2_debug_prefix, ipaddress, port));
+        err = send_by_tcp_to_process(remote, &msg->data);
+        o2_message_free(msg);
+    } else { // we are the client remote host is the server and hub
+        remote->proc.name = o2_heapify(name);
+        o2_service_provider_new(name, (o2_info_ptr) remote, remote);
+        o2_send_initialize(remote, hub_flag ? O2_SERVER_IS_HUB : O2_NO_HUB);
+        o2_send_services(remote);
+    }
+    return err;
+}
+
+
+// /_o2/dy handler, parameters are: hub, application name, ip, tcp, upd
 // 
 void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
                           o2_arg_ptr *argv, int argc, void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2_discovery_handler gets", msg, NULL, NULL));
-    o2_arg_ptr app_arg, ip_arg, tcp_arg, udp_arg;
+    o2_arg_ptr app_arg, ip_arg, tcp_arg, udp_arg, hub_arg;
     // get the arguments: application name, ip as string,
     //                    tcp port, discovery port
     o2_extract_start(msg);
-    if (!(app_arg = o2_get_next('s')) ||
+    if (!(hub_arg = o2_get_next('i')) || 
+        !(app_arg = o2_get_next('s')) ||
         !(ip_arg = o2_get_next('s')) ||
         !(tcp_arg = o2_get_next('i')) ||
         !(udp_arg = o2_get_next('i'))) { // the discovery port
@@ -348,7 +454,16 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
 #endif
         return; // we've already connected or accepted, so ignore the /dy data
     }
+    int hub_flag = hub_arg->i32;
     if (compare > 0) { // we are server, the other party should connect
+        if (hub_flag == O2_FROM_HUB) { // then this message came via TCP from
+            // our hub, so we need to send to the remote process' TCP port
+            O2_DBh(printf("%s in o2_discovery_handler, we are server with "
+                          "hub_flag %d, sending discovery to %s\n",
+                          o2_debug_prefix, hub_flag, name));
+            o2_discovery_by_tcp(ip, tcp, name, TRUE, FALSE);
+            return;
+        }
         // send a discover message back to sender's UDP port, which is now known
         struct sockaddr_in udp_sa;
         udp_sa.sin_family = AF_INET;
@@ -356,12 +471,13 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
         udp_sa.sin_len = sizeof(udp_sa);
 #endif
         inet_pton(AF_INET, ip, &(udp_sa.sin_addr.s_addr));
+        assert(udp_arg->i32 >= 0);
         udp_sa.sin_port = htons(udp_arg->i32);
         if (sendto(local_send_sock, (char *) &o2_discovery_msg->data,
                    o2_discovery_msg->length, 0,
                    (struct sockaddr *) &udp_sa,
                    sizeof(udp_sa)) < 0) {
-            perror("Error attepting to send discovery message directly");
+            perror("Error attempting to send discovery message directly");
         }
         O2_DBd(printf("%s o2_discovery_handler to become server for %s\n",
                       o2_debug_prefix, name));
@@ -369,33 +485,52 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
         process_info_ptr remote;
         O2_DBg(printf("%s ** Discovered and connecting to %s\n",
                       o2_debug_prefix, name));
-        if (make_tcp_connection(ip, tcp, &o2_tcp_initial_handler, &remote)) {
+        if (hub_flag == O2_CLIENT_IS_HUB) {
+            O2_DBh(printf("%s in o2_discovery_handler, we are client sending"
+                          " /in, hub_flag is %d\n",
+                          o2_debug_prefix, hub_flag));
+        }
+        if (o2_make_tcp_connection(ip, tcp, &o2_tcp_initial_handler, 
+                                   &remote, hub_flag == O2_CLIENT_IS_HUB)) {
             return;
         }
         remote->proc.name = o2_heapify(name);
         assert(remote->tag == TCP_SOCKET);
         o2_service_provider_new(name, (o2_info_ptr) remote, remote);
-        o2_send_initialize(remote);
+        o2_send_initialize(remote, hub_flag);
         o2_send_services(remote);
+        if (hub_flag == O2_CLIENT_IS_HUB) {
+            o2_send_discovery(remote);
+        }
+        if (hub_flag == O2_CLIENT_IS_HUB) {
+            // we received message via a TCP connection that was set up
+            // solely to deliver this discovery message. We should now
+            // close the connection, but how do we find the socket?
+            assert(o2_message_source->tag == TCP_SOCKET); // insert code here to complete this
+            int i = o2_message_source->fds_index;
+            o2_socket_remove(i);
+        }
     }
 }
 
 
+// Handler for !_o2/in messages:
 // After a TCP connection is made, processes exchange information,
 // arriving info is used to create a process description which is stored
-// in the tcp port info of the connected tcp port
+// in the tcp port info of the connected tcp port. 
 //
 void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
                                o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_arg_ptr ip_arg, tcp_arg, udp_arg, clocksync_arg;
+    o2_arg_ptr ip_arg, tcp_arg, udp_arg, clocksync_arg, hub_arg;
     // get the arguments: application name, ip as string,
     //                    tcp port, udp port
-    if (o2_extract_start(msg) != 4 ||
+    if (o2_extract_start(msg) != 5 ||
         !(ip_arg = o2_get_next('s')) ||
         !(tcp_arg = o2_get_next('i')) ||
         !(udp_arg = o2_get_next('i')) ||
-        !(clocksync_arg = o2_get_next('i'))) {
+        !(clocksync_arg = o2_get_next('i')) ||
+        !(hub_arg = o2_get_next('i'))) {
         printf("**** error in o2_tcp_initial_handler -- code incomplete ****\n");
         return;
     }
@@ -414,15 +549,24 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
     process_info_ptr info = (process_info_ptr) user_data;
     assert(info->proc.status == PROCESS_CONNECTED);
     o2_entry_ptr *entry_ptr = o2_lookup(&o2_path_tree, name);
+    O2_DBd(printf("%s o2_discovery_init_handler looked up %s -> %p\n",
+                  o2_debug_prefix, name, entry_ptr));
     if (!*entry_ptr) { // we are the server, and we accepted a client connection,
         // but we did not yet create a service named for client's IP:port
+        int hub_flag = hub_arg->i32;
         assert(info->tag == TCP_SOCKET);
         o2_service_provider_new(name, (o2_info_ptr) info, info);
         assert(info->proc.name == NULL);
         info->proc.name = o2_heapify(name);
+        // uses_hub means info->proc, the remote proc, is using us as the hub;
+        // that's true if O2_SERVER_IS_HUB because we are the server:
+        info->proc.uses_hub = (hub_flag == O2_SERVER_IS_HUB);
         // now that we have a name and service, we can send init message back:
-        o2_send_initialize(info);
+        o2_send_initialize(info, hub_flag);
         o2_send_services(info);
+        if (hub_flag == O2_SERVER_IS_HUB) {
+            o2_send_discovery(info);
+        }
     } // else we are the client, and we connected after receiving a
       // /dy message, also created a service named for server's IP:port
     info->proc.status = status;

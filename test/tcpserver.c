@@ -57,7 +57,7 @@ int main(int argc, const char * argv[])
         printf("debug flags are: %s\n", argv[1]);
     }
     if (argc > 2) {
-        printf("WARNING: o2server ignoring extra command line argments\n");
+        printf("WARNING: tcpserver ignoring extra command line argments\n");
     }
 
     o2_initialize("test");

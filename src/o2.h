@@ -149,6 +149,7 @@ Some major components and concepts of O2 are the following:
 ///   - S - for tracing system outgoing messages
 ///   - k - for tracing clock synchronization protocol
 ///   - d - for tracing discovery messages
+///   - h - for tracing hub-related activity
 ///   - t - for tracing user messages dispatched from schedulers
 ///   - T - for tracing system messages dispatched from schedulers
 ///   - m - trace O2_MALLOC and O2_FREE calls
@@ -695,6 +696,69 @@ int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)));
  * @return the previous polling period
  */
 o2_time o2_set_discovery_period(o2_time period);
+
+
+/**
+ * \brief Connect to a hub.
+ *
+ * A "hub" is an O2 process that shares discovery information with other
+ * processes. This is an alternate form of discovery that is completely
+ * compatible with the broadcast-based discovery protocol, except
+ * (1) you do not need broadcast messages to communicate with a hub, 
+ * (2) you *do* need the hub's IP address and port number. If the IP 
+ * and port number can be shared, e.g. through a server or online 
+ * database with a fixed address, you can work with networks that
+ * disallow broadcast, and you can connect across networks (which will
+ * not work with O2's normal discovery protocol if broadcast messages
+ * are not delivered across networks). To use a hub, you call o2_hub()
+ * with the hub's IP address and port. All O2 processes are effectively
+ * hubs with no clients, and o2_hub() simply connects to the hub as
+ * a client. The hub will then send discovery messages for all current
+ * and future O2 processes that are discovered, either through the 
+ * normal discovery protocol or by connecting with the o2_hub() call.
+ *
+ * After o2_hub() is called, discovery broadcasting is stopped, so if
+ * o2_hub() fails to connect to another process, you will only discover
+ * more processes if they initiate the exchange. You can use o2_hub()
+ * specifically to disable broadcast-based discovery by passing NULL
+ * as the ipaddress parameter. 
+ *
+ * You can call o2_hub() multiple times. Each time potentially makes
+ * a remote process become a hub for this local process. This might
+ * result in duplicate messages when new processes join the O2 
+ * application, but duplicate messages are ignored.
+ * 
+ * @param ipaddress the IP address of the hub or NULL
+ * @param port the port number of the hub's TCP port
+ *
+ * @return #O2_SUCCESS if success, #O2_FAIL if not.
+ */
+int o2_hub(const char *ipaddress, int port);
+
+
+/**
+ * \brief Get IP address and TCP connection port number.
+ *
+ * Before calling o2_hub(), you need to know the IP address and 
+ * TCP connection port of another process. This call will retrieve
+ * the information, but the mechanism to transfer this information
+ * to another O2 process (or all of them) must be implemented outside
+ * of O2. (If the local network allows UDP broadcast and all hosts
+ * are on the local network, then you do not need this function or
+ * o2_hub(). Instead, let the discovery protocol exchange process
+ * addresses automatically.)
+ * 
+ * @param ipaddress is a pointer that will be set to either NULL 
+ * (on failure) or a string of the form "128.2.10.6". The string
+ * should not be modified, and the string will be freed by O2 if
+ * o2_finish() is called.
+ *
+ * @param port will be set to a pointer to the O2 TCP connection
+ * port (or NULL on failure).
+ *
+ * @return #O2_SUCCESS if success, #O2_FAIL if not.
+ */
+int o2_get_address(const char **ipaddress, int *port);
 
 
 /**

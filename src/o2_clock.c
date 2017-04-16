@@ -3,6 +3,7 @@
 // Roger Dannenberg, 2016
 
 #include "o2_internal.h"
+#include "o2_clock.h"
 #include "o2_sched.h"
 #include "o2_send.h"
 
@@ -371,6 +372,11 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
                       o2_debug_prefix, clock_sync_send_time));
     }
     // schedule another call to o2_ping_send_handler
+    o2_clock_ping_at(when);
+}
+
+void o2_clock_ping_at(o2_time when)
+{
     o2_send_start();
     o2_message_ptr m = o2_message_finish(when, "!_o2/ps", FALSE);
     // printf("*    schedule ping_send at %g, now is %g\n", when, o2_local_time());
@@ -381,6 +387,7 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
 void o2_clock_initialize()
 {
     is_master = FALSE;
+    o2_clock_is_synchronized = FALSE;
     o2_method_new("/_o2/ps", "", &o2_ping_send_handler, NULL, FALSE, TRUE);
     o2_method_new("/_o2/cu", "i", &catch_up_handler, NULL, FALSE, TRUE);
 }
