@@ -220,6 +220,45 @@ static void announce_synchronized(o2_time now)
 }
 
 
+// all services offered by this proc, described by info, have changed to 
+// status, so send !/_o2/si messages for them. protect should be 1 or 0.
+// Use 1 if messages should be queued and sent later by o2_poll(). Use 0
+// if it is OK to send messages immediately.
+//
+void clock_status_change(process_info_ptr info, int protect, int status)
+{
+    // send service info updates for all services offered by this process
+    if (o2_clock_is_synchronized) { // status can only change if this process
+        // is synchronized (note also that once synchronized, the current 
+        // process does not lose sychronization, even if the cs service goes
+        // away. (Maybe this should be fixed or maybe it is a feature.)
+        int len = info->proc.services.length;
+        for (int i = 0; i < len; i++) {
+            o2string service_name = *DA_GET(info->proc.services, o2string, i);
+            services_entry_ptr *service_entry = (services_entry_ptr *)
+                    o2_lookup(&o2_path_tree, service_name);
+            dyn_array_ptr services;
+            assert(*service_entry);
+            if (*service_entry) {
+                services = &(*service_entry)->services;
+                if (services->length > 0) {
+                    process_info_ptr proc = *DA_GET(*services, process_info_ptr, 0);
+                    if (proc->tag == TCP_SOCKET && proc == info) {
+                        // this service is served by proc == info
+                        o2_in_find_and_call_handlers += protect;
+                        o2_send_cmd("!_o2/si", 0.0, "sis", service_name, status,
+                                    proc->proc.name);
+                        o2_in_find_and_call_handlers -= protect;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+// handle messages to /ip:port/cs/cs that announce when clock sync is obtained
+//
 void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
                             o2_arg_ptr *argv, int argc, void *user_data)
 {
@@ -227,11 +266,15 @@ void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
     o2_arg_ptr arg = o2_get_next('s');
     if (!arg) return;
     char *name = arg->s;
-    o2_info_ptr entry = o2_service_find(name);
+    services_entry_ptr services;
+    o2_info_ptr entry = o2_service_find(name, &services);
     if (entry) {
         assert(entry->tag == TCP_SOCKET);
         process_info_ptr info = (process_info_ptr) entry;
-        info->proc.status = PROCESS_OK;
+        if (info->proc.status != PROCESS_OK) {
+            info->proc.status = PROCESS_OK;
+            clock_status_change(info, 1, O2_REMOTE);
+        }
         return;
     }
     O2_DBg(printf("%s ### ERROR in o2_clocksynced_handler, bad service %s\n", o2_debug_prefix, name));
@@ -240,6 +283,25 @@ void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
 
 static double mean_rtt = 0;
 static double min_rtt = 0;
+
+
+void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
+                            o2_arg_ptr *argv, int argc, void *user_data)
+{
+    o2_extract_start(msg);
+    o2_arg_ptr reply_to_arg = o2_get_next('s');
+    if (!reply_to_arg) return;
+    char *replyto = reply_to_arg->s;
+    int len = (int) strlen(replyto);
+    if (len > 1000) {
+        fprintf(stderr, "o2_clockrt_handler ignoring /cs/rt message with long reply_to argument\n");
+        return; // address too long - ignore it
+    }
+    char address[1024];
+    memcpy(address, replyto, len);
+    memcpy(address + len, "/get-reply", 11); // include EOS
+    o2_send(address, 0, "sff", o2_process->proc.name, mean_rtt, min_rtt);
+}
 
 
 static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
@@ -425,6 +487,7 @@ int o2_clock_set(o2_time_callback callback, void *data)
                       o2_debug_prefix));
         return O2_FAIL;
     }
+    int was_synchronized = o2_clock_is_synchronized;
     // adjust local_start_time to ensure continuity of time:
     //   new_local_time - new_time_offset == old_local_time - old_time_offset
     //   new_time_offset = new_local_time - (old_local_time - old_time_offset)
@@ -443,6 +506,43 @@ int o2_clock_set(o2_time_callback callback, void *data)
                      o2_debug_prefix, o2_local_time()));
         is_master = TRUE;
         announce_synchronized(new_local_time);
+        if (!was_synchronized) {
+            // every service including local ones and those provided by a
+            // synchronized processes are now synchronized
+            dyn_array_ptr table = &o2_path_tree.children;
+            enumerate enumerator;
+            o2_enumerate_begin(&enumerator, table);
+            services_entry_ptr services_ptr;
+            o2_in_find_and_call_handlers++;
+            while ((services_ptr =
+                    (services_entry_ptr) o2_enumerate_next(&enumerator))) {
+                if ((services_ptr->tag == SERVICES) &&
+                    (services_ptr->services.length > 0)) {
+                    o2_entry_ptr service = *DA_GET(services_ptr->services,
+                                                o2_entry_ptr, 0);
+                    // _cs was just created above and was reported as O2_LOCAL,
+                    // so don't do it again.
+                    if ((service->tag == PATTERN_NODE ||
+                         service->tag == PATTERN_HANDLER) &&
+                        !streql(services_ptr->key, "_cs")) {
+                        o2_send_cmd("!_o2/si", 0.0, "sis", 
+                                    services_ptr->key, O2_LOCAL,
+                                    o2_process->proc.name);
+                    } else if (service->tag == OSC_REMOTE_SERVICE) {
+                        o2_send_cmd("!_o2/si", 0.0, "sis", 
+                                    services_ptr->key, O2_TO_OSC,
+                                    o2_process->proc.name);
+                    } else if (service->tag == TCP_SOCKET &&
+                               ((process_info_ptr) service)->proc.status == 
+                               PROCESS_OK) {
+                        o2_send_cmd("!_o2/si", 0.0, "sis", 
+                                    services_ptr->key, O2_REMOTE,
+                                    o2_process->proc.name);
+                    }
+                }
+            }
+        }
+        o2_in_find_and_call_handlers--;
     }
     return O2_SUCCESS;
 }

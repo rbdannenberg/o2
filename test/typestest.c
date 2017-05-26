@@ -396,7 +396,7 @@ void service_many(o2_msg_data_ptr data, const char *types,
     arg = o2_get_next('S');
     assert(strcmp(arg->S, "123456") == 0);
     arg = o2_get_next('b');
-    assert(arg->b.size = a_blob->size &&
+    assert((arg->b.size == a_blob->size) &&
            memcmp(arg->b.data, a_blob->data, 15) == 0);
     arg = o2_get_next('m');
     assert(arg->m == a_midi_msg);
@@ -430,7 +430,7 @@ void service_manyp(o2_msg_data_ptr data, const char *types,
     assert(argv[6]->t == 1234.567);
     assert(strcmp(argv[7]->s, "1234") == 0);
     assert(strcmp(argv[8]->S, "123456") == 0);
-    assert(argv[9]->b.size = a_blob->size &&
+    assert((argv[9]->b.size == a_blob->size) &&
            memcmp(argv[9]->b.data, a_blob->data, 15) == 0);
     assert(argv[10]->m == a_midi_msg);
     assert(argv[15]->i == 1234);

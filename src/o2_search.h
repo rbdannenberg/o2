@@ -15,6 +15,7 @@
 #define SERVICES 2
 #define O2_BRIDGE_SERVICE 3
 #define OSC_REMOTE_SERVICE 4
+#define TAPPER 5
 
 /**
  *  Structures for hash look up.
@@ -71,7 +72,17 @@ typedef struct services_entry { // "subclass" of o2_entry
             // (local service), handler_entry (local service with just one
             // handler for all messages), process_info (for remote
             // service), osc_info (for service delegated to OSC server)
+            // Next in list are "taps" -- these are of type tapper_entry and
+            // indicate services that should get copies of messages sent
+            // to the service named by key.
 } services_entry, *services_entry_ptr;
+
+
+typedef struct tapper_entry { // "subclass" of o2_entry
+    int tag; // must be TAPPER
+    o2string tapper_name;
+    o2_entry_ptr next;
+} tapper_entry, *tapper_entry_ptr;
 
 
 /*
@@ -97,12 +108,19 @@ typedef struct osc_info {
 } osc_info, *osc_info_ptr;
 
 
-// Enumerate structure is hash table
+// To enumerate elements of a hash table (at one level), use this
+// structure and see o2_enumerate_begin(), o2_enumerate_next()
 typedef struct enumerate {
     dyn_array_ptr dict;
     int index;
     o2_entry_ptr entry;
 } enumerate, *enumerate_ptr;
+
+
+void o2_enumerate_begin(enumerate_ptr enumerator, dyn_array_ptr dict);
+
+
+o2_entry_ptr o2_enumerate_next(enumerate_ptr enumerator);
 
 
 // typedef struct enumerate enumerate, *enumerate_ptr;
@@ -116,6 +134,8 @@ const char *o2_tag_to_string(int tag);
 void o2_info_show(o2_info_ptr info, int indent);
 #endif
 #endif
+
+int o2_service_or_tapper_new(const char *service_name, const char *tappee);
 
 void o2_string_pad(char *dst, const char *src);
 
@@ -152,7 +172,7 @@ int o2_embedded_msgs_deliver(o2_msg_data_ptr msg, int tcp_flag);
  *                If the service is unknown, pass NULL.
  */
 void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
-                         o2_info_ptr service);
+                         o2_info_ptr service, services_entry_ptr services);
 
 void o2_node_finish(node_entry_ptr node);
 
@@ -180,5 +200,10 @@ node_entry_ptr o2_node_initialize(node_entry_ptr node, const char *key);
 o2_entry_ptr *o2_lookup(node_entry_ptr dict, o2string key);
 
 int o2_remove_remote_process(process_info_ptr info);
+
+services_entry_ptr o2_insert_new_service(o2string service_name,
+                                         services_entry_ptr *services);
+
+int o2_set_tap(const char *tappee, const char *tapper);
 
 #endif /* o2_search_h */
