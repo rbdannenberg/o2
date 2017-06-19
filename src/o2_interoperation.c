@@ -123,6 +123,9 @@ int o2_osc_port_free(int port_num)
 // add osc_info as the service
 int o2_osc_delegate(const char *service_name, const char *ip, int port_num, int tcp_flag)
 {
+    if (!o2_application_name) {
+        return O2_NOT_INITIALIZED;
+    }
     if (!service_name || strchr(service_name, '/'))
         return O2_BAD_SERVICE_NAME;
     osc_info_ptr osc = (osc_info_ptr) O2_MALLOC(sizeof(osc_info));

@@ -455,6 +455,14 @@ void o2_clock_initialize()
 }
 
 
+void o2_clock_finish()
+{
+    is_master = FALSE;
+    time_callback = NULL;
+    time_callback_data = NULL;
+}    
+
+
 // cs_ping_handler -- handler for /_cs/get
 //   return the master clock time
 static void cs_ping_handler(o2_msg_data_ptr msg, const char *types,

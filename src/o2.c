@@ -690,12 +690,18 @@ int o2_service_provider_new(o2string service_name, o2_info_ptr service,
 
 int o2_service_new(const char *service_name)
 {
+    if (!o2_application_name) {
+        return O2_NOT_INITIALIZED;
+    }
     return o2_service_or_tapper_new(service_name, NULL);
 }
 
 
 int o2_tap(const char *tappee, const char *tapper)
 {
+    if (!o2_application_name) {
+        return O2_NOT_INITIALIZED;
+    }
     return o2_service_or_tapper_new(tapper, tappee);
 }
 
@@ -735,6 +741,9 @@ static void check_messages()
 
 int o2_poll()
 {
+    if (!o2_application_name) {
+        return O2_NOT_INITIALIZED;
+    }
     check_messages();
     o2_local_now = o2_local_time();
     if (o2_gtsched_started) {
@@ -897,6 +906,7 @@ int o2_finish()
     o2_sched_finish(&o2_gtsched);
     o2_sched_finish(&o2_ltsched);
     o2_discovery_finish();
+    o2_clock_finish();
 
     if (o2_application_name) O2_FREE((void *) o2_application_name);
     o2_application_name = NULL;

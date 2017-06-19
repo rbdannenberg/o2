@@ -132,8 +132,9 @@ int o2_make_tcp_connection(const char *ip, int tcp_port,
 
     O2_DBo(printf("%s connect to %s:%d with socket %ld\n",
                   o2_debug_prefix, ip, tcp_port, (long) sock));
-    if (connect(sock, (struct sockaddr *) &remote_addr,
-                sizeof(remote_addr)) == -1) {
+    int err = connect(sock, (struct sockaddr *) &remote_addr,
+                      sizeof(remote_addr));
+    if (err == -1) {
         perror("Connect Error!\n");
         o2_fds_info.length--;   // restore socket arrays 
         o2_fds.length--;
