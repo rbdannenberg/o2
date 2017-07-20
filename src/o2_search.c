@@ -150,12 +150,13 @@ void o2_info_show(o2_info_ptr info, int indent)
         o2_entry_ptr entry;
         while ((entry = o2_enumerate_next(&en))) {
             // see if each entry can be found
-#ifndef NDEBUG
-            o2_entry_ptr *ptr = // only needed in assert()
-#endif
-                o2_lookup(node, entry->key);
+#ifdef NDEBUG
+            o2_lookup(node, entry->key);
+#else
+            o2_entry_ptr *ptr = o2_lookup(node, entry->key);
             if (*ptr != entry)
                 printf("ERROR: *ptr %p != entry %p\n", *ptr, entry);
+#endif
             o2_info_show((o2_info_ptr) entry, indent + 1);
         }
     } else if (info->tag == SERVICES) {
