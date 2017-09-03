@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.0)
 project(o2)
 
 set(BUILD_TESTS ON CACHE BOOL "Compile regression and other tests")
-
+set(BUILD_TESTS_COVERAGE ON CACHE BOOL "Compile for code coverage")
 set(BUILD_TESTS_WITH_LIBLO OFF CACHE BOOL "Compile tests that use liblo,
 requiring liblo library (only enabled if BUILD_TESTS is ON)")
 
@@ -164,13 +164,7 @@ add_executable(oscbndlrecv test/oscbndlrecv.c)
 target_include_directories(oscbndlrecv PRIVATE ${CMAKE_SOURCE_DIR}/src)    
 target_link_libraries(oscbndlrecv ${LIBRARIES})  
 
-add_executable(infotest1 test/infotest1.c)    
-target_include_directories(infotest1 PRIVATE ${CMAKE_SOURCE_DIR}/src)    
-target_link_libraries(infotest1 ${LIBRARIES})  
- 
-add_executable(infotest2 test/infotest2.c)    
-target_include_directories(infotest2 PRIVATE ${CMAKE_SOURCE_DIR}/src)    
-target_link_libraries(infotest2 ${LIBRARIES})  
+  
 endif(BUILD_TESTS)
 
 if(UNIX)
@@ -178,6 +172,17 @@ if(UNIX)
   else(APPLE)
     # linux
     set(CMAKE_C_FLAGS "-std=gnu99")
+    if(BUILD_TESTS_COVERAGE)
+	# Check prereqs
+     
+     set(GCC_COVERAGE_COMPILE_FLAGS "-g -O0 -fprofile-arcs -ftest-coverage")
+     set(GCC_COVERAGE_LINK_FLAGS "-lgcov")
+     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
+     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
+     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}")
+     #set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin  ${LIBRARIES})
+
+    endif(BUILD_TESTS_COVERAGE)
   endif(APPLE)
   if(BUILD_MIDI_EXAMPLE)
     # Use PortMidi Library
@@ -194,7 +199,7 @@ if(UNIX)
       set(EXTRA_NEEDED_LIBS asound ${PTHREAD_LIB})
     endif(APPLE)
 
-    set(PORTMIDI_BASE_PATH ../portmedia/portmidi 
+    set(PORTMIDI_BASE_PATH "${CMAKE_SOURCE_DIR}/portmedia/portmidi"
         CACHE STRING "Where is portmidi?")
     set(PORTMIDI_PATH ${PORTMIDI_BASE_PATH}/pm_common CACHE INTERNAL 
                       "Where is portmidi.h?" FORCE)
@@ -258,8 +263,8 @@ message(STATUS LIBRARIES=${LIBRARIES})
 
 if(BUILD_TESTS)
 if(BUILD_TESTS_WITH_LIBLO)
-  set(LIBLO_PATH "${CMAKE_SOURCE_DIR}/../liblo-0.28" CACHE PATH
-                 "Where to find liblo_64s.a, the liblo library.") 
+  set(LIBLO_PATH "${CMAKE_SOURCE_DIR}/liblo-0.28" CACHE PATH
+                 "Where to find liblo_64s.a, the liblo library.")
   set(LIBLO_LIB LIBLO_LIB-NOTFOUND CACHE FILEPATH
              "The liblo library; should be set automatically if LIBLO_PATH is correct and liblo_64s.a exists.") 
   find_library(LIBLO_LIB lo_s64 ${LIBLO_PATH})
