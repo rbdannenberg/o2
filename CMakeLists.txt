@@ -179,9 +179,15 @@ endif(BUILD_TESTS)
 
 if(UNIX)
   if(APPLE)
+    # EXTRA_LO_LIBS is libraries needed by Liblo applications
+    set(EXTRA_LO_LIBS ${COREAUDIO_LIB} ${COREFOUNDATION_LIB}
+                      ${COREMIDI_LIB} ${CORESERVICES_LIB})
   else(APPLE)
     # linux
     set(CMAKE_C_FLAGS "-std=gnu99")
+    set(PTHREAD_LIB pthread)
+    # EXTRA_LO_LIBS is libraries needed by Liblo applications
+    set(EXTRA_LO_LIBS asound ${PTHREAD_LIB} m)
   endif(APPLE)
   if(BUILD_MIDI_EXAMPLE)
     # Use PortMidi Library
@@ -190,14 +196,7 @@ if(UNIX)
 
     if(APPLE)
       set(COREMIDI_LIB "${FRAMEWORK_PATH}/CoreMIDI.framework")
-      # EXTRA_LO_LIBS is libraries needed by Liblo applications
-      set(EXTRA_LO_LIBS ${COREAUDIO_LIB} ${COREFOUNDATION_LIB}
-                            ${COREMIDI_LIB} ${CORESERVICES_LIB})
     else(APPLE)
-      # LINUX
-      set(PTHREAD_LIB pthread)
-      # EXTRA_LO_LIBS is libraries needed by Liblo applications
-      set(EXTRA_LO_LIBS asound ${PTHREAD_LIB} m)
     endif(APPLE)
 
     set(PORTMIDI_BASE_PATH ../portmedia/portmidi 
