@@ -194,11 +194,15 @@ extern o2_arg_ptr *o2_argv; // arg vector extracted by calls to o2_get_next()
 extern int o2_argc; // length of argv
 
 // shared internal functions
-void o2_notify_others(const char *service_name, int added);
+void o2_notify_others(const char *service_name, int added, const char *tappee);
 
 o2_info_ptr o2_proc_service_find(process_info_ptr proc, services_entry_ptr *services);
 
-int o2_service_provider_new(o2string key, o2_info_ptr service, process_info_ptr process);
+int o2_service_provider_new(o2string key, o2_info_ptr service, process_info_ptr process,
+                            o2string tappee);
+
+int o2_status_from_info(o2_info_ptr entry, const char **process);
+
 
 #define O2_NO_HUB 0
 #define O2_CLIENT_IS_HUB 1

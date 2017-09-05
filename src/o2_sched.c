@@ -125,7 +125,7 @@ int o2_schedule(o2_sched_ptr s, o2_message_ptr m)
     if (mt <= 0 || mt < s->last_time) {
         // it was probably a mistake to schedule the message when the timestamp
         // is not in the future, but we'll try a local delivery anyway
-        o2_msg_data_deliver(&m->data, m->tcp_flag, NULL);
+        o2_msg_data_deliver(&m->data, m->tcp_flag, NULL, NULL);
         o2_message_free(m);
         return O2_SUCCESS;
     }

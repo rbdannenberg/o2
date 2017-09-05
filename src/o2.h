@@ -794,6 +794,21 @@ int o2_service_new(const char *service_name);
 
 
 /**
+ * \brief copy messages from one service to another
+ *
+ * @param tappee the service to be tapped
+ *
+ * @param tapper the service to which copies are sent
+ *
+ * @return #O2_SUCCESS if success, #O2_FAIL if not.
+ *
+ * After this call, messages to tappee are copied, modified by replacing
+ * the service with tapper, and sent. The original message to tappee
+ * is also delivered.
+ */
+int o2_tap(const char *tappee, const char *tapper);
+
+/**
  *  \brief Remove a local service
  *
  * The #service_name corresponds to the parameter previously passed to
@@ -923,6 +938,11 @@ int o2_run(int rate);
  * local network, by an OSC server, or through a bridge to another
  * network such as Bluetooth. The status at the originator will be
  * simply #O2_REMOTE or #O2_REMOTE_NOTIME.
+ *
+ * When the status of a service changes, a message is sent with address
+ * `!_o2/si`. The type string is "sis" and the parameters are (1) the 
+ * service name, (2) the new status, and (3) the ip:port string of
+ * the process that offers (or offered) the service.
  */
 int o2_status(const char *service);
 
@@ -940,6 +960,25 @@ extern int o2_clock_is_synchronized;
  *   round-trip time of the last 5 (where 5 is the value of
  *   CLOCK_SYNC_HISTORY_LEN) clock sync requests. Otherwise,
  *   O2_FAIL is returned and `*mean` and `*min` are unaltered.
+ *
+ * Note: You can get this information from a remote process by 
+ * sending a message to `!ip:port/cs/rt`, where `ip:port` is the
+ * ip:port string for a process. (One way to get this is to call
+ * `o2_get_address` and construct a ip:port process name from 
+ * the information returned. But then you can just call 
+ * `o2_roundtrip` for the local process round trip information.
+ * For a remote process names, you can create a handler for 
+ * `/_o2/si`. The process name is provided whenever one of its
+ * services is created or otherwise changes status.) The 
+ * type string for `!ip:port/cs/rt` is "s", and the parameter is
+ * an O2 address prefix. When the message is received, a reply is
+ * sent to an address formed by appending "/get-reply" to the 
+ * address prefix. The reply message has the type string "sff",
+ * and the parameters are (1) the process ip:port name, (2) the
+ * mean of recent round trip times to the master clock, and
+ * (3) the minimum of recent round trip times. (The clock is set
+ * using the minimum, so this number is an upper bound on the
+ * clock skew for this process.
  */
 int o2_roundtrip(double *mean, double *min);
 

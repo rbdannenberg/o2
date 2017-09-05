@@ -119,12 +119,16 @@ def runAllTests():
     print("Running regression tests for O2 ...")
     if not runTest("dispatchtest"): return
     if not runTest("typestest"): return
+    if not runTest("taptest"): return
     if not runTest("coercetest"): return
     if not runTest("longtest"): return
     if not runTest("arraytest"): return
     if not runTest("bundletest"): return
+    if not runTest("infotest1"): return
 
     if not runDouble("clockmaster", "CLOCKMASTER DONE",
+                     "clockslave", "CLOCKSLAVE DONE"): return
+    if not runDouble("infotest2", "INFOTEST2 DONE",
                      "clockslave", "CLOCKSLAVE DONE"): return
     if not runDouble("o2client", "CLIENT DONE",
                      "o2server", "SERVER DONE"): return

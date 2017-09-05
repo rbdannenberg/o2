@@ -62,6 +62,9 @@ while true; do
     runtest "typestest"
     if [ $status == -1 ]; then break; fi
 
+    runtest "taptest"
+    if [ $status == -1 ]; then break; fi
+
     runtest "coercetest"
     if [ $status == -1 ]; then break; fi
 
@@ -74,7 +77,13 @@ while true; do
     runtest "bundletest"
     if [ $status == -1 ]; then break; fi
 
+    runtest "infotest1"
+    if [ $status == -1 ]; then break; fi
+
     rundouble "statusserver" "SERVER DONE" "statusclient" "CLIENT DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "infotest2" "INFOTEST2 DONE" "clockslave" "CLOCKSLAVE DONE"
     if [ $status == -1 ]; then break; fi
 
     rundouble "clockmaster" "CLOCKMASTER DONE" "clockslave" "CLOCKSLAVE DONE"

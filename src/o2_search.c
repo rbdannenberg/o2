@@ -7,7 +7,7 @@
 //
 // delivery is recursive due to bundles. Here's an overview of the structure:
 //
-// o2_message_send(o2_message_ptr msg, int schedulable)
+// o2_message_send_sched(o2_message_ptr msg, int schedulable)
 //         (Defined in o2_send.c)
 //         Determines local or remote O2 or OSC
 //         If remote, calls o2_send_remote()
@@ -31,7 +31,7 @@
 //         Calls o2_message_send_sched(msg, FALSE) to send message
 //         (FALSE prevents a locally scheduled message you are trying
 //         to dispatch from being considered for scheduling using the
-//         o2_gtsched, which may not be working yet.)
+//         o2_gtsched, which may not be sync'ed yet.)
 // o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
 //                     o2_entry_ptr service)
 //         delivers a message or bundle locally. Calls
@@ -88,7 +88,7 @@ node_entry o2_full_path_table;
 node_entry o2_path_tree;
 
 
-static void enumerate_begin(enumerate *enumerator, dyn_array_ptr dict)
+void o2_enumerate_begin(enumerate_ptr enumerator, dyn_array_ptr dict)
 {
     enumerator->dict = dict;
     enumerator->index = 0;
@@ -100,7 +100,7 @@ static void enumerate_begin(enumerate *enumerator, dyn_array_ptr dict)
 // a new table because enumerate_next does not depend upon the
 // pointers in each entry once the entry is enumerated.
 //
-static o2_entry_ptr enumerate_next(enumerate_ptr enumerator)
+o2_entry_ptr o2_enumerate_next(enumerate_ptr enumerator)
 {
     while (!enumerator->entry) {
         int i = enumerator->index++;
@@ -116,14 +116,14 @@ static o2_entry_ptr enumerate_next(enumerate_ptr enumerator)
 }
 
 #ifndef O2_NO_DEBUGGING
-static const char *entry_tags[5] = { "PATTERN_NODE", "PATTERN_HANDLER", "SERVICES",
-                              "O2_BRIDGE_SERVICE", "OSC_REMOTE_SERVICE" };
+static const char *entry_tags[6] = { "PATTERN_NODE", "PATTERN_HANDLER", "SERVICES",
+                              "O2_BRIDGE_SERVICE", "OSC_REMOTE_SERVICE", "TAPPER" };
 static const char *info_tags[7] = { "UDP_SOCKET", "TCP_SOCKET", "OSC_SOCKET",
                              "DISCOVER_SOCKET", "TCP_SERVER_SOCKET",
                              "OSC_TCP_SERVER_SOCKET", "OSC_TCP_SOCKET" };
 const char *o2_tag_to_string(int tag)
 {
-    if (tag <= OSC_REMOTE_SERVICE) return entry_tags[tag];
+    if (tag <= TAPPER) return entry_tags[tag];
     if (tag >= UDP_SOCKET && tag <= OSC_TCP_SOCKET)
         return info_tags[tag - UDP_SOCKET];
     static char unknown[32];
@@ -146,15 +146,17 @@ void o2_info_show(o2_info_ptr info, int indent)
         printf("\n");
         node_entry_ptr node = (node_entry_ptr) info;
         enumerate en;
-        enumerate_begin(&en, &(node->children));
+        o2_enumerate_begin(&en, &(node->children));
         o2_entry_ptr entry;
-        while ((entry = enumerate_next(&en))) {
+        while ((entry = o2_enumerate_next(&en))) {
             // see if each entry can be found
-#ifndef NDEBUG
-            o2_entry_ptr *ptr = // only needed in assert()
-#endif
+#ifdef NDEBUG
             o2_lookup(node, entry->key);
-            assert(*ptr == entry);
+#else
+            o2_entry_ptr *ptr = o2_lookup(node, entry->key);
+            if (*ptr != entry)
+                printf("ERROR: *ptr %p != entry %p\n", *ptr, entry);
+#endif
             o2_info_show((o2_info_ptr) entry, indent + 1);
         }
     } else if (info->tag == SERVICES) {
@@ -170,6 +172,9 @@ void o2_info_show(o2_info_ptr info, int indent)
     } else if (info->tag == TCP_SOCKET) {
         process_info_ptr proc = (process_info_ptr) info;
         printf(" port=%d name=%s\n", proc->port, proc->proc.name);
+    } else if (info->tag == TAPPER) {
+        tapper_entry_ptr tap = (tapper_entry_ptr) info;
+        printf(" tapper_name=%s\n", tap->tapper_name);
     } else {
         printf("\n");
     }
@@ -289,9 +294,9 @@ static void find_and_call_handlers_rec(char *remaining, char *name,
     if (slash) *slash = '/';
     if (pattern) { // this is a pattern 
         enumerate enumerator;
-        enumerate_begin(&enumerator, &(((node_entry_ptr)node)->children));
+        o2_enumerate_begin(&enumerator, &(((node_entry_ptr)node)->children));
         o2_entry_ptr entry;
-        while ((entry = enumerate_next(&enumerator))) {
+        while ((entry = o2_enumerate_next(&enumerator))) {
             if (slash && (entry->tag == PATTERN_NODE) &&
                 (o2_pattern_match(entry->key, remaining) == O2_SUCCESS)) {
                 find_and_call_handlers_rec(slash + 1, name, entry, msg, types);
@@ -384,6 +389,9 @@ static void entry_free(o2_entry_ptr entry)
                 entry_free((o2_entry_ptr) info);
             } else if (info->tag == OSC_REMOTE_SERVICE) {
                 osc_info_free((osc_info_ptr) info);
+            } else if (info->tag == TAPPER) {
+                O2_FREE((void *) ((tapper_entry_ptr) info)->tapper_name);
+                O2_FREE(info);
             } else assert(info->tag == TCP_SOCKET);
         }
         DA_FINISH(s->services);
@@ -410,6 +418,13 @@ static int64_t get_hash(o2string key)
     int32_t c;
     do {
         c = *ikey++;
+        // c must be either all non-zero, or each zero must be followed by zero
+        // and the last character is zero
+        assert(((c & 0xff) && (c & 0xff00) &&
+                (c & 0xff0000) && (c & 0xff000000)) ||
+               ((((c & 0xff) != 0) || ((c & 0xff00) == 0)) &&
+                (((c & 0xff00) != 0) || ((c & 0xff0000) == 0)) &&
+                ((c & 0xff000000) == 0)));
         hash = ((hash + c) * SCRAMBLE) >> 32;
     } while (c & STRING_EOS_MASK);
     return hash;
@@ -465,8 +480,11 @@ int o2_method_new(const char *path, const char *typespec,
 
     int ret = O2_NO_SERVICE;
     if (!services) goto error_return; // cleanup and return
+    // find the service offered by this process (o2_process) -- the method should
+    // be attached to our local offering of the service
     node_entry_ptr node = (node_entry_ptr) o2_proc_service_find(o2_process, services);
     if (!node)  goto error_return; // cleanup and return
+
     assert(node->tag == PATTERN_NODE || node->tag == PATTERN_HANDLER);
 
     ret = O2_FAIL; // set to prepare for failure in O2_MALLOC
@@ -474,7 +492,7 @@ int o2_method_new(const char *path, const char *typespec,
             O2_MALLOC(sizeof(handler_entry));
     if (!handler) goto error_return; // using default O2_FAIL
     handler->tag = PATTERN_HANDLER;
-    handler->key = NULL;
+    handler->key = NULL; // gets set below with the final node of the address
     handler->handler = h;
     handler->user_data = user_data;
     handler->full_path = key;
@@ -508,6 +526,7 @@ int o2_method_new(const char *path, const char *typespec,
     // slash here means path has nodes, e.g. /serv/foo vs. just /serv
     if (!slash) { // (cases 1 and 2)
         handler->key = NULL;
+        handler->full_path = NULL;
         int rslt = o2_service_provider_replace(o2_process, key + 1, (o2_info_ptr) handler);
         O2_FREE(key); // do not need full path for global handler
         return rslt;
@@ -591,9 +610,14 @@ void pick_service_provider(dyn_array_ptr list)
     DA_SET(*list, o2_info_ptr, 0, top_info);
 }
 
+
 /** replace the service named service_name offered by proc with new_service.
+ * This happens when we change from all-service handler to per-node handlers
+ * or vice versa. Also happens when we delete a service, and when we remove a
+ * remote service when it disconnects.
  * if new_service is NULL, remove the service, and if this is the last service,
- * remove the whole services entry.
+ * remove the whole services entry. Also, if NULL, find any tappee where this 
+ * is the tapper and remove the tapper entry.
  *
  * prereq: service_name does not have '/'
  */
@@ -608,6 +632,7 @@ int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
         return O2_FAIL;
     }
     dyn_array_ptr list = &((*services)->services); // list of services
+    // search for the entry in the list of services that corresponds to proc
     int i;
     for (i = 0; i < list->length; i++) {
         o2_info_ptr service = GET_SERVICE(*list, i);
@@ -639,6 +664,12 @@ int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
         DA_SET(*list, o2_info_ptr, i, new_service);
         return O2_SUCCESS;
     }
+    // send notification message
+    o2_in_find_and_call_handlers++; // defer message send until it's safe
+    assert(proc->proc.name[0]);
+    o2_send_cmd("!_o2/si", 0.0, "sis", service_name, O2_FAIL, proc->proc.name);
+    o2_in_find_and_call_handlers--;
+
     // "replacement" is NULL, so we have to remove the listing
     DA_REMOVE(*list, process_info_ptr, i);
     if (list->length == 0) {
@@ -646,11 +677,31 @@ int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
     } else if (i == 0) { // move top ip:port provider to top spot
         pick_service_provider(list);
     }
+
+    // now we probably have a new service, report it:
+    if (list->length > 0) {
+        o2_info_ptr info = GET_SERVICE(*list, 0);
+        const char *process_name;
+        int status = o2_status_from_info(info, &process_name);
+        // note: if the entry is a TAPPER, status will be O2_FAIL (not a service)
+        if (status != O2_FAIL) {
+            o2_in_find_and_call_handlers++; // defer message send until it's safe
+            assert(process_name[0]);
+            o2_send_cmd("!_o2/si", 0.0, "sis", service_name, O2_FAIL, process_name);
+            o2_in_find_and_call_handlers--;
+        }
+    }
+
     // if the service was local, tell other processes that it is gone
     if (proc == o2_process) {
-        o2_notify_others(service_name, FALSE);
+        o2_notify_others(service_name, FALSE, NULL);
     }
-    // proc also has a list of services it provides; remove service
+
+    // proc also has a list of services it provides; find the service
+    // in the list and remove it. It should always be first in the list
+    // because we're using the same list to enumerate the services, but
+    // just in case there's some other reason to remove a service, we'll
+    // search for it rather than assuming it's the first entry.
     list = &(proc->proc.services);
     for (int j = 0; j < proc->proc.services.length; j++) {
         if (streql(*DA_GET(*list, char *, i), service_name)) {
@@ -661,7 +712,126 @@ int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
     O2_DBg(printf("%s o2_service_provider_replace(%s, %s) did not find "
                   "service in process_info's services list\n",
                   o2_debug_prefix, proc->proc.name, service_name));
+    
+    // remove tapper entries if any. For each service, search the services_entries
+    // to find each service, search o2_path_tree. This is a hash table, so searching
+    // must include linked lists at each location.
+    dyn_array_ptr table = &o2_path_tree.children;
+    services_entry_ptr services_ptr;
+    enumerate enumerator;
+    o2_enumerate_begin(&enumerator, table);
+    while ((services_ptr =
+            (services_entry_ptr) o2_enumerate_next(&enumerator))) {
+        if (services_ptr->tag == SERVICES) {
+            int j;
+            for (j = 0; j < services_ptr->services.length; j++) {
+                tapper_entry_ptr *tapper_ptr = DA_GET(services_ptr->services, tapper_entry_ptr, j);
+                if ((*tapper_ptr)->tag == TAPPER &&
+                    streql((*tapper_ptr)->tapper_name, service_name)) {
+                    // we cannot call DA_REMOVE because it uses the last element
+                    // to replace the removed element, but we need to keep the
+                    // TAPPER elements before the non-TAPPER elements, so use
+                    // memmove to move the whole array
+                    O2_FREE(*tapper_ptr);
+                    memmove(tapper_ptr, tapper_ptr + sizeof(*tapper_ptr),
+                            sizeof(*tapper_ptr) *
+                            (services_ptr->services.length - (j + 1)));
+                    j--; // we shifted the array, so look at location j again
+                }
+            }
+        }
+    }
     return O2_FAIL;
+}
+
+
+// add an empty services_entry for service_name at *services
+// *services must be determined from o2_lookup(&o2_path_tree, service_name)
+//
+services_entry_ptr o2_insert_new_service(o2string service_name,
+                                         services_entry_ptr *services)
+{
+    services_entry_ptr s = O2_CALLOC(1, sizeof(services_entry));
+    s->tag = SERVICES;
+    s->key = o2_heapify(service_name);
+    s->next = NULL;
+    DA_INIT(s->services, o2_entry_ptr, 1);
+    o2_add_entry_at(&o2_path_tree, (o2_entry_ptr *) services, 
+                    (o2_entry_ptr) s);
+    return s;
+}
+
+
+
+
+// add tapper as a TAPPER_ENTRY to the service entry for tappee
+// after this call, messages to tappee should be forwarded to tapper
+// if the tap is already set, return O2_SERVICE_EXISTS
+// this function is used internally as part of the response to sv
+// (new service) messages.
+//
+// The services_entry has an array where the first element is the
+// actual provider of the service (if there is a provider). After
+// that are all the taps on the service. After the taps, there are
+// alternative service providers (when there are multiple providers,
+// O2 uses the lexicographically highest provider, based on the
+// IP:Port string, to pick the current service provider, and the
+// other providers are held in the services array at the end in
+// case the current provider is removed, e.g. it is a remote
+// process and gets disconnected or crashes.)
+//
+int o2_set_tap(const char *tappee, const char *tapper_name)
+{
+    // find the service entry for tappee. Tappee must be padded properly:
+    char padded_tappee[NAME_BUF_LEN];
+    o2_string_pad(padded_tappee, tappee);
+    services_entry_ptr *services =
+            (services_entry_ptr *) o2_lookup(&o2_path_tree, padded_tappee);
+    services_entry_ptr s = *services;
+    int i = 0;
+    if (!s) {
+        s = o2_insert_new_service(padded_tappee, services);
+        // TODO: REMOVE THIS DEBUGGING CODE
+        if (streql(padded_tappee, "test")) {
+#ifndef NDEBUG
+            printf("--- node (o2_path_tree) %p key %s\n", &o2_path_tree, tappee);
+            o2_entry_ptr *ptr = // only needed in assert()
+#endif
+                o2_lookup(&o2_path_tree, padded_tappee);
+            assert(*ptr);
+        }
+    } else {
+        // now we have s, the services array. Look for tapper_name...
+        if (s->services.length > 0) {
+            if (GET_SERVICE(s->services, 0)->tag != TAPPER) {
+                // first entry is a real service
+                i = 1;
+            }
+        }
+        o2_info_ptr info;
+        while (s->services.length > i &&
+               (info = GET_SERVICE(s->services, i)->tag == TAPPER)) {
+            if (streql(((tapper_entry_ptr) info)->tapper_name, tapper_name)) {
+                return O2_SERVICE_EXISTS;
+            }
+            i++;
+        }
+    }
+    // insert the tapper at index i
+    tapper_entry_ptr tapper = (tapper_entry *)
+            O2_MALLOC(sizeof(tapper_entry));
+    tapper->tag = TAPPER;
+    tapper->tapper_name = o2_heapify(tapper_name);
+    tapper->next = NULL;
+    assert(*tapper->tapper_name);
+    
+    if (s->services.length <= i) { // insert at end
+        DA_APPEND(s->services, tapper_entry_ptr, tapper);
+    } else { // move ith entry to the end, replace ith entry with tapper
+        DA_APPEND(s->services, o2_info_ptr, *DA_GET(s->services, o2_info_ptr, i));
+        DA_SET(s->services, tapper_entry_ptr, i, tapper);
+    }
+    return O2_SUCCESS;
 }
 
 
@@ -688,9 +858,59 @@ int o2_embedded_msgs_deliver(o2_msg_data_ptr msg, int tcp_flag)
 }
 
 
-// deliver msg locally and immediately
+void send_msg_data_to_tapper(o2_msg_data_ptr msg, o2string tapper_name)
+{
+    // construct a new message to send to tapper by replacing service name
+
+    // how big is the existing service name?
+
+    // I think coerce to char * will remove bounds checking, which might limit the
+    // search to 4 characters since msg->address is declared to be char [4]
+    // Skip first character which might be a slash; we want the slash after the
+    // service name.
+    char *slash = strchr((char *) (msg->address) + 1, '/');
+    if (!slash) {
+        return;  // this is not a valid address, stop now
+    }
+    int curlen = (int) (slash - msg->address);
+
+    // how much space will tapper_name take?
+    int newlen = (int) strlen(tapper_name) + 1; // add 1 for initial '/' or '!'
+
+    // how long is current address?
+    int curaddrlen = (int) strlen((char *) (msg->address));
+
+    // how long is new address?
+    int newaddrlen = curaddrlen + (newlen - curlen);
+
+    // what is the difference in space needed for address (and message)?
+    // "+ 4" accounts for end-of-string byte and padding in each case
+    int curaddrall = WORD_OFFSET(curaddrlen + 4); // address + padding
+    int newaddrall = WORD_OFFSET(newaddrlen + 4);
+    int extra = newaddrall - curaddrall;
+
+    // allocate a new message
+    o2_message_ptr newmsg = o2_alloc_size_message(MSG_DATA_LENGTH(msg) + extra);
+    newmsg->length = MSG_DATA_LENGTH(msg) + extra;
+    newmsg->data.timestamp = msg->timestamp;
+    // fill end of address with zeros before creating address string
+    *((int32_t *) (newmsg->data.address + WORD_OFFSET(newaddrlen))) = 0;
+    // first character is either / or ! copied from original message
+    newmsg->data.address[0] = msg->address[0];
+    memcpy((char *) (newmsg->data.address + 1), tapper_name, newlen); // copies name and EOS
+    memcpy((char *) (newmsg->data.address + newlen), msg->address + curlen, curaddrlen - curlen);
+    // copy the rest of the message
+    printf("** copying %d bytes from %p to %p\n", MSG_DATA_LENGTH(msg) - curaddrall, msg->address + curaddrall, newmsg->data.address + newaddrall);
+    memcpy((char *) (newmsg->data.address + newaddrall),
+           msg->address + curaddrall, MSG_DATA_LENGTH(msg) - curaddrall);
+    o2_message_send_sched(newmsg, FALSE);
+}
+
+
+// deliver msg locally and immediately. If service is not null,
+//    assume it is correct, saving the cost of looking it up
 void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
-                         o2_info_ptr service)
+                         o2_info_ptr service, services_entry_ptr services)
 {
     if (IS_BUNDLE(msg)) {
         o2_embedded_msgs_deliver(msg, tcp_flag);
@@ -699,7 +919,7 @@ void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
 
     char *address = msg->address;
     if (!service) {
-        service = o2_msg_service(msg);
+        service = o2_msg_service(msg, &services);
         if (!service) return; // service must have been removed
     }
 
@@ -732,7 +952,18 @@ void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
         } else {
             find_and_call_handlers_rec(address + 1, name, (o2_entry_ptr) service, msg, types);
         }
-    } // the assumption that the service is local fails, drop the message
+    } // else the assumption that the service is local fails, drop the message
+
+    // if there are tappers, send the message to them as well
+    int tapper_index = 1; // first tapper will be here
+    while (tapper_index < services->services.length) {
+        tapper_entry_ptr tapper = *DA_GET(services->services, tapper_entry_ptr, tapper_index);
+        if (tapper->tag != TAPPER) {
+            break; // we've found all the tappers, so we're done
+        }
+        send_msg_data_to_tapper(msg, tapper->tapper_name);
+        tapper_index++;
+    }
 }
 
 
@@ -763,6 +994,7 @@ o2string o2_heapify(const char *path)
     int32_t *end_ptr = (int32_t *) WORD_ALIGN_PTR(rslt + len - 1);
     *end_ptr = 0;
     strcpy(rslt, path);
+    assert(*path == 0 || *rslt);
     return rslt;
 }
 
@@ -1254,9 +1486,9 @@ static int resize_table(node_entry_ptr node, int new_locs)
     // copy all entries from old to nde->children
     assert(node->children.array != NULL);
     enumerate enumerator;
-    enumerate_begin(&enumerator, &old);
+    o2_enumerate_begin(&enumerator, &old);
     o2_entry_ptr entry;
-    while ((entry = enumerate_next(&enumerator))) {
+    while ((entry = o2_enumerate_next(&enumerator))) {
         o2_entry_add(node, entry);
     }
     // now we have moved all entries into the new table and we can free the

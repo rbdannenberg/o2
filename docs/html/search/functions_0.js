@@ -18,7 +18,9 @@ var searchData=
   ['o2_5ferror_5fto_5fstring',['o2_error_to_string',['../group__basics.html#ga67b4fc40e23deec5c8a311aefec391d7',1,'o2.h']]],
   ['o2_5fextract_5fstart',['o2_extract_start',['../group__lowlevelparse.html#ga5743585b7234221d61a9631506403bb9',1,'o2.h']]],
   ['o2_5ffinish',['o2_finish',['../group__basics.html#gaeb0a8ba7f6be0f8f95ad7e7803fa0698',1,'o2.h']]],
+  ['o2_5fget_5faddress',['o2_get_address',['../group__basics.html#ga5567b921081dfade1c5f447ed20d201e',1,'o2.h']]],
   ['o2_5fget_5fnext',['o2_get_next',['../group__lowlevelparse.html#ga86bb7c2ff32557228d4714f67378c649',1,'o2.h']]],
+  ['o2_5fhub',['o2_hub',['../group__basics.html#gaaed73746128098a0fcb54224a43755cd',1,'o2.h']]],
   ['o2_5finitialize',['o2_initialize',['../group__basics.html#ga54991832ea34fc9a0a14b5a6669c3e6c',1,'o2.h']]],
   ['o2_5flocal_5ftime',['o2_local_time',['../group__basics.html#gad61265502fc27fb2e145171be3b3cf0a',1,'o2.h']]],
   ['o2_5fmemory',['o2_memory',['../group__basics.html#ga9593ab20376d20759f3003e16af42838',1,'o2.h']]],
@@ -41,5 +43,6 @@ var searchData=
   ['o2_5fservice_5fnew',['o2_service_new',['../group__basics.html#gacd22196d91300f33ba67d596549d2a69',1,'o2.h']]],
   ['o2_5fset_5fdiscovery_5fperiod',['o2_set_discovery_period',['../group__basics.html#ga33bd6f43cf100d78b5e2282409fc63a0',1,'o2.h']]],
   ['o2_5fstatus',['o2_status',['../group__basics.html#ga46819340ca66f61bb17059e5542f763a',1,'o2.h']]],
+  ['o2_5ftap',['o2_tap',['../group__basics.html#gac9323c695fd37d9a5ff063ee60493823',1,'o2.h']]],
   ['o2_5ftime_5fget',['o2_time_get',['../group__basics.html#ga10db3d64aa464498b6b8b90c28b7996d',1,'o2.h']]]
 ];

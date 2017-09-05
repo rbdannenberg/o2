@@ -132,8 +132,9 @@ int o2_make_tcp_connection(const char *ip, int tcp_port,
 
     O2_DBo(printf("%s connect to %s:%d with socket %ld\n",
                   o2_debug_prefix, ip, tcp_port, (long) sock));
-    if (connect(sock, (struct sockaddr *) &remote_addr,
-                sizeof(remote_addr)) == -1) {
+    int err = connect(sock, (struct sockaddr *) &remote_addr,
+                      sizeof(remote_addr));
+    if (err == -1) {
         perror("Connect Error!\n");
         o2_fds_info.length--;   // restore socket arrays 
         o2_fds.length--;
@@ -303,6 +304,7 @@ int o2_send_services(process_info_ptr process)
         if ((*((int32_t *) service) != *((int32_t *) "_o2"))) {
             o2_add_string(service);
             o2_add_true();
+            o2_add_string("");
             O2_DBd(printf("%s o2_send_services sending %s to %s\n",
                           o2_debug_prefix, service, process->proc.name));
         }
@@ -399,7 +401,7 @@ int o2_discovery_by_tcp(const char *ipaddress, int port, char *name,
         o2_message_free(msg);
     } else { // we are the client remote host is the server and hub
         remote->proc.name = o2_heapify(name);
-        o2_service_provider_new(name, (o2_info_ptr) remote, remote);
+        o2_service_provider_new(name, (o2_info_ptr) remote, remote, "");
         o2_send_initialize(remote, hub_flag ? O2_SERVER_IS_HUB : O2_NO_HUB);
         o2_send_services(remote);
     }
@@ -496,7 +498,7 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
         }
         remote->proc.name = o2_heapify(name);
         assert(remote->tag == TCP_SOCKET);
-        o2_service_provider_new(name, (o2_info_ptr) remote, remote);
+        o2_service_provider_new(name, (o2_info_ptr) remote, remote, "");
         o2_send_initialize(remote, hub_flag);
         o2_send_services(remote);
         if (hub_flag == O2_CLIENT_IS_HUB) {
@@ -555,7 +557,7 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
         // but we did not yet create a service named for client's IP:port
         int hub_flag = hub_arg->i32;
         assert(info->tag == TCP_SOCKET);
-        o2_service_provider_new(name, (o2_info_ptr) info, info);
+        o2_service_provider_new(name, (o2_info_ptr) info, info, "");
         assert(info->proc.name == NULL);
         info->proc.name = o2_heapify(name);
         // uses_hub means info->proc, the remote proc, is using us as the hub;
@@ -589,7 +591,7 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
 
 
 // /ip:port/sv: called to announce services available or removed. Arguments are
-//     process name, service1, added_flag, service2, added_flag, ...
+//     process name, service1, added_flag, tappee, service2, added_flag, tappee, ...
 //
 void o2_services_handler(o2_msg_data_ptr msg, const char *types,
                          o2_arg_ptr *argv, int argc, void *user_data)
@@ -599,22 +601,27 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
     if (!arg) return;
     char *name = arg->s;
     // note that name is padded with zeros to 32-bit boundary
-    process_info_ptr proc = (process_info_ptr) o2_service_find(name);
+    services_entry_ptr services;
+    process_info_ptr proc = (process_info_ptr) o2_service_find(name, &services);
     if (!proc || proc->tag != TCP_SOCKET) {
         O2_DBg(printf("%s ### ERROR: o2_services_handler did not find %s\n", 
                       o2_debug_prefix, name));
         return; // message is bogus (should we report this?)
     }
-    o2_arg_ptr addarg;
-    while ((arg = o2_get_next('s')) && (addarg = o2_get_next('B'))) {
+    o2_arg_ptr addarg;     // boolean - adding a service or deleting one?
+    o2_arg_ptr tappeearg;  // string - non-empty if we are tapping a service
+    while ((arg = o2_get_next('s')) && (addarg = o2_get_next('B')) &&
+           (tappeearg = o2_get_next('s'))) {
         if (strchr(arg->s, '/')) {
             O2_DBg(printf("%s ### ERROR: o2_services_handler got bad service "
                           "name - %s\n", o2_debug_prefix, arg->s));
-        } else if (addarg->B) {
-            O2_DBd(printf("%s found service /%s offered by /%s\n",
-                          o2_debug_prefix, arg->s, proc->proc.name));
-            o2_service_provider_new(arg->s, (o2_info_ptr) proc, proc);
-        } else {
+        } else if (addarg->B) { // add a new service offered by remote proc
+            O2_DBd(printf("%s found service /%s offered by /%s%s%s\n",
+                          o2_debug_prefix, arg->s, proc->proc.name,
+                          (*tappeearg->s ? " tapping " : ""),
+                          tappeearg->s));
+            o2_service_provider_new(arg->s, (o2_info_ptr) proc, proc, tappeearg->s);
+        } else { // remove a service - it is no longer offered by proc
             o2_service_provider_replace(proc, arg->s, NULL);
         }
     }

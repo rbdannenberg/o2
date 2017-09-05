@@ -95,7 +95,11 @@ target_link_libraries(dispatchtest ${LIBRARIES})
 add_executable(typestest test/typestest.c)   
 target_include_directories(typestest PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(typestest ${LIBRARIES}) 
-  
+
+add_executable(taptest test/taptest.c)   
+target_include_directories(taptest PRIVATE ${CMAKE_SOURCE_DIR}/src)   
+target_link_libraries(taptest ${LIBRARIES}) 
+
 add_executable(coercetest test/coercetest.c)    
 target_include_directories(coercetest PRIVATE ${CMAKE_SOURCE_DIR}/src)    
 target_link_libraries(coercetest ${LIBRARIES}) 
@@ -160,9 +164,17 @@ add_executable(oscbndlsend test/oscbndlsend.c)
 target_include_directories(oscbndlsend PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(oscbndlsend ${LIBRARIES}) 
 
-add_executable(oscbndlrecv test/oscbndlrecv.c)   
-target_include_directories(oscbndlrecv PRIVATE ${CMAKE_SOURCE_DIR}/src)   
-target_link_libraries(oscbndlrecv ${LIBRARIES}) 
+add_executable(oscbndlrecv test/oscbndlrecv.c)    
+target_include_directories(oscbndlrecv PRIVATE ${CMAKE_SOURCE_DIR}/src)    
+target_link_libraries(oscbndlrecv ${LIBRARIES})  
+
+add_executable(infotest1 test/infotest1.c)    
+target_include_directories(infotest1 PRIVATE ${CMAKE_SOURCE_DIR}/src)    
+target_link_libraries(infotest1 ${LIBRARIES})  
+ 
+add_executable(infotest2 test/infotest2.c)    
+target_include_directories(infotest2 PRIVATE ${CMAKE_SOURCE_DIR}/src)    
+target_link_libraries(infotest2 ${LIBRARIES})  
 endif(BUILD_TESTS)
 
 if(UNIX)
