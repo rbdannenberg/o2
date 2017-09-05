@@ -29,7 +29,7 @@ if(UNIX)
     set(FRAMEWORK_PATH ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks) 
     set(EXTRA_LIBS "${FRAMEWORK_PATH}/CoreAudio.framework") 
   else(APPLE) # must be Linux
-    set(EXTRA_LIBS "-lm") # needed by liblo
+    # set(EXTRA_LIBS "-lm") # needed by liblo
   endif(APPLE)
 endif(UNIX)
 
@@ -190,12 +190,14 @@ if(UNIX)
 
     if(APPLE)
       set(COREMIDI_LIB "${FRAMEWORK_PATH}/CoreMIDI.framework")
-      set(EXTRA_NEEDED_LIBS ${COREAUDIO_LIB} ${COREFOUNDATION_LIB}
+      # EXTRA_LO_LIBS is libraries needed by Liblo applications
+      set(EXTRA_LO_LIBS ${COREAUDIO_LIB} ${COREFOUNDATION_LIB}
                             ${COREMIDI_LIB} ${CORESERVICES_LIB})
     else(APPLE)
       # LINUX
       set(PTHREAD_LIB pthread)
-      set(EXTRA_NEEDED_LIBS asound ${PTHREAD_LIB})
+      # EXTRA_LO_LIBS is libraries needed by Liblo applications
+      set(EXTRA_LO_LIBS asound ${PTHREAD_LIB} m)
     endif(APPLE)
 
     set(PORTMIDI_BASE_PATH ../portmedia/portmidi 
@@ -265,7 +267,7 @@ if(BUILD_TESTS_WITH_LIBLO)
   set(LIBLO_PATH "${CMAKE_SOURCE_DIR}/../liblo-0.28" CACHE PATH
                  "Where to find liblo_64s.a, the liblo library.") 
   set(LIBLO_LIB LIBLO_LIB-NOTFOUND CACHE FILEPATH
-             "The liblo library; should be set automatically if LIBLO_PATH is correct and liblo_64s.a exists.") 
+             "The liblo library; should be set automatically if LIBLO_PATH is correct and liblo_s64.a exists.") 
   find_library(LIBLO_LIB lo_s64 ${LIBLO_PATH})
   # where to find liblo include files:
   set(LIBLO_INCLUDE_PATH ${LIBLO_PATH} CACHE PATH "where to find liblo include files") 
@@ -275,26 +277,26 @@ if(BUILD_TESTS_WITH_LIBLO)
   # Create executables 
   add_executable(lo_benchmk_server  test/lo_benchmk_server.c) 
   target_include_directories(lo_benchmk_server PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_benchmk_server ${LIBLO_LIB} ${EXTRA_NEEDED_LIBS}) 
+  target_link_libraries(lo_benchmk_server ${LIBLO_LIB} ${EXTRA_LO_LIBS}) 
 
   add_executable(lo_benchmk_client  test/lo_benchmk_client.c) 
   target_include_directories(lo_benchmk_client PRIVATE ${LIBLO_INCLUDE_PATH})  
-  target_link_libraries(lo_benchmk_client ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})  
+  target_link_libraries(lo_benchmk_client ${LIBLO_LIB}  ${EXTRA_LO_LIBS})  
 
   add_executable(lo_oscrecv test/lo_oscrecv.c) 
   target_include_directories(lo_oscrecv PRIVATE ${LIBLO_INCLUDE_PATH})  
-  target_link_libraries(lo_oscrecv ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})   
+  target_link_libraries(lo_oscrecv ${LIBLO_LIB}  ${EXTRA_LO_LIBS})   
 
   add_executable(lo_oscsend test/lo_oscsend.c) 
   target_include_directories(lo_oscsend PRIVATE ${LIBLO_INCLUDE_PATH})  
-  target_link_libraries(lo_oscsend ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})    
+  target_link_libraries(lo_oscsend ${LIBLO_LIB}  ${EXTRA_LO_LIBS})    
 
   add_executable(lo_bndlsend test/lo_bndlsend.c) 
   target_include_directories(lo_bndlsend PRIVATE ${LIBLO_INCLUDE_PATH})  
-  target_link_libraries(lo_bndlsend ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})     
+  target_link_libraries(lo_bndlsend ${LIBLO_LIB}  ${EXTRA_LO_LIBS})     
 
   add_executable(lo_bndlrecv test/lo_bndlrecv.c) 
   target_include_directories(lo_bndlrecv PRIVATE ${LIBLO_INCLUDE_PATH})  
-  target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})     
+  target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_LO_LIBS})     
 endif(BUILD_TESTS_WITH_LIBLO)
 endif(BUILD_TESTS)
