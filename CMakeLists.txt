@@ -24,10 +24,14 @@ if(WIN32)
   set(EXTRA_LIBS winmm.lib ws2_32.lib Iphlpapi.lib)
 endif(WIN32)
 
-if(APPLE)
-  set(FRAMEWORK_PATH ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks) 
-  set(EXTRA_LIBS "${FRAMEWORK_PATH}/CoreAudio.framework") 
-endif(APPLE)
+if(UNIX)
+  if(APPLE)
+    set(FRAMEWORK_PATH ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks) 
+    set(EXTRA_LIBS "${FRAMEWORK_PATH}/CoreAudio.framework") 
+  else(APPLE) # must be Linux
+    set(EXTRA_LIBS "-lm") # needed by liblo
+  endif(APPLE)
+endif(UNIX)
 
 #set(CMAKE_CXX_FLAGS "-stdlib=libc++")
 #set(CMAKE_EXE_LINKER_FLAGS "-stdlib=libc++")
