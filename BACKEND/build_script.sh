@@ -1,6 +1,8 @@
 #!/bin/bash
+echo "osboxes ALL=NOPASSWD: /home/osboxes/build_script.sh" | EDITOR="tee -a" visudo
+echo "osboxes ALL=NOPASSWD: /usr/bin/apt-get" >> /etc/sudoers
 
-if [ $1 = "ubuntu" ]
+if [ "$1" = "ubuntu" ]
 then
 DIRECTORY="/home/osboxes/o2"
 cd ~
@@ -9,7 +11,7 @@ apt-cache policy git | grep -q none
 if [ $? -eq 0 ]
 then
 logger -s "ERROR: 'Git' is not installed"
-sudo apt-get upgrade
+sudo apt-get -y upgrade
 sudo apt-get install-y git
 else
 logger -s "VERIFIED: git is installed..."
@@ -21,7 +23,7 @@ apt-cache policy cmake | grep -q none
 if [ $? -eq 0 ]
 then
 logger -s "ERROR: 'CMake' is not installed"
-sudo apt-get upgrade
+sudo apt-get -y upgrade
 sudo apt-get install -y cmake
 else
 logger -s "VERIFIED: CMake is installed..."
@@ -45,7 +47,7 @@ else
 logger -s "Cloning O2 from Git.."
 git clone https://github.com/rbdannenberg/o2.git
 logger -s "Building O2.."
-cd $DIRECTORY
+cd $DIRECTORY/o2
 cmake -H. -Bbuild
 cmake --build build -- -j3
 cd build
