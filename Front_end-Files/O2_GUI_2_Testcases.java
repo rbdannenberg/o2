@@ -3,6 +3,10 @@ import java.io.File;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.TreeSet;
+
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
@@ -24,20 +28,23 @@ public class O2_GUI_2_Testcases extends JFrame {
 	public O2_GUI_2_Testcases() {
 	}
 
-    @SuppressWarnings("unchecked")
 	public void O2_GUI_2_Testcases(ArrayList arr) throws IOException {
     	initComponents(arr);
     }
 
-    @SuppressWarnings("unchecked") 
+  
     void initComponents(ArrayList<String> arr) throws IOException { 
-//    	O2_GUI GU = new O2_GUI();
-    	
-//    	System.out.println("ArrayList:"+arr);
-    	String[] array = new String[arr.size()];
+    	Set<String> set = new TreeSet();
     	for(int i = 0; i < arr.size(); i++) {
-    	    array[i] = (String) arr.get(i);
+    	    set.add(arr.get(i));
     	}
+    	
+    	String[] array = new String[set.size()];
+    	
+    	int i=0;
+    	for(String s:set)
+    		array[i++]=s;
+		    	
     	JComboBox SelectTc = new JComboBox(array);
     	File folder = new File("C:\\Users\\Lavu\\Desktop\\CMU\\CMU\\O2_Project\\O2_Latest\\o2-master\\o2-master\\test");
     	File[] listOfFiles = folder.listFiles();
@@ -110,20 +117,12 @@ public class O2_GUI_2_Testcases extends JFrame {
         Back.setText("Back");
         Back.addActionListener(new ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-//            	jButton_Back_rowsActionPerformed(evt);
-            	
-            	O2_GUI GU1 = new O2_GUI();
-        		GU1.setVisible(true);        		
-        		toFront();
-        		requestFocus();
-        		repaint();
+        		O2_GUI_2_Testcases GU = new O2_GUI_2_Testcases();
+            	GU.setVisible(false);
+            	dispose();
             }    });
         
-//        private void jButton_Back_rowsActionPerformed(java.awt.event.ActionEvent evt) {       
-//        	O2_GUI GU1 = new O2_GUI();
-//    		GU1.setVisible(true);
-//            }
-        
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         
         layout.setHorizontalGroup(
@@ -191,7 +190,6 @@ public class O2_GUI_2_Testcases extends JFrame {
     }    
     
     private void jButton_addall_rowsActionPerformed(java.awt.event.ActionEvent evt) {                                                  
-//        TableModel model = jTable1.getModel();
         int rowCount = jTable1.getRowCount();
         Object[] row = new Object[rowCount];
         System.out.println(jTable1.getValueAt(0,0));
@@ -212,9 +210,7 @@ public class O2_GUI_2_Testcases extends JFrame {
     
     
     private void jButton_remove_rowsActionPerformed(java.awt.event.ActionEvent evt) {
-//        TableModel model = jTable2.getModel();
         int[] indexs = jTable2.getSelectedRows();
-//        Object[] row = new Object[1];
         DefaultTableModel model2 = (DefaultTableModel) jTable2.getModel();        
         for(int i = 0; i < indexs.length; i++)
         {
@@ -231,8 +227,7 @@ public class O2_GUI_2_Testcases extends JFrame {
         }
     } 
     
-    
-   
+ 
     
     /**
      * @param args the command line arguments
