@@ -14,6 +14,7 @@ import javax.swing.GroupLayout.Alignment;
 import javax.swing.GroupLayout;
 import javax.swing.LayoutStyle.ComponentPlacement;
 import java.awt.event.ActionListener;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 /**
  * @author Lavanya
@@ -106,7 +107,22 @@ public class O2_GUI_2_Testcases extends JFrame {
         Execute.setText("Execute");
         
         JButton Back = new JButton();
-        Execute.setText("Back");
+        Back.setText("Back");
+        Back.addActionListener(new ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+//            	jButton_Back_rowsActionPerformed(evt);
+            	
+            	O2_GUI GU1 = new O2_GUI();
+        		GU1.setVisible(true);        		
+        		toFront();
+        		requestFocus();
+        		repaint();
+            }    });
+        
+//        private void jButton_Back_rowsActionPerformed(java.awt.event.ActionEvent evt) {       
+//        	O2_GUI GU1 = new O2_GUI();
+//    		GU1.setVisible(true);
+//            }
         
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         
@@ -144,11 +160,11 @@ public class O2_GUI_2_Testcases extends JFrame {
         					.addComponent(jButton_add_rows)
         					.addPreferredGap(ComponentPlacement.RELATED)
         					.addComponent(btnRemoveAll, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-        					.addGap(50)
+        					.addGap(20)
         					.addComponent(Execute, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-        					.addGap(50)
+        					.addGap(20)
         					.addComponent(Back, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-        					.addGap(233))
+        					.addGap(100))
         				.addGroup(layout.createSequentialGroup()
         					.addContainerGap()
         					.addGroup(layout.createParallelGroup(Alignment.BASELINE)
@@ -215,6 +231,8 @@ public class O2_GUI_2_Testcases extends JFrame {
         }
     } 
     
+    
+   
     
     /**
      * @param args the command line arguments

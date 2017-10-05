@@ -71,7 +71,7 @@ void initializePanel() {
     			O2_GUI_2_Testcases GU = new O2_GUI_2_Testcases();
             	GU.O2_GUI_2_Testcases(MIPs);
             	GU.setVisible(true);
-    		} catch (IOException e) {
+          } catch (IOException e) {
     			// TODO Auto-generated catch block
     			e.printStackTrace();
     		}
