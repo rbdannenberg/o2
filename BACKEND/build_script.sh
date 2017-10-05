@@ -1,6 +1,12 @@
 #!/bin/bash
-echo "osboxes ALL=NOPASSWD: /home/osboxes/build_script.sh" | EDITOR="tee -a" visudo
+echo $USER
+cp /etc/sudoers /etc/sudoers.bak
+cp /etc/sudoers /etc/sudoers.tmp
+chmod 0640 /etc/sudoers.tmp
+echo "osboxes ALL=NOPASSWD: /home/osboxes/build_script.sh" >> /etc/sudoers
 echo "osboxes ALL=NOPASSWD: /usr/bin/apt-get" >> /etc/sudoers
+chmod 0440 /etc/sudoers.tmp
+mv /etc/sudoers.tmp /etc/sudoers
 
 if [ "$1" = "ubuntu" ]
 then
