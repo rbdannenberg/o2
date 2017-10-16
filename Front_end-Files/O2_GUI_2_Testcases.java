@@ -1,12 +1,8 @@
-package events;
+package ui2;
 import java.io.File;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.TreeSet;
-
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
@@ -20,33 +16,48 @@ import javax.swing.LayoutStyle.ComponentPlacement;
 import java.awt.event.ActionListener;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.ComboBoxModel;
 /**
  * @author Lavanya
  */
 @SuppressWarnings("serial")
 public class O2_GUI_2_Testcases extends JFrame {
-	public O2_GUI_2_Testcases() {
+        ArrayList <String> machineIP = new ArrayList();
+        HashMap <String, ArrayList<String>> machineAndTest = new HashMap();
+	String ip;
+        public O2_GUI_2_Testcases() {
 	}
 
+    @SuppressWarnings("unchecked")
 	public void O2_GUI_2_Testcases(ArrayList arr) throws IOException {
     	initComponents(arr);
     }
 
-  
+    @SuppressWarnings("unchecked") 
     void initComponents(ArrayList<String> arr) throws IOException { 
-    	Set<String> set = new TreeSet();
+//    	O2_GUI GU = new O2_GUI();
+    	
+//    	System.out.println("ArrayList:"+arr);
+    	String[] array = new String[arr.size()];
     	for(int i = 0; i < arr.size(); i++) {
-    	    set.add(arr.get(i));
+    	    array[i] = (String) arr.get(i);
     	}
-    	
-    	String[] array = new String[set.size()];
-    	
-    	int i=0;
-    	for(String s:set)
-    		array[i++]=s;
-		    	
-    	JComboBox SelectTc = new JComboBox(array);
-    	File folder = new File("C:\\Users\\Lavu\\Desktop\\CMU\\CMU\\O2_Project\\O2_Latest\\o2-master\\o2-master\\test");
+        for(String t : array)
+        {
+            String s[] = t.split("\\s");
+            machineIP.add(s[0]);
+        }
+        System.out.println(machineIP.toString());
+        String[] ipList = machineIP.toArray(new String[machineIP.size()]);
+    	JComboBox SelectTc = new JComboBox(ipList);
+    	File folder = new File("/Users/aparrnaa/Desktop/CMU/Practicum/o2_MAIN_COPY/test");
     	File[] listOfFiles = folder.listFiles();
     	ArrayList<String> list = new ArrayList<String>();
     	
@@ -75,6 +86,7 @@ public class O2_GUI_2_Testcases extends JFrame {
         jButton_add_rows.setText("Remove Selected");
         jButton_add_rows.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
+             
                 jButton_remove_rowsActionPerformed(evt);
             }
         });
@@ -105,24 +117,82 @@ public class O2_GUI_2_Testcases extends JFrame {
         JButton btnRemoveSelected = new JButton();
         btnRemoveSelected.setText("Add Selected");
         btnRemoveSelected.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(java.awt.event.ActionEvent evt) {
+                ip = (String) SelectTc.getSelectedItem();
                 jButton_add_rowsActionPerformed(evt);
             }
         });
         
         JButton Execute = new JButton();
         Execute.setText("Execute");
+        Execute.addActionListener(new ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                System.out.println(machineAndTest.toString());
+                String[] machineDetails = new String[array.length];
+                for(String t : array)
+                {
+                   machineDetails = t.split("\\s");
+                }
+                System.out.println(machineDetails);
+                ArrayList <String> tests = machineAndTest.get(machineDetails[0]);
+                for(String testcase : tests)
+                {
+                            String[] command = {"/Users/aparrnaa/Desktop/CMU/Practicum/o2_MAIN_COPY/BACKEND/configure_script.sh", machineDetails[0], machineDetails[1], machineDetails[3], machineDetails[2], testcase};
+                    ProcessBuilder p = new ProcessBuilder(command);
+                    Process p2 = null;
+                    try {
+                        p2 = p.start();
+                    } catch (IOException ex) {
+                        System.out.println(ex.getMessage());
+                        Logger.getLogger(O2_GUI.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    BufferedReader br = new BufferedReader(new InputStreamReader(p2.getInputStream()));
+                    String line;
+                    p.redirectErrorStream(true);
+                    System.out.println("Output of running command is: ");
+                    try {
+                        while ((line = br.readLine()) != null) {
+                            System.out.println(line);
+                        }
+                    } catch (IOException ex) {
+                        Logger.getLogger(O2_GUI.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+
+
+                   System.out.println("Error in running command is: ");
+                    try {
+                    BufferedReader br2 = new BufferedReader(new InputStreamReader(p2.getErrorStream()));
+                    while ((line = br2.readLine()) != null) {
+                    System.out.println(line);
+                    }
+                    } catch (IOException ex) {
+                    Logger.getLogger(O2_GUI.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
+         
+            }
+        });
+        
         
         JButton Back = new JButton();
         Back.setText("Back");
         Back.addActionListener(new ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-        		O2_GUI_2_Testcases GU = new O2_GUI_2_Testcases();
-            	GU.setVisible(false);
-            	dispose();
+//            	jButton_Back_rowsActionPerformed(evt);
+            	
+            	O2_GUI GU1 = new O2_GUI();
+        		GU1.setVisible(true);        		
+        		toFront();
+        		requestFocus();
+        		repaint();
             }    });
         
-
+//        private void jButton_Back_rowsActionPerformed(java.awt.event.ActionEvent evt) {       
+//        	O2_GUI GU1 = new O2_GUI();
+//    		GU1.setVisible(true);
+//            }
+        
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         
         layout.setHorizontalGroup(
@@ -180,16 +250,42 @@ public class O2_GUI_2_Testcases extends JFrame {
 
         TableModel model = jTable1.getModel();
         int[] indexs = jTable1.getSelectedRows();
+                
         Object[] row = new Object[1];
         DefaultTableModel model2 = (DefaultTableModel) jTable2.getModel();
         for(int i = 0; i < indexs.length; i++)
         {
             row[0] = model.getValueAt(indexs[i], 0);
+            if(machineAndTest.containsKey(ip))
+                {
+                    ArrayList <String> testcases = machineAndTest.get(ip);
+                    for(Object o : row)
+                    {
+                     String temp = (String) o;
+                     temp = temp.substring(0, temp.length()-2).trim();
+                     testcases.add(temp);
+                    }
+                    
+                }
+            else
+            {
+                 ArrayList <String> testcases = new ArrayList();
+                 for(Object o : row)
+                 {
+                     String temp = (String) o;
+                     temp = temp.substring(0, temp.length()-2).trim();
+                     testcases.add(temp);
+                 }
+                    
+                 machineAndTest.put(ip, testcases);
+            }
+            
             model2.addRow(row);
         } 
     }    
     
     private void jButton_addall_rowsActionPerformed(java.awt.event.ActionEvent evt) {                                                  
+//        TableModel model = jTable1.getModel();
         int rowCount = jTable1.getRowCount();
         Object[] row = new Object[rowCount];
         System.out.println(jTable1.getValueAt(0,0));
@@ -210,7 +306,9 @@ public class O2_GUI_2_Testcases extends JFrame {
     
     
     private void jButton_remove_rowsActionPerformed(java.awt.event.ActionEvent evt) {
+//        TableModel model = jTable2.getModel();
         int[] indexs = jTable2.getSelectedRows();
+//        Object[] row = new Object[1];
         DefaultTableModel model2 = (DefaultTableModel) jTable2.getModel();        
         for(int i = 0; i < indexs.length; i++)
         {
@@ -227,7 +325,8 @@ public class O2_GUI_2_Testcases extends JFrame {
         }
     } 
     
- 
+    
+   
     
     /**
      * @param args the command line arguments
