@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javax.swing.ComboBoxModel;
 /**
  * @author Lavanya
@@ -136,9 +137,10 @@ public class O2_GUI_2_Testcases extends JFrame {
                 }
                 System.out.println(machineDetails);
                 ArrayList <String> tests = machineAndTest.get(machineDetails[0]);
-                for(String testcase : tests)
-                {
-                            String[] command = {"/Users/aparrnaa/Desktop/CMU/Practicum/o2_MAIN_COPY/BACKEND/configure_script.sh", machineDetails[0], machineDetails[1], machineDetails[3], machineDetails[2], testcase};
+                String testcase = tests.stream().collect(Collectors.joining(","));
+                //for(String testcase : tests)
+               // {
+                    String[] command = {"/Users/aparrnaa/Desktop/CMU/Practicum/o2_MAIN_COPY/BACKEND/configure_script.sh", machineDetails[0], machineDetails[1], machineDetails[3], machineDetails[2], testcase};
                     ProcessBuilder p = new ProcessBuilder(command);
                     Process p2 = null;
                     try {
@@ -169,7 +171,7 @@ public class O2_GUI_2_Testcases extends JFrame {
                     } catch (IOException ex) {
                     Logger.getLogger(O2_GUI.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                }
+               // }
          
             }
         });
