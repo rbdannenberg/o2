@@ -33,7 +33,16 @@ echo "Directory exists.."
 rm -rf $DIRECTORY
 echo "Cloning O2 from Git.."
 git clone https://github.com/rbdannenberg/o2.git
+cd $DIRECTORY
 echo "Building O2.."
+echo "Downloading liblo packages..."
+wget -O liblo-0.28 https://sourceforge.net/projects/liblo/files/liblo/0.28/liblo-0.28.tar.gz/download
+tar -xvf liblo-0.28
+cd liblo-0.28
+./configure --enable-static
+make
+cp src/.libs/liblo.a liblo_s64.a
+echo "Liblo configuring done.."
 cd $DIRECTORY
 cmake -H. -Bbuild
 cmake --build build -- -j3
@@ -43,6 +52,15 @@ make
 else
 echo "Cloning O2 from Git.."
 git clone https://github.com/rbdannenberg/o2.git
+cd $DIRECTORY/
+echo "Downloading liblo packages..."
+wget -O liblo-0.28 https://sourceforge.net/projects/liblo/files/liblo/0.28/liblo-0.28.tar.gz/download
+tar -xvf liblo-0.28
+cd liblo-0.28
+./configure --enable-static
+make
+cp src/.libs/liblo.a liblo_s64.a
+echo "Liblo configuring done.."
 echo "Building O2.."
 cd $DIRECTORY/
 cmake -H. -Bbuild
