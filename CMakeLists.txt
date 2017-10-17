@@ -29,7 +29,7 @@ if(UNIX)
     set(FRAMEWORK_PATH ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks) 
     set(EXTRA_LIBS "${FRAMEWORK_PATH}/CoreAudio.framework") 
   else(APPLE) # must be Linux
-    # set(EXTRA_LIBS "-lm") # needed by liblo
+    set(EXTRA_LIBS "-lm") # needed by liblo
   endif(APPLE)
 endif(UNIX)
 
