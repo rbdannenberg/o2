@@ -6,14 +6,8 @@ os="$2"
 password="$3"
 username="$4"
 testcases="$5"
-hostdetails="$6"
-hosts=(${hostdetails//,/ })
-hostname=${hosts[2]}
-hostip=${hosts[0]}
-hostpwd=${hosts[3]}
-echo $hostname
-echo $hostip
-echo $hostpwd
+hostname="aparrnaa"
+hostip="10.0.0.230"
 echo "executing ssh..."
 datevar=`date +%Y-%m-%d-%H-%M-%S`
 HOMEPATH="/home/osboxes/o2"
@@ -35,7 +29,7 @@ do
    sshpass -p "123" scp $HOMEPATH/$element.txt $hostname@$hostip:$HOMEDIR/$ip/$datevar
    logout
 /usr/local/bin/sshpass -p $3 ssh -t -t -o StrictHostKeyChecking=no $username@$ip <<EOF
-sshpass -p $hostpwd scp $HOMEPATH/$element.txt $hostname@$hostip:$HOMEDIR/$ip/
+sshpass -p "123" scp $HOMEPATH/$element.txt $hostname@$hostip:$HOMEDIR/$ip/
 logout
 EOF
 done
