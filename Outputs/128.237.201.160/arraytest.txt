@@ -1,0 +1,14 @@
+DONE sending [3456]
+DONE sending []
+DONE sending [123, 234]
+DONE sending [xixdx] messages
+DONE sending 456,[456,12345][1234.56,1234.567,2345.678],1234.567
+DONE sending [ddd...], size 0 through 100
+DONE sending vi, size 0 through 100
+DONE sending vf, size 0 through 100
+DONE sending vh, size 0 through 100
+DONE sending vd, size 0 through 100
+DONE sending ifvxif, types ihfd, size 0 through 100
+DONE sending vivd, size 0 through 100
+DONE sending ifvxif, types ihfdt, size 0 through 100
+DONE
