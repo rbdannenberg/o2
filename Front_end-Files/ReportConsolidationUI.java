@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package consolidationui;
+package ui2;
 
 /**
  *
@@ -39,16 +39,16 @@ public class ReportConsolidationUI extends JFrame {
     private JTable table;
     private DefaultTableModel tableModel;
 
-    private ReportConsolidationUI() {
+    public ReportConsolidationUI() {
         createGUI();
     }
 
-    private void createGUI() {
+    public void createGUI() {
         setLayout(new BorderLayout());
         JScrollPane pane = new JScrollPane();
         table = new JTable();
         pane.setViewportView(table);
-       
+       pane.setBounds(1000, 1000, 700, 700);
         JButton btnBack = new JButton("Back");
         btnBack.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -70,7 +70,7 @@ public class ReportConsolidationUI extends JFrame {
         //String currentUsersHomeDir = System.getProperty("user.home");
         //String str= currentUsersHomeDir+"//Outputs";
         Desktop desktop = Desktop.getDesktop();
-        String str = "C:/Users/Teju/Downloads/Outputs/Outputs";
+        String str = "/Users/aparrnaa/Desktop/CMU/Practicum/o2_MAIN_COPY/Outputs";
         File directory = new File(str);
         File[] fList = directory.listFiles();
         for (File file : fList) {
