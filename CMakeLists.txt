@@ -4,7 +4,7 @@ project(o2)
 
 set(BUILD_TESTS ON CACHE BOOL "Compile regression and other tests")
 set(BUILD_TESTS_COVERAGE ON CACHE BOOL "Compile for code coverage")
-set(BUILD_TESTS_WITH_LIBLO OFF CACHE BOOL "Compile tests that use liblo,
+set(BUILD_TESTS_WITH_LIBLO ON CACHE BOOL "Compile tests that use liblo,
 requiring liblo library (only enabled if BUILD_TESTS is ON)")
 
 set(BUILD_MIDI_EXAMPLE OFF CACHE BOOL "Compile midiclient & midiserver,
