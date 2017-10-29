@@ -22,6 +22,7 @@ import java.util.logging.Logger;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -38,11 +39,12 @@ public class O2_GUI extends JPanel implements ActionListener {
 	JTable table = null;
 	static JFrame frame = null;
 	JTextArea output;
+        String masterPwd;
 	Map<Integer, StringBuilder> selectedMap = new HashMap<Integer, StringBuilder>();
 	private Set<String> contents = new HashSet();
 
-	public O2_GUI() {
-		initializePanel();
+	public O2_GUI() {                
+             initializePanel();
 	}
 
 	private void initializePanel() {
@@ -51,10 +53,16 @@ public class O2_GUI extends JPanel implements ActionListener {
 		setName("Configure Machines");
 		Object[] columnNames = { "Select", "MachineIP", "Type", "Username",
 				"Password" };
-		File DataFile = new File("sample.csv");
+		File DataFile = new File("sample.txt");
 		Object[][] data = ReadCSVfile(DataFile);
 		// add a nice border
 		setBorder(new EmptyBorder(5, 5, 5, 5));
+                masterPwd= JOptionPane.showInputDialog(this,"Please input password: ");
+                
+                while(masterPwd.isEmpty()) {
+                    masterPwd =JOptionPane.showInputDialog(this,"Password cannot be empty, please enter your password: ");
+                }
+               // System.out.println("Master password.."+masterPwd);
 		DefaultTableModel model = new DefaultTableModel(data, columnNames);
 		this.table = new JTable(model) {
 
@@ -96,8 +104,7 @@ public class O2_GUI extends JPanel implements ActionListener {
 
 				if ((Boolean) table.getModel().getValueAt(
 						table.getSelectedRow(), 0)) {
-					System.out.println((Boolean) table.getModel().getValueAt(
-							table.getSelectedRow(), 0));
+					//System.out.println((Boolean) table.getModel().getValueAt(table.getSelectedRow(), 0));
 
 					for (int j = 1; j < table.getColumnCount(); j++) {
 						rowSelected.append((String) table.getModel()
@@ -106,14 +113,14 @@ public class O2_GUI extends JPanel implements ActionListener {
 					selectedMap.put(table.getSelectedRow(), rowSelected);
 				} else {
 					if (selectedMap.containsKey(table.getSelectedRow())) {
-						System.out.println("Key found and row unselected");
+						//System.out.println("Key found and row unselected");
 						selectedMap.remove(table.getSelectedRow());
 
 					}
 
 				}
 
-				System.out.println(selectedMap);
+				//System.out.println(selectedMap);
 			}
 		});
 
@@ -121,7 +128,7 @@ public class O2_GUI extends JPanel implements ActionListener {
 		output = new JTextArea(1, 10);
 		command.add(add);
 		command.add(add1);
-		command.add(output);
+		//command.add(output);
 
 		add(pane, BorderLayout.CENTER);
 		add(command, BorderLayout.SOUTH);
@@ -138,8 +145,8 @@ public class O2_GUI extends JPanel implements ActionListener {
 		ArrayList<String> machineList = new ArrayList<String>();
 
 		for (int key : selectedMap.keySet()) {
-			System.out.println("key : " + key);
-			System.out.println("value : " + selectedMap.get(key));
+			//System.out.println("key : " + key);
+			//System.out.println("value : " + selectedMap.get(key));
 			machineList.add(selectedMap.get(key).toString());
 
 		}
@@ -164,7 +171,9 @@ public class O2_GUI extends JPanel implements ActionListener {
 		LineNumberReader lnr = null;
 		int i = 0;
 		try {
+                        
 			lnr = new LineNumberReader(new FileReader(DataFile));
+                       // System.out.println("Line....."+lnr);
 		} catch (FileNotFoundException e1) {
 			e1.printStackTrace();
 		}
@@ -174,7 +183,7 @@ public class O2_GUI extends JPanel implements ActionListener {
 
 			e1.printStackTrace();
 		}
-		System.out.println(lnr.getLineNumber() + 1);
+		//System.out.println("how many lines?????"+lnr.getLineNumber());
 		try {
 			lnr.close();
 		} catch (IOException e1) {
@@ -186,22 +195,23 @@ public class O2_GUI extends JPanel implements ActionListener {
 
 		try {
 			BufferedReader brd = new BufferedReader(new FileReader(DataFile));
-			while (brd.ready()) {
-				String st = brd.readLine();
+                        String st;
+			while ((st = brd.readLine()) != null) {				 
 				OneRow = st.split(",|\\s|;");
 				break;
 
 			}
 		} catch (Exception e) {
 			String errmsg = e.getMessage();
-			System.out.println("File not found:" + errmsg);
+			System.out.println("File not found..." + errmsg);
 		}
 		final Object[][] Rs = new Object[lnr.getLineNumber()][OneRow.length + 1];
 
 		try {
 			BufferedReader brd = new BufferedReader(new FileReader(DataFile));
-			while (brd.ready()) {
-				String st = brd.readLine();
+                        String st;
+			while ((st = brd.readLine()) != null) {
+                           			
 				OneRow = st.split(",|\\s|;");
 				Rs[i][0] = false;
 				for (int j = 0; j < OneRow.length; j++) {
@@ -214,13 +224,13 @@ public class O2_GUI extends JPanel implements ActionListener {
 			String errmsg = e.getMessage();
 			System.out.println("File not found:" + errmsg);
 		}
-		for (int k = 0; k < Rs.length; k++) {
-			for (int l = 0; l < Rs[0].length; l++) {
-				System.out.print(Rs[k][l]);
-				System.out.print("\t");
-			}
-			System.out.println("\n");
-		}
+//		for (int k = 0; k < Rs.length; k++) {
+//			for (int l = 0; l < Rs[0].length; l++) {
+//				System.out.print(Rs[k][l]);
+//				System.out.print("\t");
+//			}
+//			System.out.println("\n");
+//		}
 		return Rs;
 
 	}
