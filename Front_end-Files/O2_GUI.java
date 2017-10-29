@@ -1,274 +1,248 @@
 package ui2;
 
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.table.AbstractTableModel;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
+import java.io.LineNumberReader;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.table.TableColumn;
-import sun.security.util.Password;
+
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
+import javax.swing.table.DefaultTableModel;
 
 @SuppressWarnings("serial")
-public class O2_GUI extends JPanel implements ActionListener{
+public class O2_GUI extends JPanel implements ActionListener {
 
-final JTable table = new JTable(new MyTableModel());
+	JTable table = null;
+	static JFrame frame = null;
+	JTextArea output;
+	Map<Integer, StringBuilder> selectedMap = new HashMap<Integer, StringBuilder>();
+	private Set<String> contents = new HashSet();
 
-JTextArea output;
-JPasswordField password;
-private Set<String> contents = new HashSet();
-public String[] myMachineDetails;
-public O2_GUI() {
-    initializePanel();
-}
+	public O2_GUI() {
+		initializePanel();
+	}
 
-private void initializePanel() {
-    setLayout(new BorderLayout());
-    setPreferredSize(new Dimension(600, 600));
-    setName("Configure Machines");
-    JLabel passwordlabel = new JLabel("Enter the password for the local machine: ");
-    password = new JPasswordField(20);
-    table.setFillsViewportHeight(true);
-    JScrollPane pane = new JScrollPane(table);
-    JButton add = new JButton("Configure");
-    add.addActionListener(this);
-   // JButton add1 = new JButton("Logs");
-    table.setRowSelectionAllowed(true);
-    table.setColumnSelectionAllowed(false);
-    table.getSelectionModel().addListSelectionListener(new SharedListSelectionHandler());
-    TableColumn tc = table.getColumnModel().getColumn(3);
-    tc.setCellEditor(table.getDefaultEditor(Boolean.class));
-    tc.setCellRenderer(table.getDefaultRenderer(Boolean.class));
-    ((JComponent) table.getDefaultRenderer(Boolean.class)).setOpaque(true);
-   // tc.getCellEditor().addCellEditorListener(new CellEditorListenerImpl());
+	private void initializePanel() {
+		setLayout(new BorderLayout());
+		setPreferredSize(new Dimension(600, 600));
+		setName("Configure Machines");
+		Object[] columnNames = { "Select", "MachineIP", "Type", "Username",
+				"Password" };
+		File DataFile = new File("sample.csv");
+		Object[][] data = ReadCSVfile(DataFile);
+		// add a nice border
+		setBorder(new EmptyBorder(5, 5, 5, 5));
+		DefaultTableModel model = new DefaultTableModel(data, columnNames);
+		this.table = new JTable(model) {
 
- 
-    JPanel command = new JPanel(new FlowLayout());
-    output = new JTextArea(1, 10);
-    output.setVisible(false);
-    command.add(add);
-   // command.add(add1);
-    command.add(output);
-    JPanel first = new JPanel(new FlowLayout());
-    first.add(passwordlabel);
-    first.add(password);
-    //add(passwordlabel, BorderLayout.PAGE_START); 
-   // add(password, BorderLayout.LINE_END);
-    add(pane, BorderLayout.CENTER);
-    add(command, BorderLayout.SOUTH);
-    add(first, BorderLayout.PAGE_START);
-    
-    myMachineDetails = new String[4];
-    String interfaceName;
-    String osname = System.getProperty("os.name").toLowerCase();
-    if(osname.indexOf("win") > 0) 
-    {
-        interfaceName = "eth0";
-        osname = "windows";
-    }
-    else if(osname.indexOf("x") > 0) 
-    {
-        interfaceName = "en0";
-        osname = "mac";
-    }
-    else
-    {
-        interfaceName = "en0";
-        osname = "ubuntu";
-    }
-   
-    String ip = null;
-    try
-    {
-         NetworkInterface networkInterface = NetworkInterface.getByName(interfaceName);
-         Enumeration<InetAddress> inetAddress = networkInterface.getInetAddresses();
-         InetAddress currentAddress;
-         currentAddress = inetAddress.nextElement();
-         while(inetAddress.hasMoreElements())
-         {
-             currentAddress = inetAddress.nextElement();
-             if(currentAddress instanceof Inet4Address && !currentAddress.isLoopbackAddress())
-             {
-                  ip = currentAddress.toString();
-                 //System.out.println(ip.substring(1));
-                 break;
-             }
-         } 
-    }
-    catch(Exception e)
-    {
-        e.getMessage();
-    } 
+			private static final long serialVersionUID = 1L;
 
-    String username = System.getProperty("user.name");
-    myMachineDetails[0] = ip.substring(1);
-    myMachineDetails[1] = osname;
-    myMachineDetails[2] = username;
-    myMachineDetails[3] = new String(password.getPassword());
-   // System.out.println();
- // add a nice border
-    setBorder(new EmptyBorder(5, 5, 5, 5));
-    CSVFile Rd = new CSVFile();
-    MyTableModel NewModel = new MyTableModel();
-    this.table.setModel(NewModel);
-    File DataFile = new File("/Users/aparrnaa/NetBeansProjects/UI2/sample.csv");
-    ArrayList<String[]> Rs2 = new ArrayList < String[]>();
-   
-    Rs2 = Rd.ReadCSVfile(DataFile);
-    Rs2.add(myMachineDetails);
-    NewModel.AddCSVData(Rs2);
-    System.out.println("Rows: " + NewModel.getRowCount());
-    System.out.println("Cols: " + NewModel.getColumnCount());
-}
+			@Override
+			public Class getColumnClass(int column) {
+				switch (column) {
+				case 0:
+					return Boolean.class;
+				case 1:
+					return String.class;
+				case 2:
+					return String.class;
+				case 3:
+					return String.class;
+				case 4:
+					return String.class;
+				default:
+					return Boolean.class;
+				}
+			}
+		};
 
-    @Override
-    public void actionPerformed(ActionEvent e) {
-    //try {
-        String[] machineList = output.getText().split("\n");
-        //ArrayList <String> machines = new ArrayList(Arrays.asList(machineList));
-        this.setEnabled(false);
-        O2_GUI_2_Testcases GU = new O2_GUI_2_Testcases();
-        
-        ArrayList <String> machines = new ArrayList(Arrays.asList(machineList));
-    try {
-       myMachineDetails[3]= new String(password.getPassword());
-        GU.O2_GUI_2_Testcases(machines, myMachineDetails);
-    } catch (IOException ex) {
-        Logger.getLogger(O2_GUI.class.getName()).log(Level.SEVERE, null, ex);
-    }
-   
-        GU.setVisible(true);
-       
-    } 
+		table.setFillsViewportHeight(true);
+		JScrollPane pane = new JScrollPane(table);
+		JButton add = new JButton("Configure");
+		add.addActionListener(this);
+		JButton add1 = new JButton("Logs");
+		JCheckBox checkBox = new javax.swing.JCheckBox();
+		table.setRowSelectionAllowed(true);
+		table.setColumnSelectionAllowed(false);
+		table.getModel().addTableModelListener(new TableModelListener() {
+			String contents2 = new String();
 
+			@Override
+			public void tableChanged(TableModelEvent e) {
+				StringBuilder rowSelected = new StringBuilder();
 
-//reading csv file 
- class CSVFile {
-    private final ArrayList<String[]> Rs = new ArrayList<String[]>();
-    private String[] OneRow;
+				if ((Boolean) table.getModel().getValueAt(
+						table.getSelectedRow(), 0)) {
+					System.out.println((Boolean) table.getModel().getValueAt(
+							table.getSelectedRow(), 0));
 
-    public ArrayList<String[]> ReadCSVfile(File DataFile) {
-        try {
-            BufferedReader brd = new BufferedReader(new FileReader(DataFile));
-            while (brd.ready()) {
-                String st = brd.readLine();
-                OneRow = st.split(",|\\s|;");
-                Rs.add(OneRow);
-                //System.out.println(Arrays.toString(OneRow));
-            } // end of while
-        } // end of try
-        catch (Exception e) {
-            String errmsg = e.getMessage();
-            System.out.println("File not found:" + errmsg);
-        } // end of Catch
-        return Rs;
-        
-    }// end of ReadFile method
-}// end of CSVFile class
+					for (int j = 1; j < table.getColumnCount(); j++) {
+						rowSelected.append((String) table.getModel()
+								.getValueAt(table.getSelectedRow(), j) + " ");
+					}
+					selectedMap.put(table.getSelectedRow(), rowSelected);
+				} else {
+					if (selectedMap.containsKey(table.getSelectedRow())) {
+						System.out.println("Key found and row unselected");
+						selectedMap.remove(table.getSelectedRow());
 
+					}
 
-public static void showFrame() {
-    JPanel panel = new O2_GUI();
-    panel.setOpaque(true);
+				}
 
-    JFrame frame = new JFrame("Machine Configuration");
-    frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-    frame.setContentPane(panel);
-    frame.pack();
-    frame.setVisible(true);
-}
+				System.out.println(selectedMap);
+			}
+		});
 
-public static void main(String[] args) {
-    SwingUtilities.invokeLater(new Runnable() {
+		JPanel command = new JPanel(new FlowLayout());
+		output = new JTextArea(1, 10);
+		command.add(add);
+		command.add(add1);
+		command.add(output);
 
-        public void run() {
-        	O2_GUI.showFrame();
-        }
-    });
-}
+		add(pane, BorderLayout.CENTER);
+		add(command, BorderLayout.SOUTH);
 
+		// MyTableModel NewModel = new MyTableModel();
+		// this.table.setModel(model);
 
+	}
 
-public class MyTableModel extends AbstractTableModel {
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		// try {
+		// selectedMap.g
+		ArrayList<String> machineList = new ArrayList<String>();
 
-    private String[] columns = {"MachineIP", "Type", "Username", "Password"};
-  
-    private ArrayList<String[]> Data = new ArrayList<String[]>();
+		for (int key : selectedMap.keySet()) {
+			System.out.println("key : " + key);
+			System.out.println("value : " + selectedMap.get(key));
+			machineList.add(selectedMap.get(key).toString());
 
-    public void AddCSVData(ArrayList<String[]> DataIn) {
-        this.Data = DataIn;
-        this.fireTableDataChanged();
-    }
+		}
 
-    public int getColumnCount() {
-        return columns.length;
-    }
-    
-    public int getRowCount() {
-        return Data.size();
-    }
+		this.setEnabled(false);
+		frame.setVisible(false);
+		O2_GUI_2_Testcases GU = new O2_GUI_2_Testcases();
 
-    @Override
-    public String getColumnName(int col) {
-        return columns[col];
-    }
+		try {
+			GU.O2_GUI_2_Testcases(machineList);
+		} catch (IOException ex) {
+			Logger.getLogger(O2_GUI.class.getName())
+					.log(Level.SEVERE, null, ex);
+		}
 
-    @Override
-    public Object getValueAt(int row, int col) {
-        return Data.get(row)[col];
-    }
-}
+		GU.setVisible(true);
+	}
 
-class SharedListSelectionHandler implements ListSelectionListener {
-        public void valueChanged(ListSelectionEvent e) { 
-            ListSelectionModel lsm = (ListSelectionModel)e.getSource();
-            String contents2 = new String();
-            int firstIndex = e.getFirstIndex();
-            int lastIndex = e.getLastIndex();
-            boolean isAdjusting = e.getValueIsAdjusting(); 
-            //output.append("Event for indexes "
-                       //   + firstIndex + " - " + lastIndex
-                         // + "; isAdjusting is " + isAdjusting
-                         // + "; selected indexes:");
- 
-            if (lsm.isSelectionEmpty()) {
-                output.append(" <none>");
-            } else {
-                // Find out which indexes are selected.
-                int minIndex = lsm.getMinSelectionIndex();
-                int maxIndex = lsm.getMaxSelectionIndex();
-                for (int i = minIndex; i <= maxIndex; i++) {
-                    if (lsm.isSelectedIndex(i)) {
-                        for(int j = 0; j < table.getColumnCount(); j++) {
-                         
-                        contents2 += table.getValueAt(i, j)+" ";
-                    }
-                        if(isAdjusting)
-                        output.append(contents2+" ");
-                    }
-                }
-            }
-            output.append("\n");
-           // output.setCaretPosition(output.getDocument().getLength());
-        }
-    }
+	// reading csv file
+
+	public static Object[][] ReadCSVfile(File DataFile) {
+		LineNumberReader lnr = null;
+		int i = 0;
+		try {
+			lnr = new LineNumberReader(new FileReader(DataFile));
+		} catch (FileNotFoundException e1) {
+			e1.printStackTrace();
+		}
+		try {
+			lnr.skip(Long.MAX_VALUE);
+		} catch (IOException e1) {
+
+			e1.printStackTrace();
+		}
+		System.out.println(lnr.getLineNumber() + 1);
+		try {
+			lnr.close();
+		} catch (IOException e1) {
+
+			e1.printStackTrace();
+		}
+
+		Object[] OneRow = null;
+
+		try {
+			BufferedReader brd = new BufferedReader(new FileReader(DataFile));
+			while (brd.ready()) {
+				String st = brd.readLine();
+				OneRow = st.split(",|\\s|;");
+				break;
+
+			}
+		} catch (Exception e) {
+			String errmsg = e.getMessage();
+			System.out.println("File not found:" + errmsg);
+		}
+		final Object[][] Rs = new Object[lnr.getLineNumber()][OneRow.length + 1];
+
+		try {
+			BufferedReader brd = new BufferedReader(new FileReader(DataFile));
+			while (brd.ready()) {
+				String st = brd.readLine();
+				OneRow = st.split(",|\\s|;");
+				Rs[i][0] = false;
+				for (int j = 0; j < OneRow.length; j++) {
+					Rs[i][j + 1] = OneRow[j];
+				}
+				i++;
+
+			}
+		} catch (Exception e) {
+			String errmsg = e.getMessage();
+			System.out.println("File not found:" + errmsg);
+		}
+		for (int k = 0; k < Rs.length; k++) {
+			for (int l = 0; l < Rs[0].length; l++) {
+				System.out.print(Rs[k][l]);
+				System.out.print("\t");
+			}
+			System.out.println("\n");
+		}
+		return Rs;
+
+	}
+
+	public static void showFrame() {
+		JPanel panel = new O2_GUI();
+		panel.setOpaque(true);
+
+		frame = new JFrame("Machine Configuration");
+		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		frame.setContentPane(panel);
+		frame.pack();
+		frame.setVisible(true);
+	}
+
+	public static void main(String[] args) {
+		SwingUtilities.invokeLater(new Runnable() {
+
+			public void run() {
+				O2_GUI.showFrame();
+			}
+		});
+	}
+
 }

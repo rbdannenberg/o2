@@ -58,7 +58,7 @@ public class O2_GUI_2_Testcases extends JFrame {
         System.out.println(machineIP.toString());
         String[] ipList = machineIP.toArray(new String[machineIP.size()]);
     	JComboBox SelectTc = new JComboBox(ipList);
-    	File folder = new File("/Users/aparrnaa/Desktop/CMU/Practicum/o2_MAIN_COPY/test");
+    	File folder = new File("test2");
     	File[] listOfFiles = folder.listFiles();
     	ArrayList<String> list = new ArrayList<String>();
     	
@@ -140,7 +140,7 @@ public class O2_GUI_2_Testcases extends JFrame {
                 String testcase = tests.stream().collect(Collectors.joining(","));
                 //for(String testcase : tests)
                // {
-                    String[] command = {"/Users/aparrnaa/Desktop/CMU/Practicum/o2_MAIN_COPY/BACKEND/configure_script.sh", machineDetails[0], machineDetails[1], machineDetails[3], machineDetails[2], testcase};
+                    String[] command = {"/Users/aparrnaa/Desktop/CMU/Practicum/BACKEND/configure_script.sh", machineDetails[0], machineDetails[1], machineDetails[3], machineDetails[2], testcase};
                     ProcessBuilder p = new ProcessBuilder(command);
                     Process p2 = null;
                     try {
@@ -184,7 +184,9 @@ public class O2_GUI_2_Testcases extends JFrame {
 //            	jButton_Back_rowsActionPerformed(evt);
             	
             	O2_GUI GU1 = new O2_GUI();
-        		GU1.setVisible(true);        		
+            	setVisible(false);
+        		GU1.frame.setVisible(true);
+        		
         		toFront();
         		requestFocus();
         		repaint();
