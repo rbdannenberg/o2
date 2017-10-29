@@ -174,6 +174,13 @@ add_executable(sampletest test/sampletest.c)
 target_include_directories(sampletest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(sampletest ${LIBRARIES})
 
+add_executable(infotest1 test/infotest1.c)
+target_include_directories(infotest1 PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(infotest1 ${LIBRARIES})
+
+add_executable(infotest2 test/infotest2.c)
+target_include_directories(infotest2 PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(infotest2 ${LIBRARIES})
 
 endif(BUILD_TESTS)
 
