@@ -10,6 +10,7 @@ package ui2;
  * @author Teju
  */
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Desktop;
 import java.awt.Dimension;
@@ -19,6 +20,9 @@ import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -26,18 +30,20 @@ import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 
 public class ReportConsolidationUI extends JFrame {
 
-    private JTable table;
-    private DefaultTableModel tableModel;
+    private static JTable table;
+	private DefaultTableModel tableModel; 
 
     public ReportConsolidationUI() {
         createGUI();
@@ -70,7 +76,7 @@ public class ReportConsolidationUI extends JFrame {
         //String currentUsersHomeDir = System.getProperty("user.home");
         //String str= currentUsersHomeDir+"//Outputs";
         Desktop desktop = Desktop.getDesktop();
-        String str = "/Users/aparrnaa/Desktop/CMU/Practicum/o2_MAIN_COPY/Outputs";
+        String str = "C:/Users/Lavu/workspace/newEclipse/O2_TestEnv/outputs/Outputs/Outputs";
         File directory = new File(str);
         File[] fList = directory.listFiles();
         for (File file : fList) {
@@ -98,28 +104,34 @@ public class ReportConsolidationUI extends JFrame {
                                 // check the log contents to find out the test execution status (pass/fail)
                                 int fails = 0;
                                 String message = "";
-                                String search = "fail";
+                                //String search = "fail";
+                                List<String> search = Arrays.asList("fail", "err", "failure","stack","trace",
+                                		"error","failed","core","exception","dumped","segmentation");
+                                
                                 try {
                                     Scanner scanner = new Scanner(testfile);
                                     while (scanner.hasNextLine()) {
                                         String line = scanner.nextLine();
-                                        if (line.toLowerCase().indexOf(search.toLowerCase()) != -1) {
+                                        for(int i=0;i<search.size();i++){
+                                        if (line.toLowerCase().indexOf(search.get(i).toLowerCase()) != -1) {
                                             fails++;
+                                        }
                                         }
                                     }
                                 } catch (FileNotFoundException e) {
                                     message = "This file does not exist!";
                                 }
-
+                                
                                 if (fails == 0) {
                                     message = "Test case passed";
+                                      
                                 } else {
-                                    message = "Test case failed. Number of fails is " + fails;
+                                    message = "Test case failed";
                                 }
                                  JPanel btnPanel = new JPanel();
                                  btnPanel.setLayout(new GridLayout(10, 10));
                                  btnPanel.add(openLog);
-                                tableModel.addRow(new Object[]{machinenames, timefile.getName(), testfile.getName(), message, finalFile });
+                                tableModel.addRow(new Object[]{machinenames, timefile.getName(), testfile.getName(), message, finalFile});
                                 table.getColumnModel().getColumn(4).setCellRenderer(new ButtonRenderer());
                                 table.getColumnModel().getColumn(4).setCellEditor(new ButtonEditor(new JTextField()));
                                 
@@ -154,6 +166,8 @@ public class ReportConsolidationUI extends JFrame {
 
             }
         });
+        
+        
         btnStartNewTest.setToolTipText("Click to start a new test execution");
         btnStartNewTest.setBounds(323, 227, 101, 23);
         southPanel.add(btnStartNewTest);
@@ -170,7 +184,7 @@ public class ReportConsolidationUI extends JFrame {
         
     }
    
-             class ButtonRenderer extends JButton implements TableCellRenderer{
+        class ButtonRenderer extends JButton implements TableCellRenderer{
         
         public ButtonRenderer() {
             setOpaque(true);
@@ -242,9 +256,37 @@ public class ReportConsolidationUI extends JFrame {
             super.fireEditingStopped(); //To change body of generated methods, choose Tools | Templates.
         }
         
+
+        
+    }
+   // added now- lavy
+    
+    private static final int STATUS_COL = 3;
+    
+    private static JTable getNewRenderedTable(final JTable table) {
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer(){
+            @Override
+            public Component getTableCellRendererComponent(JTable table,
+                    Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+                String status = (String)table.getModel().getValueAt(row, STATUS_COL);
+                String pass ="Test case passed";
+                if (!pass.equals(status)) {
+                    setBackground(Color.RED);
+                    setForeground(Color.WHITE);
+                } else {
+                    setBackground(table.getBackground());
+                    setForeground(table.getForeground());
+                }       
+                return this;
+            }   
+        });
+        return table;
+        
     }
     
-    
+   
+   
     
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
@@ -256,9 +298,11 @@ public class ReportConsolidationUI extends JFrame {
                 frm.pack();
                 frm.setDefaultCloseOperation(EXIT_ON_CLOSE);
                 frm.setVisible(true);
+                frm.setExtendedState(JFrame.MAXIMIZED_BOTH); 
+                table = getNewRenderedTable(table);
 
             }
 
         });
-    }
+           }
 }

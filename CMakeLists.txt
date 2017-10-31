@@ -91,11 +91,7 @@ endif(WIN32)
 # EXECUTABLE
 # Create executables
 add_executable(dispatchtest test/dispatchtest.c)
-<<<<<<< HEAD
 target_include_directories(dispatchtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
-=======
-target_include_directories(dispatchtest PRIVATE ${CMAKE_SOURCE_DIR}/src)
->>>>>>> 7e5d0c9ab19c08ce61a36eb3d865965566fc9179
 target_link_libraries(dispatchtest ${LIBRARIES})
 
 add_executable(typestest test/typestest.c)
@@ -174,13 +170,10 @@ add_executable(oscbndlrecv test/oscbndlrecv.c)
 target_include_directories(oscbndlrecv PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(oscbndlrecv ${LIBRARIES})
 
-<<<<<<< HEAD
-=======
 add_executable(sampletest test/sampletest.c)
 target_include_directories(sampletest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(sampletest ${LIBRARIES})
 
->>>>>>> 7e5d0c9ab19c08ce61a36eb3d865965566fc9179
 add_executable(infotest1 test/infotest1.c)
 target_include_directories(infotest1 PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(infotest1 ${LIBRARIES})
@@ -189,10 +182,6 @@ add_executable(infotest2 test/infotest2.c)
 target_include_directories(infotest2 PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(infotest2 ${LIBRARIES})
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 7e5d0c9ab19c08ce61a36eb3d865965566fc9179
 endif(BUILD_TESTS)
 
 if(UNIX)
@@ -294,7 +283,6 @@ if(BUILD_TESTS_WITH_LIBLO)
   set(LIBLO_PATH "${CMAKE_SOURCE_DIR}/liblo-0.28" CACHE PATH
                  "Where to find liblo_64s.a, the liblo library.")
   set(LIBLO_LIB LIBLO_LIB-NOTFOUND CACHE FILEPATH
-<<<<<<< HEAD
              "The liblo library; should be set automatically if LIBLO_PATH is correct and liblo_s64.a exists.")
   find_library(LIBLO_LIB lo_s64 ${LIBLO_PATH})
   # where to find liblo include files:
@@ -326,7 +314,6 @@ if(BUILD_TESTS_WITH_LIBLO)
   add_executable(lo_bndlrecv test/lo_bndlrecv.c)
   target_include_directories(lo_bndlrecv PRIVATE ${LIBLO_INCLUDE_PATH})
   target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_LO_LIBS})
-=======
              "The liblo library; should be set automatically if LIBLO_PATH is correct and liblo_64s.a exists.")
   find_library(LIBLO_LIB lo_s64 ${LIBLO_PATH})
   # where to find liblo include files:
@@ -358,6 +345,6 @@ if(BUILD_TESTS_WITH_LIBLO)
   add_executable(lo_bndlrecv test/lo_bndlrecv.c)
   target_include_directories(lo_bndlrecv PRIVATE ${LIBLO_INCLUDE_PATH})
   target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})
->>>>>>> 7e5d0c9ab19c08ce61a36eb3d865965566fc9179
+
 endif(BUILD_TESTS_WITH_LIBLO)
 endif(BUILD_TESTS)
