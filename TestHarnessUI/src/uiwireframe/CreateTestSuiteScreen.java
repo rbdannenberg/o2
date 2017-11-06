@@ -152,6 +152,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         jLabel4.setText("Test suite created so far...");
 
         javax.swing.tree.DefaultMutableTreeNode treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("JTree");
+        /*
         javax.swing.tree.DefaultMutableTreeNode treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("a");
         javax.swing.tree.DefaultMutableTreeNode treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("b");
         treeNode2.add(treeNode3);
@@ -160,13 +161,15 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("d");
         treeNode2.add(treeNode3);
         treeNode1.add(treeNode2);
+        */
         jTree2.setModel(new javax.swing.tree.DefaultTreeModel(treeNode1));
+        jTree2.setDragEnabled(true);
         jScrollPane2.setViewportView(jTree2);
 
         jLabel5.setText("Machines Runnable");
 
         treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("Machines");
-        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("TestMachine1 [51.15.8.100]");
+        javax.swing.tree.DefaultMutableTreeNode treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("TestMachine1 [51.15.8.100]");
         treeNode1.add(treeNode2);
         treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("TestMachine2 [51.15.34.210]");
         treeNode1.add(treeNode2);
@@ -180,7 +183,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
 
         treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("TestCases");
         treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("Test ClientServer local");
-        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("o2client 5000 R");
+        javax.swing.tree.DefaultMutableTreeNode treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("o2client 5000 R");
         treeNode2.add(treeNode3);
         treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("o2server S");
         treeNode2.add(treeNode3);
