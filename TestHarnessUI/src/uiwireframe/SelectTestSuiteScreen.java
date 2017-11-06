@@ -10,7 +10,7 @@ import javax.swing.JFrame;
 
 /**
  *
- * @author aparrnaa
+ * @author Aishu
  */
 public class SelectTestSuiteScreen extends javax.swing.JFrame {
     static JFrame frame = null;
