@@ -63,7 +63,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                       return false;
                     }
                     if (childIndex == -1) {
-                      childIndex = jTree1.getModel().getChildCount(
+                      childIndex = jTree2.getModel().getChildCount(
                           path.getLastPathComponent());
                     }
 
