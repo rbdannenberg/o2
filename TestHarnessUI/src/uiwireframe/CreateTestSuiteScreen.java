@@ -57,7 +57,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                     int childIndex = dl.getChildIndex();
 
                     String data;
-                    try {
+                    try {  
                       data = (String) support.getTransferable().getTransferData(
                           DataFlavor.stringFlavor);
                     } catch (Exception e) {
