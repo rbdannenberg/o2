@@ -1,0 +1,110 @@
+Usage: o2client maxmsgs debugflags (see o2.h for flags, use a for all)
+We discovered the server.
+time is 8.13515.
+Here we go! ...
+time is 9.1366.
+client message 1 is 1
+client message 2 is 2
+client message 3 is 3
+client message 4 is 4
+client message 5 is 5
+client message 6 is 6
+client message 7 is 7
+client message 8 is 8
+client message 9 is 9
+client message 10 is 10
+client message 11 is 11
+client message 12 is 12
+client message 13 is 13
+client message 14 is 14
+client message 15 is 15
+client message 16 is 16
+client message 17 is 17
+client message 18 is 18
+client message 19 is 19
+client message 20 is 20
+client message 21 is 21
+client message 22 is 22
+client message 23 is 23
+client message 24 is 24
+client message 25 is 25
+client message 26 is 26
+client message 27 is 27
+client message 28 is 28
+client message 29 is 29
+client message 30 is 30
+client message 31 is 31
+client message 32 is 32
+client message 33 is 33
+client message 34 is 34
+client message 35 is 35
+client message 36 is 36
+client message 37 is 37
+client message 38 is 38
+client message 39 is 39
+client message 40 is 40
+client message 41 is 41
+client message 42 is 42
+client message 43 is 43
+client message 44 is 44
+client message 45 is 45
+client message 46 is 46
+client message 47 is 47
+client message 48 is 48
+client message 49 is 49
+client message 50 is 50
+client message 51 is 51
+client message 52 is 52
+client message 53 is 53
+client message 54 is 54
+client message 55 is 55
+client message 56 is 56
+client message 57 is 57
+client message 58 is 58
+client message 59 is 59
+client message 60 is 60
+client message 61 is 61
+client message 62 is 62
+client message 63 is 63
+client message 64 is 64
+client message 65 is 65
+client message 66 is 66
+client message 67 is 67
+client message 68 is 68
+client message 69 is 69
+client message 70 is 70
+client message 71 is 71
+client message 72 is 72
+client message 73 is 73
+client message 74 is 74
+client message 75 is 75
+client message 76 is 76
+client message 77 is 77
+client message 78 is 78
+client message 79 is 79
+client message 80 is 80
+client message 81 is 81
+client message 82 is 82
+client message 83 is 83
+client message 84 is 84
+client message 85 is 85
+client message 86 is 86
+client message 87 is 87
+client message 88 is 88
+client message 89 is 89
+client message 90 is 90
+client message 91 is 91
+client message 92 is 92
+client message 93 is 93
+client message 94 is 94
+client message 95 is 95
+client message 96 is 96
+client message 97 is 97
+client message 98 is 98
+client message 99 is 99
+client received 10000 messages
+client received 20000 messages
+client received 30000 messages
+client received 40000 messages
+client received 50000 messages
+CLIENT DONE

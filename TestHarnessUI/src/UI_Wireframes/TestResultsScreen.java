@@ -5,19 +5,187 @@
  */
 package UI_Wireframes;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Desktop;
+import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.DefaultCellEditor;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
+
 /**
  *
  * @author Aishu
  */
 public class TestResultsScreen extends javax.swing.JFrame {
 
+    private static JTable table;
+    private DefaultTableModel tableModel; 
+    private JButton btnStartNewTest; 
+    
     /**
-     * Creates new form TestResultsScreen
+     * Creates new form ReportGen_Old
      */
     public TestResultsScreen() {
-        initComponents();
+        //initComponents();
+        createGUI();
     }
 
+    public void createGUI() {
+        setLayout(new BorderLayout());
+        JScrollPane pane = new JScrollPane();
+        table = new JTable();
+        pane.setViewportView(table);
+        pane.setBounds(1000, 1000, 700, 700);
+        JButton btnBack = new JButton("Back");
+        btnBack.setVisible(false);
+        btnBack.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                BackButton(e);
+            }
+        });
+        
+        JPanel northPanel = new JPanel();
+        JPanel southPanel = new JPanel();
+        JLabel lblField1 = new JLabel("TEST RUN LOG REPORT");
+       
+        northPanel.add(lblField1);
+        add(northPanel, BorderLayout.NORTH);
+        add(southPanel, BorderLayout.SOUTH);
+        add(pane, BorderLayout.CENTER);
+        // tableModel = new DefaultTableModel(new Object[]{"MACHINE", "TEST CASE", "TEST RESULT", "EXECUTION LOGS", "TERMINATION TYPE"}, 0);
+        tableModel = new DefaultTableModel(new Object[]{"MACHINE", "TIMESTAMP", "TEST CASE", "TEST RESULT", "EXECUTION LOGS"}, 0);
+        table.setModel(tableModel);
+        //String currentUsersHomeDir = System.getProperty("user.home");
+        //String str= currentUsersHomeDir+"//Outputs";
+        final Desktop desktop = Desktop.getDesktop();
+        String str = "C:/Users/Aish/Desktop/CMU/PracticumProject/O2_TEST_ENVIRONMENT/o2/Outputs";
+        File directory = new File(str);
+        File[] fList = directory.listFiles();
+        for (File file : fList) {
+           System.out.println("First Directory..." + file.getName());
+            String machinenames = file.getName();
+            File machineDirectory = new File(str + "/" + machinenames);
+            File[] timeList = machineDirectory.listFiles();
+            if (timeList != null) {
+                for (File timefile : timeList) {
+                   System.out.println("Timestamp Directory..." + timefile.getName());
+                    String testfilenames = timefile.getName();
+                    File testDirectory = new File(machineDirectory + "/" + testfilenames);
+                    File[] testList = testDirectory.listFiles();
+                    if (testList != null) {
+                        for (File testfile : testList) {
+                            System.out.println("Test Directory..." + testfile.getName());
+
+                            //status checking
+                            if (testfile.getName().endsWith(".txt")) {
+                                // String filename = testfile.getName();
+                                JButton openLog = new JButton("Log file");
+                                openLog.setPreferredSize(new Dimension(30, 30));
+                                // to get the machine IP address executed in 
+                                final File finalFile = new File(testDirectory + "/" +testfile.getName());
+                                // check the log contents to find out the test execution status (pass/fail)
+                                int fails = 0;
+                                String message = "";
+                                //String search = "fail";
+                                List<String> search = Arrays.asList("fail", "err", "failure","stack","trace",
+                                		"error","failed","core","exception","dumped","segmentation");
+                                
+                                try {
+                                    Scanner scanner = new Scanner(testfile);
+                                    while (scanner.hasNextLine()) {
+                                        String line = scanner.nextLine();
+                                        for(int i=0;i<search.size();i++){
+                                        if (line.toLowerCase().indexOf(search.get(i).toLowerCase()) != -1) {
+                                            fails++;
+                                        }
+                                        }
+                                    }
+                                } catch (FileNotFoundException e) {
+                                    message = "This file does not exist!";
+                                }
+                                
+                                if (fails == 0) {
+                                    message = "Test case passed";
+                                      
+                                } else {
+                                    message = "Test case failed";
+                                }
+                                 JPanel btnPanel = new JPanel();
+                                 btnPanel.setLayout(new GridLayout(10, 10));
+                                 btnPanel.add(openLog);
+                                tableModel.addRow(new Object[]{machinenames, timefile.getName(), testfile.getName(), message, finalFile});
+                                table.getColumnModel().getColumn(4).setCellRenderer(new ButtonRenderer());
+                                table.getColumnModel().getColumn(4).setCellEditor(new ButtonEditor(new JTextField()));
+                                
+                                JScrollPane jpane = new JScrollPane(table);
+                                getContentPane().add(jpane);
+                                setSize(450,100);
+                                setDefaultCloseOperation(EXIT_ON_CLOSE);
+                                
+                                openLog.addActionListener(new ActionListener() {
+
+                                    @Override
+                                    public void actionPerformed(ActionEvent arg0) {
+                                        try {
+                                            desktop.open(finalFile);
+                                        } catch (IOException e) {
+                                            e.printStackTrace();
+                                        }
+                                    }
+                                });
+                              // southPanel.add(openLog);
+                                
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        southPanel.add(btnBack);
+        btnStartNewTest = new JButton("Start new test");
+        btnStartNewTest.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+               StartNewTestButton(e);
+            }
+        });
+            
+        btnStartNewTest.setToolTipText("Click to start a new test execution");
+        btnStartNewTest.setBounds(323, 227, 101, 23);
+        southPanel.add(btnStartNewTest);
+
+        JButton btnGetConsolidatedReport = new JButton("Get report");
+        btnGetConsolidatedReport.setVisible(false);
+        btnGetConsolidatedReport.setToolTipText("Click to get a consolidated report");
+        btnGetConsolidatedReport.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+
+            }
+        });
+        btnGetConsolidatedReport.setBounds(300, 300, 150, 50);
+        southPanel.add(btnGetConsolidatedReport);
+        
+    }
+    
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -27,149 +195,128 @@ public class TestResultsScreen extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        jPanel1 = new javax.swing.JPanel();
-        jLabel1 = new javax.swing.JLabel();
-        jButton1 = new javax.swing.JButton();
-        jLabel2 = new javax.swing.JLabel();
-        jScrollPane1 = new javax.swing.JScrollPane();
-        jList1 = new javax.swing.JList<>();
-        jScrollPane2 = new javax.swing.JScrollPane();
-        jTable1 = new javax.swing.JTable();
-        jButton2 = new javax.swing.JButton();
-        jButton3 = new javax.swing.JButton();
-
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-
-        jLabel1.setText("Test Harness - Test Execution Results");
-
-        jButton1.setText("Back");
-        jButton1.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton1ActionPerformed(evt);
-            }
-        });
-
-        jLabel2.setText("Select timestamp to view the test logs: ");
-
-        jList1.setModel(new javax.swing.AbstractListModel<String>() {
-            String[] strings = { "Timestamp 1", "Timestamp 2", "Timestamp 3", "Timestamp 4", "Timestamp 5" };
-            public int getSize() { return strings.length; }
-            public String getElementAt(int i) { return strings[i]; }
-        });
-        jList1.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
-        jList1.setToolTipText("");
-        jScrollPane1.setViewportView(jList1);
-
-        jTable1.setModel(new javax.swing.table.DefaultTableModel(
-            new Object [][] {
-                {"1.2.3.4", "arraytest.exe", "Test Passed", "arraytest-result.txt"},
-                {"2.3.4.5", "coercetest.exe", "Test Failed", "coercetest-result.txt"},
-                {null, null, null, null},
-                {null, null, null, null}
-            },
-            new String [] {
-                "Machine", "Test case executed", "Test result", "Execution Logs"
-            }
-        ));
-        jScrollPane2.setViewportView(jTable1);
-
-        jButton2.setText("Get consolidated report");
-        jButton2.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton2ActionPerformed(evt);
-            }
-        });
-
-        jButton3.setText("Start new test execution");
-        jButton3.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton3ActionPerformed(evt);
-            }
-        });
-
-        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
-        jPanel1.setLayout(jPanel1Layout);
-        jPanel1Layout.setHorizontalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(398, 398, 398)
-                        .addComponent(jLabel1))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addGap(43, 43, 43)
-                                .addComponent(jButton1))
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addGap(100, 100, 100)
-                                .addComponent(jLabel2)))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 204, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(100, 100, 100)
-                        .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 848, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addContainerGap(93, Short.MAX_VALUE))
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
-                .addComponent(jButton2)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jButton3)
-                .addGap(87, 87, 87))
-        );
-        jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(18, 18, 18)
-                .addComponent(jLabel1)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(18, 18, 18)
-                        .addComponent(jButton1)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jLabel2))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(45, 45, 45)
-                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 329, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(27, 27, 27)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jButton2)
-                    .addComponent(jButton3))
-                .addContainerGap(41, Short.MAX_VALUE))
-        );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 1041, Short.MAX_VALUE)
-            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addGap(0, 400, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 606, Short.MAX_VALUE)
-            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addGap(0, 300, Short.MAX_VALUE)
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_jButton1ActionPerformed
+     private void StartNewTestButton(java.awt.event.ActionEvent evt) {
+    // TODO add your handling code here:
+            SelectTestSuiteScreen testexecScreen = new SelectTestSuiteScreen();
+            testexecScreen.setVisible(true);
+            this.setVisible(false);
+    }                                        
+    
+    private void BackButton(java.awt.event.ActionEvent evt) {
+    // TODO add your handling code here:
+            CreateTestSuiteScreen testexecScreen = new CreateTestSuiteScreen();
+            testexecScreen.setVisible(true);
+            this.setVisible(false);
+    }                         
+     
+    class ButtonRenderer extends JButton implements TableCellRenderer{
+        public ButtonRenderer() {
+            setOpaque(true);
+        }
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+        setText((value == null) ?  "":value.toString());
+        return this;
+        }    
+    }
+    
+    class ButtonEditor extends DefaultCellEditor{
+        protected JButton btn;
+        private String lbl;
+        private Boolean clicked;
+        public Desktop desktop; 
 
-    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_jButton2ActionPerformed
+        public ButtonEditor(JTextField textField) {
+            super(textField);
+               btn = new JButton();
+               btn.setOpaque(true);
+               btn.addActionListener(new ActionListener() {
+                                    @Override
+                                    public void actionPerformed(ActionEvent e) {
+                                      fireEditingStopped();
+                                    }
+                                });        
+        }
 
-    private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_jButton3ActionPerformed
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+            
+            lbl = (value == null)? "":value.toString();
+            btn.setText(lbl);
+            clicked = true;
+            desktop = Desktop.getDesktop();
+            return btn; 
+        }
 
+        @Override
+        public Object getCellEditorValue() {
+            if(clicked) {
+                try {
+                    File str = new File(lbl);
+                    desktop.open(str);
+                    
+                    //   JOptionPane.showMessageDialog(btn, lbl+" Clicked");
+                    clicked = false;
+                    return new String(lbl);
+                } catch (IOException ex) {
+                    Logger.getLogger(TestResultsScreen.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+            return super.getCellEditorValue(); //To change body of generated methods, choose Tools | Templates.
+        }
+
+        @Override
+        public boolean stopCellEditing() {
+            clicked = false;
+            return super.stopCellEditing(); //To change body of generated methods, choose Tools | Templates.
+        }
+
+        @Override
+        protected void fireEditingStopped() {
+            super.fireEditingStopped(); //To change body of generated methods, choose Tools | Templates.
+        }  
+    }
+    
+    
+    private static final int STATUS_COL = 3;
+    private static JTable getNewRenderedTable(final JTable table) {
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer(){
+            @Override
+            public Component getTableCellRendererComponent(JTable table,
+                    Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+                String status = (String)table.getModel().getValueAt(row, STATUS_COL);
+                String pass ="Test case passed";
+                if (!pass.equals(status)) {
+                    setBackground(Color.RED);
+                    setForeground(Color.WHITE);
+                } else {
+                    setBackground(table.getBackground());
+                    setForeground(table.getForeground());
+                }       
+                return this;
+            }   
+        });
+        return table;
+        
+    }
+    
     /**
      * @param args the command line arguments
      */
@@ -196,25 +343,20 @@ public class TestResultsScreen extends javax.swing.JFrame {
             java.util.logging.Logger.getLogger(TestResultsScreen.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
+        //</editor-fold>
 
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                new TestResultsScreen().setVisible(true);
+                TestResultsScreen frm = new TestResultsScreen();
+                
+                frm.setDefaultCloseOperation(EXIT_ON_CLOSE);
+                frm.setVisible(true);
+                
             }
         });
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
-    private javax.swing.JButton jButton3;
-    private javax.swing.JLabel jLabel1;
-    private javax.swing.JLabel jLabel2;
-    private javax.swing.JList<String> jList1;
-    private javax.swing.JPanel jPanel1;
-    private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JScrollPane jScrollPane2;
-    private javax.swing.JTable jTable1;
     // End of variables declaration//GEN-END:variables
 }

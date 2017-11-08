@@ -1,0 +1,109 @@
+Usage: o2server [debugflags] (see o2.h for flags, use a for all)
+We discovered the client at time 8.13648.
+Here we go! ...
+time is 9.13814.
+server message 1 is 1
+server message 2 is 2
+server message 3 is 3
+server message 4 is 4
+server message 5 is 5
+server message 6 is 6
+server message 7 is 7
+server message 8 is 8
+server message 9 is 9
+server message 10 is 10
+server message 11 is 11
+server message 12 is 12
+server message 13 is 13
+server message 14 is 14
+server message 15 is 15
+server message 16 is 16
+server message 17 is 17
+server message 18 is 18
+server message 19 is 19
+server message 20 is 20
+server message 21 is 21
+server message 22 is 22
+server message 23 is 23
+server message 24 is 24
+server message 25 is 25
+server message 26 is 26
+server message 27 is 27
+server message 28 is 28
+server message 29 is 29
+server message 30 is 30
+server message 31 is 31
+server message 32 is 32
+server message 33 is 33
+server message 34 is 34
+server message 35 is 35
+server message 36 is 36
+server message 37 is 37
+server message 38 is 38
+server message 39 is 39
+server message 40 is 40
+server message 41 is 41
+server message 42 is 42
+server message 43 is 43
+server message 44 is 44
+server message 45 is 45
+server message 46 is 46
+server message 47 is 47
+server message 48 is 48
+server message 49 is 49
+server message 50 is 50
+server message 51 is 51
+server message 52 is 52
+server message 53 is 53
+server message 54 is 54
+server message 55 is 55
+server message 56 is 56
+server message 57 is 57
+server message 58 is 58
+server message 59 is 59
+server message 60 is 60
+server message 61 is 61
+server message 62 is 62
+server message 63 is 63
+server message 64 is 64
+server message 65 is 65
+server message 66 is 66
+server message 67 is 67
+server message 68 is 68
+server message 69 is 69
+server message 70 is 70
+server message 71 is 71
+server message 72 is 72
+server message 73 is 73
+server message 74 is 74
+server message 75 is 75
+server message 76 is 76
+server message 77 is 77
+server message 78 is 78
+server message 79 is 79
+server message 80 is 80
+server message 81 is 81
+server message 82 is 82
+server message 83 is 83
+server message 84 is 84
+server message 85 is 85
+server message 86 is 86
+server message 87 is 87
+server message 88 is 88
+server message 89 is 89
+server message 90 is 90
+server message 91 is 91
+server message 92 is 92
+server message 93 is 93
+server message 94 is 94
+server message 95 is 95
+server message 96 is 96
+server message 97 is 97
+server message 98 is 98
+server message 99 is 99
+server received 10000 messages
+server received 20000 messages
+server received 30000 messages
+server received 40000 messages
+server received 50000 messages
+SERVER DONE
