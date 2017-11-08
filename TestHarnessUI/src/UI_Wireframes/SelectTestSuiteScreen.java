@@ -1,4 +1,4 @@
-package uiwireframe;
+package UI_Wireframes;
 
 import javax.swing.JFrame;
 

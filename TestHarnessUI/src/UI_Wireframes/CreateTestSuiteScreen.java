@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package uiwireframe;
+package UI_Wireframes;
 
 import java.awt.datatransfer.*;
 import java.util.*;
