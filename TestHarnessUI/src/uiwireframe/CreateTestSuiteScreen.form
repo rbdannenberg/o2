@@ -157,13 +157,22 @@
         </Component>
         <Component class="javax.swing.JRadioButton" name="jRadioButton1">
           <Properties>
+            <Property name="selected" type="boolean" value="true"/>
             <Property name="text" type="java.lang.String" value="Random Mode"/>
+            <Property name="toolTipText" type="java.lang.String" value="Click here to run the test cases in all available test machines randomly"/>
           </Properties>
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jRadioButton1ActionPerformed"/>
+          </Events>
         </Component>
         <Component class="javax.swing.JRadioButton" name="jRadioButton2">
           <Properties>
             <Property name="text" type="java.lang.String" value="Selected Mode"/>
+            <Property name="toolTipText" type="java.lang.String" value="Click here to enable configuration of test machines for test execution"/>
           </Properties>
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jRadioButton2ActionPerformed"/>
+          </Events>
         </Component>
         <Component class="javax.swing.JLabel" name="jLabel3">
         </Component>
@@ -206,6 +215,7 @@
                   <TreeModel code="Machines&#xa; TestMachine1 [1.2.3.4]&#xa; TestMachine2 [1.2.3.4]&#xa; TestMachine3 [1.2.3.4]&#xa; TestMachine4 [1.2.3.4]"/>
                 </Property>
                 <Property name="dragEnabled" type="boolean" value="true"/>
+                <Property name="enabled" type="boolean" value="false"/>
               </Properties>
             </Component>
           </SubComponents>
@@ -235,6 +245,7 @@
         <Component class="javax.swing.JButton" name="jButton2">
           <Properties>
             <Property name="text" type="java.lang.String" value="Remove selected node"/>
+            <Property name="toolTipText" type="java.lang.String" value="Click here to remove the selected rows"/>
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jButton2ActionPerformed"/>
@@ -243,7 +254,11 @@
         <Component class="javax.swing.JButton" name="jButton3">
           <Properties>
             <Property name="text" type="java.lang.String" value="Save configuration"/>
+            <Property name="toolTipText" type="java.lang.String" value="Click here to save the created test configuration"/>
           </Properties>
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jButton3ActionPerformed"/>
+          </Events>
         </Component>
         <Component class="javax.swing.JButton" name="jButton4">
           <Properties>

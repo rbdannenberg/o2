@@ -15,6 +15,7 @@ import javax.swing.tree.*;
 import javax.swing.ButtonGroup;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.datatransfer.DataFlavor;
@@ -27,6 +28,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreePath;
+import javax.swing.JOptionPane;
 
 /**
  *
@@ -158,9 +160,22 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
 
         jLabel2.setText("Mode to run the test cases: ");
 
+        jRadioButton1.setSelected(true);
         jRadioButton1.setText("Random Mode");
+        jRadioButton1.setToolTipText("Click here to run the test cases in all available test machines randomly");
+        jRadioButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jRadioButton1ActionPerformed(evt);
+            }
+        });
 
         jRadioButton2.setText("Selected Mode");
+        jRadioButton2.setToolTipText("Click here to enable configuration of test machines for test execution");
+        jRadioButton2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jRadioButton2ActionPerformed(evt);
+            }
+        });
 
         jLabel4.setText("Test Suite created so far ...");
 
@@ -181,6 +196,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         treeNode1.add(treeNode2);
         jTree2.setModel(new javax.swing.tree.DefaultTreeModel(treeNode1));
         jTree2.setDragEnabled(true);
+        jTree2.setEnabled(false);
         jScrollPane2.setViewportView(jTree2);
 
         jLabel7.setText("Test cases to select from:");
@@ -201,6 +217,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         jScrollPane3.setViewportView(jTree3);
 
         jButton2.setText("Remove selected node");
+        jButton2.setToolTipText("Click here to remove the selected rows");
         jButton2.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jButton2ActionPerformed(evt);
@@ -208,6 +225,12 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         });
 
         jButton3.setText("Save configuration");
+        jButton3.setToolTipText("Click here to save the created test configuration");
+        jButton3.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton3ActionPerformed(evt);
+            }
+        });
 
         jButton4.setText("Execute test case");
 
@@ -316,6 +339,25 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             }
         }
     }//GEN-LAST:event_jButton2ActionPerformed
+
+    private void jRadioButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jRadioButton1ActionPerformed
+        // TODO add your handling code here:
+        jTree2.setDragEnabled(false);
+        jTree2.setEnabled(false);
+    }//GEN-LAST:event_jRadioButton1ActionPerformed
+
+    private void jRadioButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jRadioButton2ActionPerformed
+        // TODO add your handling code here:
+        jTree2.setDragEnabled(true);
+        jTree2.setEnabled(true);
+    }//GEN-LAST:event_jRadioButton2ActionPerformed
+
+    private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
+        // TODO add your handling code here:
+        String testSuiteName;
+        testSuiteName = JOptionPane.showInputDialog("Enter test suite name ");
+        JOptionPane.showMessageDialog(null, "Test suite named " + testSuiteName + " is saved!");
+    }//GEN-LAST:event_jButton3ActionPerformed
 
     private void groupButton(){
         ButtonGroup bg1 = new ButtonGroup();
