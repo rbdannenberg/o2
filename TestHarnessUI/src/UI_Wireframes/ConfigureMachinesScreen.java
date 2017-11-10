@@ -1,6 +1,6 @@
 package UI_Wireframes;
 
-import OldWireframes.*;
+
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -35,8 +35,7 @@ import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableModel;
 
 @SuppressWarnings("serial")
-public class ConfigureMachinesScreen extends JPanel implements ActionListener {
-
+public class ConfigureMachinesScreen extends JPanel{
 	JTable table = null;
 	static JFrame frame = null;
 	JTextArea output;
@@ -57,27 +56,26 @@ public class ConfigureMachinesScreen extends JPanel implements ActionListener {
 		Object[] columnNames = { "Select", "MachineIP", "Type", "Username",
 				"Password" };
 		File DataFile = new File("Inputs/MachineConfiguration.txt");
-		Object[][] data = ReadCSVfile(DataFile);
+		Object[][] data = ReadFile(DataFile);
 		// add a nice border
 		setBorder(new EmptyBorder(5, 5, 5, 5));
-                masterPwd= JOptionPane.showInputDialog(this,"Please enter master machine password: ");
                 
+                /*
+                //masterPwd= JOptionPane.showInputDialog(this,"Please enter master machine password: ");
                 int wrongAttempts = 3;
                 while(!masterPwd.equals("admin")) {
                     if(wrongAttempts<=1) {
                         JOptionPane.showMessageDialog(null, "Authentication Failed");
                         exit(0);
                     }
-                    masterPwd =JOptionPane.showInputDialog(this,"Incorrect password! \n\nYou have only "+ (wrongAttempts - 1) +" more attempt(s). \n\nPlease enter master machine password: ");
+                    masterPwd =JOptionPane.showInputDialog(this,"Incorrect password! \n\nYou have only "+ (wrongAttempts - 1) +" more attempt(s). \n\nPlease enter master machine password again: ");
                     wrongAttempts--;
-                }
-       
+                }*/
+                    
                // System.out.println("Master password.."+masterPwd);
 		DefaultTableModel model = new DefaultTableModel(data, columnNames);
 		this.table = new JTable(model) {
-
 			private static final long serialVersionUID = 1L;
-
 			@Override
 			public Class getColumnClass(int column) {
 				switch (column) {
@@ -97,12 +95,21 @@ public class ConfigureMachinesScreen extends JPanel implements ActionListener {
 			}
 		};
                 
-                
 		table.setFillsViewportHeight(true);
 		JScrollPane pane = new JScrollPane(table);
-		JButton add = new JButton("Configure");
-		add.addActionListener(this);
-		JButton add1 = new JButton("Logs");
+                
+		JButton configureButton = new JButton("Configure");
+		
+                
+                configureButton.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent evt) {
+                            ConfigureButtonactionPerformed(evt);
+                    }
+                });
+                
+                
+		JButton BackButton = new JButton("Back");
+                
 		JCheckBox checkBox = new javax.swing.JCheckBox();
 		table.setRowSelectionAllowed(true);
 		table.setColumnSelectionAllowed(false);
@@ -137,8 +144,8 @@ public class ConfigureMachinesScreen extends JPanel implements ActionListener {
 
 		JPanel command = new JPanel(new FlowLayout());
 		output = new JTextArea(1, 10);
-		command.add(add);
-		command.add(add1);
+		command.add(configureButton);
+		command.add(BackButton);
 		//command.add(output);
 
 		add(pane, BorderLayout.CENTER);
@@ -149,41 +156,24 @@ public class ConfigureMachinesScreen extends JPanel implements ActionListener {
 
 	}
 
-	@Override
-	public void actionPerformed(ActionEvent e) {
-		// try {
-		// selectedMap.g
+	
+	public void ConfigureButtonactionPerformed(ActionEvent e) {
 		ArrayList<String> machineList = new ArrayList<String>();
-
 		for (int key : selectedMap.keySet()) {
-			//System.out.println("key : " + key);
-			//System.out.println("value : " + selectedMap.get(key));
 			machineList.add(selectedMap.get(key).toString());
-
 		}
-
 		this.setEnabled(false);
 		frame.setVisible(false);
-		O2_GUI_2_Testcases GU = new O2_GUI_2_Testcases();
-
-		try {
-			GU.O2_GUI_2_Testcases(machineList);
-		} catch (IOException ex) {
-			Logger.getLogger(ConfigureMachinesScreen.class.getName())
-					.log(Level.SEVERE, null, ex);
-		}
-
-		GU.setVisible(true);
+		CreateTestSuiteScreen nextScreen = new CreateTestSuiteScreen(machineList);
+		nextScreen.setVisible(true);
 	}
 
-	public static Object[][] ReadCSVfile(File DataFile) {
+	public static Object[][] ReadFile(File DataFile) {
 		System.out.println("In read csv file .. ");
                 LineNumberReader lnr = null;
 		int i = 0;
 		try {
-                        
 			lnr = new LineNumberReader(new FileReader(DataFile));
-                       // System.out.println("Line....."+lnr);
 		} catch (FileNotFoundException e1) {
 			e1.printStackTrace();
 		}
@@ -193,42 +183,36 @@ public class ConfigureMachinesScreen extends JPanel implements ActionListener {
 
 			e1.printStackTrace();
 		}
-		//System.out.println("how many lines?????"+lnr.getLineNumber());
+		
 		try {
 			lnr.close();
 		} catch (IOException e1) {
 
 			e1.printStackTrace();
 		}
-
 		Object[] OneRow = null;
-
 		try {
 			BufferedReader brd = new BufferedReader(new FileReader(DataFile));
                         String st;
 			while ((st = brd.readLine()) != null) {				 
 				OneRow = st.split(",|\\s|;");
 				break;
-
 			}
 		} catch (Exception e) {
 			String errmsg = e.getMessage();
 			System.out.println("File not found..." + errmsg);
 		}
 		final Object[][] Rs = new Object[lnr.getLineNumber()][OneRow.length + 1];
-
 		try {
 			BufferedReader brd = new BufferedReader(new FileReader(DataFile));
                         String st;
-			while ((st = brd.readLine()) != null) {
-                           			
+			while ((st = brd.readLine()) != null) {		
 				OneRow = st.split(",|\\s|;");
 				Rs[i][0] = false;
 				for (int j = 0; j < OneRow.length; j++) {
 					Rs[i][j + 1] = OneRow[j];
 				}
 				i++;
-
 			}
 		} catch (Exception e) {
 			String errmsg = e.getMessage();
@@ -242,7 +226,6 @@ public class ConfigureMachinesScreen extends JPanel implements ActionListener {
 //			System.out.println("\n");
 //		}
 		return Rs;
-
 	}
 
 	public static void showFrame() {
@@ -260,6 +243,7 @@ public class ConfigureMachinesScreen extends JPanel implements ActionListener {
 	public static void main(String[] args) {
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
+                                //int bypass = 0;
 				ConfigureMachinesScreen.showFrame();
                                 System.out.println("In main of conf mach screen .. ");
 			}

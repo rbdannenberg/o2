@@ -40,6 +40,9 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
      * Creates new form CreateTestSuiteScreen_new
      */
     public CreateTestSuiteScreen() {
+    }
+    
+    public CreateTestSuiteScreen(ArrayList<String> machineList) {
         initComponents();
         groupButton();
         this.getContent();
@@ -321,8 +324,8 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
         // TODO add your handling code here:
-        SelectTestSuiteScreen prevScreen = new SelectTestSuiteScreen();
-        prevScreen.setVisible(true);
+        
+        ConfigureMachinesScreen.showFrame();
         this.setVisible(false);
     }//GEN-LAST:event_jButton1ActionPerformed
 
@@ -404,7 +407,8 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
                 //new CreateTestSuiteScreen().setVisible(true);
-                CreateTestSuiteScreen myScreen = new CreateTestSuiteScreen();
+                ArrayList<String> machineList = new ArrayList<String>();
+                CreateTestSuiteScreen myScreen = new CreateTestSuiteScreen(machineList);
                 //myScreen.getContent();
                 myScreen.setVisible(true);
             }

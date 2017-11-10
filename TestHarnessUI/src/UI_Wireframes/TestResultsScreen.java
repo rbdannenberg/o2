@@ -49,6 +49,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
     /**
      * Creates new form ReportGen_Old
      */
+    
     public TestResultsScreen() {
         //initComponents();
         createGUI();
