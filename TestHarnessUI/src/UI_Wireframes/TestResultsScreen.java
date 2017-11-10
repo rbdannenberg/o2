@@ -31,6 +31,10 @@ import javax.swing.JTextField;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
+import java.util.ArrayList;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 /**
  *
@@ -48,6 +52,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
     public TestResultsScreen() {
         //initComponents();
         createGUI();
+        table = getNewRenderedTable(table);
     }
 
     public void createGUI() {
@@ -78,7 +83,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
         //String currentUsersHomeDir = System.getProperty("user.home");
         //String str= currentUsersHomeDir+"//Outputs";
         final Desktop desktop = Desktop.getDesktop();
-        String str = "C:/Users/Aish/Desktop/CMU/PracticumProject/O2_TEST_ENVIRONMENT/o2/Outputs";
+        String str = "Outputs";
         File directory = new File(str);
         File[] fList = directory.listFiles();
         for (File file : fList) {
@@ -136,6 +141,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
                                 tableModel.addRow(new Object[]{machinenames, timefile.getName(), testfile.getName(), message, finalFile});
                                 table.getColumnModel().getColumn(4).setCellRenderer(new ButtonRenderer());
                                 table.getColumnModel().getColumn(4).setCellEditor(new ButtonEditor(new JTextField()));
+                                
                                 
                                 JScrollPane jpane = new JScrollPane(table);
                                 getContentPane().add(jpane);
@@ -236,6 +242,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
         }    
     }
     
+    
     class ButtonEditor extends DefaultCellEditor{
         protected JButton btn;
         private String lbl;
@@ -296,6 +303,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
     
     private static final int STATUS_COL = 3;
     private static JTable getNewRenderedTable(final JTable table) {
+        System.out.println("The table is getting rendered .. ");
         table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer(){
             @Override
             public Component getTableCellRendererComponent(JTable table,
@@ -304,6 +312,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
                 String status = (String)table.getModel().getValueAt(row, STATUS_COL);
                 String pass ="Test case passed";
                 if (!pass.equals(status)) {
+                    System.out.println("One of my cases fail");
                     setBackground(Color.RED);
                     setForeground(Color.WHITE);
                 } else {
@@ -313,8 +322,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
                 return this;
             }   
         });
-        return table;
-        
+        return table;  
     }
     
     /**
@@ -352,6 +360,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
                 
                 frm.setDefaultCloseOperation(EXIT_ON_CLOSE);
                 frm.setVisible(true);
+                table = getNewRenderedTable(table);
                 
             }
         });

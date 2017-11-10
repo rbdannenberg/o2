@@ -130,9 +130,8 @@ public class SelectTestSuiteScreen extends javax.swing.JFrame {
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
         // TODO add your handling code here:
-        CreateTestSuiteScreen nextScreen = new CreateTestSuiteScreen();
-        //nextScreen.getContent();
-        nextScreen.setVisible(true);
+        System.out.println("Going to next screen .. ");
+        ConfigureMachinesScreen.showFrame();
         this.setVisible(false);
     }//GEN-LAST:event_jButton4ActionPerformed
 

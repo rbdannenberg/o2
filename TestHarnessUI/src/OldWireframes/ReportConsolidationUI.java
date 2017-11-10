@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package ui2;
+package OldWireframes;
 
 /**
  *
@@ -75,8 +75,8 @@ public class ReportConsolidationUI extends JFrame {
         table.setModel(tableModel);
         //String currentUsersHomeDir = System.getProperty("user.home");
         //String str= currentUsersHomeDir+"//Outputs";
-        Desktop desktop = Desktop.getDesktop();
-        String str = "C:/Users/Lavu/workspace/newEclipse/O2_TestEnv/outputs/Outputs/Outputs";
+        final Desktop desktop = Desktop.getDesktop();
+        String str = "C:/Users/Aish/Desktop/CMU/PracticumProject/O2_TEST_ENVIRONMENT/o2/Outputs";
         File directory = new File(str);
         File[] fList = directory.listFiles();
         for (File file : fList) {
@@ -100,7 +100,7 @@ public class ReportConsolidationUI extends JFrame {
                                 JButton openLog = new JButton("Log file");
                                 openLog.setPreferredSize(new Dimension(30, 30));
                                 // to get the machine IP address executed in 
-                                File finalFile = new File(testDirectory + "/" +testfile.getName());
+                                final File finalFile = new File(testDirectory + "/" +testfile.getName());
                                 // check the log contents to find out the test execution status (pass/fail)
                                 int fails = 0;
                                 String message = "";

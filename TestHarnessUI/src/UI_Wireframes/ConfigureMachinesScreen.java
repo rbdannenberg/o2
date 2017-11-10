@@ -1,5 +1,6 @@
-package ui2;
+package UI_Wireframes;
 
+import OldWireframes.*;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -11,6 +12,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.LineNumberReader;
+import static java.lang.System.exit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -18,7 +20,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
@@ -34,7 +35,7 @@ import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableModel;
 
 @SuppressWarnings("serial")
-public class O2_GUI extends JPanel implements ActionListener {
+public class ConfigureMachinesScreen extends JPanel implements ActionListener {
 
 	JTable table = null;
 	static JFrame frame = null;
@@ -43,25 +44,34 @@ public class O2_GUI extends JPanel implements ActionListener {
 	Map<Integer, StringBuilder> selectedMap = new HashMap<Integer, StringBuilder>();
 	private Set<String> contents = new HashSet();
 
-	public O2_GUI() {                
-             initializePanel();
+	public ConfigureMachinesScreen() {                
+            System.out.println("In initializer .. "); 
+            initializePanel();
 	}
 
 	private void initializePanel() {
+                System.out.println("In initcomp initipanelssss");
 		setLayout(new BorderLayout());
 		setPreferredSize(new Dimension(600, 600));
 		setName("Configure Machines");
 		Object[] columnNames = { "Select", "MachineIP", "Type", "Username",
 				"Password" };
-		File DataFile = new File("sample.txt");
+		File DataFile = new File("Inputs/MachineConfiguration.txt");
 		Object[][] data = ReadCSVfile(DataFile);
 		// add a nice border
 		setBorder(new EmptyBorder(5, 5, 5, 5));
-                masterPwd= JOptionPane.showInputDialog(this,"Please input password: ");
+                masterPwd= JOptionPane.showInputDialog(this,"Please enter master machine password: ");
                 
-                while(masterPwd.isEmpty()) {
-                    masterPwd =JOptionPane.showInputDialog(this,"Password cannot be empty, please enter your password: ");
+                int wrongAttempts = 3;
+                while(!masterPwd.equals("admin")) {
+                    if(wrongAttempts<=1) {
+                        JOptionPane.showMessageDialog(null, "Authentication Failed");
+                        exit(0);
+                    }
+                    masterPwd =JOptionPane.showInputDialog(this,"Incorrect password! \n\nYou have only "+ (wrongAttempts - 1) +" more attempt(s). \n\nPlease enter master machine password: ");
+                    wrongAttempts--;
                 }
+       
                // System.out.println("Master password.."+masterPwd);
 		DefaultTableModel model = new DefaultTableModel(data, columnNames);
 		this.table = new JTable(model) {
@@ -86,7 +96,8 @@ public class O2_GUI extends JPanel implements ActionListener {
 				}
 			}
 		};
-
+                
+                
 		table.setFillsViewportHeight(true);
 		JScrollPane pane = new JScrollPane(table);
 		JButton add = new JButton("Configure");
@@ -158,17 +169,16 @@ public class O2_GUI extends JPanel implements ActionListener {
 		try {
 			GU.O2_GUI_2_Testcases(machineList);
 		} catch (IOException ex) {
-			Logger.getLogger(O2_GUI.class.getName())
+			Logger.getLogger(ConfigureMachinesScreen.class.getName())
 					.log(Level.SEVERE, null, ex);
 		}
 
 		GU.setVisible(true);
 	}
 
-	// reading csv file
-
 	public static Object[][] ReadCSVfile(File DataFile) {
-		LineNumberReader lnr = null;
+		System.out.println("In read csv file .. ");
+                LineNumberReader lnr = null;
 		int i = 0;
 		try {
                         
@@ -236,7 +246,8 @@ public class O2_GUI extends JPanel implements ActionListener {
 	}
 
 	public static void showFrame() {
-		JPanel panel = new O2_GUI();
+		System.out.println("In show frame .. ");
+                JPanel panel = new ConfigureMachinesScreen();
 		panel.setOpaque(true);
 
 		frame = new JFrame("Machine Configuration");
@@ -248,11 +259,10 @@ public class O2_GUI extends JPanel implements ActionListener {
 
 	public static void main(String[] args) {
 		SwingUtilities.invokeLater(new Runnable() {
-
 			public void run() {
-				O2_GUI.showFrame();
+				ConfigureMachinesScreen.showFrame();
+                                System.out.println("In main of conf mach screen .. ");
 			}
 		});
 	}
-
 }

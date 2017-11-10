@@ -1,4 +1,4 @@
-package ui2;
+package OldWireframes;
 import java.io.File;
 
 import java.io.IOException;
@@ -46,7 +46,7 @@ public class O2_GUI_2_Testcases extends JFrame {
 //    	O2_GUI GU = new O2_GUI();
     	
 //    	System.out.println("ArrayList:"+arr);
-    	String[] array = new String[arr.size()];
+    	final String[] array = new String[arr.size()];
     	for(int i = 0; i < arr.size(); i++) {
     	    array[i] = (String) arr.get(i);
     	}
@@ -57,7 +57,7 @@ public class O2_GUI_2_Testcases extends JFrame {
         }
         System.out.println(machineIP.toString());
         String[] ipList = machineIP.toArray(new String[machineIP.size()]);
-    	JComboBox SelectTc = new JComboBox(ipList);
+    	final JComboBox SelectTc = new JComboBox(ipList);
     	File folder = new File("test2");
     	File[] listOfFiles = folder.listFiles();
     	ArrayList<String> list = new ArrayList<String>();
@@ -147,7 +147,7 @@ public class O2_GUI_2_Testcases extends JFrame {
                         p2 = p.start();
                     } catch (IOException ex) {
                         System.out.println(ex.getMessage());
-                        Logger.getLogger(O2_GUI.class.getName()).log(Level.SEVERE, null, ex);
+                        Logger.getLogger(ConfigureMachinesScreen_Old.class.getName()).log(Level.SEVERE, null, ex);
                     }
                     BufferedReader br = new BufferedReader(new InputStreamReader(p2.getInputStream()));
                     String line;
@@ -158,7 +158,7 @@ public class O2_GUI_2_Testcases extends JFrame {
                             System.out.println(line);
                         }
                     } catch (IOException ex) {
-                        Logger.getLogger(O2_GUI.class.getName()).log(Level.SEVERE, null, ex);
+                        Logger.getLogger(ConfigureMachinesScreen_Old.class.getName()).log(Level.SEVERE, null, ex);
                     }
 
 
@@ -169,7 +169,7 @@ public class O2_GUI_2_Testcases extends JFrame {
                     System.out.println(line);
                     }
                     } catch (IOException ex) {
-                    Logger.getLogger(O2_GUI.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(ConfigureMachinesScreen_Old.class.getName()).log(Level.SEVERE, null, ex);
                     }
                // }
          
@@ -183,7 +183,7 @@ public class O2_GUI_2_Testcases extends JFrame {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
 //            	jButton_Back_rowsActionPerformed(evt);
             	
-            	O2_GUI GU1 = new O2_GUI();
+            	ConfigureMachinesScreen_Old GU1 = new ConfigureMachinesScreen_Old();
             	setVisible(false);
         		GU1.frame.setVisible(true);
         		

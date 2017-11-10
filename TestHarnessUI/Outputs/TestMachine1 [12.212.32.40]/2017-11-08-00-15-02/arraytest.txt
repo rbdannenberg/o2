@@ -12,3 +12,4 @@ DONE sending ifvxif, types ihfd, size 0 through 100
 DONE sending vivd, size 0 through 100
 DONE sending ifvxif, types ihfdt, size 0 through 100
 DONE
+fail
