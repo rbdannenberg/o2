@@ -1,5 +1,6 @@
 package UI_Wireframes;
 
+import java.util.ArrayList;
 import javax.swing.JFrame;
 
 /*
@@ -130,8 +131,9 @@ public class SelectTestSuiteScreen extends javax.swing.JFrame {
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
         // TODO add your handling code here:
-        System.out.println("Going to next screen .. ");
+        //System.out.println("Going to next screen .. ");
        
+        //ArrayList<String> machines = new ArrayList<String>();
         ConfigureMachinesScreen.showFrame();
         this.setVisible(false);
     }//GEN-LAST:event_jButton4ActionPerformed

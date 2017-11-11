@@ -36,6 +36,7 @@ import javax.swing.JOptionPane;
  */
 public class CreateTestSuiteScreen extends javax.swing.JFrame {
 
+    private ArrayList<String> machines = new ArrayList<String>();
     /**
      * Creates new form CreateTestSuiteScreen_new
      */
@@ -46,6 +47,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         initComponents();
         groupButton();
         this.getContent();
+        this.machines = machineList;
     }
     
     private void getContent() {
@@ -340,6 +342,8 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         // TODO add your handling code here:
         
         ConfigureMachinesScreen.showFrame();
+        ArrayList<String> machinesList = new ArrayList<String>(machines);
+        ConfigureMachinesScreen.RenderTable(machinesList);
         this.setVisible(false);
     }//GEN-LAST:event_jButton1ActionPerformed
 

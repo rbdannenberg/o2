@@ -2,6 +2,8 @@ package UI_Wireframes;
 
 
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
@@ -32,24 +34,26 @@ import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 @SuppressWarnings("serial")
 public class ConfigureMachinesScreen extends JPanel{
-	JTable table = null;
+	static JTable table = null;
 	static JFrame frame = null;
 	JTextArea output;
         String masterPwd;
 	Map<Integer, StringBuilder> selectedMap = new HashMap<Integer, StringBuilder>();
 	private Set<String> contents = new HashSet();
 
+                
 	public ConfigureMachinesScreen() {                
-            System.out.println("In initializer .. "); 
+            //System.out.println("In initializer .. ");
             initializePanel();
 	}
 
 	private void initializePanel() {
-                System.out.println("In initcomp initipanelssss");
+                //System.out.println("In initcomp initipanelssss");
 		setLayout(new BorderLayout());
 		setPreferredSize(new Dimension(600, 600));
 		setName("Configure Machines");
@@ -165,6 +169,7 @@ public class ConfigureMachinesScreen extends JPanel{
 	public void ConfigureButtonactionPerformed(ActionEvent e) {
 		ArrayList<String> machineList = new ArrayList<String>();
 		for (int key : selectedMap.keySet()) {
+                        //System.out.println(selectedMap.get(key).toString());
 			machineList.add(selectedMap.get(key).toString());
 		}
 		this.setEnabled(false);
@@ -180,7 +185,7 @@ public class ConfigureMachinesScreen extends JPanel{
 	}
 
 	public static Object[][] ReadFile(File DataFile) {
-		System.out.println("In read csv file .. ");
+		//System.out.println("In read csv file .. ");
                 LineNumberReader lnr = null;
 		int i = 0;
 		try {
@@ -238,9 +243,47 @@ public class ConfigureMachinesScreen extends JPanel{
 //		}
 		return Rs;
 	}
+        
+     
+    
+    private static JTable getNewRenderedTable(final JTable table, final ArrayList<String> machineList) {
+        System.out.println("The table in machines conf screen is getting rendered .. ");
+       
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer(){
+            @Override
+            public Component getTableCellRendererComponent(JTable table,
+                    Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+                
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+                StringBuilder thisRow = new StringBuilder();
+                for (int j = 1; j < table.getColumnCount(); j++) {
+			thisRow.append((String) table.getModel().getValueAt(row, j) + " ");
+		}
+                
+                for(String machine : machineList) {
+                    if(machine.equals(thisRow.toString())){
+                            System.out.println("This machine matches : " + machine);
+                            //setValue(true);      
+                            //System.out.println(table.getModel().getValueAt(row,0)); 
+                            //boolean selected = true;
+                            //table.getModel().setValueAt(selected, row, 0);
+                            //System.out.println(table.isRowSelected(row));
+                            //table.setRowSelectionInterval(0, table.getColumnCount());
+                            //table.getSelectionModel().addSelectionInterval(0, table.getColumnCount());
+                            System.out.println(table.getModel().getValueAt(row,1));
+                            if(col == 1)
+                                setValue(true);
+                            System.out.println(table.getModel().getValueAt(row,1));
+                    }
+                }
+                return this;
+            }   
+        });
+        return table;  
+    }
 
 	public static void showFrame() {
-		System.out.println("In show frame .. ");
+		//System.out.println("In show frame .. ");
                 JPanel panel = new ConfigureMachinesScreen();
 		panel.setOpaque(true);
 
@@ -250,13 +293,18 @@ public class ConfigureMachinesScreen extends JPanel{
 		frame.pack();
 		frame.setVisible(true);
 	}
+        
+        public static void RenderTable(ArrayList<String> machines){
+            table = getNewRenderedTable(table, machines); 
+        }
 
 	public static void main(String[] args) {
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
                                 //int bypass = 0;
+                                //ArrayList<String> machines = new ArrayList<String>();
 				ConfigureMachinesScreen.showFrame();
-                                System.out.println("In main of conf mach screen .. ");
+                                //System.out.println("In main of conf mach screen .. ");
 			}
 		});
 	}
