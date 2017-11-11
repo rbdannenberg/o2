@@ -373,6 +373,9 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         // TODO add your handling code here:
         String testSuiteName;
         testSuiteName = JOptionPane.showInputDialog("Enter test suite name ");
+        while(testSuiteName.isEmpty()) { 
+                    testSuiteName =JOptionPane.showInputDialog(this,"Invalid name! \n\nPlease enter the test suite name again! ");
+                }
         JOptionPane.showMessageDialog(null, "Test suite named " + testSuiteName + " is saved!");
     }//GEN-LAST:event_jButton3ActionPerformed
 

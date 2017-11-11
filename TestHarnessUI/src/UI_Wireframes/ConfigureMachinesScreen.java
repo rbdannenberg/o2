@@ -109,6 +109,11 @@ public class ConfigureMachinesScreen extends JPanel{
                 
                 
 		JButton BackButton = new JButton("Back");
+                BackButton.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent evt) {
+                            BackButtonactionPerformed(evt);
+                    }
+                });
                 
 		JCheckBox checkBox = new javax.swing.JCheckBox();
 		table.setRowSelectionAllowed(true);
@@ -166,6 +171,12 @@ public class ConfigureMachinesScreen extends JPanel{
 		frame.setVisible(false);
 		CreateTestSuiteScreen nextScreen = new CreateTestSuiteScreen(machineList);
 		nextScreen.setVisible(true);
+	}
+        
+        public void BackButtonactionPerformed(ActionEvent e) {
+		this.setEnabled(false);
+		frame.setVisible(false);
+		new SelectTestSuiteScreen().setVisible(true);
 	}
 
 	public static Object[][] ReadFile(File DataFile) {
