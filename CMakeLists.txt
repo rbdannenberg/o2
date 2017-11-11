@@ -4,7 +4,7 @@ project(o2)
 
 set(BUILD_TESTS ON CACHE BOOL "Compile regression and other tests")
 set(BUILD_TESTS_COVERAGE ON CACHE BOOL "Compile for code coverage")
-set(BUILD_TESTS_WITH_LIBLO ON CACHE BOOL "Compile tests that use liblo,
+set(BUILD_TESTS_WITH_LIBLO OFF CACHE BOOL "Compile tests that use liblo,
 requiring liblo library (only enabled if BUILD_TESTS is ON)")
 
 set(BUILD_MIDI_EXAMPLE OFF CACHE BOOL "Compile midiclient & midiserver,
@@ -118,9 +118,27 @@ add_executable(o2client test/o2client.c)
 target_include_directories(o2client PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(o2client ${LIBRARIES})
 
-add_executable(o2server test/o2server.c)
-target_include_directories(o2server PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(o2server ${LIBRARIES})
+
+add_executable(o2client1 test/o2client1.c) 
+target_include_directories(o2client1 PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+target_link_libraries(o2client1 ${LIBRARIES}) 
+
+
+add_executable(o2client2 test/o2client2.c) 
+target_include_directories(o2client2 PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+target_link_libraries(o2client2 ${LIBRARIES}) 
+
+add_executable(o2client3 test/o2client3.c) 
+target_include_directories(o2client3 PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+target_link_libraries(o2client3 ${LIBRARIES}) 
+
+add_executable(o2localmulti test/o2localmulti.c) 
+target_include_directories(o2localmulti PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+target_link_libraries(o2localmulti ${LIBRARIES}) 
+
+add_executable(o2server test/o2server.c) 
+target_include_directories(o2server PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+target_link_libraries(o2server ${LIBRARIES}) 
 
 add_executable(statusclient test/statusclient.c)
 target_include_directories(statusclient PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -170,9 +188,7 @@ add_executable(oscbndlrecv test/oscbndlrecv.c)
 target_include_directories(oscbndlrecv PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(oscbndlrecv ${LIBRARIES})
 
-add_executable(sampletest test/sampletest.c)
-target_include_directories(sampletest PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(sampletest ${LIBRARIES})
+
 
 add_executable(infotest1 test/infotest1.c)
 target_include_directories(infotest1 PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -280,71 +296,40 @@ message(STATUS LIBRARIES=${LIBRARIES})
 
 if(BUILD_TESTS)
 if(BUILD_TESTS_WITH_LIBLO)
-  set(LIBLO_PATH "${CMAKE_SOURCE_DIR}/liblo-0.28" CACHE PATH
+  set(LIBLO_PATH "${CMAKE_SOURCE_DIR}/liblo" CACHE PATH
                  "Where to find liblo_64s.a, the liblo library.")
   set(LIBLO_LIB LIBLO_LIB-NOTFOUND CACHE FILEPATH
-             "The liblo library; should be set automatically if LIBLO_PATH is correct and liblo_s64.a exists.")
+             "The liblo library; should be set automatically if LIBLO_PATH is correct and liblo_64s.a exists.") 
   find_library(LIBLO_LIB lo_s64 ${LIBLO_PATH})
   # where to find liblo include files:
-  set(LIBLO_INCLUDE_PATH ${LIBLO_PATH} CACHE PATH "where to find liblo include files")
+  set(LIBLO_INCLUDE_PATH ${LIBLO_PATH} CACHE PATH "where to find liblo include files") 
 
-  message(STATUS "LIBLO_LIB is ${LIBLO_LIB}")
-
-  # Create executables
-  add_executable(lo_benchmk_server  test/lo_benchmk_server.c)
-  target_include_directories(lo_benchmk_server PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_benchmk_server ${LIBLO_LIB} ${EXTRA_LO_LIBS})
-
-  add_executable(lo_benchmk_client  test/lo_benchmk_client.c)
-  target_include_directories(lo_benchmk_client PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_benchmk_client ${LIBLO_LIB}  ${EXTRA_LO_LIBS})
-
-  add_executable(lo_oscrecv test/lo_oscrecv.c)
-  target_include_directories(lo_oscrecv PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_oscrecv ${LIBLO_LIB}  ${EXTRA_LO_LIBS})
-
-  add_executable(lo_oscsend test/lo_oscsend.c)
-  target_include_directories(lo_oscsend PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_oscsend ${LIBLO_LIB}  ${EXTRA_LO_LIBS})
-
-  add_executable(lo_bndlsend test/lo_bndlsend.c)
-  target_include_directories(lo_bndlsend PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_bndlsend ${LIBLO_LIB}  ${EXTRA_LO_LIBS})
-
-  add_executable(lo_bndlrecv test/lo_bndlrecv.c)
-  target_include_directories(lo_bndlrecv PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_LO_LIBS})
-             "The liblo library; should be set automatically if LIBLO_PATH is correct and liblo_64s.a exists.")
-  find_library(LIBLO_LIB lo_s64 ${LIBLO_PATH})
-  # where to find liblo include files:
-  set(LIBLO_INCLUDE_PATH ${LIBLO_PATH} CACHE PATH "where to find liblo include files")
-
-  message(STATUS "LIBLO_LIB is ${LIBLO_LIB}")
+  message(STATUS "LIBLO_LIB is ${LIBLO_LIB}") 
    set(EXTRA_NEEDED_LIBS m)
-  # Create executables
-  add_executable(lo_benchmk_server  test/lo_benchmk_server.c)
+  # Create executables 
+  add_executable(lo_benchmk_server  test/lo_benchmk_server.c) 
   target_include_directories(lo_benchmk_server PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_benchmk_server ${LIBLO_LIB} ${EXTRA_NEEDED_LIBS})
+  target_link_libraries(lo_benchmk_server ${LIBLO_LIB} ${EXTRA_NEEDED_LIBS}) 
 
-  add_executable(lo_benchmk_client  test/lo_benchmk_client.c)
-  target_include_directories(lo_benchmk_client PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_benchmk_client ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})
+  add_executable(lo_benchmk_client  test/lo_benchmk_client.c) 
+  target_include_directories(lo_benchmk_client PRIVATE ${LIBLO_INCLUDE_PATH})  
+  target_link_libraries(lo_benchmk_client ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})  
 
-  add_executable(lo_oscrecv test/lo_oscrecv.c)
-  target_include_directories(lo_oscrecv PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_oscrecv ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})
+  add_executable(lo_oscrecv test/lo_oscrecv.c) 
+  target_include_directories(lo_oscrecv PRIVATE ${LIBLO_INCLUDE_PATH})  
+  target_link_libraries(lo_oscrecv ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})   
 
-  add_executable(lo_oscsend test/lo_oscsend.c)
-  target_include_directories(lo_oscsend PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_oscsend ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})
+  add_executable(lo_oscsend test/lo_oscsend.c) 
+  target_include_directories(lo_oscsend PRIVATE ${LIBLO_INCLUDE_PATH})  
+  target_link_libraries(lo_oscsend ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})    
 
-  add_executable(lo_bndlsend test/lo_bndlsend.c)
-  target_include_directories(lo_bndlsend PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_bndlsend ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})
+  add_executable(lo_bndlsend test/lo_bndlsend.c) 
+  target_include_directories(lo_bndlsend PRIVATE ${LIBLO_INCLUDE_PATH})  
+  target_link_libraries(lo_bndlsend ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})     
 
-  add_executable(lo_bndlrecv test/lo_bndlrecv.c)
-  target_include_directories(lo_bndlrecv PRIVATE ${LIBLO_INCLUDE_PATH})
-  target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})
+  add_executable(lo_bndlrecv test/lo_bndlrecv.c) 
+  target_include_directories(lo_bndlrecv PRIVATE ${LIBLO_INCLUDE_PATH})  
+  target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_NEEDED_LIBS})     
 
 endif(BUILD_TESTS_WITH_LIBLO)
 endif(BUILD_TESTS)
