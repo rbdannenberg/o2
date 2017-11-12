@@ -264,19 +264,23 @@ public class ConfigureMachinesScreen extends JPanel{
                     if(machine.equals(thisRow.toString())){
                             System.out.println("This machine matches : " + machine);
                             //setValue(true);      
-                            System.out.println(table.getModel().getValueAt(row,0)); 
-                            System.out.println(table.getModel().getValueAt(row,1));
-                            System.out.println(table.getModel().getValueAt(row,2));
-                            System.out.println(table.getModel().getValueAt(row,3));
-                            System.out.println(table.getModel().getValueAt(row,4)); 
                             //boolean selected = true;
                             //table.getModel().setValueAt(selected, row, 0);
                             //System.out.println(table.isRowSelected(row));
                             //table.setRowSelectionInterval(0, table.getColumnCount());
                             //table.getSelectionModel().addSelectionInterval(0, table.getColumnCount());
                            
-                            if(col == 0)
-                                setValue(Boolean.TRUE); // what is the function to change the value of a check box?
+                            if(col == 1){
+                                setValue(true); // what is the function to change the value of a check box?
+                                System.out.println("Changing the text in the first column .. ");
+                            }
+                            if(col == 0){
+                                // the program is not at all entering this condition.. 
+                                System.out.println("Now changing the state of the checkbox .. ");
+                                setValue(Boolean.TRUE);
+                                setEnabled(true);
+                                System.out.println("Value: " + value + "\n this: " + this);
+                            }
                     }
                 }
                 return this;
