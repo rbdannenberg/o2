@@ -48,6 +48,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         groupButton();
         this.getContent();
         this.machines = machineList;
+        addMachinesToList();
     }
     
     private void getContent() {
@@ -193,14 +194,6 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         jLabel6.setText("Machines to select from:");
 
         treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("Machines");
-        javax.swing.tree.DefaultMutableTreeNode treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("TestMachine1 [12.212.32.40]");
-        treeNode1.add(treeNode2);
-        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("TestMachine2 [127.23.53.41]");
-        treeNode1.add(treeNode2);
-        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("TestMachine3 [51.64.57.120]");
-        treeNode1.add(treeNode2);
-        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("TestMachine4 [54.22.33.41]");
-        treeNode1.add(treeNode2);
         jTree2.setModel(new javax.swing.tree.DefaultTreeModel(treeNode1));
         jTree2.setDragEnabled(true);
         jTree2.setEnabled(false);
@@ -209,7 +202,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         jLabel7.setText("Test cases to select from:");
 
         treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("TestCases");
-        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("Test arraytest");
+        javax.swing.tree.DefaultMutableTreeNode treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("Test arraytest");
         javax.swing.tree.DefaultMutableTreeNode treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("arraytest");
         treeNode2.add(treeNode3);
         treeNode1.add(treeNode2);
@@ -265,16 +258,16 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                             .addGap(2, 2, 2)
                             .addComponent(jButton4))
                         .addGroup(jPanel1Layout.createSequentialGroup()
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                .addComponent(jButton2)
-                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jLabel4)
-                                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 356, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                            .addGap(42, 42, 42)
                             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(jLabel6)
-                                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 253, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGap(40, 40, 40)
+                                .addComponent(jLabel4)
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(jButton2)
+                                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 316, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addGap(28, 28, 28)
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 318, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(jLabel6))
+                            .addGap(29, 29, 29)
                             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                 .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 251, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addComponent(jLabel7))))
@@ -407,6 +400,16 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         ButtonGroup bg1 = new ButtonGroup();
         bg1.add(jRadioButton1);
         bg1.add(jRadioButton2);
+    }
+    
+    public void addMachinesToList(){
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) jTree2.getModel().getRoot();
+        javax.swing.tree.DefaultMutableTreeNode childNode;
+        for(String mac : machines) {
+            childNode = new javax.swing.tree.DefaultMutableTreeNode(mac);
+            root.add(childNode);
+        }
+        jTree2.setModel(new javax.swing.tree.DefaultTreeModel(root));
     }
     
     /**
