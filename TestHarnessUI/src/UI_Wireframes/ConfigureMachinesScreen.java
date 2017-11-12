@@ -259,21 +259,24 @@ public class ConfigureMachinesScreen extends JPanel{
                 for (int j = 1; j < table.getColumnCount(); j++) {
 			thisRow.append((String) table.getModel().getValueAt(row, j) + " ");
 		}
-                
+                //System.out.println("Value now : " + value);
                 for(String machine : machineList) {
                     if(machine.equals(thisRow.toString())){
                             System.out.println("This machine matches : " + machine);
                             //setValue(true);      
-                            //System.out.println(table.getModel().getValueAt(row,0)); 
+                            System.out.println(table.getModel().getValueAt(row,0)); 
+                            System.out.println(table.getModel().getValueAt(row,1));
+                            System.out.println(table.getModel().getValueAt(row,2));
+                            System.out.println(table.getModel().getValueAt(row,3));
+                            System.out.println(table.getModel().getValueAt(row,4)); 
                             //boolean selected = true;
                             //table.getModel().setValueAt(selected, row, 0);
                             //System.out.println(table.isRowSelected(row));
                             //table.setRowSelectionInterval(0, table.getColumnCount());
                             //table.getSelectionModel().addSelectionInterval(0, table.getColumnCount());
-                            System.out.println(table.getModel().getValueAt(row,1));
-                            if(col == 1)
-                                setValue(true);
-                            System.out.println(table.getModel().getValueAt(row,1));
+                           
+                            if(col == 0)
+                                setValue(Boolean.TRUE); // what is the function to change the value of a check box?
                     }
                 }
                 return this;

@@ -365,12 +365,25 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         // TODO add your handling code here:
         jTree2.setDragEnabled(false);
         jTree2.setEnabled(false);
+        // we remove all the nodes in the jtree 
+        // when switching modes. 
+        // Otherwise, we need to validate the model 
+        // contents before clicking execute 
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) jTree1.getModel().getRoot();
+        root.removeAllChildren();
+        DefaultTreeModel model = (DefaultTreeModel) jTree1.getModel();
+        model.reload();
+        
     }//GEN-LAST:event_jRadioButton1ActionPerformed
 
     private void jRadioButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jRadioButton2ActionPerformed
         // TODO add your handling code here:
         jTree2.setDragEnabled(true);
         jTree2.setEnabled(true);
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) jTree1.getModel().getRoot();
+        root.removeAllChildren();
+        DefaultTreeModel model = (DefaultTreeModel) jTree1.getModel();
+        model.reload();
     }//GEN-LAST:event_jRadioButton2ActionPerformed
 
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
