@@ -168,7 +168,12 @@ public class ConfigureMachinesScreen extends JPanel{
 	
 	public void ConfigureButtonactionPerformed(ActionEvent e) {
 		ArrayList<String> machineList = new ArrayList<String>();
-		for (int key : selectedMap.keySet()) {
+		if(selectedMap.keySet().size() == 0){
+                    JOptionPane.showMessageDialog(null, "Please select at least one machine to continue with configuration.");
+                    return;
+                }
+                
+                for (int key : selectedMap.keySet()) {
                         //System.out.println(selectedMap.get(key).toString());
 			machineList.add(selectedMap.get(key).toString());
 		}
