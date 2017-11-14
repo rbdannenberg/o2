@@ -1,0 +1,6 @@
+Testcases
+	Test arraytest
+		arraytest
+	Test clientserver
+		client
+		server

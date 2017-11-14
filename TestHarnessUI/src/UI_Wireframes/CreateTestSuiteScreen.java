@@ -19,6 +19,12 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.datatransfer.DataFlavor;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -43,18 +49,20 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
     public CreateTestSuiteScreen() {
     }
     
-    public CreateTestSuiteScreen(ArrayList<String> machineList) {
+    public CreateTestSuiteScreen(ArrayList<String> machineList) throws IOException {
         initComponents();
+        generateTestTree();
         groupButton();
         this.getContent();
         this.machines = machineList;
         addMachinesToList();
     }
     
-    private void getContent() {
+    private void getContent(){
         jTree1.setDropMode(DropMode.ON_OR_INSERT);
         final DefaultTreeModel treeModel = (DefaultTreeModel) jTree1.getModel();
         jTree1.setTransferHandler(new TransferHandler() {
+                            
                 @Override
                 public boolean importData(TransferHandler.TransferSupport support) {
                     if (!canImport(support)) {
@@ -63,23 +71,39 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                     JTree.DropLocation dl = (JTree.DropLocation) support.getDropLocation();
                     TreePath path = dl.getPath();
                     int childIndex = dl.getChildIndex();
-
+                    
+                    // from drag and drop poc
+                    String mimeType = DataFlavor.javaJVMLocalObjectMimeType + ";class=\"" + javax.swing.tree.DefaultMutableTreeNode[].class.getName() + "\"";
+                    DataFlavor nodesFlavor = null;
+                    try {
+                        nodesFlavor = new DataFlavor(mimeType);
+                    } catch (ClassNotFoundException ex) {
+                        Logger.getLogger(CreateTestSuiteScreen.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    
+                    DefaultMutableTreeNode[] nodes = null;
                     String data;
                     try {  
-                      data = (String) support.getTransferable().getTransferData(
-                          DataFlavor.stringFlavor);
+                      data = (String) support.getTransferable().getTransferData(DataFlavor.stringFlavor);
                     } catch (Exception e) {
                       return false;
                     }
+                    
+                    DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) path.getLastPathComponent();
+                    int index = childIndex; 
                     if (childIndex == -1) {
-                      childIndex = jTree1.getModel().getChildCount(
-                          path.getLastPathComponent());
+                      childIndex = jTree1.getModel().getChildCount(path.getLastPathComponent());
+                      index = parentNode.getChildCount();
                     }
 
                     DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(data);
-                    DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) path
-                        .getLastPathComponent();
                     treeModel.insertNodeInto(newNode, parentNode, childIndex);
+                    
+                    // from drag and drop poc
+                    /*
+                    for(int i = 0; i < nodes.length; i++){
+                        treeModel.insertNodeInto(nodes[i], parentNode, index++);
+                    }*/
 
                     //jTree1.makeVisible(path.pathByAddingChild(newNode));
                     //jTree1.scrollRectToVisible(jTree1.getPathBounds(path
@@ -92,6 +116,16 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                       return false;
                     }
                     support.setShowDropLocation(true);
+                    
+                    // from drag and drop poc
+                    String mimeType = DataFlavor.javaJVMLocalObjectMimeType + ";class=\"" + javax.swing.tree.DefaultMutableTreeNode[].class.getName() + "\"";
+                    DataFlavor nodesFlavor = null;
+                    try {
+                        nodesFlavor = new DataFlavor(mimeType);
+                    } catch (ClassNotFoundException ex) {
+                        Logger.getLogger(CreateTestSuiteScreen.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                 
                     if (!support.isDataFlavorSupported(DataFlavor.stringFlavor)) {
                       System.out.println("only string is supported");
                       return false;
@@ -101,8 +135,37 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                     if (path == null) {
                       return false;
                     }
+                    int action = support.getDropAction();
+                    if(action == MOVE) {
+                        return haveCompleteNode((JTree)support.getComponent());
+                    }
                     return true;
                  }
+                
+                private boolean haveCompleteNode(JTree tree) {
+                        int[] selRows = tree.getSelectionRows();
+                        TreePath path = tree.getPathForRow(selRows[0]);
+                        DefaultMutableTreeNode first =
+                            (DefaultMutableTreeNode)path.getLastPathComponent();
+                        int childCount = first.getChildCount();
+                        // first has children and no children are selected.
+                        if(childCount > 0 && selRows.length == 1)
+                            return false;
+                        // first may have children.
+                        for(int i = 1; i < selRows.length; i++) {
+                            path = tree.getPathForRow(selRows[i]);
+                            DefaultMutableTreeNode next =
+                                (DefaultMutableTreeNode)path.getLastPathComponent();
+                            if(first.isNodeChild(next)) {
+                                // Found a child of first.
+                                if(childCount > selRows.length-1) {
+                                    // Not all children of first are selected.
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                }
         });
         jTree1.getSelectionModel().setSelectionMode(
                 TreeSelectionModel.CONTIGUOUS_TREE_SELECTION);
@@ -202,16 +265,6 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         jLabel7.setText("Test cases to select from:");
 
         treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("TestCases");
-        javax.swing.tree.DefaultMutableTreeNode treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("Test arraytest");
-        javax.swing.tree.DefaultMutableTreeNode treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("arraytest");
-        treeNode2.add(treeNode3);
-        treeNode1.add(treeNode2);
-        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("Test ClientServer local");
-        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("o2client 5000 R");
-        treeNode2.add(treeNode3);
-        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("o2server S");
-        treeNode2.add(treeNode3);
-        treeNode1.add(treeNode2);
         jTree3.setModel(new javax.swing.tree.DefaultTreeModel(treeNode1));
         jTree3.setDragEnabled(true);
         jScrollPane3.setViewportView(jTree3);
@@ -239,7 +292,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             }
         });
 
-        jLabel5.setText("Select the value of N for 'multiple' run: ");
+        jLabel5.setText("Select the value of N for 'multiple' run in random mode: ");
 
         jComboBox1.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "1", "2", "3", "4", "5" }));
 
@@ -252,42 +305,44 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                 .addComponent(jLabel3)
                 .addGap(3, 3, 3)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                        .addGroup(jPanel1Layout.createSequentialGroup()
-                            .addComponent(jButton3)
-                            .addGap(2, 2, 2)
-                            .addComponent(jButton4))
-                        .addGroup(jPanel1Layout.createSequentialGroup()
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(jLabel4)
-                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addComponent(jButton2)
-                                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 316, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                            .addGap(28, 28, 28)
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 318, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(jLabel6))
-                            .addGap(29, 29, 29)
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 251, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(jLabel7))))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
-                                .addComponent(jLabel2)
-                                .addGap(18, 18, 18)
-                                .addComponent(jRadioButton1)
-                                .addGap(18, 18, 18)
-                                .addComponent(jRadioButton2))
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                .addGroup(jPanel1Layout.createSequentialGroup()
+                                    .addComponent(jButton3)
+                                    .addGap(2, 2, 2)
+                                    .addComponent(jButton4))
+                                .addGroup(jPanel1Layout.createSequentialGroup()
+                                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addComponent(jLabel4)
+                                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                            .addComponent(jButton2)
+                                            .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 316, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                    .addGap(28, 28, 28)
+                                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 318, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addComponent(jLabel6))
+                                    .addGap(29, 29, 29)
+                                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 251, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addComponent(jLabel7))))
                             .addGroup(jPanel1Layout.createSequentialGroup()
                                 .addComponent(jButton1)
                                 .addGap(234, 234, 234)
-                                .addComponent(jLabel1)))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jLabel1)
+                                .addGap(275, 275, 275)))
+                        .addContainerGap(39, Short.MAX_VALUE))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(jLabel2)
+                        .addGap(18, 18, 18)
+                        .addComponent(jRadioButton1)
+                        .addGap(18, 18, 18)
+                        .addComponent(jRadioButton2)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(jLabel5)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 76, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addContainerGap(39, Short.MAX_VALUE))
+                        .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 76, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(93, 93, 93))))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -366,7 +421,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         root.removeAllChildren();
         DefaultTreeModel model = (DefaultTreeModel) jTree1.getModel();
         model.reload();
-        
+        jComboBox1.setEnabled(true); 
     }//GEN-LAST:event_jRadioButton1ActionPerformed
 
     private void jRadioButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jRadioButton2ActionPerformed
@@ -377,6 +432,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         root.removeAllChildren();
         DefaultTreeModel model = (DefaultTreeModel) jTree1.getModel();
         model.reload();
+        jComboBox1.setEnabled(false);
     }//GEN-LAST:event_jRadioButton2ActionPerformed
 
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
@@ -396,6 +452,15 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         this.setVisible(false);
     }//GEN-LAST:event_jButton4ActionPerformed
 
+    private void generateTestTree() throws IOException {
+        System.out.println("Inside generate test tree method .. ");
+        File testsFile = new File("tests.txt");
+        DefaultMutableTreeNode myTreeNode = (DefaultMutableTreeNode)jTree3.getModel().getRoot();
+        
+        myTreeNode = StructureBuilder.getTreeNode(testsFile);   
+        jTree3.setModel(new javax.swing.tree.DefaultTreeModel(myTreeNode));
+    }
+    
     private void groupButton(){
         ButtonGroup bg1 = new ButtonGroup();
         bg1.add(jRadioButton1);
@@ -445,7 +510,12 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             public void run() {
                 //new CreateTestSuiteScreen().setVisible(true);
                 ArrayList<String> machineList = new ArrayList<String>();
-                CreateTestSuiteScreen myScreen = new CreateTestSuiteScreen(machineList);
+                CreateTestSuiteScreen myScreen = null;
+                try {
+                    myScreen = new CreateTestSuiteScreen(machineList);
+                } catch (IOException ex) {
+                    Logger.getLogger(CreateTestSuiteScreen.class.getName()).log(Level.SEVERE, null, ex);
+                }
                 //myScreen.getContent();
                 myScreen.setVisible(true);
             }
@@ -475,4 +545,52 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
     private javax.swing.JTree jTree2;
     private javax.swing.JTree jTree3;
     // End of variables declaration//GEN-END:variables
+}
+
+class StructureBuilder {
+
+    public static final DefaultMutableTreeNode getTreeNode(File file) throws IOException  {
+
+        DefaultMutableTreeNode rootNode = null;
+        Map<Integer, DefaultMutableTreeNode> levelNodes = new HashMap<Integer, DefaultMutableTreeNode>();
+        BufferedReader reader = new BufferedReader(new FileReader(file));
+        String line;
+
+        while( (line = reader.readLine()) != null ) {
+
+            int level = getLevel(line);
+            String nodeName = getNodeName(line, level);
+            DefaultMutableTreeNode node = new DefaultMutableTreeNode(nodeName);               
+            levelNodes.put(level, node);
+            DefaultMutableTreeNode parent = levelNodes.get(level - 1);
+
+            if( parent != null ) {
+                parent.add(node);
+            }
+            else {
+                rootNode = node;
+            }
+        }    
+        reader.close();
+        return rootNode;
+    }
+
+    private static final int getLevel(String line) {
+
+        int level = 0;
+        for ( int i = 0; i < line.length(); i++ ) {
+            char c = line.charAt(i);
+            if( c == '\t') {
+                level++;
+            }
+            else {
+                break;
+            }
+        }
+        return level;
+    }
+
+    private static final String getNodeName(String line, int level) {
+        return line.substring(level);
+    }      
 }

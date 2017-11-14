@@ -55,7 +55,7 @@ public class ConfigureMachinesScreen extends JPanel{
 	private void initializePanel() {
                 //System.out.println("In initcomp initipanelssss");
 		setLayout(new BorderLayout());
-		setPreferredSize(new Dimension(600, 600));
+		setPreferredSize(new Dimension(1040, 560));
 		setName("Configure Machines");
 		Object[] columnNames = { "Select", "MachineIP", "Type", "Username",
 				"Password" };
@@ -107,7 +107,11 @@ public class ConfigureMachinesScreen extends JPanel{
                 
                 configureButton.addActionListener(new java.awt.event.ActionListener() {
                     public void actionPerformed(java.awt.event.ActionEvent evt) {
+                        try {
                             ConfigureButtonactionPerformed(evt);
+                        } catch (IOException ex) {
+                            Logger.getLogger(ConfigureMachinesScreen.class.getName()).log(Level.SEVERE, null, ex);
+                        }
                     }
                 });
                 
@@ -166,7 +170,7 @@ public class ConfigureMachinesScreen extends JPanel{
 	}
 
 	
-	public void ConfigureButtonactionPerformed(ActionEvent e) {
+	public void ConfigureButtonactionPerformed(ActionEvent e) throws IOException {
 		ArrayList<String> machineList = new ArrayList<String>();
 		if(selectedMap.keySet().size() == 0){
                     JOptionPane.showMessageDialog(null, "Please select at least one machine to continue with configuration.");

@@ -57,6 +57,9 @@ public class TestResultsScreen extends javax.swing.JFrame {
     }
 
     public void createGUI() {
+        setPreferredSize(new java.awt.Dimension(1040, 560));
+        setMaximumSize(new Dimension(1040, 560));
+        setMinimumSize(new Dimension(1040, 560));
         setLayout(new BorderLayout());
         JScrollPane pane = new JScrollPane();
         table = new JTable();
@@ -358,7 +361,6 @@ public class TestResultsScreen extends javax.swing.JFrame {
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
                 TestResultsScreen frm = new TestResultsScreen();
-                
                 frm.setDefaultCloseOperation(EXIT_ON_CLOSE);
                 frm.setVisible(true);
                 table = getNewRenderedTable(table);
