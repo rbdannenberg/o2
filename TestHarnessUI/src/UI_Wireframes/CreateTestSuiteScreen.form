@@ -72,7 +72,6 @@
                                   <Component id="jButton1" min="-2" max="-2" attributes="0"/>
                                   <EmptySpace min="-2" pref="234" max="-2" attributes="0"/>
                                   <Component id="jLabel1" min="-2" max="-2" attributes="0"/>
-                                  <EmptySpace min="-2" pref="275" max="-2" attributes="0"/>
                               </Group>
                           </Group>
                           <EmptySpace pref="39" max="32767" attributes="0"/>

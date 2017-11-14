@@ -447,11 +447,29 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
         // TODO add your handling code here:
+        if(getNumberOfNodes(jTree1.getModel()) == 1 || getNumberOfNodes(jTree1.getModel()) == 0){
+            JOptionPane.showMessageDialog(null, "Please create a valid test suite to continue with execution.");
+            return;
+        }
         TestResultsScreen testexecScreen = new TestResultsScreen();
         testexecScreen.setVisible(true);
         this.setVisible(false);
+        
     }//GEN-LAST:event_jButton4ActionPerformed
 
+    private int getNumberOfNodes(TreeModel model){
+        return getNumberOfNodes(model, model.getRoot());
+    }
+    
+    private int getNumberOfNodes(TreeModel model, Object node){
+        int count = 1;
+        int numberOfChildren = model.getChildCount(node);
+        for(int i=0; i<numberOfChildren; i++){
+            count += getNumberOfNodes(model, model.getChild(node, i));
+        }
+        return count;
+    }
+    
     private void generateTestTree() throws IOException {
         System.out.println("Inside generate test tree method .. ");
         File testsFile = new File("tests.txt");
