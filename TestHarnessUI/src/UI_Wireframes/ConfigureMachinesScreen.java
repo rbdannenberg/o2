@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
@@ -274,11 +275,18 @@ public class ConfigureMachinesScreen extends JPanel{
                             System.out.println("This machine matches : " + machine);
                             //setValue(true);      
                             //boolean selected = true;
-                            //table.getModel().setValueAt(selected, row, 0);
+                            //JCheckBox jCheckBox = new javax.swing.JCheckBox();
+                            //jCheckBox.setSelected(true);
+                            //table.getColumnModel().getColumn(0).setCellEditor(new DefaultCellEditor(jCheckBox));
+                            //DefaultTableModel myModel = (DefaultTableModel)table.getModel();
+                            //myModel.setValueAt(jCheckBox, row, 0);
+                            //table.setModel(myModel);
                             //System.out.println(table.isRowSelected(row));
                             //table.setRowSelectionInterval(0, table.getColumnCount());
                             //table.getSelectionModel().addSelectionInterval(0, table.getColumnCount());
-                           
+                            System.out.println("Value at the first column: " + table.getModel().getValueAt(row, 0));
+                            //setValueAt("Dummmy", row, 1);
+                                                       
                             if(col == 1){
                                 setValue(true); // what is the function to change the value of a check box?
                                 System.out.println("Changing the text in the first column .. ");
@@ -288,6 +296,7 @@ public class ConfigureMachinesScreen extends JPanel{
                                 System.out.println("Now changing the state of the checkbox .. ");
                                 setValue(Boolean.TRUE);
                                 setEnabled(true);
+                                
                                 System.out.println("Value: " + value + "\n this: " + this);
                             }
                     }
