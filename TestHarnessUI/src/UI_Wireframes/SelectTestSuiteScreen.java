@@ -20,6 +20,7 @@ public class SelectTestSuiteScreen extends javax.swing.JFrame {
      */
     public SelectTestSuiteScreen() {
         initComponents();
+        setName("Test Harness - Select test suite");	
     }
 
     /**
@@ -40,6 +41,7 @@ public class SelectTestSuiteScreen extends javax.swing.JFrame {
         jLabel1 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("Test Harness - Select test suite");
         setPreferredSize(new java.awt.Dimension(1040, 560));
 
         jPanel1.setPreferredSize(new java.awt.Dimension(1040, 560));

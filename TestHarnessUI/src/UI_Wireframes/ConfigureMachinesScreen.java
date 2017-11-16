@@ -57,7 +57,7 @@ public class ConfigureMachinesScreen extends JPanel{
                 //System.out.println("In initcomp initipanelssss");
 		setLayout(new BorderLayout());
 		setPreferredSize(new Dimension(1040, 560));
-		setName("Configure Machines");
+		setName("Test Harness - Configure Machines");
 		Object[] columnNames = { "Select", "MachineIP", "Type", "Username",
 				"Password" };
 		File DataFile = new File("Inputs/MachineConfiguration.txt");
@@ -312,7 +312,7 @@ public class ConfigureMachinesScreen extends JPanel{
                 JPanel panel = new ConfigureMachinesScreen();
 		panel.setOpaque(true);
 
-		frame = new JFrame("Machine Configuration");
+		frame = new JFrame("Test Harness - Configure machines");
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		frame.setContentPane(panel);
 		frame.pack();

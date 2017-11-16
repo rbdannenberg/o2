@@ -58,6 +58,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
 
     public void createGUI() {
         setPreferredSize(new java.awt.Dimension(1040, 560));
+        setName("Test Harness - Logs / Reports Viewer");
         setMaximumSize(new Dimension(1040, 560));
         setMinimumSize(new Dimension(1040, 560));
         setLayout(new BorderLayout());

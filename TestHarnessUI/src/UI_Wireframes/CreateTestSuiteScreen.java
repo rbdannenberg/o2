@@ -5,6 +5,9 @@
  */
 package UI_Wireframes;
 
+import static com.sun.org.apache.bcel.internal.Repository.instanceOf;
+import static com.sun.org.apache.bcel.internal.Repository.instanceOf;
+import static com.sun.org.apache.bcel.internal.Repository.instanceOf;
 import java.awt.datatransfer.*;
 import java.util.*;
 import java.util.List;
@@ -13,15 +16,16 @@ import static javax.swing.TransferHandler.COPY_OR_MOVE;
 import static javax.swing.TransferHandler.MOVE;
 import javax.swing.tree.*;
 import javax.swing.ButtonGroup;
-
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.datatransfer.DataFlavor;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -35,6 +39,15 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreePath;
 import javax.swing.JOptionPane;
+import java.util.List;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.Map.Entry;
+
 
 /**
  *
@@ -43,6 +56,9 @@ import javax.swing.JOptionPane;
 public class CreateTestSuiteScreen extends javax.swing.JFrame {
 
     private ArrayList<String> machines = new ArrayList<String>();
+    private ArrayList<TestCase> testCases = new ArrayList<TestCase>();
+    private boolean allRunLocal = true;
+    
     /**
      * Creates new form CreateTestSuiteScreen_new
      */
@@ -51,11 +67,13 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
     
     public CreateTestSuiteScreen(ArrayList<String> machineList) throws IOException {
         initComponents();
+        setName("Test Harness - Create test suite configuration");
         generateTestTree();
         groupButton();
         this.getContent();
         this.machines = machineList;
         addMachinesToList();
+        
     }
     
     private void getContent(){
@@ -218,6 +236,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         jComboBox1 = new javax.swing.JComboBox();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("Test Harness - Create test suite");
         getContentPane().setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
         jLabel1.setText("Test Harness - Test Suite Creation and Configuration");
@@ -329,8 +348,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                             .addGroup(jPanel1Layout.createSequentialGroup()
                                 .addComponent(jButton1)
                                 .addGap(234, 234, 234)
-                                .addComponent(jLabel1)
-                                .addGap(275, 275, 275)))
+                                .addComponent(jLabel1)))
                         .addContainerGap(39, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jLabel2)
@@ -454,7 +472,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         TestResultsScreen testexecScreen = new TestResultsScreen();
         testexecScreen.setVisible(true);
         this.setVisible(false);
-        
+        this.testCases = populateWithSelectedTestCases();
     }//GEN-LAST:event_jButton4ActionPerformed
 
     private int getNumberOfNodes(TreeModel model){
@@ -494,6 +512,144 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         }
         jTree2.setModel(new javax.swing.tree.DefaultTreeModel(root));
     }
+    
+    // for random mode
+    public ArrayList<TestCase> populateWithSelectedTestCases(){
+        ArrayList<TestCase> tests = new ArrayList<TestCase>();
+        
+        // code to traverse the test suite tree and populate the class objects - applicable only to random mode
+        // should also set the tests multiple count attribute
+        
+        DefaultMutableTreeNode testSuiteRootNode = (DefaultMutableTreeNode) jTree1.getModel().getRoot();
+        Enumeration testSuite = testSuiteRootNode.preorderEnumeration();
+        
+        //DefaultMutableTreeNode testSuiteRootNode = (DefaultMutableTreeNode) jTree1.getModel().getRoot();
+        
+            while(testSuite.hasMoreElements()){
+                System.out.println("child node : " + testSuite.nextElement());
+            }   
+        return tests;
+    }
+    
+    
+    // applicable only for random mode - need to verify this code
+    public void allocateMachinesForExec() throws IOException {
+        List<TestCase> tests = this.testCases;
+        List<String> machines = this.machines;
+        boolean allRunLocal = this.allRunLocal;
+        
+        // flatten all the test executables if there is a multiple flag
+        for(TestCase test : tests){
+            if(test.isMultiple()){
+                StringBuilder testexe = new StringBuilder();
+                
+                for(int i=1; i<= test.getMultipleCount(); i++){
+                    testexe.append(test.getTestExecutables().get(0));       // for single executables in the tests only
+                    testexe.append(" " + i + " ");
+                    testexe.append(test.getMultipleCount() + "\n");
+                }
+                test.testExecutables.remove(0);
+                test.testExecutables.add(testexe.toString());
+                System.out.println(testexe.toString());
+            }
+        }
+        
+        // when there are no other available machines and everything should be run on the master machine
+        if(machines.size() == 0){
+            allRunLocal = true;
+        }
+    
+        if(allRunLocal){
+            // get local IP address
+            String ip = null;
+            try {
+                String interfaceName = "eth0"; // what is the interface name?
+                NetworkInterface networkInterface = NetworkInterface.getByName(interfaceName);
+                Enumeration<InetAddress> inetAddress = networkInterface.getInetAddresses();
+                InetAddress currentAddress;
+                currentAddress = inetAddress.nextElement();
+                while(inetAddress.hasMoreElements()){
+                    currentAddress = inetAddress.nextElement();
+                    if(currentAddress instanceof Inet4Address && !currentAddress.isLoopbackAddress()){
+                        ip = currentAddress.toString();
+                        System.out.println(ip.substring(1));
+                        break;
+                    }
+                }
+                ip = ip.substring(1);
+            }
+            catch(Exception e){
+                e.getMessage();
+            }
+            
+            // create a string having all test executables separated by comma - to pass as an argument to the script invocation
+            StringBuilder allTestExe = new StringBuilder();
+            for(TestCase test : tests){
+                StringBuilder thisTestExe = new StringBuilder();
+                List<String> te = test.getTestExecutables();
+                for(String t : te){
+                    thisTestExe.append(t + ",");
+                }
+                allTestExe.append(thisTestExe.toString());
+            }
+            System.out.println("All the test executables that are to be run on the local machine: \n" + allTestExe.toString());
+        } // end of if
+        
+        // else if the allRunLocal is false
+        else {
+            // the test executables have to be allocated to all the available machines
+            // Map: a machine and list of test executables to be run
+            HashMap<String, List<String>> myMap = new HashMap<String, List<String>>();
+            List<String> list = new ArrayList<String>();
+            
+            // initialize the values in a map
+            for(String machine : machines){
+                myMap.put(machine, list);
+            }
+            
+            List<String> listOfAllTestExecutables = new ArrayList<String>();
+            for(TestCase test : tests){
+                listOfAllTestExecutables.addAll(test.getTestExecutables());
+            }
+            
+            // allocation  of test cases to machines
+            int i=0;
+            for(String te : listOfAllTestExecutables){
+                if(i < machines.size()){
+                        if(myMap.containsKey(machines.get(i))){
+                            List<String> progs = myMap.get(machines.get(i));
+                            progs.add(te);
+                            myMap.put(machines.get(i), progs);
+                            i++;
+                        }
+                        else {
+                            List<String> progs = new ArrayList<String>();
+                            progs.add(te);
+                            myMap.put(machines.get(i), progs);
+                            i++;
+                        }   
+                }
+                // go back to the first machine if the number of test 
+                // machines are lower than the no. of executables
+                // for round-robin like allocation
+                if(i >= machines.size())
+                    i=0;
+            }   
+            
+            // write map contents to a file
+            BufferedWriter bufwriter = new BufferedWriter(new FileWriter("MachineAllocation.txt"));
+            Iterator<Entry<String, List<String>>> it = myMap.entrySet().iterator();
+            while(it.hasNext()){
+                Map.Entry<String, List<String>> pairs = it.next();
+                System.out.println("Value is : " + pairs.getValue());
+                
+                bufwriter.write(pairs.getValue() + "\n");
+            }
+            bufwriter.close();
+        }   
+    }
+    
+   
     
     /**
      * @param args the command line arguments
@@ -565,6 +721,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
     // End of variables declaration//GEN-END:variables
 }
 
+// to find out the number of nodes in a tree
 class StructureBuilder {
 
     public static final DefaultMutableTreeNode getTreeNode(File file) throws IOException  {
@@ -612,3 +769,58 @@ class StructureBuilder {
         return line.substring(level);
     }      
 }
+
+// class Test case to store all the test related details
+class TestCase {
+    String testCaseName;
+    List<String> testExecutables;
+    boolean local;
+    boolean multiple;
+    int multipleCount;
+
+    public TestCase(){
+    }
+    
+    // getters and setters
+    public String getTestCaseName() {
+        return testCaseName;
+    }
+
+    public void setTestCaseName(String testCaseName) {
+        this.testCaseName = testCaseName;
+    }
+
+    public List<String> getTestExecutables() {
+        return testExecutables;
+    }
+
+    public void setTestExecutables(List<String> testExecutables) {
+        this.testExecutables = testExecutables;
+    }
+
+    public boolean isLocal() {
+        return local;
+    }
+
+    public void setLocal(boolean isLocal) {
+        this.local = isLocal;
+    }
+
+    public boolean isMultiple() {
+        return multiple;
+    }
+
+    public void setMultiple(boolean isMultiple) {
+        this.multiple = isMultiple;
+    }
+
+    public int getMultipleCount() {
+        return multipleCount;
+    }
+
+    public void setMultipleCount(int multipleCount) {
+        this.multipleCount = multipleCount;
+    }    
+}
+
+
