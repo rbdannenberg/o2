@@ -45,6 +45,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Map.Entry;
+import static com.sun.org.apache.bcel.internal.Repository.instanceOf;
 
 /**
  *
@@ -345,7 +346,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                                 .addComponent(jButton1)
                                 .addGap(234, 234, 234)
                                 .addComponent(jLabel1)))
-                        .addContainerGap(39, Short.MAX_VALUE))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jLabel2)
                         .addGap(18, 18, 18)
@@ -511,33 +512,69 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             childNode = new javax.swing.tree.DefaultMutableTreeNode(mac);
             root.add(childNode);
         }
+        childNode = new javax.swing.tree.DefaultMutableTreeNode("localhost");
+        root.add(childNode);
         jTree2.setModel(new javax.swing.tree.DefaultTreeModel(root));
+        
+        this.machines.addAll(machines);
+        this.machines.add("localhost");
     }
     
     // for random mode
     public ArrayList<TestCase> populateWithSelectedTestCases(){
         ArrayList<TestCase> tests = new ArrayList<TestCase>();
         
-        // code to traverse the test suite tree and populate the class objects - applicable only to random mode
-        // should also set the tests multiple count attribute
-        
         DefaultMutableTreeNode testSuiteRootNode = (DefaultMutableTreeNode) jTree1.getModel().getRoot();
-        Enumeration testSuite = testSuiteRootNode.preorderEnumeration();
+        Enumeration testSuite = testSuiteRootNode.children();
+        List<String> testSuiteElements = new ArrayList<String>();
+        while(testSuite.hasMoreElements()){
+            testSuiteElements.add(testSuite.nextElement().toString());
+        }
         
         DefaultMutableTreeNode testCasesRootNode = (DefaultMutableTreeNode) jTree3.getModel().getRoot();
-        Enumeration testCase = testCasesRootNode.preorderEnumeration();
-        //DefaultMutableTreeNode testSuiteRootNode = (DefaultMutableTreeNode) jTree1.getModel().getRoot();
         
-        while(testSuite.hasMoreElements()){
-            System.out.println("the test suite node now is : " + testSuite.nextElement());
-            testCase = testCasesRootNode.preorderEnumeration();
-            while(testCase.hasMoreElements()){
-                System.out.println("the test suite node now is : " + testCase.nextElement());
-                if(testSuite.nextElement() == testCase.nextElement()){
-                    System.out.println("there is a match");
+        int numberOfTestCases = testCasesRootNode.getChildCount();
+        for(String s : testSuiteElements){
+            for(int i=0; i<numberOfTestCases; i++){
+                
+                TreeNode thisTestCase = testCasesRootNode.getChildAt(i);
+                if(s.equals(thisTestCase.toString()) && !thisTestCase.isLeaf()) {
+                    System.out.println("It's a match! : " + s);
+                    
+                    // Set the test case name
+                    TestCase newTestCase = new TestCase();
+                    newTestCase.setTestCaseName(s);
+                    
+                    // Set the test executables
+                    int numberOfExecutables = thisTestCase.getChildCount();
+                    List<String> testExecutables = new ArrayList<String>();
+                    for(int j=0; j<numberOfExecutables; j++){
+                        testExecutables.add(thisTestCase.getChildAt(j).toString());
+                    }
+                    newTestCase.setTestExecutables(testExecutables);
+                    
+                    // set the local attribute of test case
+                    if(s.contains("local"))
+                        newTestCase.setLocal(true);
+                    else 
+                        newTestCase.setLocal(false);
+                    
+                    // set the multiple attribute of test case
+                    if(s.contains("multiple")){
+                        newTestCase.setMultiple(true);
+                        // set multiple count value from combo box!
+                        int m = Integer.parseInt(jComboBox1.getSelectedItem().toString());
+                        newTestCase.setMultipleCount(m);
+                    }
+                    else {
+                        newTestCase.setMultiple(false);
+                        newTestCase.setMultipleCount(1);
+                    }
+                    tests.add(newTestCase);
                 }
             }
         }
+        
         return tests;
     }
     
@@ -580,19 +617,21 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         
         // Dummy data loaded above to test the function
         List<TestCase> tests = new ArrayList<TestCase>();
-        tests.add(tt1);
-        tests.add(tt2);
-        tests.add(tt3);
-        List<String> machines = new ArrayList<String>();
-        machines.add("localhost");  // add the local machine details by default
-        machines.add("testMachine1");
-        machines.add("testMachine2");
-        machines.add("testMachine3");
+        //tests.add(tt1);
+        //tests.add(tt2);
+        //tests.add(tt3);
+        tests = this.testCases;
+        List<String> machinesSelected = new ArrayList<String>();
+        //machinesSelected.add("localhost");  // add the local machine details by default
+        //machinesSelected.add("testMachine1");
+        //machinesSelected.add("testMachine2");
+        //machinesSelected.add("testMachine3");
+        machinesSelected = this.machines;
         List<String> localExecutables = new ArrayList<String>();
         
-        // when there are no other available machines and everything should be run on the master machine
+        // when there are no other available machinesSelected and everything should be run on the master machine
         // the only machine available is the local machine and its details
-        if(machines.size() == 1){
+        if(machinesSelected.size() == 1){
             for(TestCase test : tests){
                 test.setLocal(true);
             }
@@ -614,7 +653,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             }
         }
 
-        // the test executables have to be allocated to all the available machines
+        // the test executables have to be allocated to all the available machinesSelected
         // Map: a machine and list of test executables to be run
         HashMap<String, List<String>> myMap = new HashMap<String, List<String>>();
         List<String> listOfAllTestExecutables = new ArrayList<String>();
@@ -628,26 +667,26 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             
         myMap.put("localhost", localExecutables);
             
-        // allocation  of test cases to machines
+        // allocation  of test cases to machinesSelected
         int i=0, j=0;
-        while(i<machines.size() && j<listOfAllTestExecutables.size()){
-            if(myMap.containsKey(machines.get(i))){
-                List<String> progs = myMap.get(machines.get(i));
+        while(i<machinesSelected.size() && j<listOfAllTestExecutables.size()){
+            if(myMap.containsKey(machinesSelected.get(i))){
+                List<String> progs = myMap.get(machinesSelected.get(i));
                 progs.add(listOfAllTestExecutables.get(j));
-                myMap.put(machines.get(i), progs);
+                myMap.put(machinesSelected.get(i), progs);
                 i++;
                 j++;
             }
             else {
                 List<String> progs = new ArrayList<String>();
                 progs.add(listOfAllTestExecutables.get(j));
-                myMap.put(machines.get(i), progs);
+                myMap.put(machinesSelected.get(i), progs);
                 i++;
                 j++;
             }       
-            // go back to the first machine if the number of test machines are
+            // go back to the first machine if the number of test machinesSelected are
             // lower than the no. of executables for round-robin like allocation
-            if(i >= machines.size())
+            if(i >= machinesSelected.size())
                 i=0; 
         }      
         // write map contents to a file

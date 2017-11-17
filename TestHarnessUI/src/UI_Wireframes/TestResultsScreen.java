@@ -317,7 +317,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
                 String status = (String)table.getModel().getValueAt(row, STATUS_COL);
                 String pass ="Test case passed";
                 if (!pass.equals(status)) {
-                    System.out.println("One of my cases fail");
+                    //System.out.println("One of my cases fail");
                     setBackground(Color.RED);
                     setForeground(Color.WHITE);
                 } else {

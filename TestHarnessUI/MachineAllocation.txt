@@ -1,4 +1,1 @@
-localhost [two 1000 R, arraytest 2 4, one 1 4, thirdexe 5000 S 1 5, thirdexe 5000 S 5 5] 
-testMachine3 [one 4 4, thirdexe 5000 S 4 5] 
-testMachine2 [one 3 4, thirdexe 5000 S 3 5] 
-testMachine1 [one 2 4, thirdexe 5000 S 2 5] 
+localhost [] 
