@@ -57,7 +57,6 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
 
     private ArrayList<String> machines = new ArrayList<String>();
     private ArrayList<TestCase> testCases = new ArrayList<TestCase>();
-    private boolean allRunLocal = true;
     
     /**
      * Creates new form CreateTestSuiteScreen_new
@@ -473,6 +472,11 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         testexecScreen.setVisible(true);
         this.setVisible(false);
         this.testCases = populateWithSelectedTestCases();
+        try {
+            allocateMachinesForExec();
+        } catch (IOException ex) {
+            Logger.getLogger(CreateTestSuiteScreen.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }//GEN-LAST:event_jButton4ActionPerformed
 
     private int getNumberOfNodes(TreeModel model){
@@ -534,119 +538,124 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
     
     // applicable only for random mode - need to verify this code
     public void allocateMachinesForExec() throws IOException {
-        List<TestCase> tests = this.testCases;
-        List<String> machines = this.machines;
-        boolean allRunLocal = this.allRunLocal;
+        // Dummy data
+        TestCase tt1 = new TestCase();
+        List<String> exes = new ArrayList<String>();
+        exes.add("one 1 4");
+        exes.add("one 2 4");
+        exes.add("one 3 4");
+        exes.add("one 4 4");
+        
+        tt1.setTestCaseName("myTest");
+        tt1.setTestExecutables(exes);
+        tt1.setLocal(false);
+        tt1.setMultiple(false);
+        tt1.setMultipleCount(1);
+        
+        TestCase tt2 = new TestCase();
+        List<String> exes2 = new ArrayList<String>();
+        exes2.add("two 1000 R");
+        exes2.add("arraytest 2 4");
+        
+        tt2.setTestCaseName("anotherTest");
+        tt2.setTestExecutables(exes2);
+        tt2.setLocal(true);
+        tt2.setMultiple(false);
+        tt2.setMultipleCount(1);
+        
+        TestCase tt3 = new TestCase();
+        List<String> exe3 = new ArrayList<String>();
+        exe3.add("thirdexe 5000 S");
+        
+        tt3.setTestCaseName("Third testcase");
+        tt3.setTestExecutables(exe3);
+        tt3.setLocal(false);
+        tt3.setMultiple(true);
+        tt3.setMultipleCount(5);
+        
+        // Dummy data loaded above to test the function
+        List<TestCase> tests = new ArrayList<TestCase>();
+        tests.add(tt1);
+        tests.add(tt2);
+        tests.add(tt3);
+        List<String> machines = new ArrayList<String>();
+        machines.add("localhost");  // add the local machine details by default
+        machines.add("testMachine1");
+        machines.add("testMachine2");
+        machines.add("testMachine3");
+        List<String> localExecutables = new ArrayList<String>();
+        
+        // when there are no other available machines and everything should be run on the master machine
+        // the only machine available is the local machine and its details
+        if(machines.size() == 1){
+            for(TestCase test : tests){
+                test.setLocal(true);
+            }
+        }
         
         // flatten all the test executables if there is a multiple flag
         for(TestCase test : tests){
             if(test.isMultiple()){
-                StringBuilder testexe = new StringBuilder();
-                
-                for(int i=1; i<= test.getMultipleCount(); i++){
-                    testexe.append(test.getTestExecutables().get(0));       // for single executables in the tests only
-                    testexe.append(" " + i + " ");
-                    testexe.append(test.getMultipleCount() + "\n");
-                }
-                test.testExecutables.remove(0);
-                test.testExecutables.add(testexe.toString());
-                System.out.println(testexe.toString());
-            }
-        }
-        
-        // when there are no other available machines and everything should be run on the master machine
-        if(machines.size() == 0){
-            allRunLocal = true;
-        }
-    
-        if(allRunLocal){
-            // get local IP address
-            String ip = null;
-            try {
-                String interfaceName = "eth0"; // what is the interface name?
-                NetworkInterface networkInterface = NetworkInterface.getByName(interfaceName);
-                Enumeration<InetAddress> inetAddress = networkInterface.getInetAddresses();
-                InetAddress currentAddress;
-                currentAddress = inetAddress.nextElement();
-                while(inetAddress.hasMoreElements()){
-                    currentAddress = inetAddress.nextElement();
-                    if(currentAddress instanceof Inet4Address && !currentAddress.isLoopbackAddress()){
-                        ip = currentAddress.toString();
-                        System.out.println(ip.substring(1));
-                        break;
+                List<String> thisTestExec = test.getTestExecutables();
+                List<String> dummyList = new ArrayList<String>();
+                for(String executable : thisTestExec){
+                    for(int i=1; i<=test.getMultipleCount(); i++){
+                        StringBuilder s = new StringBuilder();
+                        s.append(executable + " " + i + " " + test.getMultipleCount());
+                        dummyList.add(s.toString());
                     }
                 }
-                ip = ip.substring(1);
+                test.setTestExecutables(dummyList);
             }
-            catch(Exception e){
-                e.getMessage();
-            }
+        }
+
+        // the test executables have to be allocated to all the available machines
+        // Map: a machine and list of test executables to be run
+        HashMap<String, List<String>> myMap = new HashMap<String, List<String>>();
+        List<String> listOfAllTestExecutables = new ArrayList<String>();
             
-            // create a string having all test executables separated by comma - to pass as an argument to the script invocation
-            StringBuilder allTestExe = new StringBuilder();
-            for(TestCase test : tests){
-                StringBuilder thisTestExe = new StringBuilder();
-                List<String> te = test.getTestExecutables();
-                for(String t : te){
-                    thisTestExe.append(t + ",");
-                }
-                allTestExe.append(thisTestExe.toString());
-            }
-            System.out.println("All the test executables that are to be run on the local machine: \n" + allTestExe.toString());
-        } // end of if
-        
-        // else if the allRunLocal is false
-        else {
-            // the test executables have to be allocated to all the available machines
-            // Map: a machine and list of test executables to be run
-            HashMap<String, List<String>> myMap = new HashMap<String, List<String>>();
-            List<String> list = new ArrayList<String>();
-            
-            // initialize the values in a map
-            for(String machine : machines){
-                myMap.put(machine, list);
-            }
-            
-            List<String> listOfAllTestExecutables = new ArrayList<String>();
-            for(TestCase test : tests){
+        for(TestCase test : tests){
+            if(!test.isLocal())
                 listOfAllTestExecutables.addAll(test.getTestExecutables());
+            else
+                localExecutables.addAll(test.getTestExecutables());
+        }
+            
+        myMap.put("localhost", localExecutables);
+            
+        // allocation  of test cases to machines
+        int i=0, j=0;
+        while(i<machines.size() && j<listOfAllTestExecutables.size()){
+            if(myMap.containsKey(machines.get(i))){
+                List<String> progs = myMap.get(machines.get(i));
+                progs.add(listOfAllTestExecutables.get(j));
+                myMap.put(machines.get(i), progs);
+                i++;
+                j++;
             }
-            
-            // allocation  of test cases to machines
-            int i=0;
-            for(String te : listOfAllTestExecutables){
-                if(i < machines.size()){
-                        if(myMap.containsKey(machines.get(i))){
-                            List<String> progs = myMap.get(machines.get(i));
-                            progs.add(te);
-                            myMap.put(machines.get(i), progs);
-                            i++;
-                        }
-                        else {
-                            List<String> progs = new ArrayList<String>();
-                            progs.add(te);
-                            myMap.put(machines.get(i), progs);
-                            i++;
-                        }   
-                }
-                // go back to the first machine if the number of test 
-                // machines are lower than the no. of executables
-                // for round-robin like allocation
-                if(i >= machines.size())
-                    i=0;
-            }   
-            
-            // write map contents to a file
-            BufferedWriter bufwriter = new BufferedWriter(new FileWriter("MachineAllocation.txt"));
-            Iterator<Entry<String, List<String>>> it = myMap.entrySet().iterator();
-            while(it.hasNext()){
-                Map.Entry<String, List<String>> pairs = it.next();
-                System.out.println("Value is : " + pairs.getValue());
+            else {
+                List<String> progs = new ArrayList<String>();
+                progs.add(listOfAllTestExecutables.get(j));
+                myMap.put(machines.get(i), progs);
+                i++;
+                j++;
+            }       
+            // go back to the first machine if the number of test machines are
+            // lower than the no. of executables for round-robin like allocation
+            if(i >= machines.size())
+                i=0; 
+        }      
+        // write map contents to a file
+        BufferedWriter bufwriter = new BufferedWriter(new FileWriter("MachineAllocation.txt"));
+        Iterator<Entry<String, List<String>>> it = myMap.entrySet().iterator();
+        while(it.hasNext()){
+            Map.Entry<String, List<String>> pairs = it.next();
+            System.out.println("Key is : " + pairs.getKey());
+            System.out.println("Value is : " + pairs.getValue());
                 
-                bufwriter.write(pairs.getValue() + "\n");
-            }
-            bufwriter.close();
-        }   
+            bufwriter.write(pairs.getKey() + " " + pairs.getValue() + " \n");
+        }
+        bufwriter.close();   
     }
     
    
