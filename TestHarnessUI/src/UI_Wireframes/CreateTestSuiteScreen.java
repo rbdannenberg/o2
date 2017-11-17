@@ -6,8 +6,6 @@
 package UI_Wireframes;
 
 import static com.sun.org.apache.bcel.internal.Repository.instanceOf;
-import static com.sun.org.apache.bcel.internal.Repository.instanceOf;
-import static com.sun.org.apache.bcel.internal.Repository.instanceOf;
 import java.awt.datatransfer.*;
 import java.util.*;
 import java.util.List;
@@ -47,7 +45,6 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Map.Entry;
-
 
 /**
  *
@@ -527,14 +524,22 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         DefaultMutableTreeNode testSuiteRootNode = (DefaultMutableTreeNode) jTree1.getModel().getRoot();
         Enumeration testSuite = testSuiteRootNode.preorderEnumeration();
         
+        DefaultMutableTreeNode testCasesRootNode = (DefaultMutableTreeNode) jTree3.getModel().getRoot();
+        Enumeration testCase = testCasesRootNode.preorderEnumeration();
         //DefaultMutableTreeNode testSuiteRootNode = (DefaultMutableTreeNode) jTree1.getModel().getRoot();
         
-            while(testSuite.hasMoreElements()){
-                System.out.println("child node : " + testSuite.nextElement());
-            }   
+        while(testSuite.hasMoreElements()){
+            System.out.println("the test suite node now is : " + testSuite.nextElement());
+            testCase = testCasesRootNode.preorderEnumeration();
+            while(testCase.hasMoreElements()){
+                System.out.println("the test suite node now is : " + testCase.nextElement());
+                if(testSuite.nextElement() == testCase.nextElement()){
+                    System.out.println("there is a match");
+                }
+            }
+        }
         return tests;
     }
-    
     
     // applicable only for random mode - need to verify this code
     public void allocateMachinesForExec() throws IOException {
@@ -657,8 +662,6 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         }
         bufwriter.close();   
     }
-    
-   
     
     /**
      * @param args the command line arguments
