@@ -1,7 +1,6 @@
-192.168.0.1,Mac,aparrnaa,password
-192.168.0.100,Windows,teju,microsoft2129
 128.237.205.172,ubuntu,osboxes	osboxes.org
 10.0.0.145,ubuntu,osboxes,osboxes.org
+10.0.0.96,ubuntu,osboxes,osboxes.org
 128.237.201.160,ubuntu,osboxes,osboxes.org
 10.0.0.19,mac,isrguest,guest
-10.0.0.99,dhd,dkl,dhe
+
