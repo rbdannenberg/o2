@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Map.Entry;
 import static com.sun.org.apache.bcel.internal.Repository.instanceOf;
+import java.io.InputStreamReader;
 
 /**
  *
@@ -581,51 +582,44 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
     // applicable only for random mode - need to verify this code
     public void allocateMachinesForExec() throws IOException {
         // Dummy data
-        TestCase tt1 = new TestCase();
+        /* TestCase tt1 = new TestCase();
         List<String> exes = new ArrayList<String>();
         exes.add("one 1 4");
         exes.add("one 2 4");
         exes.add("one 3 4");
         exes.add("one 4 4");
-        
+
         tt1.setTestCaseName("myTest");
         tt1.setTestExecutables(exes);
         tt1.setLocal(false);
         tt1.setMultiple(false);
         tt1.setMultipleCount(1);
-        
+
         TestCase tt2 = new TestCase();
         List<String> exes2 = new ArrayList<String>();
         exes2.add("two 1000 R");
         exes2.add("arraytest 2 4");
-        
+
         tt2.setTestCaseName("anotherTest");
         tt2.setTestExecutables(exes2);
         tt2.setLocal(true);
         tt2.setMultiple(false);
         tt2.setMultipleCount(1);
-        
+
         TestCase tt3 = new TestCase();
         List<String> exe3 = new ArrayList<String>();
         exe3.add("thirdexe 5000 S");
-        
+
         tt3.setTestCaseName("Third testcase");
         tt3.setTestExecutables(exe3);
         tt3.setLocal(false);
         tt3.setMultiple(true);
         tt3.setMultipleCount(5);
-        
-        // Dummy data loaded above to test the function
+        // Dummy data loaded above to test the function */
+        String localhostDetails = getLocalHostDetails();
         List<TestCase> tests = new ArrayList<TestCase>();
-        //tests.add(tt1);
-        //tests.add(tt2);
-        //tests.add(tt3);
         tests = this.testCases;
         List<String> machinesSelected = new ArrayList<String>();
-        //machinesSelected.add("localhost");  // add the local machine details by default
-        //machinesSelected.add("testMachine1");
-        //machinesSelected.add("testMachine2");
-        //machinesSelected.add("testMachine3");
         machinesSelected = this.machines;
         List<String> localExecutables = new ArrayList<String>();
         
@@ -660,48 +654,175 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             
         for(TestCase test : tests){
             if(!test.isLocal())
+            {
                 listOfAllTestExecutables.addAll(test.getTestExecutables());
+                int i=0, j=0;
+                while(i<machinesSelected.size() && j<listOfAllTestExecutables.size()){
+                if(myMap.containsKey(machinesSelected.get(i))){
+                    List<String> progs = myMap.get(machinesSelected.get(i));
+                    progs.add(listOfAllTestExecutables.get(j));
+                    myMap.put(machinesSelected.get(i), progs);
+                    i++;
+                    j++;
+                 }
+                    else {
+                        List<String> progs = new ArrayList<String>();
+                        progs.add(listOfAllTestExecutables.get(j));
+                        myMap.put(machinesSelected.get(i), progs);
+                        i++;
+                        j++;
+                    }       
+                    // go back to the first machine if the number of test machinesSelected are
+                    // lower than the no. of executables for round-robin like allocation
+                    if(i >= machinesSelected.size())
+                        i=0; 
+                }   
+            }         
             else
-                localExecutables.addAll(test.getTestExecutables());
+            {
+                 localExecutables.addAll(test.getTestExecutables());
+                 myMap.put(localhostDetails, localExecutables);
+            }   
+            
+          displayMap(myMap);
+          executeTestRun(myMap, System.getProperty("os.name"));
+          myMap.clear();
         }
             
-        myMap.put("localhost", localExecutables);
+        
             
         // allocation  of test cases to machinesSelected
-        int i=0, j=0;
-        while(i<machinesSelected.size() && j<listOfAllTestExecutables.size()){
-            if(myMap.containsKey(machinesSelected.get(i))){
-                List<String> progs = myMap.get(machinesSelected.get(i));
-                progs.add(listOfAllTestExecutables.get(j));
-                myMap.put(machinesSelected.get(i), progs);
-                i++;
-                j++;
-            }
-            else {
-                List<String> progs = new ArrayList<String>();
-                progs.add(listOfAllTestExecutables.get(j));
-                myMap.put(machinesSelected.get(i), progs);
-                i++;
-                j++;
-            }       
-            // go back to the first machine if the number of test machinesSelected are
-            // lower than the no. of executables for round-robin like allocation
-            if(i >= machinesSelected.size())
-                i=0; 
-        }      
-        // write map contents to a file
+           
+     /*   // write map contents to a file
         BufferedWriter bufwriter = new BufferedWriter(new FileWriter("MachineAllocation.txt"));
+        ArrayList <String> machineList = new ArrayList();
+        ArrayList <String> testcaseList = new ArrayList();
         Iterator<Entry<String, List<String>>> it = myMap.entrySet().iterator();
         while(it.hasNext()){
             Map.Entry<String, List<String>> pairs = it.next();
+           // machineList.add(pairs.getKey());
+            //testcaseList.add(pairs.getValue());
             System.out.println("Key is : " + pairs.getKey());
             System.out.println("Value is : " + pairs.getValue());
                 
             bufwriter.write(pairs.getKey() + " " + pairs.getValue() + " \n");
         }
-        bufwriter.close();   
+        bufwriter.close();   */
     }
     
+    public static String getLocalHostDetails()
+    {
+                        
+     StringBuilder myMachineDetails = new StringBuilder();
+     String interfaceName;
+     String osname = System.getProperty("os.name").toLowerCase();
+     if(osname.indexOf("win") > 0) 
+     {
+         interfaceName = "eth0";
+         osname = "windows";
+     }
+     else if(osname.indexOf("x") > 0) 
+     {
+         interfaceName = "en0";
+         osname = "mac";
+     }
+     else
+     {
+         interfaceName = "en0";
+         osname = "ubuntu";
+     }
+    
+     String ip = null;
+     try
+    {
+          NetworkInterface networkInterface = NetworkInterface.getByName(interfaceName);
+          Enumeration<InetAddress> inetAddress = networkInterface.getInetAddresses();
+          InetAddress currentAddress;
+          currentAddress = inetAddress.nextElement();
+          while(inetAddress.hasMoreElements())
+          {
+              currentAddress = inetAddress.nextElement();
+              if(currentAddress instanceof Inet4Address && !currentAddress.isLoopbackAddress())
+              {
+                   ip = currentAddress.toString();
+                  //System.out.println(ip.substring(1));
+                  break;
+              }
+          } 
+     }
+     catch(Exception e)
+     {
+         e.getMessage();
+     } 
+ 
+     String username = System.getProperty("user.name");
+      ip = ip.substring(1);
+      myMachineDetails.append(ip);
+      myMachineDetails.append(" ");
+      myMachineDetails.append(osname);
+      myMachineDetails.append(" ");
+      myMachineDetails.append(username);
+      return myMachineDetails.toString();
+    }
+    
+    public static void executeTestRun(HashMap <String, List<String>> h, String localOS)
+    {
+        StringBuilder IPs = new StringBuilder();
+        StringBuilder tests = new StringBuilder();
+        for (String k : h.keySet())
+        {
+            IPs.append(k.trim());
+            if(h.keySet().size() > 1)IPs.append(",");
+        }
+        for(List <String> s : h.values())
+        {
+            tests.append(s);
+            if(h.values().size() > 1 ) tests.append(",");
+        }
+        System.out.println(IPs.toString());
+        System.out.println(tests.toString());
+        String[] command = {"./temp.sh", IPs.toString(), tests.toString(),localOS};
+                ProcessBuilder p = new ProcessBuilder(command);
+                Process p2 = null;
+                try {
+                    p2 = p.start();
+                } catch (IOException ex) {
+                    System.out.println(ex.getMessage());
+                    
+                }
+                BufferedReader br = new BufferedReader(new InputStreamReader(p2.getInputStream()));
+                String line;
+                p.redirectErrorStream(true);
+                System.out.println("Output of running command is: ");
+                try {
+                    while ((line = br.readLine()) != null) {
+                        System.out.println(line);
+                    }
+                } catch (IOException ex) {
+                    System.out.println(ex.getMessage());
+                }
+                
+               System.out.println("Error in running command is: ");
+                try {
+                BufferedReader br2 = new BufferedReader(new InputStreamReader(p2.getErrorStream()));
+                while ((line = br2.readLine()) != null) {
+                System.out.println(line);
+                }
+                } catch (IOException ex) {
+                System.out.println(ex.getMessage());
+                }
+    }
+    public static void displayMap(HashMap <String,List<String>> hm)
+    {
+        System.out.println();
+        System.out.println("******Displaying map for test case: ********");
+        Iterator<Entry<String, List<String>>> it = hm.entrySet().iterator();
+        while(it.hasNext()){
+            Map.Entry<String, List<String>> pairs = it.next();
+            System.out.println("Key is : " + pairs.getKey());
+            System.out.println("Value is : " + pairs.getValue());
+    }
+    }
     /**
      * @param args the command line arguments
      */
