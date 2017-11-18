@@ -493,7 +493,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
     
     private void generateTestTree() throws IOException {
         System.out.println("Inside generate test tree method .. ");
-        File testsFile = new File("tests.txt");
+        File testsFile = new File("Inputs/TestConfiguration.txt");
         DefaultMutableTreeNode myTreeNode = (DefaultMutableTreeNode)jTree3.getModel().getRoot();
         
         myTreeNode = StructureBuilder.getTreeNode(testsFile);   
@@ -781,7 +781,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         }
         System.out.println(IPs.toString());
         System.out.println(tests.toString());
-        String[] command = {"./temp.sh", IPs.toString(), tests.toString(),localOS};
+        String[] command = {"./configure_script.sh", IPs.toString(), tests.toString(),localOS};
                 ProcessBuilder p = new ProcessBuilder(command);
                 Process p2 = null;
                 try {

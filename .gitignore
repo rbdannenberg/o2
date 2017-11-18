@@ -5,3 +5,4 @@ CMakeFiles/
 CMakeScripts/
 Debug/
 CMakeCache.txt
+/TestHarness/dist/
