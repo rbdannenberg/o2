@@ -29,7 +29,7 @@ if(UNIX)
     set(FRAMEWORK_PATH ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks)
     set(EXTRA_LIBS "${FRAMEWORK_PATH}/CoreAudio.framework")
   else(APPLE) # must be Linux
-    # set(EXTRA_LIBS "-lm") # needed by liblo
+    set(EXTRA_LIBS "-lm") # needed by liblo
   endif(APPLE)
 endif(UNIX)
 
@@ -116,9 +116,27 @@ add_executable(o2client test/o2client.c)
 target_include_directories(o2client PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(o2client ${LIBRARIES})
 
-add_executable(o2server test/o2server.c)
-target_include_directories(o2server PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(o2server ${LIBRARIES})
+
+add_executable(o2client1 test/o2client1.c) 
+target_include_directories(o2client1 PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+target_link_libraries(o2client1 ${LIBRARIES}) 
+
+
+add_executable(o2client2 test/o2client2.c) 
+target_include_directories(o2client2 PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+target_link_libraries(o2client2 ${LIBRARIES}) 
+
+add_executable(o2client3 test/o2client3.c) 
+target_include_directories(o2client3 PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+target_link_libraries(o2client3 ${LIBRARIES}) 
+
+add_executable(o2localmulti test/o2localmulti.c) 
+target_include_directories(o2localmulti PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+target_link_libraries(o2localmulti ${LIBRARIES}) 
+
+add_executable(o2server test/o2server.c) 
+target_include_directories(o2server PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+target_link_libraries(o2server ${LIBRARIES}) 
 
 add_executable(statusclient test/statusclient.c)
 target_include_directories(statusclient PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -287,10 +305,10 @@ if(BUILD_TESTS_WITH_LIBLO)
   # where to find liblo include files:
   set(LIBLO_INCLUDE_PATH ${LIBLO_PATH} CACHE PATH "where to find liblo include files")
 
-  message(STATUS "LIBLO_LIB is ${LIBLO_LIB}")
-
-  # Create executables
-  add_executable(lo_benchmk_server  test/lo_benchmk_server.c)
+  message(STATUS "LIBLO_LIB is ${LIBLO_LIB}") 
+   set(EXTRA_LO_LIBS m)
+  # Create executables 
+  add_executable(lo_benchmk_server  test/lo_benchmk_server.c) 
   target_include_directories(lo_benchmk_server PRIVATE ${LIBLO_INCLUDE_PATH})
   target_link_libraries(lo_benchmk_server ${LIBLO_LIB} ${EXTRA_LO_LIBS})
 
