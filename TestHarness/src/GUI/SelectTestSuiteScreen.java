@@ -1,4 +1,4 @@
-package UI_Wireframes;
+package GUI;
 
 import java.util.ArrayList;
 import javax.swing.JFrame;

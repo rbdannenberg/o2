@@ -1,12 +1,17 @@
 Testcases
 	Test arraytest local
 		arraytest 5000
-	Test clientserver local multiple
-		client
-		server
-	Test sample multiple
-		sample 20
+	Test clientserver
+		o2client
+		o2server
 	Test dispatch
 		dispatchtest 5000 R
-	Test one multiple
-		one 50 50
+	Test clientservertest multiple
+		o2localmulti
+	Test dispatchtest
+		dispatchtest
+	Test bundle
+		bundletest
+	Test clocktest
+		clockmaster
+		clockslave

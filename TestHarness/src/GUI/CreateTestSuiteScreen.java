@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package UI_Wireframes;
+package GUI;
 
 import static com.sun.org.apache.bcel.internal.Repository.instanceOf;
 import java.awt.datatransfer.*;
@@ -513,12 +513,12 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             childNode = new javax.swing.tree.DefaultMutableTreeNode(mac);
             root.add(childNode);
         }
-        childNode = new javax.swing.tree.DefaultMutableTreeNode("localhost");
-        root.add(childNode);
+       // childNode = new javax.swing.tree.DefaultMutableTreeNode("localhost");
+        //root.add(childNode);
         jTree2.setModel(new javax.swing.tree.DefaultTreeModel(root));
         
         this.machines.addAll(machines);
-        this.machines.add("localhost");
+      //  this.machines.add("localhost");
     }
     
     // for random mode
@@ -617,6 +617,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         tt3.setMultipleCount(5);
         // Dummy data loaded above to test the function */
         String localhostDetails = getLocalHostDetails();
+      //  System.out.println(localhostDetails);
         List<TestCase> tests = new ArrayList<TestCase>();
         tests = this.testCases;
         List<String> machinesSelected = new ArrayList<String>();
@@ -651,12 +652,13 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         // Map: a machine and list of test executables to be run
         HashMap<String, List<String>> myMap = new HashMap<String, List<String>>();
         List<String> listOfAllTestExecutables = new ArrayList<String>();
-            
         for(TestCase test : tests){
+              
             if(!test.isLocal())
             {
+               
                 listOfAllTestExecutables.addAll(test.getTestExecutables());
-                int i=0, j=0;
+                 int i=0, j=0;
                 while(i<machinesSelected.size() && j<listOfAllTestExecutables.size()){
                 if(myMap.containsKey(machinesSelected.get(i))){
                     List<String> progs = myMap.get(machinesSelected.get(i));
@@ -686,7 +688,8 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             
           displayMap(myMap);
           executeTestRun(myMap, System.getProperty("os.name"));
-          myMap.clear();
+          listOfAllTestExecutables.clear();
+         myMap.clear();
         }
             
         
@@ -776,12 +779,13 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         }
         for(List <String> s : h.values())
         {
+            //String[] testcases = s.toArray(new String[s.size()]);
             tests.append(s);
             if(h.values().size() > 1 ) tests.append(",");
         }
-        System.out.println(IPs.toString());
-        System.out.println(tests.toString());
-        String[] command = {"./configure_script.sh", IPs.toString(), tests.toString(),localOS};
+       // System.out.println(IPs.toString());
+        //System.out.println(tests.toString());
+        String[] command = {"src/scripts/temp.sh", IPs.toString(), tests.toString(),localOS};
                 ProcessBuilder p = new ProcessBuilder(command);
                 Process p2 = null;
                 try {
@@ -792,6 +796,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                 }
                 BufferedReader br = new BufferedReader(new InputStreamReader(p2.getInputStream()));
                 String line;
+                p2.getInputStream();
                 p.redirectErrorStream(true);
                 System.out.println("Output of running command is: ");
                 try {

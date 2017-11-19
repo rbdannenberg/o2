@@ -3,8 +3,10 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/C:/Users/Aish/Desktop/CMU/PracticumProject/O2_TEST_ENVIRONMENT/o2/TestHarnessUI/src/POCs/GetLocalMachineIP.java</file>
-            <file>file:/C:/Users/Aish/Desktop/CMU/PracticumProject/O2_TEST_ENVIRONMENT/o2/TestHarnessUI/src/UI_Wireframes/CreateTestSuiteScreen.java</file>
+            <file>file:/Users/aparrnaa/Desktop/O2-TestUI/TestHarness/src/GUI/ConfigureMachinesScreen.java</file>
+            <file>file:/Users/aparrnaa/Desktop/O2-TestUI/TestHarness/src/GUI/SelectTestSuiteScreen.java</file>
+            <file>file:/Users/aparrnaa/Desktop/O2-TestUI/TestHarness/src/GUI/TestResultsScreen.java</file>
+            <file>file:/Users/aparrnaa/Desktop/O2-TestUI/TestHarness/src/GUI/CreateTestSuiteScreen.java</file>
         </group>
     </open-files>
 </project-private>
