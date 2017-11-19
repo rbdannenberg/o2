@@ -6,3 +6,6 @@ CMakeScripts/
 Debug/
 CMakeCache.txt
 /TestHarness/dist/
+*.class
+
+*.properties
