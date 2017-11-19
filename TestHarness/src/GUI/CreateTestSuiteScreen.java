@@ -228,7 +228,6 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         jScrollPane3 = new javax.swing.JScrollPane();
         jTree3 = new javax.swing.JTree();
         jButton2 = new javax.swing.JButton();
-        jButton3 = new javax.swing.JButton();
         jButton4 = new javax.swing.JButton();
         jLabel5 = new javax.swing.JLabel();
         jComboBox1 = new javax.swing.JComboBox();
@@ -294,14 +293,6 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             }
         });
 
-        jButton3.setText("Save test suite configuration");
-        jButton3.setToolTipText("Click here to save the created test configuration");
-        jButton3.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton3ActionPerformed(evt);
-            }
-        });
-
         jButton4.setText("Execute test suite");
         jButton4.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -325,10 +316,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                .addGroup(jPanel1Layout.createSequentialGroup()
-                                    .addComponent(jButton3)
-                                    .addGap(2, 2, 2)
-                                    .addComponent(jButton4))
+                                .addComponent(jButton4)
                                 .addGroup(jPanel1Layout.createSequentialGroup()
                                     .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                         .addComponent(jLabel4)
@@ -347,7 +335,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                                 .addComponent(jButton1)
                                 .addGap(234, 234, 234)
                                 .addComponent(jLabel1)))
-                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addContainerGap(39, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jLabel2)
                         .addGap(18, 18, 18)
@@ -390,9 +378,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                         .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 293, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(68, 68, 68)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                .addComponent(jButton3)
-                                .addComponent(jButton4))
+                            .addComponent(jButton4)
                             .addComponent(jLabel3))))
                 .addContainerGap(45, Short.MAX_VALUE))
         );
@@ -450,16 +436,6 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         model.reload();
         jComboBox1.setEnabled(false);
     }//GEN-LAST:event_jRadioButton2ActionPerformed
-
-    private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
-        // TODO add your handling code here:
-        String testSuiteName;
-        testSuiteName = JOptionPane.showInputDialog("Enter test suite name ");
-        while(testSuiteName.isEmpty()) { 
-                    testSuiteName =JOptionPane.showInputDialog(this,"Invalid name! \n\nPlease enter the test suite name again! ");
-                }
-        JOptionPane.showMessageDialog(null, "Test suite named " + testSuiteName + " is saved!");
-    }//GEN-LAST:event_jButton3ActionPerformed
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
         // TODO add your handling code here:
@@ -626,7 +602,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         
         // when there are no other available machinesSelected and everything should be run on the master machine
         // the only machine available is the local machine and its details
-        if(machinesSelected.size() == 1){
+        if(machinesSelected.size() == 0){
             for(TestCase test : tests){
                 test.setLocal(true);
             }
@@ -652,21 +628,18 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         // Map: a machine and list of test executables to be run
         HashMap<String, List<String>> myMap = new HashMap<String, List<String>>();
         List<String> listOfAllTestExecutables = new ArrayList<String>();
-        for(TestCase test : tests){
-              
+        for(TestCase test : tests){   
             if(!test.isLocal())
-            {
-               
-                listOfAllTestExecutables.addAll(test.getTestExecutables());
-                 int i=0, j=0;
+            {   listOfAllTestExecutables.addAll(test.getTestExecutables());
+                int i=0, j=0;
                 while(i<machinesSelected.size() && j<listOfAllTestExecutables.size()){
-                if(myMap.containsKey(machinesSelected.get(i))){
-                    List<String> progs = myMap.get(machinesSelected.get(i));
-                    progs.add(listOfAllTestExecutables.get(j));
-                    myMap.put(machinesSelected.get(i), progs);
-                    i++;
-                    j++;
-                 }
+                    if(myMap.containsKey(machinesSelected.get(i))){
+                        List<String> progs = myMap.get(machinesSelected.get(i));
+                        progs.add(listOfAllTestExecutables.get(j));
+                        myMap.put(machinesSelected.get(i), progs);
+                        i++;
+                        j++;
+                     }
                     else {
                         List<String> progs = new ArrayList<String>();
                         progs.add(listOfAllTestExecutables.get(j));
@@ -689,14 +662,10 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
           displayMap(myMap);
           executeTestRun(myMap, System.getProperty("os.name"));
           listOfAllTestExecutables.clear();
-         myMap.clear();
+          //myMap.clear();
         }
-            
-        
-            
-        // allocation  of test cases to machinesSelected
-           
-     /*   // write map contents to a file
+         
+        // write map contents to a file
         BufferedWriter bufwriter = new BufferedWriter(new FileWriter("MachineAllocation.txt"));
         ArrayList <String> machineList = new ArrayList();
         ArrayList <String> testcaseList = new ArrayList();
@@ -710,7 +679,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                 
             bufwriter.write(pairs.getKey() + " " + pairs.getValue() + " \n");
         }
-        bufwriter.close();   */
+        bufwriter.close();
     }
     
     public static String getLocalHostDetails()
@@ -826,7 +795,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             Map.Entry<String, List<String>> pairs = it.next();
             System.out.println("Key is : " + pairs.getKey());
             System.out.println("Value is : " + pairs.getValue());
-    }
+        }
     }
     /**
      * @param args the command line arguments
@@ -876,7 +845,6 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton jButton1;
     private javax.swing.JButton jButton2;
-    private javax.swing.JButton jButton3;
     private javax.swing.JButton jButton4;
     private javax.swing.JComboBox jComboBox1;
     private javax.swing.JLabel jLabel1;

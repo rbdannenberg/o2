@@ -14,8 +14,11 @@ import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
@@ -66,11 +69,15 @@ public class TestResultsScreen extends javax.swing.JFrame {
         table = new JTable();
         pane.setViewportView(table);
         pane.setBounds(1000, 1000, 700, 700);
-        JButton btnBack = new JButton("Back");
-        btnBack.setVisible(false);
-        btnBack.addActionListener(new ActionListener() {
+        JButton saveConfigurationButton = new JButton("Save Configuration");
+        saveConfigurationButton.setVisible(true);
+        saveConfigurationButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                BackButton(e);
+                try {
+                    SaveConfigurationButtonAction(e);
+                } catch (IOException ex) {
+                    Logger.getLogger(TestResultsScreen.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
         });
         
@@ -172,7 +179,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
                 }
             }
         }
-        southPanel.add(btnBack);
+        southPanel.add(saveConfigurationButton);
         btnStartNewTest = new JButton("Start new test");
         btnStartNewTest.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -229,13 +236,61 @@ public class TestResultsScreen extends javax.swing.JFrame {
             this.setVisible(false);
     }                                        
     
-    private void BackButton(java.awt.event.ActionEvent evt) {
+    
+    private void SaveConfigurationButtonAction(java.awt.event.ActionEvent evt) throws IOException {
     // TODO add your handling code here:
-            CreateTestSuiteScreen testexecScreen = new CreateTestSuiteScreen();
-            testexecScreen.setVisible(true);
-            this.setVisible(false);
+   
+        String testSuiteName;
+        testSuiteName = JOptionPane.showInputDialog("Enter test suite name ");
+        while(testSuiteName.isEmpty()) { 
+                    testSuiteName =JOptionPane.showInputDialog(this,"Invalid name! \n\nPlease enter the test suite name again! ");
+        }
+        
+        // checks if already saved
+        Desktop desktop = Desktop.getDesktop();
+        String directoryName = "SavedTestSuiteConfigurations";
+        File destFile = new File(directoryName + "/" + testSuiteName + ".txt");
+        if(!destFile.exists()){
+            try{
+                destFile.createNewFile();
+                destFile.mkdir();
+            }
+            catch(IOException e) {
+                System.out.println("File exception hit!");
+            }
+        }
+        else{
+            JOptionPane.showMessageDialog(null, "Sorry! Please enter a different filename!");
+            return;
+        }
+        
+        File srcFile = new File("MachineAllocation.txt");
+        System.out.println("Source file found .. " + srcFile.getName());
+                
+        copyFile(srcFile, destFile);
+        JOptionPane.showMessageDialog(null, "Test suite named " + testSuiteName + " is saved!");
     }                         
-     
+
+    private void copyFile(File srcFile, File destFile) throws IOException {
+        
+        FileChannel source = null;
+        FileChannel destination = null;
+
+        try {
+            source = new FileInputStream(srcFile).getChannel();
+            destination = new FileOutputStream(destFile).getChannel();
+            destination.transferFrom(source, 0, source.size());
+        }
+        finally {
+            if(source != null) {
+                source.close();
+            }
+            if(destination != null) {
+                destination.close();
+            }
+        }
+    }
+   
     class ButtonRenderer extends JButton implements TableCellRenderer{
         public ButtonRenderer() {
             setOpaque(true);
