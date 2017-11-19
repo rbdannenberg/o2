@@ -1,0 +1,12 @@
+Testcases
+	Test arraytest local
+		arraytest 5000
+	Test clientserver local multiple
+		client
+		server
+	Test sample multiple
+		sample 20
+	Test dispatch
+		dispatchtest 5000 R
+	Test one multiple
+		one 50 50
