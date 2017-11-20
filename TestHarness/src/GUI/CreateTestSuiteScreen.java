@@ -248,7 +248,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         jLabel2.setText("Mode to run the test suite: ");
 
         jRadioButton1.setSelected(true);
-        jRadioButton1.setText("Random Mode");
+        jRadioButton1.setText("Round Robin Mode");
         jRadioButton1.setToolTipText("Click here to run the test cases in all available test machines randomly");
         jRadioButton1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -300,7 +300,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             }
         });
 
-        jLabel5.setText("Select the value of N for 'multiple' run in random mode: ");
+        jLabel5.setText("Select the value of N for 'multiple' run: ");
 
         jComboBox1.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "1", "2", "3", "4", "5" }));
 

@@ -155,7 +155,7 @@
         <Component class="javax.swing.JRadioButton" name="jRadioButton1">
           <Properties>
             <Property name="selected" type="boolean" value="true"/>
-            <Property name="text" type="java.lang.String" value="Random Mode"/>
+            <Property name="text" type="java.lang.String" value="Round Robin Mode"/>
             <Property name="toolTipText" type="java.lang.String" value="Click here to run the test cases in all available test machines randomly"/>
           </Properties>
           <Events>
@@ -258,7 +258,7 @@
         </Component>
         <Component class="javax.swing.JLabel" name="jLabel5">
           <Properties>
-            <Property name="text" type="java.lang.String" value="Select the value of N for &apos;multiple&apos; run in random mode: "/>
+            <Property name="text" type="java.lang.String" value="Select the value of N for &apos;multiple&apos; run: "/>
           </Properties>
         </Component>
         <Component class="javax.swing.JComboBox" name="jComboBox1">
