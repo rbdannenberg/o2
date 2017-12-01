@@ -56,20 +56,21 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
 
     private ArrayList<String> machines = new ArrayList<String>();
     private ArrayList<TestCase> testCases = new ArrayList<TestCase>();
-    
+    private static String hashValue;
     /**
      * Creates new form CreateTestSuiteScreen_new
      */
     public CreateTestSuiteScreen() {
     }
     
-    public CreateTestSuiteScreen(ArrayList<String> machineList) throws IOException {
+    public CreateTestSuiteScreen(ArrayList<String> machineList, String hashValue) throws IOException {
         initComponents();
         setName("Test Harness - Create test suite configuration");
         generateTestTree();
         groupButton();
         this.getContent();
         this.machines = machineList;
+        this.hashValue = hashValue;
         addMachinesToList();
         
     }
@@ -248,7 +249,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         jLabel2.setText("Mode to run the test suite: ");
 
         jRadioButton1.setSelected(true);
-        jRadioButton1.setText("Round Robin Mode");
+        jRadioButton1.setText("Round Robin");
         jRadioButton1.setToolTipText("Click here to run the test cases in all available test machines randomly");
         jRadioButton1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -300,7 +301,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             }
         });
 
-        jLabel5.setText("Select the value of N for 'multiple' run: ");
+        jLabel5.setText("Select the value of N for 'multiple' run : ");
 
         jComboBox1.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "1", "2", "3", "4", "5" }));
 
@@ -335,7 +336,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                                 .addComponent(jButton1)
                                 .addGap(234, 234, 234)
                                 .addComponent(jLabel1)))
-                        .addContainerGap(39, Short.MAX_VALUE))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jLabel2)
                         .addGap(18, 18, 18)
@@ -443,9 +444,9 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(null, "Please create a valid test suite to continue with execution.");
             return;
         }
-        TestResultsScreen testexecScreen = new TestResultsScreen();
-        testexecScreen.setVisible(true);
-        this.setVisible(false);
+      //  TestResultsScreen testexecScreen = new TestResultsScreen();
+       // testexecScreen.setVisible(true);
+        //this.setVisible(false);
         this.testCases = populateWithSelectedTestCases();
         try {
             allocateMachinesForExec();
@@ -489,12 +490,13 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             childNode = new javax.swing.tree.DefaultMutableTreeNode(mac);
             root.add(childNode);
         }
-       // childNode = new javax.swing.tree.DefaultMutableTreeNode("localhost");
-        //root.add(childNode);
+        String localhostDetails = getLocalHostDetails();
+       childNode = new javax.swing.tree.DefaultMutableTreeNode(localhostDetails);
+        root.add(childNode);
         jTree2.setModel(new javax.swing.tree.DefaultTreeModel(root));
-        
+        machines.add(localhostDetails);
         this.machines.addAll(machines);
-      //  this.machines.add("localhost");
+       this.machines.add(localhostDetails);
     }
     
     // for random mode
@@ -512,15 +514,17 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         
         int numberOfTestCases = testCasesRootNode.getChildCount();
         for(String s : testSuiteElements){
+            String[] splitStr = s.split(" ");
+            String st = splitStr[1];
             for(int i=0; i<numberOfTestCases; i++){
                 
                 TreeNode thisTestCase = testCasesRootNode.getChildAt(i);
                 if(s.equals(thisTestCase.toString()) && !thisTestCase.isLeaf()) {
-                    System.out.println("It's a match! : " + s);
+                    System.out.println("It's a match! : " + st);
                     
                     // Set the test case name
                     TestCase newTestCase = new TestCase();
-                    newTestCase.setTestCaseName(s);
+                    newTestCase.setTestCaseName(st);
                     
                     // Set the test executables
                     int numberOfExecutables = thisTestCase.getChildCount();
@@ -557,47 +561,14 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
     
     // applicable only for random mode - need to verify this code
     public void allocateMachinesForExec() throws IOException {
-        // Dummy data
-        /* TestCase tt1 = new TestCase();
-        List<String> exes = new ArrayList<String>();
-        exes.add("one 1 4");
-        exes.add("one 2 4");
-        exes.add("one 3 4");
-        exes.add("one 4 4");
-
-        tt1.setTestCaseName("myTest");
-        tt1.setTestExecutables(exes);
-        tt1.setLocal(false);
-        tt1.setMultiple(false);
-        tt1.setMultipleCount(1);
-
-        TestCase tt2 = new TestCase();
-        List<String> exes2 = new ArrayList<String>();
-        exes2.add("two 1000 R");
-        exes2.add("arraytest 2 4");
-
-        tt2.setTestCaseName("anotherTest");
-        tt2.setTestExecutables(exes2);
-        tt2.setLocal(true);
-        tt2.setMultiple(false);
-        tt2.setMultipleCount(1);
-
-        TestCase tt3 = new TestCase();
-        List<String> exe3 = new ArrayList<String>();
-        exe3.add("thirdexe 5000 S");
-
-        tt3.setTestCaseName("Third testcase");
-        tt3.setTestExecutables(exe3);
-        tt3.setLocal(false);
-        tt3.setMultiple(true);
-        tt3.setMultipleCount(5);
-        // Dummy data loaded above to test the function */
+        
         String localhostDetails = getLocalHostDetails();
       //  System.out.println(localhostDetails);
         List<TestCase> tests = new ArrayList<TestCase>();
         tests = this.testCases;
         List<String> machinesSelected = new ArrayList<String>();
         machinesSelected = this.machines;
+     //   System.out.println(machinesSelected);
         List<String> localExecutables = new ArrayList<String>();
         
         // when there are no other available machinesSelected and everything should be run on the master machine
@@ -660,12 +631,16 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
             }   
             
           displayMap(myMap);
-          executeTestRun(myMap, System.getProperty("os.name"));
+          executeTestRun(myMap, System.getProperty("os.name"), test.getTestCaseName(), hashValue);
           listOfAllTestExecutables.clear();
-          //myMap.clear();
+          myMap.clear();
         }
+        
+        TestResultsScreen testexecScreen = new TestResultsScreen();
+        testexecScreen.setVisible(true);
+        this.setVisible(false);
          
-        // write map contents to a file
+      /*  // write map contents to a file
         BufferedWriter bufwriter = new BufferedWriter(new FileWriter("MachineAllocation.txt"));
         ArrayList <String> machineList = new ArrayList();
         ArrayList <String> testcaseList = new ArrayList();
@@ -679,7 +654,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                 
             bufwriter.write(pairs.getKey() + " " + pairs.getValue() + " \n");
         }
-        bufwriter.close();
+        bufwriter.close(); */
     }
     
     public static String getLocalHostDetails()
@@ -737,10 +712,13 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
       return myMachineDetails.toString();
     }
     
-    public static void executeTestRun(HashMap <String, List<String>> h, String localOS)
+    public static void executeTestRun(HashMap <String, List<String>> h, String localOS, String testID, String hashValue)
     {
+        System.out.println(hashValue);
         StringBuilder IPs = new StringBuilder();
         StringBuilder tests = new StringBuilder();
+         ProcessBuilder p = new ProcessBuilder();
+       // String[] command = new String[6];
         for (String k : h.keySet())
         {
             IPs.append(k.trim());
@@ -750,12 +728,21 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         {
             //String[] testcases = s.toArray(new String[s.size()]);
             tests.append(s);
-            if(h.values().size() > 1 ) tests.append(",");
+            if(h.values().size() > 1 ) tests.append(";");
         }
        // System.out.println(IPs.toString());
         //System.out.println(tests.toString());
-        String[] command = {"src/scripts/temp.sh", IPs.toString(), tests.toString(),localOS};
-                ProcessBuilder p = new ProcessBuilder(command);
+        if(!"win".equals(localOS))
+        {
+             String[] command = {"src/scripts/temp.sh", IPs.toString(), tests.toString(),localOS,testID, hashValue};
+             p = new ProcessBuilder(command);
+        }
+        else
+        {
+            String[] command = {"src/scripts/temp.sh", IPs.toString(), tests.toString(),localOS,testID, hashValue};
+             p = new ProcessBuilder(command);
+        }
+                
                 Process p2 = null;
                 try {
                     p2 = p.start();
@@ -785,6 +772,9 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                 } catch (IOException ex) {
                 System.out.println(ex.getMessage());
                 }
+                
+                
+                
     }
     public static void displayMap(HashMap <String,List<String>> hm)
     {
@@ -832,7 +822,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                 ArrayList<String> machineList = new ArrayList<String>();
                 CreateTestSuiteScreen myScreen = null;
                 try {
-                    myScreen = new CreateTestSuiteScreen(machineList);
+                    myScreen = new CreateTestSuiteScreen(machineList, hashValue);
                 } catch (IOException ex) {
                     Logger.getLogger(CreateTestSuiteScreen.class.getName()).log(Level.SEVERE, null, ex);
                 }

@@ -26,11 +26,13 @@ import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.TableModelEvent;
@@ -46,7 +48,7 @@ public class ConfigureMachinesScreen extends JPanel{
         String masterPwd;
 	Map<Integer, StringBuilder> selectedMap = new HashMap<Integer, StringBuilder>();
 	private Set<String> contents = new HashSet();
-
+         JTextField text;
                 
 	public ConfigureMachinesScreen() {                
             //System.out.println("In initializer .. ");
@@ -123,7 +125,9 @@ public class ConfigureMachinesScreen extends JPanel{
                             BackButtonactionPerformed(evt);
                     }
                 });
-                
+                JLabel label = new JLabel("Version #");
+                text = new JTextField();
+                text.setColumns(20);
 		JCheckBox checkBox = new javax.swing.JCheckBox();
 		table.setRowSelectionAllowed(true);
 		table.setColumnSelectionAllowed(false);
@@ -158,9 +162,11 @@ public class ConfigureMachinesScreen extends JPanel{
 
 		JPanel command = new JPanel(new FlowLayout());
 		output = new JTextArea(1, 10);
+                command.add(label);
+		command.add(text);
 		command.add(configureButton);
 		command.add(BackButton);
-		//command.add(output);
+                
 
 		add(pane, BorderLayout.CENTER);
 		add(command, BorderLayout.SOUTH);
@@ -173,19 +179,44 @@ public class ConfigureMachinesScreen extends JPanel{
 	
 	public void ConfigureButtonactionPerformed(ActionEvent e) throws IOException {
 		ArrayList<String> machineList = new ArrayList<String>();
-		if(selectedMap.keySet().size() == 0){
-                    JOptionPane.showMessageDialog(null, "Please select at least one machine to continue with configuration.");
-                    return;
-                }
                 
-                for (int key : selectedMap.keySet()) {
-                        //System.out.println(selectedMap.get(key).toString());
+		if(selectedMap.keySet().size() == 0){
+                    int result = JOptionPane.showConfirmDialog(null, "You can use only the local machine for testing since you have not made any selection. Press OK to continue or cancel to change your selection", "Machine Selection", JOptionPane.OK_CANCEL_OPTION);
+                    if(result == 0)
+                    {
+                         for (int key : selectedMap.keySet()) {
 			machineList.add(selectedMap.get(key).toString());
-		}
-		this.setEnabled(false);
-		frame.setVisible(false);
-		CreateTestSuiteScreen nextScreen = new CreateTestSuiteScreen(machineList);
-		nextScreen.setVisible(true);
+                      }
+                        String hashValue = text.getText();
+                        if(hashValue.equals("") || hashValue.equals(null))
+                        {
+                            JOptionPane.showMessageDialog(null, "Please enter a build version # to continue!");
+                            return;
+                        }
+                        this.setEnabled(false);
+                        frame.setVisible(false);
+                        CreateTestSuiteScreen nextScreen = new CreateTestSuiteScreen(machineList, hashValue);
+                        nextScreen.setVisible(true); 
+                    } 
+                    
+                }
+                else
+                {
+                     for (int key : selectedMap.keySet()) {
+			machineList.add(selectedMap.get(key).toString());
+                      }
+                        String hashValue = text.getText();
+                        if(hashValue.equals("") || hashValue.equals(null))
+                        {
+                            JOptionPane.showMessageDialog(null, "Please enter a build version # to continue!");
+                            return;
+                        }
+                        this.setEnabled(false);
+                        frame.setVisible(false);
+                        CreateTestSuiteScreen nextScreen = new CreateTestSuiteScreen(machineList, hashValue);
+                        nextScreen.setVisible(true); 
+                }
+	
 	}
         
         public void BackButtonactionPerformed(ActionEvent e) {

@@ -90,22 +90,100 @@ public class TestResultsScreen extends javax.swing.JFrame {
         add(southPanel, BorderLayout.SOUTH);
         add(pane, BorderLayout.CENTER);
         // tableModel = new DefaultTableModel(new Object[]{"MACHINE", "TEST CASE", "TEST RESULT", "EXECUTION LOGS", "TERMINATION TYPE"}, 0);
-        tableModel = new DefaultTableModel(new Object[]{"MACHINE", "TIMESTAMP", "TEST CASE", "TEST RESULT", "EXECUTION LOGS"}, 0);
+        tableModel = new DefaultTableModel(new Object[]{"TEST ID", "TEST CASE", "TEST RESULT", "EXECUTION LOGS"}, 0);
         table.setModel(tableModel);
         //String currentUsersHomeDir = System.getProperty("user.home");
         //String str= currentUsersHomeDir+"//Outputs";
         final Desktop desktop = Desktop.getDesktop();
-        String str = "Outputs";
+        String str = "/Users/aparrnaa/o2Outputs";
         File directory = new File(str);
         File[] fList = directory.listFiles();
+        System.out.println(""+fList);
         for (File file : fList) {
            System.out.println("First Directory..." + file.getName());
-            String machinenames = file.getName();
+           String machinenames = file.getName();
             File machineDirectory = new File(str + "/" + machinenames);
             File[] timeList = machineDirectory.listFiles();
+           
+           
+           
+           
+           
+           
+           
+            
+           
             if (timeList != null) {
                 for (File timefile : timeList) {
-                   System.out.println("Timestamp Directory..." + timefile.getName());
+                   
+                    
+                    
+                    
+                            if (timefile.getName().endsWith(".txt")) {
+                                // String filename = testfile.getName();
+                                JButton openLog = new JButton("Log file");
+                                openLog.setPreferredSize(new Dimension(30, 30));
+                                // to get the machine IP address executed in 
+                                final File finalFile = new File(str + "/" + machinenames + "/" +timefile.getName());
+                                // check the log contents to find out the test execution status (pass/fail)
+                                int fails = 0;
+                                String message = "";
+                                //String search = "fail";
+                                List<String> search = Arrays.asList("fail", "err", "failure","stack","trace",
+                                		"error","failed","core","exception","dumped","segmentation");
+                                
+                                try {
+                                    Scanner scanner = new Scanner(finalFile);
+                                    while (scanner.hasNextLine()) {
+                                        String line = scanner.nextLine();
+                                        for(int i=0;i<search.size();i++){
+                                        if (line.toLowerCase().indexOf(search.get(i).toLowerCase()) != -1) {
+                                            fails++;
+                                        }
+                                        }
+                                    }
+                                } catch (FileNotFoundException e) {
+                                    message = "This file does not exist!";
+                                }
+                                
+                                if (fails == 0) {
+                                    message = "Test case passed";
+                                      
+                                } else {
+                                    message = "Test case failed";
+                                }
+                                 JPanel btnPanel = new JPanel();
+                                 btnPanel.setLayout(new GridLayout(10, 10));
+                                 btnPanel.add(openLog);
+                                tableModel.addRow(new Object[]{machinenames, timefile.getName(), message, finalFile});
+                                table.getColumnModel().getColumn(3).setCellRenderer(new ButtonRenderer());
+                                table.getColumnModel().getColumn(3).setCellEditor(new ButtonEditor(new JTextField()));
+                                
+                                
+                                JScrollPane jpane = new JScrollPane(table);
+                                getContentPane().add(jpane);
+                                setSize(450,100);
+                                setDefaultCloseOperation(EXIT_ON_CLOSE);
+                                
+                                openLog.addActionListener(new ActionListener() {
+
+                                    @Override
+                                    public void actionPerformed(ActionEvent arg0) {
+                                        try {
+                                            desktop.open(finalFile);
+                                        } catch (IOException e) {
+                                            e.printStackTrace();
+                                        }
+                                    }
+                                });
+                              // southPanel.add(openLog);
+                                
+                            }
+                    
+                    
+                    
+                    /*
+                    System.out.println("Timestamp Directory..." + timefile.getName());
                     String testfilenames = timefile.getName();
                     File testDirectory = new File(machineDirectory + "/" + testfilenames);
                     File[] testList = testDirectory.listFiles();
@@ -150,9 +228,9 @@ public class TestResultsScreen extends javax.swing.JFrame {
                                  JPanel btnPanel = new JPanel();
                                  btnPanel.setLayout(new GridLayout(10, 10));
                                  btnPanel.add(openLog);
-                                tableModel.addRow(new Object[]{machinenames, timefile.getName(), testfile.getName(), message, finalFile});
-                                table.getColumnModel().getColumn(4).setCellRenderer(new ButtonRenderer());
-                                table.getColumnModel().getColumn(4).setCellEditor(new ButtonEditor(new JTextField()));
+                                tableModel.addRow(new Object[]{machinenames, testfile.getName(), message, finalFile});
+                                table.getColumnModel().getColumn(3).setCellRenderer(new ButtonRenderer());
+                                table.getColumnModel().getColumn(3).setCellEditor(new ButtonEditor(new JTextField()));
                                 
                                 
                                 JScrollPane jpane = new JScrollPane(table);
@@ -175,7 +253,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
                                 
                             }
                         }
-                    }
+                    }*/
                 }
             }
         }
@@ -361,7 +439,7 @@ public class TestResultsScreen extends javax.swing.JFrame {
     }
     
     
-    private static final int STATUS_COL = 3;
+    private static final int STATUS_COL = 2;
     private static JTable getNewRenderedTable(final JTable table) {
         System.out.println("The table is getting rendered .. ");
         table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer(){
