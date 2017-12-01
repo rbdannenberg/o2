@@ -16,7 +16,7 @@
 
 
 #define N_ADDRS 10
-int max_msg_count = 10;
+int max_msg_count = 100;
 char *server_addresses[N_ADDRS];
 int msg_count_client1 = 0, msg_count_client2 = 0, msg_count_client3 = 0, msg_count_client4 = 0, msg_count = 0;
 int id = 1;
@@ -30,22 +30,29 @@ int client4running = TRUE;
 char *client1_addresses[N_ADDRS], *client2_addresses[N_ADDRS], *client3_addresses[N_ADDRS], *client4_addresses[N_ADDRS];
 
 // this is a handler for incoming messages. It simply sends a message
-// back to one of the client addresses
+// back to all the client addresses
 //
 void server_test(o2_msg_data_ptr msg, const char *types,
 	o2_arg_ptr *argv, int argc, void *user_data)
 {
-	assert(argc == 1);
+	//assert(argc == 1);
 	msg_count++;
 	int32_t i = msg_count + 1;	
 	
-	/* if (argv[0]->i32 == -1) {
+	if (msg_count == 100) {
         i = -1;
+		o2_send_cmd(client1_addresses[msg_count % N_ADDRS], 0, "i", -1);
+		o2_send_cmd(client2_addresses[msg_count % N_ADDRS], 0, "i", -1);
+		o2_send_cmd(client3_addresses[msg_count % N_ADDRS], 0, "i", -1);
+		o2_send_cmd(client4_addresses[msg_count % N_ADDRS], 0, "i", -1);
         serverrunning = FALSE;
-    } */
+    } 
 	 
 	o2_send_cmd(client1_addresses[msg_count % N_ADDRS], 0, "i", i);
 	o2_send_cmd(client2_addresses[msg_count % N_ADDRS], 0, "i", i);
+	o2_send_cmd(client3_addresses[msg_count % N_ADDRS], 0, "i", i);
+	o2_send_cmd(client4_addresses[msg_count % N_ADDRS], 0, "i", i);
+
 	
 	printf("server received %d messages\n", argv[0]->i32);
 }
@@ -59,15 +66,17 @@ void client1_test(o2_msg_data_ptr data, const char *types,
     int32_t i = msg_count_client1 + 1;
 
     // server will shut down when it gets data == -1
-	if(msg_count_client1 >= max_msg_count)
-	{
-		i = -1;
-		client1running = FALSE;
+	if (argv[0]->i32 == -1) {
+        i = -1;
+        client1running = FALSE;
+    } 	
+	
+	if(msg_count_client1 % 2 == 0){ 
+	o2_send(server_addresses[msg_count_client1 % N_ADDRS], 0, "i", i);
 	}
-  
     o2_send(client2_addresses[msg_count_client1 % N_ADDRS], 0, "i", i);
 	o2_send(client3_addresses[msg_count_client1 % N_ADDRS], 0, "i", i);
-	o2_send(server_addresses[msg_count_client4 % N_ADDRS], 0, "i", i);
+	
 
     if (msg_count_client1 < 20) {
         printf("Message %d has been sent to client 2 and client 3\n", i);
@@ -85,13 +94,15 @@ void client2_test(o2_msg_data_ptr data, const char *types,
     int32_t i = msg_count_client2 + 1;
 
     // server will shut down when it gets data == -1
-    if(msg_count_client2 >= max_msg_count)
-	{
-		i = -1;
-		client2running = FALSE;
-	}
+	if (argv[0]->i32 == -1) {
+        i = -1;
+        client2running = FALSE;
+    } 	
+	
     o2_send(client3_addresses[msg_count_client2 % N_ADDRS], 0, "i", i);
 	o2_send(client1_addresses[msg_count_client2 % N_ADDRS], 0, "i", i);
+	o2_send(server_addresses[msg_count_client2 % N_ADDRS], 0, "i", i);
+
 
     printf("Message %d has been sent to client 3 and client 4\n", i);
     
@@ -107,14 +118,15 @@ void client3_test(o2_msg_data_ptr data, const char *types,
     // 1 message with value 1, so the 2nd message will have 2, etc...
     int32_t i = msg_count_client3 + 1;
 
-    if(msg_count_client3 >= max_msg_count)
-	{
-		i = -1;
-		client3running = FALSE;
-	}
+    if (argv[0]->i32 == -1) {
+        i = -1;
+        client3running = FALSE;
+    } 	
 	
     o2_send(client1_addresses[msg_count_client3 % N_ADDRS], 0, "i", i);
 	o2_send(client4_addresses[msg_count_client3 % N_ADDRS], 0, "i", i);
+	o2_send(server_addresses[msg_count_client3 % N_ADDRS], 0, "i", i);
+
 
     printf("Message %d has been sent to client 4 and client 1\n", i);
    
@@ -129,20 +141,22 @@ void client4_test(o2_msg_data_ptr data, const char *types,
     // 1 message with value 1, so the 2nd message will have 2, etc...
     int32_t i = msg_count_client4 + 1;
 
-    // server will shut down when it gets data == -1
+    // client4 will shut down when it gets data == -1
     if (argv[0]->i32 == -1) {
         i = -1;
         client4running = FALSE;
     } 	
 	
-	if(msg_count_client4 >= max_msg_count)
+/*	if(msg_count_client4 >= max_msg_count)
 	{
 		i = -1;
 		client4running = FALSE;
-	}
+	} */
 	
     o2_send(server_addresses[msg_count_client4 % N_ADDRS], 0, "i", i);
 	o2_send(client2_addresses[msg_count_client4 % N_ADDRS], 0, "i", i);
+	o2_send(server_addresses[msg_count_client4 % N_ADDRS], 0, "i", i);
+
 
     printf("Message %d has been sent to server and client 2", i);
 	
@@ -152,18 +166,14 @@ void client4_test(o2_msg_data_ptr data, const char *types,
 
 int main(int argc, const char *argv[])
 {
-    printf("Usage: o2client id debugflags "
+    printf("Usage: o2client id "
            "(see o2.h for flags, use a for all)\n");
     if (argc >= 2) {
         id = atoi(argv[1]);
         printf("ID is set to %d\n", id);
     }
     if (argc >= 3) {
-        o2_debug_flags(argv[2]);
-        printf("debug flags are: %s\n", argv[2]);
-    }
-    if (argc > 3) {
-        printf("WARNING: ignoring extra command line argments\n");
+        printf("WARNING: ignoring extra command line arguments\n");
     }
 
     o2_initialize("test");
