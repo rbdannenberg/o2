@@ -530,7 +530,7 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                     int numberOfExecutables = thisTestCase.getChildCount();
                     List<String> testExecutables = new ArrayList<String>();
                     for(int j=0; j<numberOfExecutables; j++){
-                        testExecutables.add(thisTestCase.getChildAt(j).toString());
+                        testExecutables.add(thisTestCase.getChildAt(j).toString().trim());
                     }
                     newTestCase.setTestExecutables(testExecutables);
                     
@@ -587,13 +587,22 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                 for(String executable : thisTestExec){
                     for(int i=1; i<=test.getMultipleCount(); i++){
                         StringBuilder s = new StringBuilder();
-                        s.append(executable + " " + i + " " + test.getMultipleCount());
-                        dummyList.add(s.toString());
+                       
+                        String temp=executable+" "+i+" "+test.getMultipleCount();
+                        System.out.println("Temp value is"+temp);
+                        
+                        //System.out.println("Executable name is:"+executable);
+                        s.append(executable.trim()+" "+i+" "+test.getMultipleCount());
+                       // System.out.println("Arul u r it"+s.toString().trim());
+                        dummyList.add(temp.trim());
+                        System.out.println("dummy list is"+dummyList);
                     }
                 }
                 test.setTestExecutables(dummyList);
             }
+           // System.out.println(""+test);
         }
+        
 
         // the test executables have to be allocated to all the available machinesSelected
         // Map: a machine and list of test executables to be run
@@ -601,11 +610,14 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         List<String> listOfAllTestExecutables = new ArrayList<String>();
         for(TestCase test : tests){   
             if(!test.isLocal())
-            {   listOfAllTestExecutables.addAll(test.getTestExecutables());
+            {  
+                System.out.println("look now"+test.getTestExecutables());
+                listOfAllTestExecutables.addAll(test.getTestExecutables());
                 int i=0, j=0;
                 while(i<machinesSelected.size() && j<listOfAllTestExecutables.size()){
                     if(myMap.containsKey(machinesSelected.get(i))){
                         List<String> progs = myMap.get(machinesSelected.get(i));
+                        System.out.println("all tests"+listOfAllTestExecutables);
                         progs.add(listOfAllTestExecutables.get(j));
                         myMap.put(machinesSelected.get(i), progs);
                         i++;
@@ -629,9 +641,9 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
                  localExecutables.addAll(test.getTestExecutables());
                  myMap.put(localhostDetails, localExecutables);
             }   
-            
+            System.out.println("arul Map"+myMap);
           displayMap(myMap);
-          executeTestRun(myMap, System.getProperty("os.name"), test.getTestCaseName(), hashValue);
+          executeTestRun(myMap, System.getProperty("os.name"), test.getTestCaseName().trim(), hashValue);
           listOfAllTestExecutables.clear();
           myMap.clear();
         }
@@ -727,19 +739,31 @@ public class CreateTestSuiteScreen extends javax.swing.JFrame {
         for(List <String> s : h.values())
         {
             //String[] testcases = s.toArray(new String[s.size()]);
-            tests.append(s);
+                for(int i=0;i<s.size();i++)
+                {
+                    if(i==s.size()-1)
+                    {
+                        tests.append(s.get(i));
+                    }else
+                    {
+                        tests.append(s.get(i)+",");
+                    }
+                    
+                }
+            
+           // System.out.println("S value is"+s);
             if(h.values().size() > 1 ) tests.append(";");
         }
        // System.out.println(IPs.toString());
         //System.out.println(tests.toString());
         if(!"win".equals(localOS))
         {
-             String[] command = {"src/scripts/temp.sh", IPs.toString(), tests.toString(),localOS,testID, hashValue};
+             String[] command = {"src/scripts/temp.sh", IPs.toString().trim(), tests.toString().replaceAll("^\\s+",""),localOS,testID, hashValue};
              p = new ProcessBuilder(command);
         }
         else
         {
-            String[] command = {"src/scripts/temp.sh", IPs.toString(), tests.toString(),localOS,testID, hashValue};
+            String[] command = {"src/scripts/temp.sh", IPs.toString().trim(), tests.toString().replaceAll("^\\s+",""),localOS,testID, hashValue};
              p = new ProcessBuilder(command);
         }
                 

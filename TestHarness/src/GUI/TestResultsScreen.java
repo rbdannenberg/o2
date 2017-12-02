@@ -95,7 +95,8 @@ public class TestResultsScreen extends javax.swing.JFrame {
         //String currentUsersHomeDir = System.getProperty("user.home");
         //String str= currentUsersHomeDir+"//Outputs";
         final Desktop desktop = Desktop.getDesktop();
-        String str = "/Users/aparrnaa/o2Outputs";
+        String str = System.getProperty("user.home");
+        str+="/o2Outputs/";
         File directory = new File(str);
         File[] fList = directory.listFiles();
         System.out.println(""+fList);
