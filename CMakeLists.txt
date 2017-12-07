@@ -90,6 +90,11 @@ endif(WIN32)
 
 # EXECUTABLE
 # Create executables
+
+add_executable(o2multi1 test/o2multi1.c)
+target_include_directories(o2multi1 PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(o2multi1 ${LIBRARIES})
+
 add_executable(dispatchtest test/dispatchtest.c)
 target_include_directories(dispatchtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(dispatchtest ${LIBRARIES})
