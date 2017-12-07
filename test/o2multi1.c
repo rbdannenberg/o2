@@ -45,8 +45,8 @@ void server_test(o2_msg_data_ptr msg, const char *types,
 		//o2_send(client_addresses[1], 0, "i", 0);
         }
 		
-	if (max_msg_count == (globalcount-1) * 10)
-		serverrunning = FALSE;
+	/*if (max_msg_count == (globalcount-1) * 10)
+		serverrunning = FALSE;*/
 }
 
 void client_test(o2_msg_data_ptr data, const char *types,
@@ -59,10 +59,10 @@ void client_test(o2_msg_data_ptr data, const char *types,
     int32_t i = msg_count_client + 1;
 
     // server will shut down when it gets data == -1
-	if (msg_count_client == 10) {
+/*	if (msg_count_client == 10) {
         //i = -1;
         clientrunning = FALSE;
-    } 	
+    } 	 */
 		
 	o2_send_cmd(server_addresses[msg_count_client % N_ADDRS], 0, "i", i);
 	printf("Message %d has been sent to the server\n", i);
