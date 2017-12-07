@@ -137,9 +137,9 @@ add_executable(o2client3 test/o2client3.c)
 target_include_directories(o2client3 PRIVATE ${CMAKE_SOURCE_DIR}/src) 
 target_link_libraries(o2client3 ${LIBRARIES}) 
 
-add_executable(o2localmulti test/o2localmulti.c) 
-target_include_directories(o2localmulti PRIVATE ${CMAKE_SOURCE_DIR}/src) 
-target_link_libraries(o2localmulti ${LIBRARIES}) 
+add_executable(o2multi2 test/o2multi2.c)
+target_include_directories(o2multi2 PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(o2multi2 ${LIBRARIES})
 
 add_executable(o2server test/o2server.c) 
 target_include_directories(o2server PRIVATE ${CMAKE_SOURCE_DIR}/src) 
