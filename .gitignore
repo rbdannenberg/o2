@@ -7,5 +7,5 @@ Debug/
 CMakeCache.txt
 /TestHarness/dist/
 *.class
-
+Outputs/
 *.properties
