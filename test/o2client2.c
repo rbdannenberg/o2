@@ -14,16 +14,24 @@
 
 #define N_ADDRS 20
 
+<<<<<<< HEAD
 int max_msg_count = 90;
 
 char *client3_addresses[N_ADDRS];
 int msg_count = 0;
+=======
+int max_msg_count = 100;
+
+char *client3_addresses[N_ADDRS];
+int msg_count = 1;
+>>>>>>> f5db956b8c49748b8494c9f66efe02c03f70afca
 int running = TRUE;
 
 void client2_test(o2_msg_data_ptr data, const char *types,
                  o2_arg_ptr *argv, int argc, void *user_data)
 {
 	//printf("Entered handler method client2 \n");
+<<<<<<< HEAD
 	//assert(argc == 1);
     msg_count++;
 	int32_t i = msg_count + 1;
@@ -35,6 +43,16 @@ void client2_test(o2_msg_data_ptr data, const char *types,
 	
     o2_send_cmd(client3_addresses[msg_count % N_ADDRS], 0, "i", msg_count);
   
+=======
+	assert(argc == 1);
+    msg_count++;
+	usleep(3000);
+	
+    o2_send_cmd(client3_addresses[msg_count % N_ADDRS], 0, "i", msg_count);
+    if (msg_count % 10000 == 0) {
+        printf("client2 received %d messages\n", msg_count);
+    }
+>>>>>>> f5db956b8c49748b8494c9f66efe02c03f70afca
     if (msg_count < 100) {
         printf("client2 message %d is %d\n", msg_count, argv[0]->i32);
     }
@@ -89,7 +107,11 @@ int main(int argc, const char *argv[])
     
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     
+<<<<<<< HEAD
     o2_send_cmd("!client3/benchmark/0", 0, "i", 1);
+=======
+   o2_send_cmd("!client3/benchmark/0", 0, "i", 1);
+>>>>>>> f5db956b8c49748b8494c9f66efe02c03f70afca
     
     while (running) {
         o2_poll();

@@ -14,10 +14,17 @@
 
 #define N_ADDRS 20
 
+<<<<<<< HEAD
 int max_msg_count = 90;
 
 char *client1_addresses[N_ADDRS];
 int msg_count = 0;
+=======
+int max_msg_count = 100;
+
+char *client1_addresses[N_ADDRS];
+int msg_count = 1;
+>>>>>>> f5db956b8c49748b8494c9f66efe02c03f70afca
 int running = TRUE;
 
 void client3_test(o2_msg_data_ptr data, const char *types,
@@ -26,6 +33,7 @@ void client3_test(o2_msg_data_ptr data, const char *types,
     
 	assert(argc == 1);
     msg_count++;
+<<<<<<< HEAD
 	int32_t i = msg_count + 1;
 	
 	if (msg_count >= max_msg_count) {
@@ -37,6 +45,15 @@ void client3_test(o2_msg_data_ptr data, const char *types,
   
     if (msg_count < 100) {
         printf("client2 message %d is %d\n", msg_count, argv[0]->i32);
+=======
+
+    o2_send_cmd(client1_addresses[msg_count % N_ADDRS], 0, "i", msg_count);
+    if (msg_count % 10000 == 0) {
+        printf("client3 received %d messages\n", msg_count);
+    }
+    if (msg_count < 100) {
+        printf("client3 message %d is %d\n", msg_count, argv[0]->i32);
+>>>>>>> f5db956b8c49748b8494c9f66efe02c03f70afca
     }
 }
 

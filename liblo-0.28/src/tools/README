@@ -1,0 +1,10 @@
+oscsend and oscdump - send/receive OpenSound Control messages.
+
+GENERAL INFORMATION
+===================
+oscsend and oscdump are OpenSound Control (OSC) tools using liblo. oscsend
+sends an OSC message specified by command line arguments, while oscdump
+receives OSC messages and prints to standard output.
+
+oscsend and oscdump were originally developed by Kentaro Fukuchi. Now theay are
+part of liblo and maintained by liblo team.
