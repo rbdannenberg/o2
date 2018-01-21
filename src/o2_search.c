@@ -810,7 +810,7 @@ int o2_set_tap(const char *tappee, const char *tapper_name)
         }
         o2_info_ptr info;
         while (s->services.length > i &&
-               (info = GET_SERVICE(s->services, i)->tag == TAPPER)) {
+               ((info = GET_SERVICE(s->services, i))->tag == TAPPER)) {
             if (streql(((tapper_entry_ptr) info)->tapper_name, tapper_name)) {
                 return O2_SERVICE_EXISTS;
             }
