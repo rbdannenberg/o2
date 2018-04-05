@@ -822,7 +822,6 @@ int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
                     len /= 2; // half as many elements if they are 64-bits
                 }
                 for (int i = 0; i < len; i++) { // for each vector element
-                    if (i > 0) printf(" ");
                     if (vtype == O2_INT32 || vtype == O2_FLOAT) {
                         *(int32_t *)data_next =
                                 swap32(*(int32_t *)data_next);
