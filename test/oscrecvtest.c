@@ -18,7 +18,7 @@ int message_count = 0;
 o2_time timed_start = 0;
 int timed_count = 0;
 
-int approx(double x) { return (x > -0.02) && (x < 0.02); }
+int approx(double x) { return (x > -0.04) && (x < 0.04); }
 
 
 void osc_i_handler(o2_msg_data_ptr data, const char *types,
