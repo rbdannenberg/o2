@@ -128,6 +128,8 @@ def runAllTests():
 
     if not runDouble("clockmaster", "CLOCKMASTER DONE",
                      "clockslave", "CLOCKSLAVE DONE"): return
+    if not runDouble("appmaster", "APPMASTER DONE",
+                     "appslave", "APPSLAVE DONE"): return
     if not runDouble("infotest2", "INFOTEST2 DONE",
                      "clockslave", "CLOCKSLAVE DONE"): return
     if not runDouble("o2client", "CLIENT DONE",

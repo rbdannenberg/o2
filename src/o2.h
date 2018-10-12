@@ -10,7 +10,6 @@
 extern "C" {
 #endif
 
-
 /** \file o2.h
 \mainpage
 \section Introduction
@@ -343,8 +342,8 @@ void *o2_calloc(size_t n, size_t s);
  */
 
 #ifndef O2_NO_DEBUG
-void *o2_dbg_malloc(size_t size, char *file, int line);
-void o2_dbg_free(void *obj, char *file, int line);
+void *o2_dbg_malloc(size_t size, const char *file, int line);
+void o2_dbg_free(void *obj, const char *file, int line);
 #define O2_MALLOC(x) o2_dbg_malloc(x, __FILE__, __LINE__)
 #define O2_FREE(x) o2_dbg_free(x, __FILE__, __LINE__)
 #endif
@@ -382,7 +381,7 @@ void o2_dbg_free(void *obj, char *file, int line);
 void *o2_calloc(size_t n, size_t s);
 #define O2_CALLOC(n, s) o2_calloc((n), (s))
 #else
-void *o2_dbg_calloc(size_t n, size_t s, char *file, int line);
+void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
 #define O2_CALLOC(n, s) o2_dbg_calloc((n), (s), __FILE__, __LINE__)
 #endif
 #endif
@@ -391,7 +390,6 @@ void *o2_dbg_calloc(size_t n, size_t s, char *file, int line);
  * approximate start time of the application.
  */
 typedef double o2_time;
-
 
 /** \brief data part of an O2 message
  *
@@ -574,8 +572,16 @@ typedef union {
 extern o2_arg_ptr o2_got_start_array;
 extern o2_arg_ptr o2_got_end_array;
 
-/** \brief name of the application
+
+/** \brief set this flag to stop o2_run()
  *
+ * Some O2 applications will initialize and call o2_run(), which is a
+ * simple loop that calls o2_poll(). To exit the loop, set
+ * #o2_stop_flag to #TRUE
+ */
+extern int o2_stop_flag;
+
+/*
  * A collection of cooperating O2 processes forms an
  * *application*. Applications must have unique names. This allows
  * more than one application to exist within a single network without
@@ -587,15 +593,8 @@ extern o2_arg_ptr o2_got_end_array;
  * Do not set, modify or free this variable! Consider it to be
  * read-only. It is managed by O2 using o2_initialize() and o2_finish().
  */
-extern const char *o2_application_name;
+extern const char *o2_application_name; // also used to detect initialization
 
-/** \brief set this flag to stop o2_run()
- *
- * Some O2 applications will initialize and call o2_run(), which is a
- * simple loop that calls o2_poll(). To exit the loop, set
- * #o2_stop_flag to #TRUE
- */
-extern int o2_stop_flag;
 
 
 /**
@@ -967,7 +966,7 @@ extern int o2_clock_is_synchronized;
  * `o2_get_address` and construct a ip:port process name from 
  * the information returned. But then you can just call 
  * `o2_roundtrip` for the local process round trip information.
- * For a remote process names, you can create a handler for 
+ * For remote process names, you can create a handler for 
  * `/_o2/si`. The process name is provided whenever one of its
  * services is created or otherwise changes status.) The 
  * type string for `!ip:port/cs/rt` is "s", and the parameter is
@@ -1034,7 +1033,10 @@ int o2_clock_set(o2_time_callback gettime, void *rock);
  *  possible. If the message arrives early, it will be held at the
  *  service and dispatched as soon as possible after the indicated time.
  *  @param typestring the type string for the message. Each character
- *  indicates one data item. Type codes are as in OSC.
+ *  indicates one data item. Type codes are as in OSC. Some O2 type
+ *  codes are not supported (if needed, create a message and use the
+ *  appropriate o2_add_... function. Allowed type characters are those
+ *  in "ifsbhtdScmTFNIB".
  *  @param ...  the data of the message. There is one parameter for each
  *  character in the typestring.
  *

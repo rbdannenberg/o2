@@ -77,7 +77,7 @@ void clockmaster(o2_msg_data_ptr msg, const char *types,
 char my_ip_port[32];
 char remote_ip_port[32];
 
-boolean check_service_name(const char *service, const char **names, int index)
+int check_service_name(const char *service, const char **names, int index)
 {
     const char *expected = names[index];
     if (streql(expected, "ip:port")) {

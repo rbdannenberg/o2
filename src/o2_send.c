@@ -68,7 +68,7 @@ services_entry_ptr *o2_services_find(const char *service_name)
     // need to copy the service_name to aligned storage and pad it
     char key[NAME_BUF_LEN];
     o2_string_pad(key, service_name);
-    return (services_entry_ptr *) o2_lookup(&o2_path_tree, key);
+    return (services_entry_ptr *) o2_lookup(&o2_context->path_tree, key);
 }    
 
 
@@ -146,6 +146,10 @@ int o2_message_send_sched(o2_message_ptr msg, int schedulable)
     } else if (service->tag == TCP_SOCKET) { // remote delivery?
         o2_send_remote(&msg->data, msg->tcp_flag, (process_info_ptr) service);
         o2_message_free(msg);
+    } else if (service->tag == BRIDGE_SERVICE) {
+        bridge_info_ptr info = (bridge_info_ptr) service;
+        (*info->send)(&msg->data, msg->tcp_flag, info);
+        o2_message_free(msg);
     } else if (service->tag == OSC_REMOTE_SERVICE) {
         // this is a bit complicated: send immediately if it is a bundle
         // or is not scheduled in the future. Otherwise use O2 scheduling.
@@ -186,6 +190,9 @@ int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag)
     if (!service) return O2_FAIL;
     if (service->tag == TCP_SOCKET) {
         return o2_send_remote(msg, tcp_flag, (process_info_ptr) service);
+    } else if (service->tag == BRIDGE_SERVICE) {
+        bridge_info_ptr info = (bridge_info_ptr) service;
+        return (*info->send)(msg, tcp_flag, info);
     } else if (service->tag == OSC_REMOTE_SERVICE) {
         if (IS_BUNDLE(msg) || (msg->timestamp == 0.0 ||
                                msg->timestamp <= o2_gtsched.last_time)) {
@@ -205,6 +212,7 @@ int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag)
 }
 
 
+// send a message via IP
 int o2_send_remote(o2_msg_data_ptr msg, int tcp_flag, process_info_ptr info)
 {
     // send the message to remote process
@@ -245,7 +253,7 @@ int send_by_tcp_to_process(process_info_ptr info, o2_msg_data_ptr msg)
     // network packets due to the NODELAY socket option.
     int32_t len = MSG_DATA_LENGTH(msg);
     MSG_DATA_LENGTH(msg) = htonl(len);
-    SOCKET fd = DA_GET(o2_fds, struct pollfd, info->fds_index)->fd;
+    SOCKET fd = DA_GET(o2_context->fds, struct pollfd, info->fds_index)->fd;
     if (send(fd, (char *) &MSG_DATA_LENGTH(msg), len + sizeof(int32_t),
              MSG_NOSIGNAL) < 0) {
         if (errno != EAGAIN && errno != EINTR) {

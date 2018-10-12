@@ -144,6 +144,14 @@ add_executable(clockmaster test/clockmaster.c)
 target_include_directories(clockmaster PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(clockmaster ${LIBRARIES}) 
 
+add_executable(appslave test/appslave.c) 
+target_include_directories(appslave PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+target_link_libraries(appslave ${LIBRARIES}) 
+
+add_executable(appmaster test/appmaster.c)  
+target_include_directories(appmaster PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(appmaster ${LIBRARIES}) 
+
 add_executable(oscsendtest test/oscsendtest.c)  
 target_include_directories(oscsendtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(oscsendtest ${LIBRARIES}) 

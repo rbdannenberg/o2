@@ -128,7 +128,7 @@ int o2_make_tcp_connection(const char *ip, int tcp_port,
 
     // note: our local port number is not recorded, not needed
     // get the socket just created by o2_make_tcp_recv_socket
-    SOCKET sock = DA_LAST(o2_fds, struct pollfd)->fd;
+    SOCKET sock = DA_LAST(o2_context->fds, struct pollfd)->fd;
 
     O2_DBo(printf("%s connect to %s:%d with socket %ld\n",
                   o2_debug_prefix, ip, tcp_port, (long) sock));
@@ -136,13 +136,13 @@ int o2_make_tcp_connection(const char *ip, int tcp_port,
                       sizeof(remote_addr));
     if (err == -1) {
         perror("Connect Error!\n");
-        o2_fds_info.length--;   // restore socket arrays 
-        o2_fds.length--;
+        o2_context->fds_info.length--;   // restore socket arrays 
+        o2_context->fds.length--;
         return O2_FAIL;
     }
     o2_disable_sigpipe(sock);
     O2_DBd(printf("%s connected to %s:%d index %d\n",
-                  o2_debug_prefix, ip, tcp_port, o2_fds.length - 1));
+                  o2_debug_prefix, ip, tcp_port, o2_context->fds.length - 1));
     return O2_SUCCESS;
 }
 
@@ -179,7 +179,7 @@ int o2_discovery_msg_initialize()
     O2_DBg(printf("%s in o2_initialize,\n    name is %s, local IP is %s, \n"
             "    udp receive port is %d,\n"
             "    tcp connection port is %d,\n    broadcast recv port is %d\n",
-            o2_debug_prefix, o2_application_name, o2_local_ip, o2_process->port,
+            o2_debug_prefix, o2_application_name, o2_local_ip, o2_context->process->port,
             o2_local_tcp_port, broadcast_recv_port));
     return O2_SUCCESS;
 }
@@ -233,12 +233,12 @@ static void o2_broadcast_message(int port)
 
 /// callback function that implements sending discovery messages
 //    message args are:
-//    o2_process_ip (as a string), udp port (int), tcp port (int)
+//    o2_context->process_ip (as a string), udp port (int), tcp port (int)
 //
 void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
                                o2_arg_ptr *argv, int argc, void *user_data)
 {
-    if (o2_using_a_hub) {
+    if (o2_context->using_a_hub) {
         return; // end discovery broadcasts after o2_hub()
     }
     // O2 is not going to work if we did not get a discovery port
@@ -271,12 +271,12 @@ void o2_send_discovery_at(o2_time when)
 
 int o2_send_initialize(process_info_ptr process, int32_t hub_flag)
 {
-    assert(o2_process->port);
+    assert(o2_context->process->port);
     // send initial message to newly connected process
     int err = o2_send_start() ||
         o2_add_string(o2_local_ip) ||
         o2_add_int32(o2_local_tcp_port) ||
-        o2_add_int32(o2_process->port) ||
+        o2_add_int32(o2_context->process->port) ||
         o2_add_int32(o2_clock_is_synchronized) ||
         o2_add_int32(hub_flag);
     if (err) return err;
@@ -293,13 +293,13 @@ int o2_send_initialize(process_info_ptr process, int32_t hub_flag)
 int o2_send_services(process_info_ptr process)
 {
     // send services if any
-    if (o2_process->proc.services.length <= 0) {
+    if (o2_context->process->proc.services.length <= 0) {
         return O2_SUCCESS;
     }
     o2_send_start();
-    o2_add_string(o2_process->proc.name);
-    for (int i = 0; i < o2_process->proc.services.length; i++) {
-        char *service = *DA_GET(o2_process->proc.services, char *, i);
+    o2_add_string(o2_context->process->proc.name);
+    for (int i = 0; i < o2_context->process->proc.services.length; i++) {
+        char *service = *DA_GET(o2_context->process->proc.services, char *, i);
         // ugly, but just a fast test if service is _o2:
         if ((*((int32_t *) service) != *((int32_t *) "_o2"))) {
             o2_add_string(service);
@@ -322,7 +322,7 @@ int o2_send_services(process_info_ptr process)
 int o2_send_discovery(process_info_ptr process)
 {
     // now send info on every host
-    for (int i = 0; i < o2_fds_info.length; i++) {
+    for (int i = 0; i < o2_context->fds_info.length; i++) {
         process_info_ptr info = GET_PROCESS(i);
         // parse ip & port from info. If we do not have a proc.name, this
         // info may be the result of a client running o2_hub() and making
@@ -437,12 +437,12 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
     char name[32];
     // ip:port + pad with zeros
     snprintf(name, 32, "%s:%d%c%c%c%c", ip, tcp, 0, 0, 0, 0);
-    int compare = strcmp(o2_process->proc.name, name);
+    int compare = strcmp(o2_context->process->proc.name, name);
     if (compare == 0) {
         O2_DBd(printf("    Ignored: I received my own broadcast message\n"));
         return; // the "discovered process" is this one
     }
-    o2_entry_ptr *entry_ptr = o2_lookup(&o2_path_tree, name);
+    o2_entry_ptr *entry_ptr = o2_lookup(&o2_context->path_tree, name);
     // if process is connected, ignore it
     if (*entry_ptr) {
 #ifndef NDEBUG
@@ -547,10 +547,10 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
     // no byte-swap check needed for clocksync because it is just zero/non-zero
     int status = (clocksync_arg->i32 ? PROCESS_OK : PROCESS_NO_CLOCK);
     
-    // if o2_path_tree entry does not exist, create it
+    // if o2_context->path_tree entry does not exist, create it
     process_info_ptr info = (process_info_ptr) user_data;
     assert(info->proc.status == PROCESS_CONNECTED);
-    o2_entry_ptr *entry_ptr = o2_lookup(&o2_path_tree, name);
+    o2_entry_ptr *entry_ptr = o2_lookup(&o2_context->path_tree, name);
     O2_DBd(printf("%s o2_discovery_init_handler looked up %s -> %p\n",
                   o2_debug_prefix, name, entry_ptr));
     if (!*entry_ptr) { // we are the server, and we accepted a client connection,
@@ -573,7 +573,7 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
       // /dy message, also created a service named for server's IP:port
     info->proc.status = status;
     info->proc.udp_sa.sin_family = AF_INET;
-    assert(info != o2_process);
+    assert(info != o2_context->process);
     info->port = udp_port;
 
 #ifdef __APPLE__

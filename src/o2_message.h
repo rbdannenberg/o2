@@ -9,7 +9,7 @@
 #ifndef o2_message_h
 #define o2_message_h
 
-extern o2_message_ptr message_freelist;
+extern thread_local o2_context_ptr o2_context;
 
 #define MAX_SERVICE_LEN 64
 

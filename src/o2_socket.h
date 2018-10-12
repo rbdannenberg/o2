@@ -61,6 +61,7 @@ typedef int SOCKET;     // In O2, we'll use SOCKET to denote the type of a socke
 #define OSC_TCP_SERVER_SOCKET 105
 #define OSC_TCP_SOCKET 106
 #define OSC_TCP_CLIENT 107
+#define BRIDGE_SERVICE 108
 
 struct process_info;
 
@@ -87,7 +88,7 @@ typedef struct process_info { // "subclass" of o2_info
               // OSC_SOCKET, OSC_TCP_SERVER_SOCKET,
               // OSC_TCP_SOCKET, OSC_TCP_CLIENT
 
-    int fds_index;              // index of socket in o2_fds and o2_fds_info
+    int fds_index;              // index of socket in o2_context->fds and o2_context->fds_info
                                 //   -1 if process known but not connected
     int delete_me;              // set to TRUE when socket should be removed
     int32_t length;             // message length
@@ -126,17 +127,27 @@ typedef struct process_info { // "subclass" of o2_info
     };        
 } process_info, *process_info_ptr;
 
+
+// bridge_info is used to extend O2 to new transports. The info contains
+// function pointers that send messages
+//
+typedef struct bridge_info { // "subclass" of o2_info
+    int tag; // BRIDGE_SERVICE
+    // function to send a message to a service reached by the bridge, returns
+    //   O2_SUCCESS or error code.
+    int (*send)(o2_msg_data_ptr data, int tcp_flag, struct bridge_info *service);
+} bridge_info, *bridge_info_ptr;
+
+
 extern process_info_ptr o2_message_source;
 
 extern char o2_local_ip[24];
 extern int o2_local_tcp_port;
-extern dyn_array o2_fds_info;
-#define GET_PROCESS(i) (*DA_GET(o2_fds_info, process_info_ptr, (i)))
+#define GET_PROCESS(i) (*DA_GET(o2_context->fds_info, process_info_ptr, (i)))
 
 extern int o2_found_network; // true if we have an IP address, which implies a
 // network connection; if false, we only talk to 127.0.0.1 (localhost)
 
-extern dyn_array o2_fds;  ///< pre-constructed fds parameter for poll()
 extern int o2_socket_delete_flag;
 
 /**

@@ -78,34 +78,28 @@
 // insignificant compared to all the other work to send, schedule, and
 // dispatch the message.
 
-// msg_types is used to hold type codes as message args are accumulated
-static dyn_array msg_types;
-
-// msg_data is used to hold data as message args are accumulated
-static dyn_array msg_data;
-
 
 // make sure enough memory is allocated to add an element to msg_data
 //
 static void message_check_length(int needed)
 {
-    while (msg_data.length + needed > msg_data.allocated) {
-        o2_da_expand(&msg_data, sizeof(char));
+    while (o2_context->msg_data.length + needed > o2_context->msg_data.allocated) {
+        o2_da_expand(&o2_context->msg_data, sizeof(char));
     }
 }
 
 
 static void add_type(o2_type type_code)
 {
-    DA_APPEND(msg_types, char, type_code);
+    DA_APPEND(o2_context->msg_types, char, type_code);
 }
 
 
 #define ADD_DATA(data_type, code, data)      \
     message_check_length(sizeof(data_type));                      \
-    *((data_type *) (msg_data.array + msg_data.length)) = (data); \
-    msg_data.length += sizeof(data_type);                         \
-    DA_APPEND(msg_types, char, code);
+    *((data_type *) (o2_context->msg_data.array + o2_context->msg_data.length)) = (data); \
+    o2_context->msg_data.length += sizeof(data_type);                         \
+    DA_APPEND(o2_context->msg_types, char, code);
 
 
 // -------- PART 2 : SCRATCH AREA FOR MESSAGE EXTRACTION
@@ -114,71 +108,60 @@ static void add_type(o2_type type_code)
 // is also storage pointed to by the argv pointers. When types
 // are converted, we often need to copy from the message into
 // this storage, but if possible we avoid copies by pointing
-// into the message itself. o2_argv_data is a dynamic array for
-// o2_argv, and o2_arg_data is a dynamic array for type-converted
+// into the message itself. o2_context->argv_data is a dynamic array for
+// o2_context->argv, and o2_context->arg_data is a dynamic array for type-converted
 // message data. Because of the pointers, it's very messy to
 // reallocate the dynamic arrays. Instead, we precompute the 
 // worst case based on the length of the message type string
 // and the length of the message data, and we expand the 
 // dynamic arrays to accommodate the worst case scenario.
 
-o2_arg_ptr *o2_argv; // arg vector extracted by calls to o2_get_next()
-int o2_argc; // length of argv
-
-// o2_argv_data is used to create the argv for handlers. It is expanded as
-// needed to handle the largest message and is reused.
-dyn_array o2_argv_data;
-
-// o2_arg_data holds parameters that are coerced from message data
-// It is referenced by o2_argv_data and expanded as needed.
-dyn_array o2_arg_data;
-
-// make sure enough memory is allocated and initialize o2_argv and o2_argc
+// make sure enough memory is allocated and initialize argv and argc
 //
 static void need_argv(int argv_needed, int arg_needed)
 {
-    while (o2_argv_data.allocated < argv_needed) {
-        o2_da_expand(&o2_argv_data, 1);
+    while (o2_context->argv_data.allocated < argv_needed) {
+        o2_da_expand(&o2_context->argv_data, 1);
     }
-    while (o2_arg_data.allocated < arg_needed) {
-        o2_da_expand(&o2_arg_data, 1);
+    while (o2_context->arg_data.allocated < arg_needed) {
+        o2_da_expand(&o2_context->arg_data, 1);
     }
-    o2_argv_data.length = 0; // initialize arrays to empty
-    o2_arg_data.length = 0;
-    o2_argv = DA_GET(o2_argv_data, o2_arg_ptr, 0);
-    o2_argc = 0;
+    o2_context->argv_data.length = 0; // initialize arrays to empty
+    o2_context->arg_data.length = 0;
+    o2_context->argv = DA_GET(o2_context->argv_data, o2_arg_ptr, 0);
+    o2_context->argc = 0;
 }
 
 
 // call this once when o2 is initialized
 void o2_argv_initialize()
 {
-    DA_INIT(o2_argv_data, o2_arg_ptr, 16);
-    DA_INIT(o2_arg_data, char, 96);
-    DA_INIT(msg_types, char, 16);
-    DA_INIT(msg_data, char, 96);
+    DA_INIT(o2_context->argv_data, o2_arg_ptr, 16);
+    DA_INIT(o2_context->arg_data, char, 96);
+    DA_INIT(o2_context->msg_types, char, 16);
+    DA_INIT(o2_context->msg_data, char, 96);
 }
 
 
 // call this when o2 is finalized
 void o2_argv_finish()
 {
-    DA_FINISH(o2_argv_data);
-    DA_FINISH(o2_arg_data);
-    DA_FINISH(msg_types);
-    DA_FINISH(msg_data);
+    DA_FINISH(o2_context->argv_data);
+    DA_FINISH(o2_context->arg_data);
+    DA_FINISH(o2_context->msg_types);
+    DA_FINISH(o2_context->msg_data);
 }
 
 
-// update o2_arg_data to indicate the something has been appended
-#define ARG_DATA_USED(data_type) o2_arg_data.length += sizeof(data_type)
+// update o2_context->arg_data to indicate the something has been appended
+#define ARG_DATA_USED(data_type) o2_context->arg_data.length += sizeof(data_type)
 
-// write a data item into o2_arg_data as part of message construction
+// write a data item into o2_context->arg_data as part of message construction
 #define ARG_DATA(rslt, data_type, data)         \
     *((data_type *) (rslt)) = (data);           \
     ARG_DATA_USED(data_type);
 
-#define ARG_NEXT ((o2_arg_ptr) (o2_arg_data.array + o2_arg_data.length))
+#define ARG_NEXT ((o2_arg_ptr) (o2_context->arg_data.array + o2_context->arg_data.length))
 
 
 /// end of message must be zero to prevent strlen from running off the
@@ -187,15 +170,15 @@ void o2_argv_finish()
 
 
 // ------- PART 3 : ADDING ARGUMENTS TO MESSAGE DATA
-// These functions add data to msg_types and msg_data
+// These functions add data to msg_types and o2_context->msg_data
 
 static int is_bundle = FALSE;
 static int is_normal = FALSE;
 
 int o2_send_start()
 {
-    msg_types.length = 0;
-    msg_data.length = 0;
+    o2_context->msg_types.length = 0;
+    o2_context->msg_data.length = 0;
     is_bundle = FALSE;
     is_normal = FALSE;
     add_type(',');
@@ -243,7 +226,7 @@ int o2_add_only_typecode(o2_type code)
     if (is_bundle) return O2_FAIL;
     is_normal = TRUE;
     message_check_length(0);
-    DA_APPEND(msg_types, char, code);
+    DA_APPEND(o2_context->msg_types, char, code);
     return O2_SUCCESS;
 }
 
@@ -258,13 +241,13 @@ int o2_add_string_or_symbol(o2_type code, const char *s)
     // sure what would happen.
     int s_len = (int) strlen(s);
     message_check_length(s_len + 4); // add 4 in case of padding
-    char *dst = msg_data.array + msg_data.length;
+    char *dst = o2_context->msg_data.array + o2_context->msg_data.length;
     char *last = dst + s_len;
     size_t ilast = (((size_t) last + 4)) & ~3;
     *((int32_t *) (PTR(ilast) - 4)) = 0;
     memcpy(dst, s, s_len);
-    msg_data.length += (s_len + 4) & ~3;
-    DA_APPEND(msg_types, char, code);
+    o2_context->msg_data.length += (s_len + 4) & ~3;
+    DA_APPEND(o2_context->msg_types, char, code);
     return O2_SUCCESS;
 }    
 
@@ -275,14 +258,14 @@ int o2_add_blob_data(uint32_t size, void *data)
     is_normal = TRUE;
     message_check_length(size + 8); // add 8 for length and padding
     o2_add_int32_or_char('b', size);
-    char *dst = msg_data.array + msg_data.length;
+    char *dst = o2_context->msg_data.array + o2_context->msg_data.length;
     char *last = dst + size;
     size_t ilast = (((size_t) last + 3)) & ~3;
     if (size > 0) {
         *((int32_t *) (PTR(ilast) - 4)) = 0;
     }
     memcpy(dst, data, size);
-    msg_data.length += (size + 3) & ~3;
+    o2_context->msg_data.length += (size + 3) & ~3;
     return O2_SUCCESS;
 }
 
@@ -313,9 +296,9 @@ int o2_add_vector(o2_type element_type, int32_t length, void *data)
     message_check_length(sizeof(int32_t) + length);
     o2_add_int32_or_char('v', length);
     add_type(element_type);
-    char *dst = msg_data.array + msg_data.length;
+    char *dst = o2_context->msg_data.array + o2_context->msg_data.length;
     memcpy(dst, data, length);
-    msg_data.length += length;
+    o2_context->msg_data.length += length;
     return O2_SUCCESS;
 }
 
@@ -329,9 +312,9 @@ int o2_add_message(o2_message_ptr msg)
     int msg_len = msg->length + 4; // add 4 for length
     message_check_length(msg_len);
     char *src = PTR(&msg->data) - 4; // get length and data
-    char *dst = PTR(msg_data.array) + msg_data.length;
+    char *dst = PTR(o2_context->msg_data.array) + o2_context->msg_data.length;
     memcpy(dst, src, msg_len);
-    msg_data.length += (msg_len + 3) & ~3;
+    o2_context->msg_data.length += (msg_len + 3) & ~3;
     return O2_SUCCESS;
 }
 
@@ -354,10 +337,10 @@ o2_message_ptr o2_service_message_finish(
     int service_len = (service ? (int) strlen(service) + 1 : 0);
     // total service + address length with zero padding
     int addr_size = (service_len + addr_len + 4) & ~3;
-    int types_len = msg_types.length;
+    int types_len = o2_context->msg_types.length;
     int types_size = (is_bundle ? 0 : ((types_len + 4) & ~3));
     int prefix = (is_bundle ? '#' : '/');
-    int msg_size = sizeof(o2_time) + addr_size + types_size + msg_data.length;
+    int msg_size = sizeof(o2_time) + addr_size + types_size + o2_context->msg_data.length;
     o2_message_ptr msg = o2_alloc_size_message(msg_size);
     if (!msg) return NULL;
     msg->next = NULL;
@@ -381,9 +364,9 @@ o2_message_ptr o2_service_message_finish(
     // the type string will be written after the end of the message,
     // (and yes, there is room because small messages are allocated
     // from a list of fixed-size buffers).
-    memcpy(dst, msg_types.array, types_len);
+    memcpy(dst, o2_context->msg_types.array, types_len);
     dst += types_size;
-    memcpy(dst, msg_data.array, msg_data.length);
+    memcpy(dst, o2_context->msg_data.array, o2_context->msg_data.length);
     msg->tcp_flag = tcp_flag;
     return msg;
 }
@@ -394,12 +377,12 @@ o2_message_ptr o2_service_message_finish(
 int o2_add_bundle_head(int64_t time)
 {
     message_check_length(16);
-    memcpy(msg_data.array + msg_data.length, "#bundle", 8);
+    memcpy(o2_context->msg_data.array + o2_context->msg_data.length, "#bundle", 8);
 #if IS_LITTLE_ENDIAN
     time = swap64(time);
 #endif
-    *((int64_t *) (msg_data.array + msg_data.length + 8)) = time;
-    msg_data.length += 16;
+    *((int64_t *) (o2_context->msg_data.array + o2_context->msg_data.length + 8)) = time;
+    o2_context->msg_data.length += 16;
     return O2_SUCCESS;
 }
 
@@ -407,14 +390,14 @@ int o2_add_bundle_head(int64_t time)
 int *o2_msg_len_ptr()
 {
     message_check_length(sizeof(int32_t));
-    msg_data.length += sizeof(int32_t);
-    return (int *) (msg_data.array + msg_data.length - sizeof(int32_t));
+    o2_context->msg_data.length += sizeof(int32_t);
+    return (int *) (o2_context->msg_data.array + o2_context->msg_data.length - sizeof(int32_t));
 }
 
 
 int o2_set_msg_length(int32_t *msg_len_ptr)
 {
-    int32_t len = (int32_t) ((msg_data.array + msg_data.length) -
+    int32_t len = (int32_t) ((o2_context->msg_data.array + o2_context->msg_data.length) -
                              PTR(msg_len_ptr + 1));
 #if IS_LITTLE_ENDIAN
     len = swap32(len);
@@ -427,21 +410,21 @@ int o2_set_msg_length(int32_t *msg_len_ptr)
 int o2_add_raw_bytes(int32_t len, char *bytes)
 {
     message_check_length(len);
-    memcpy(msg_data.array + msg_data.length, bytes, len);
-    msg_data.length += len;
+    memcpy(o2_context->msg_data.array + o2_context->msg_data.length, bytes, len);
+    o2_context->msg_data.length += len;
     return O2_SUCCESS;
 }
 
 
 char *o2_msg_data_get(int32_t *len_ptr)
 {
-    *len_ptr = msg_data.length;
-    return PTR(msg_data.array);
+    *len_ptr = o2_context->msg_data.length;
+    return PTR(o2_context->msg_data.array);
 }
 
 
 // ------- PART 4 : MESSAGE DECONSTRUCTION FUNCTIONS -------
-// These functions build o2_argv and the data these pointers reference
+// These functions build o2_context->argv and the data these pointers reference
 // 
 // For deconstruction, the "deluxe" result is an argument vector
 // (argv) consisting of (essentially) one pointer per argument.
@@ -822,7 +805,6 @@ int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
                     len /= 2; // half as many elements if they are 64-bits
                 }
                 for (int i = 0; i < len; i++) { // for each vector element
-                    if (i > 0) printf(" ");
                     if (vtype == O2_INT32 || vtype == O2_FLOAT) {
                         *(int32_t *)data_next =
                                 swap32(*(int32_t *)data_next);
@@ -993,7 +975,7 @@ int o2_extract_start(o2_msg_data_ptr msg)
     // add 2 for safety
     int argv_needed = types_len * 4 + msg_data_len * 2 + 2;
     
-    // o2_arg_data needs at most 24/3 times type string and at most 24/4
+    // o2_context->arg_data needs at most 24/3 times type string and at most 24/4
     // times remaining data.
     int arg_needed = types_len * 8;
     if (arg_needed > msg_data_len * 6) arg_needed = msg_data_len * 6;
@@ -1052,7 +1034,7 @@ static o2_arg_ptr convert_int(o2_type to_type, int64_t i, int siz)
 
 static o2_arg_ptr convert_float(o2_type to_type, double d, int siz)
 {
-    o2_arg_ptr rslt = (o2_arg_ptr) (o2_arg_data.array + o2_arg_data.length);
+    o2_arg_ptr rslt = (o2_arg_ptr) (o2_context->arg_data.array + o2_context->arg_data.length);
     switch (to_type) {
         case O2_INT32:
             // coerce to int32_t to avoid compiler warning; O2 can in fact lose
@@ -1119,7 +1101,7 @@ o2_arg_ptr o2_get_next(o2_type to_type)
     if (mx_vector_to_vector_pending) {
         mx_vector_to_vector_pending = FALSE;
         // returns pointer to a vector descriptor with typ, len, and vector
-        //   address; this descriptor is always allocated in o2_arg_data
+        //   address; this descriptor is always allocated in o2_context->arg_data
         // mx_data_next points to vector in message
         // allowed types for target are i, h, f, t, d
         rslt = ARG_NEXT;
@@ -1189,7 +1171,7 @@ o2_arg_ptr o2_get_next(o2_type to_type)
                 return NULL;
                 break;
         }
-        o2_argc--; // argv already has pointer to vector
+        o2_context->argc--; // argv already has pointer to vector
     } else if (mx_vector_to_array) {
         // return vector elements as array elements
         if (to_type == O2_ARRAY_END) {
@@ -1242,7 +1224,7 @@ o2_arg_ptr o2_get_next(o2_type to_type)
     } else if (mx_array_to_vector_pending) { // to_type is desired vector type
         // array types are in mx_type_next
         rslt = ((o2_arg_ptr) ARG_NEXT) - 1; // already allocated the vector header
-        o2_argv_data.length--; // "vi" should get just one element in the arg vector
+        o2_context->argv_data.length--; // "vi" should get just one element in the arg vector
         //     we already added one and will add another (below), so decrement length
         //     so that rslt will not be written to a new location
         // of size sizeof(o2_arg), so -1 gets us back to the address of the header
@@ -1412,8 +1394,8 @@ o2_arg_ptr o2_get_next(o2_type to_type)
     // This is equivalent to DA_APPEND, but since we've already allocated the
     // space, we don't need to check for space, and it would be an error if
     // we did expand the space because pointers would be wrong
-    o2_argv_data.length++;
-    o2_argv[o2_argc++] = rslt; // o2_argv is o2_argv_data.array as o2_arg_ptr.
+    o2_context->argv_data.length++;
+    o2_context->argv[o2_context->argc++] = rslt; // o2_context->argv is o2_context->argv_data.array as o2_arg_ptr.
     return rslt;
 }
 

@@ -89,6 +89,9 @@ while true; do
     rundouble "clockmaster" "CLOCKMASTER DONE" "clockslave" "CLOCKSLAVE DONE"
     if [ $status == -1 ]; then break; fi
 
+    rundouble "appmaster" "APPMASTER DONE" "appslave" "APPSLAVE DONE"
+    if [ $status == -1 ]; then break; fi
+
     rundouble "o2client" "CLIENT DONE" "o2server" "SERVER DONE"
     if [ $status == -1 ]; then break; fi
 
