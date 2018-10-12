@@ -5,7 +5,8 @@
 #include "o2.h"
 #include "assert.h"
 #include "string.h"
-#include "o2_message.h"
+// why do we need this? If we need this we also need thread_local from o2_internal.h
+//          #include "o2_message.h"
 
 
 int got_the_message = FALSE;

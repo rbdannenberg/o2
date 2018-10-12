@@ -13,6 +13,17 @@
 #include "o2.h"
 #include "o2_dynamic.h"
 
+/* gcc doesn't know _Thread_local from C11 yet */
+#ifdef __GNUC__
+# define thread_local __thread
+#elif __STDC_VERSION__ >= 201112L
+# define thread_local _Thread_local
+#elif defined(_MSC_VER)
+# define thread_local __declspec(thread)
+#else
+# error Cannot define thread_local
+#endif
+
 typedef const char *o2string; // string padded to 4-byte boundary
 #include "o2_socket.h"
 #include "o2_search.h"
@@ -188,25 +199,22 @@ extern o2_time o2_discovery_period;
 #define GET_SERVICE(list, i) (*DA_GET((list), o2_info_ptr, (i)))
 
 
-// global variables
-extern process_info_ptr o2_process;
-extern o2_arg_ptr *o2_argv; // arg vector extracted by calls to o2_get_next()
-extern int o2_argc; // length of argv
-
 // shared internal functions
-void o2_notify_others(const char *service_name, int added);
+void o2_notify_others(const char *service_name, int added, const char *tappee);
 
 o2_info_ptr o2_proc_service_find(process_info_ptr proc, services_entry_ptr *services);
 
-int o2_service_provider_new(o2string key, o2_info_ptr service, process_info_ptr process);
+int o2_service_provider_new(o2string key, o2_info_ptr service, process_info_ptr process,
+                            o2string tappee);
+
+int o2_status_from_info(o2_info_ptr entry, const char **process);
+
 
 #define O2_NO_HUB 0
 #define O2_CLIENT_IS_HUB 1
 #define O2_SERVER_IS_HUB 2
 #define O2_FROM_HUB 3 // this discovery message came from the hub
 
-extern int o2_using_a_hub; // set to true if o2_hub() is called;
-                           // turns of broadcasting
 
 #endif /* O2_INTERNAL_H */
 /// \endcond

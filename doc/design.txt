@@ -211,3 +211,120 @@ Messages
         clock (via udp) in response to a !_cs/get message.
 
 
+Extensions
+----------
+
+o2_tap(const char *tappee, const char *tapper) -- request a copy of 
+    each message delivered to tappee (a service). The message is
+    retransmitted to tapper (another service) by replacing the
+    service name in the address and sending the message. The
+    implementation works by adding info about the tapper into the
+    array of services (services_entry) for tappee (in every process).
+    The services_entry list is sorted as follows:
+    The actual service provider is first. The next entries are
+    tappers. After the tappers follow all the non-active service
+    providers.
+
+    When a message is received for the service and the actual provider
+    is remote, just send the message to the actual provider. If the
+    actual provider is local, resend the message to each tapper (if
+    any). The messages are sent reliably.
+
+    The tapper will see all messages actually delivered to the service
+    in the order in which they are delivered, and with the original
+    timestamps, but of course, the tapper will receive the messages 
+    later than the tappee. One exception is when a service is
+    delegated to an OSC server. In that case, bundles (because they
+    have timestamps) are forwarded immediately to the OSC server and
+    the actual delivery order of the bundle is unknown to
+    O2. If there is a tapper, the OSC bundle is converted back to an
+    O2 bundle addressed to the tapper, and the bundle is sent
+    immediately; this may cause the bundle and/or components to arrive
+    early, be scheduled, and be delivered to the tapper in a different
+    order than that seen by the OSC server. On the other hand, bundles
+    delivered to O2 services are decomposed into individual messages
+    and forwarded to the tapper individually.
+    
+    When a service disappears, it should no longer be a
+    tapper, so (for now), we will search all service entries for
+    them. When a tappee disappears, there may be another service
+    offering that replaces it. This would have to be in a different
+    process. When the service changes over to this new process,
+    messages to it will be forwarded to the tapper. There are race
+    conditions; for example the tapper cannot distinguish old tappee
+    messages from new tappee messages except by noticing that the old
+    tappee has been deleted, but deleting the old tappee is not a
+    system-wide atomic operation, so the old tappee status could be
+    unchanged at the tapper process even while the tapper is receiving
+    messages from the new tappee.
+
+    An alternative design: o2_subscribe(service)
+    announces service to all. Unlike normal services, where the
+    message is sent to the "highest ranked" service when there are
+    duplicates, subscribers are kept as a separate list so to deliver
+    to a service, you send to the highest ranked "normal" service AND
+    you send the same message to each subscriber. A problem with this
+    approach is that messages could arrive to each subscriber in a
+    different order. By using o2_tap() and resending messages, all
+    messages will be received in the same order at the tapper as in
+    the original tappee.
+
+    Another design question was whether to send future timestamped
+    messages to the tapper immediately, allowing the tapper to receive
+    messages at exactly the same logical time as the tappee in the
+    forward synchronous cases. This would create a situation where a
+    mix of immediate and future timestamps could be received in a
+    different order at the tapper. Since the main use of the tapper
+    mechanism is debugging and monitoring, it seems more valuable to
+    have a record of messages in their correct order (and also in the
+    case of UDP, to know which messages are actually delivered.)
+
+    This leaves the use case of "multiple subscribers" unaddressed. We
+    have "many-to-one" messaging by allowing anyone to send to a
+    service, but we do not have "one-to-many" messaging where multiple
+    subscribers can receive from a "publisher." We propose handling
+    this in the application: A "publisher" is just a service. Any
+    subscriber process can send a service name to the publisher using
+    a message of the form /publisher/subscribe "subscriber". The
+    publisher keeps a list of subscribers (service names) and sends
+    ("publishes") messages by sending to each of the subscribers. The
+    publisher can also monitor the status of subscribers. When the
+    subscriber (a service name) no longer exists, the publisher can
+    drop the subscriber from its list.
+
+!_o2/si "sis" service_name new_status ip_port
+    This message is internally generated for the benefit of the
+    application. It provides "service information" (hence the "si"
+    address) when a service is discovered, destroyed, or its state
+    changes. The ip_port string gives the current service provider. (A
+    message is generated also if this changes. In that case, you would
+    also get an !_o2/si message about the old provider process being
+    destroyed since processes are services too, named by their ip:port
+    string.)
+
+!ip:port/cs/rt "s" reply_to
+    Request the mean and min round-trip time from the clock
+    synchronization protocol being run by the process named by
+    ip:port. The reply is sent to the address formed by appending
+    /get-reply to the reply_to argument. The reply message has type
+    string "sff" and contains the ip_port of the receiver, the mean 
+    and min from o2_roundtrip().
+
+Web Monitor
+-----------
+
+Some notes on creating a web-based monitor. The monitor should connect
+to a server that runs O2. The server is normally a local process, so
+the "website" will be "localhost:12345" or some such port.
+
+The web page should display a table of 
+    process name (ip:port)
+    service name
+    checkbox for tapping messages to this service
+    service status
+    clock sync statistics (only displayed where service name is the
+        process name
+    
+Also display a list of messages received from the tappees. Messages
+should be displayed as timestamp, original address (reconstructed from
+the actual address), typestring, and data values.

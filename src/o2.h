@@ -10,7 +10,6 @@
 extern "C" {
 #endif
 
-
 /** \file o2.h
 \mainpage
 \section Introduction
@@ -343,8 +342,8 @@ void *o2_calloc(size_t n, size_t s);
  */
 
 #ifndef O2_NO_DEBUG
-void *o2_dbg_malloc(size_t size, char *file, int line);
-void o2_dbg_free(void *obj, char *file, int line);
+void *o2_dbg_malloc(size_t size, const char *file, int line);
+void o2_dbg_free(void *obj, const char *file, int line);
 #define O2_MALLOC(x) o2_dbg_malloc(x, __FILE__, __LINE__)
 #define O2_FREE(x) o2_dbg_free(x, __FILE__, __LINE__)
 #endif
@@ -382,7 +381,7 @@ void o2_dbg_free(void *obj, char *file, int line);
 void *o2_calloc(size_t n, size_t s);
 #define O2_CALLOC(n, s) o2_calloc((n), (s))
 #else
-void *o2_dbg_calloc(size_t n, size_t s, char *file, int line);
+void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
 #define O2_CALLOC(n, s) o2_dbg_calloc((n), (s), __FILE__, __LINE__)
 #endif
 #endif
@@ -391,7 +390,6 @@ void *o2_dbg_calloc(size_t n, size_t s, char *file, int line);
  * approximate start time of the application.
  */
 typedef double o2_time;
-
 
 /** \brief data part of an O2 message
  *
@@ -574,8 +572,16 @@ typedef union {
 extern o2_arg_ptr o2_got_start_array;
 extern o2_arg_ptr o2_got_end_array;
 
-/** \brief name of the application
+
+/** \brief set this flag to stop o2_run()
  *
+ * Some O2 applications will initialize and call o2_run(), which is a
+ * simple loop that calls o2_poll(). To exit the loop, set
+ * #o2_stop_flag to #TRUE
+ */
+extern int o2_stop_flag;
+
+/*
  * A collection of cooperating O2 processes forms an
  * *application*. Applications must have unique names. This allows
  * more than one application to exist within a single network without
@@ -587,15 +593,8 @@ extern o2_arg_ptr o2_got_end_array;
  * Do not set, modify or free this variable! Consider it to be
  * read-only. It is managed by O2 using o2_initialize() and o2_finish().
  */
-extern const char *o2_application_name;
+extern const char *o2_application_name; // also used to detect initialization
 
-/** \brief set this flag to stop o2_run()
- *
- * Some O2 applications will initialize and call o2_run(), which is a
- * simple loop that calls o2_poll(). To exit the loop, set
- * #o2_stop_flag to #TRUE
- */
-extern int o2_stop_flag;
 
 
 /**
@@ -794,6 +793,21 @@ int o2_service_new(const char *service_name);
 
 
 /**
+ * \brief copy messages from one service to another
+ *
+ * @param tappee the service to be tapped
+ *
+ * @param tapper the service to which copies are sent
+ *
+ * @return #O2_SUCCESS if success, #O2_FAIL if not.
+ *
+ * After this call, messages to tappee are copied, modified by replacing
+ * the service with tapper, and sent. The original message to tappee
+ * is also delivered.
+ */
+int o2_tap(const char *tappee, const char *tapper);
+
+/**
  *  \brief Remove a local service
  *
  * The #service_name corresponds to the parameter previously passed to
@@ -923,6 +937,11 @@ int o2_run(int rate);
  * local network, by an OSC server, or through a bridge to another
  * network such as Bluetooth. The status at the originator will be
  * simply #O2_REMOTE or #O2_REMOTE_NOTIME.
+ *
+ * When the status of a service changes, a message is sent with address
+ * `!_o2/si`. The type string is "sis" and the parameters are (1) the 
+ * service name, (2) the new status, and (3) the ip:port string of
+ * the process that offers (or offered) the service.
  */
 int o2_status(const char *service);
 
@@ -940,6 +959,25 @@ extern int o2_clock_is_synchronized;
  *   round-trip time of the last 5 (where 5 is the value of
  *   CLOCK_SYNC_HISTORY_LEN) clock sync requests. Otherwise,
  *   O2_FAIL is returned and `*mean` and `*min` are unaltered.
+ *
+ * Note: You can get this information from a remote process by 
+ * sending a message to `!ip:port/cs/rt`, where `ip:port` is the
+ * ip:port string for a process. (One way to get this is to call
+ * `o2_get_address` and construct a ip:port process name from 
+ * the information returned. But then you can just call 
+ * `o2_roundtrip` for the local process round trip information.
+ * For remote process names, you can create a handler for 
+ * `/_o2/si`. The process name is provided whenever one of its
+ * services is created or otherwise changes status.) The 
+ * type string for `!ip:port/cs/rt` is "s", and the parameter is
+ * an O2 address prefix. When the message is received, a reply is
+ * sent to an address formed by appending "/get-reply" to the 
+ * address prefix. The reply message has the type string "sff",
+ * and the parameters are (1) the process ip:port name, (2) the
+ * mean of recent round trip times to the master clock, and
+ * (3) the minimum of recent round trip times. (The clock is set
+ * using the minimum, so this number is an upper bound on the
+ * clock skew for this process.
  */
 int o2_roundtrip(double *mean, double *min);
 
@@ -995,7 +1033,10 @@ int o2_clock_set(o2_time_callback gettime, void *rock);
  *  possible. If the message arrives early, it will be held at the
  *  service and dispatched as soon as possible after the indicated time.
  *  @param typestring the type string for the message. Each character
- *  indicates one data item. Type codes are as in OSC.
+ *  indicates one data item. Type codes are as in OSC. Some O2 type
+ *  codes are not supported (if needed, create a message and use the
+ *  appropriate o2_add_... function. Allowed type characters are those
+ *  in "ifsbhtdScmTFNIB".
  *  @param ...  the data of the message. There is one parameter for each
  *  character in the typestring.
  *

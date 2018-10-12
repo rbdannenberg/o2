@@ -19,7 +19,7 @@
 
 // to prevent deep recursion, messages go into a queue if we are already
 // delivering a message via o2_msg_data_deliver:
-static int in_find_and_call_handlers = FALSE;
+int o2_in_find_and_call_handlers = 0; // counter to allow nesting
 static o2_message_ptr pending_head = NULL;
 static o2_message_ptr pending_tail = NULL;
 
@@ -68,16 +68,16 @@ services_entry_ptr *o2_services_find(const char *service_name)
     // need to copy the service_name to aligned storage and pad it
     char key[NAME_BUF_LEN];
     o2_string_pad(key, service_name);
-    return (services_entry_ptr *) o2_lookup(&o2_path_tree, key);
+    return (services_entry_ptr *) o2_lookup(&o2_context->path_tree, key);
 }    
 
 
-o2_info_ptr o2_msg_service(o2_msg_data_ptr msg)
+o2_info_ptr o2_msg_service(o2_msg_data_ptr msg, services_entry_ptr *services)
 {
     char *service_name = msg->address + 1;
     char *slash = strchr(service_name, '/');
     if (slash) *slash = 0;
-    o2_info_ptr rslt = o2_service_find(service_name);
+    o2_info_ptr rslt = o2_service_find(service_name, services);
     if (slash) *slash = '/';
     return rslt;
 }
@@ -85,13 +85,13 @@ o2_info_ptr o2_msg_service(o2_msg_data_ptr msg)
 
 /* prereq: service_name does not contain '/'
  */
-o2_info_ptr o2_service_find(const char *service_name)
+o2_info_ptr o2_service_find(const char *service_name, services_entry_ptr *services)
 {
-    services_entry_ptr services = *o2_services_find(service_name);
-    if (!services)
+    *services = *o2_services_find(service_name);
+    if (!*services)
         return NULL;
-    assert(services->services.length > 0);
-    return GET_SERVICE(services->services, 0);
+    assert((*services)->services.length > 0);
+    return GET_SERVICE((*services)->services, 0);
 }
 
 
@@ -133,15 +133,22 @@ int o2_message_send(o2_message_ptr msg)
 // by o2_ltsched, schedulable will be FALSE and we should ignore
 // the timestamp, which has already been observed by o2_ltsched.
 //
+// msg is freed by this function
+//
 int o2_message_send_sched(o2_message_ptr msg, int schedulable)
 {
     // Find the remote service, note that we skip over the leading '/':
-    o2_info_ptr service = o2_msg_service(&msg->data);
+    services_entry_ptr services;
+    o2_info_ptr service = o2_msg_service(&msg->data, &services);
     if (!service) {
         o2_message_free(msg);
         return O2_FAIL;
     } else if (service->tag == TCP_SOCKET) { // remote delivery?
         o2_send_remote(&msg->data, msg->tcp_flag, (process_info_ptr) service);
+        o2_message_free(msg);
+    } else if (service->tag == BRIDGE_SERVICE) {
+        bridge_info_ptr info = (bridge_info_ptr) service;
+        (*info->send)(&msg->data, msg->tcp_flag, info);
         o2_message_free(msg);
     } else if (service->tag == OSC_REMOTE_SERVICE) {
         // this is a bit complicated: send immediately if it is a bundle
@@ -149,7 +156,7 @@ int o2_message_send_sched(o2_message_ptr msg, int schedulable)
         if (!schedulable || IS_BUNDLE(&msg->data) ||
              msg->data.timestamp == 0.0 ||
              msg->data.timestamp <= o2_gtsched.last_time) {
-            o2_send_osc((osc_info_ptr) service, &msg->data);
+            o2_send_osc((osc_info_ptr) service, &msg->data, services);
             o2_message_free(msg);
         } else {
             return o2_schedule(&o2_gtsched, msg); // delivery on time
@@ -157,7 +164,7 @@ int o2_message_send_sched(o2_message_ptr msg, int schedulable)
     } else if (schedulable && msg->data.timestamp > 0.0 &&
                msg->data.timestamp > o2_gtsched.last_time) { // local delivery
         return o2_schedule(&o2_gtsched, msg); // local delivery later
-    } else if (in_find_and_call_handlers) {
+    } else if (o2_in_find_and_call_handlers) {
         if (pending_tail) {
             pending_tail->next = msg;
             pending_tail = msg;
@@ -165,10 +172,10 @@ int o2_message_send_sched(o2_message_ptr msg, int schedulable)
             pending_head = pending_tail = msg;
         }
     } else {
-        in_find_and_call_handlers = TRUE;
-        o2_msg_data_deliver(&msg->data, msg->tcp_flag, service);
+        o2_in_find_and_call_handlers++;
+        o2_msg_data_deliver(&msg->data, msg->tcp_flag, service, services);
         o2_message_free(msg);
-        in_find_and_call_handlers = FALSE;
+        o2_in_find_and_call_handlers--;
     }
     return O2_SUCCESS;
 }
@@ -178,18 +185,22 @@ int o2_message_send_sched(o2_message_ptr msg, int schedulable)
 //     delivery requires the creation of an o2_message
 int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag)
 {
-    o2_info_ptr service = o2_msg_service(msg);
+    services_entry_ptr services;
+    o2_info_ptr service = o2_msg_service(msg, &services);
     if (!service) return O2_FAIL;
     if (service->tag == TCP_SOCKET) {
         return o2_send_remote(msg, tcp_flag, (process_info_ptr) service);
+    } else if (service->tag == BRIDGE_SERVICE) {
+        bridge_info_ptr info = (bridge_info_ptr) service;
+        return (*info->send)(msg, tcp_flag, info);
     } else if (service->tag == OSC_REMOTE_SERVICE) {
         if (IS_BUNDLE(msg) || (msg->timestamp == 0.0 ||
                                msg->timestamp <= o2_gtsched.last_time)) {
-            return o2_send_osc((osc_info_ptr) service, msg);
+            return o2_send_osc((osc_info_ptr) service, msg, services);
         }
     } else if (msg->timestamp == 0.0 ||
                msg->timestamp <= o2_gtsched.last_time) {
-        o2_msg_data_deliver(msg, tcp_flag, service);
+        o2_msg_data_deliver(msg, tcp_flag, service, services);
         return O2_SUCCESS;
     }
     // need to schedule o2_msg_data, so we need to copy to an o2_message
@@ -201,6 +212,7 @@ int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag)
 }
 
 
+// send a message via IP
 int o2_send_remote(o2_msg_data_ptr msg, int tcp_flag, process_info_ptr info)
 {
     // send the message to remote process
@@ -241,7 +253,7 @@ int send_by_tcp_to_process(process_info_ptr info, o2_msg_data_ptr msg)
     // network packets due to the NODELAY socket option.
     int32_t len = MSG_DATA_LENGTH(msg);
     MSG_DATA_LENGTH(msg) = htonl(len);
-    SOCKET fd = DA_GET(o2_fds, struct pollfd, info->fds_index)->fd;
+    SOCKET fd = DA_GET(o2_context->fds, struct pollfd, info->fds_index)->fd;
     if (send(fd, (char *) &MSG_DATA_LENGTH(msg), len + sizeof(int32_t),
              MSG_NOSIGNAL) < 0) {
         if (errno != EAGAIN && errno != EINTR) {

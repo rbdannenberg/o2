@@ -1,10 +1,12 @@
-//  dispatchtest.c -- dispatch messages between local services
+//  bundletest.c -- dispatch messages between local services
 //
 
 #include <stdio.h>
 #include "o2.h"
+#include "o2_dynamic.h"
 #include "assert.h"
-#include "o2_message.h"
+// why do we need this? If we need this we also need thread_local from o2_internal.h
+//          #include "o2_message.h"
 
 
 #define N_ADDRS 20

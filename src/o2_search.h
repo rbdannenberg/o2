@@ -9,12 +9,16 @@
 #ifndef o2_search_h
 #define o2_search_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define PATTERN_NODE 0
 #define PATTERN_HANDLER 1
 #define SERVICES 2
 #define O2_BRIDGE_SERVICE 3
 #define OSC_REMOTE_SERVICE 4
+#define TAPPER 5
 
 /**
  *  Structures for hash look up.
@@ -48,7 +52,7 @@ typedef struct handler_entry { // "subclass" of o2_entry
     o2_entry_ptr next;
     o2_method_handler handler;
     void *user_data;
-    char *full_path; // this is the key for this entry in the o2_full_path_table
+    char *full_path; // this is the key for this entry in the o2_context->full_path_table
     // it is a copy of the key in the master table entry, so you should never
     // free this pointer -- it will be freed when the master table entry is
     // freed.
@@ -70,8 +74,19 @@ typedef struct services_entry { // "subclass" of o2_entry
             // is the service to send to. Here "offers" means a node_entry
             // (local service), handler_entry (local service with just one
             // handler for all messages), process_info (for remote
-            // service), osc_info (for service delegated to OSC server)
+            // service), osc_info (for service delegated to OSC server), or
+            // bridge_info (for a bridge over alternate non-IP transport).
+            // Next in list are "taps" -- these are of type tapper_entry and
+            // indicate services that should get copies of messages sent
+            // to the service named by key.
 } services_entry, *services_entry_ptr;
+
+
+typedef struct tapper_entry { // "subclass" of o2_entry
+    int tag; // must be TAPPER
+    o2string tapper_name;
+    o2_entry_ptr next;
+} tapper_entry, *tapper_entry_ptr;
 
 
 /*
@@ -97,7 +112,8 @@ typedef struct osc_info {
 } osc_info, *osc_info_ptr;
 
 
-// Enumerate structure is hash table
+// To enumerate elements of a hash table (at one level), use this
+// structure and see o2_enumerate_begin(), o2_enumerate_next()
 typedef struct enumerate {
     dyn_array_ptr dict;
     int index;
@@ -105,9 +121,53 @@ typedef struct enumerate {
 } enumerate, *enumerate_ptr;
 
 
-// typedef struct enumerate enumerate, *enumerate_ptr;
-extern node_entry o2_path_tree;
-extern node_entry o2_full_path_table;
+void o2_enumerate_begin(enumerate_ptr enumerator, dyn_array_ptr dict);
+
+
+o2_entry_ptr o2_enumerate_next(enumerate_ptr enumerator);
+
+
+typedef struct {
+    o2_message_ptr message_freelist;
+    // msg_types is used to hold type codes as message args are accumulated
+    dyn_array msg_types;
+    // msg_data is used to hold data as message args are accumulated
+    dyn_array msg_data;
+    o2_arg_ptr *argv; // arg vector extracted by calls to o2_get_next()
+
+    int argc; // length of argv
+
+    // o2_argv_data is used to create the argv for handlers. It is expanded as
+    // needed to handle the largest message and is reused.
+    dyn_array argv_data;
+
+    // o2_arg_data holds parameters that are coerced from message data
+    // It is referenced by o2_argv_data and expanded as needed.
+    dyn_array arg_data;
+
+    node_entry full_path_table;
+    node_entry path_tree;
+        
+    process_info_ptr process; ///< the process descriptor for this process
+    int using_a_hub; // set to true if o2_hub() is called;
+                     // turns off broadcasting
+    dyn_array fds;      ///< pre-constructed fds parameter for poll()
+    dyn_array fds_info; ///< info about sockets
+
+} o2_context_t, *o2_context_ptr;
+
+/* O2 should not be called from multiple threads. One exception
+ * is the o2x_ functions are designed to run in a high-priority thread
+ * (such as an audio callback) that exchanges messages with a full O2
+ * process. There is a small problem that O2 message construction and
+ * decoding functions use some static, preallocated storage, so sharing
+ * across threads is not allowed. To avoid this, we put shared storage
+ * in an o2_context_t structure. One structure must be allocated per
+ * thread, and we use a thread-local variable o2_thread_info to locate
+ * the context.
+ */
+extern thread_local o2_context_ptr o2_context;
+
 
 #ifndef O2_NO_DEBUGGING
 const char *o2_tag_to_string(int tag);
@@ -116,6 +176,8 @@ const char *o2_tag_to_string(int tag);
 void o2_info_show(o2_info_ptr info, int indent);
 #endif
 #endif
+
+int o2_service_or_tapper_new(const char *service_name, const char *tappee);
 
 void o2_string_pad(char *dst, const char *src);
 
@@ -152,17 +214,18 @@ int o2_embedded_msgs_deliver(o2_msg_data_ptr msg, int tcp_flag);
  *                If the service is unknown, pass NULL.
  */
 void o2_msg_data_deliver(o2_msg_data_ptr msg, int tcp_flag,
-                         o2_info_ptr service);
+                         o2_info_ptr service, services_entry_ptr services);
 
 void o2_node_finish(node_entry_ptr node);
 
 o2string o2_heapify(const char *path);
 
 /**
- *  When we want to initialize or want to create a table. We need to call this
- *  function.
+ *  Initialize a table entry.
  *
- *  @param locations The locations you want in the table.
+ *  @param node The path tree entry to be initialized.
+ *  @param key The key (name) of this entry. key is owned by the caller and
+ *         a copy is made and owned by the node.
  *
  *  @return O2_SUCCESS or O2_FAIL
  */
@@ -173,12 +236,20 @@ node_entry_ptr o2_node_initialize(node_entry_ptr node, const char *key);
  *
  *  @param dict  The table that the entry is supposed to be in.
  *  @param key   The key.
- *  @param index The position in the hash table.
  *
  *  @return The address of the pointer to the entry.
  */
 o2_entry_ptr *o2_lookup(node_entry_ptr dict, o2string key);
 
 int o2_remove_remote_process(process_info_ptr info);
+
+services_entry_ptr o2_insert_new_service(o2string service_name,
+                                         services_entry_ptr *services);
+
+int o2_set_tap(const char *tappee, const char *tapper);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* o2_search_h */

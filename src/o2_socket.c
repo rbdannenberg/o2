@@ -52,10 +52,6 @@ char o2_local_ip[24];
 int o2_local_tcp_port = 0;
 SOCKET local_send_sock = INVALID_SOCKET; // socket for sending all UDP msgs
 
-dyn_array o2_fds; ///< pre-constructed fds parameter for poll()
-dyn_array o2_fds_info; ///< info about sockets
-
-process_info_ptr o2_process = NULL; ///< the process descriptor for this process
 process_info_ptr o2_message_source = NULL; ///< socket info for current message
 
 int o2_found_network = FALSE;
@@ -256,10 +252,10 @@ int o2_initWSock()
 void o2_sockets_show()
 {
     printf("Sockets:\n");
-    for (int i = 0; i < o2_fds.length; i++) {
+    for (int i = 0; i < o2_context->fds.length; i++) {
         process_info_ptr info = GET_PROCESS(i); 
         printf("%d: fd_index %d fd %lld tag %s info %p", i, info->fds_index,
-               (long long) ((DA_GET(o2_fds, struct pollfd, i))->fd),
+               (long long) ((DA_GET(o2_context->fds, struct pollfd, i))->fd),
                o2_tag_to_string(info->tag), info);
         if (info->tag == TCP_SOCKET) {
             printf(" services:");
@@ -280,18 +276,18 @@ void o2_sockets_show()
 process_info_ptr o2_add_new_socket(SOCKET sock, int tag, o2_socket_handler handler)
 {
     // expand socket arrays for new port
-    DA_EXPAND(o2_fds_info, process_info_ptr);
-    DA_EXPAND(o2_fds, struct pollfd);
+    DA_EXPAND(o2_context->fds_info, process_info_ptr);
+    DA_EXPAND(o2_context->fds, struct pollfd);
 
     process_info_ptr info = (process_info_ptr)
             O2_CALLOC(1, sizeof(process_info));
-    *DA_LAST(o2_fds_info, process_info_ptr) = info;
+    *DA_LAST(o2_context->fds_info, process_info_ptr) = info;
     info->tag = tag;
-    info->fds_index = o2_fds.length - 1; // last element
+    info->fds_index = o2_context->fds.length - 1; // last element
     info->handler = handler;
     info->delete_me = FALSE;
 
-    struct pollfd *pfd = DA_LAST(o2_fds, struct pollfd);
+    struct pollfd *pfd = DA_LAST(o2_context->fds, struct pollfd);
     pfd->fd = sock;
     pfd->events = POLLIN;
     pfd->revents = 0;
@@ -322,11 +318,11 @@ int o2_sockets_initialize()
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 #else
-    DA_INIT(o2_fds, struct pollfd, 5);
+    DA_INIT(o2_context->fds, struct pollfd, 5);
 #endif // WIN32
     
-    DA_INIT(o2_fds_info, process_info_ptr, 5);
-    memset(o2_fds_info.array, 0, 5 * sizeof(process_info_ptr));
+    DA_INIT(o2_context->fds_info, process_info_ptr, 5);
+    memset(o2_context->fds_info.array, 0, 5 * sizeof(process_info_ptr));
     
     // Set a broadcast socket. If cannot set up,
     //   print the error and return O2_FAIL
@@ -339,9 +335,9 @@ int o2_sockets_initialize()
     // ignore the info for udp, get the info for tcp:
     // Set up the tcp server socket.
     RETURN_IF_ERROR(o2_make_tcp_recv_socket(TCP_SERVER_SOCKET, 0,
-                                            &tcp_accept_handler, &o2_process));
+                                            &tcp_accept_handler, &o2_context->process));
     assert(port != 0);
-    o2_process->port = port;
+    o2_context->process->port = port;
     
     // more initialization in discovery, depends on tcp port which is now set
     RETURN_IF_ERROR(o2_discovery_msg_initialize());
@@ -349,20 +345,20 @@ int o2_sockets_initialize()
 /* IF THAT FAILS, HERE'S OLDER CODE TO GET THE TCP PORT
     struct sockaddr_in sa;
     socklen_t restrict sa_len = sizeof(sa);
-    if (getsockname(o2_process.tcp_socket, (struct sockaddr *restrict)
+    if (getsockname(o2_context->process.tcp_socket, (struct sockaddr *restrict)
                     &sa, &sa_len) < 0) {
         perror("Getting port number from tcp server socket");
         return O2_FAIL;
     }
-    o2_process.tcp_port = ntohs(sa.sin_port);
+    o2_context->process.tcp_port = ntohs(sa.sin_port);
 */
     return O2_SUCCESS;
 }
 
 
-// Add a socket for TCP to sockets arrays o2_fds and o2_fds_info
+// Add a socket for TCP to sockets arrays o2_context->fds and o2_context->fds_info
 // As a side effect, if this is the TCP server socket, the
-// o2_process.key will be set to the server IP address
+// o2_context->process.key will be set to the server IP address
 int o2_make_tcp_recv_socket(int tag, int port,
                             o2_socket_handler handler, process_info_ptr *info)
 {
@@ -443,7 +439,7 @@ int o2_make_udp_recv_socket(int tag, int *port, process_info_ptr *info)
     O2_DBo(printf("%s created socket %ld and bind called to receive UDP\n",
                   o2_debug_prefix, (long) sock));
     *info = o2_add_new_socket(sock, tag, &udp_recv_handler);
-    // printf("%s: o2_make_udp_recv_socket: listening on port %d\n", o2_debug_prefix, o2_process.port);
+    // printf("%s: o2_make_udp_recv_socket: listening on port %d\n", o2_debug_prefix, o2_context->process.port);
     return O2_SUCCESS;
 }
 
@@ -466,11 +462,11 @@ int o2_osc_delegate_handler(SOCKET sock, process_info_ptr info)
 }
 
 
-// remove the i'th socket from o2_fds and o2_fds_info
+// remove the i'th socket from o2_context->fds and o2_context->fds_info
 //
 void o2_socket_remove(int i)
 {
-    struct pollfd *pfd = DA_GET(o2_fds, struct pollfd, i);
+    struct pollfd *pfd = DA_GET(o2_context->fds, struct pollfd, i);
 
     O2_DBo(printf("%s o2_socket_remove(%d), tag %d port %d closing socket %lld\n",
                   o2_debug_prefix, i,
@@ -482,21 +478,21 @@ void o2_socket_remove(int i)
     shutdown(sock, SHUT_WR);
 #endif
     if (closesocket(pfd->fd)) perror("closing socket");
-    if (o2_fds.length > i + 1) { // move last to i
-        struct pollfd *lastfd = DA_LAST(o2_fds, struct pollfd);
+    if (o2_context->fds.length > i + 1) { // move last to i
+        struct pollfd *lastfd = DA_LAST(o2_context->fds, struct pollfd);
         memcpy(pfd, lastfd, sizeof(struct pollfd));
-        process_info_ptr info = *DA_LAST(o2_fds_info, process_info_ptr);
+        process_info_ptr info = *DA_LAST(o2_context->fds_info, process_info_ptr);
         GET_PROCESS(i) = info; // move to new index
         info->fds_index = i;
     }
-    o2_fds.length--;
-    o2_fds_info.length--;
+    o2_context->fds.length--;
+    o2_context->fds_info.length--;
 }
 
 
 void o2_free_deleted_sockets()
 {
-    for (int i = 0; i < o2_fds_info.length; i++) {
+    for (int i = 0; i < o2_context->fds_info.length; i++) {
         process_info_ptr info = GET_PROCESS(i);
         if (info->delete_me) {
             o2_socket_remove(i);
@@ -520,8 +516,8 @@ int o2_recv()
     
     int total;
     FD_ZERO(&o2_read_set);
-    for (int i = 0; i < o2_fds.length; i++) {
-        struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
+    for (int i = 0; i < o2_context->fds.length; i++) {
+        struct pollfd *d = DA_GET(o2_context->fds, struct pollfd, i);
         FD_SET(d->fd, &o2_read_set);
     }
     o2_no_timeout.tv_sec = 0;
@@ -534,8 +530,8 @@ int o2_recv()
     if (total == 0) { /* no messages waiting */
         return O2_SUCCESS;
     }
-    for (int i = 0; i < o2_fds.length; i++) {
-        struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
+    for (int i = 0; i < o2_context->fds.length; i++) {
+        struct pollfd *d = DA_GET(o2_context->fds, struct pollfd, i);
         if (FD_ISSET(d->fd, &o2_read_set)) {
             process_info_ptr info = GET_PROCESS(i);
             if (((*(info->handler))(d->fd, info)) == O2_TCP_HUP) {
@@ -560,10 +556,10 @@ int o2_recv()
     // if there are any bad socket descriptions, remove them now
     if (o2_socket_delete_flag) o2_free_deleted_sockets();
 
-    poll((struct pollfd *) o2_fds.array, o2_fds.length, 0);
-    int len = o2_fds.length; // length can grow while we're looping!
+    poll((struct pollfd *) o2_context->fds.array, o2_context->fds.length, 0);
+    int len = o2_context->fds.length; // length can grow while we're looping!
     for (i = 0; i < len; i++) {
-        struct pollfd *d = DA_GET(o2_fds, struct pollfd, i);
+        struct pollfd *d = DA_GET(o2_context->fds, struct pollfd, i);
         // if (d->revents) printf("%d:%p:%x ", i, d, d->revents);
         if (d->revents & POLLERR) {
         } else if (d->revents & POLLHUP) {
@@ -579,7 +575,7 @@ int o2_recv()
             }
         }
         if (!o2_application_name) { // handler called o2_finish()
-            // o2_fds are all free and gone now
+            // o2_context->fds are all free and gone now
             return O2_FAIL;
         }
     }

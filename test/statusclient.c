@@ -48,7 +48,7 @@ int main(int argc, const char * argv[])
         while (port == 0) {
             char input[100];
             printf("Port specified as 0, enter new value: ");
-            port = atoi(gets(input));
+            port = atoi((const char *) fgets(input, 100, stdin));
         }
         printf("Using %s:%d as hub.\n", ip, port);
     } else if (argc > 4) {

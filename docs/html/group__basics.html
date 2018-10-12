@@ -25,7 +25,7 @@
   <td id="projectlogo"><img alt="Logo" src="logo-small.png"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">O2
-   &#160;<span id="projectnumber">1.1</span>
+   &#160;<span id="projectnumber">1.2</span>
    </div>
    <div id="projectbrief">Inter-process communication system for media applications</div>
   </td>
@@ -219,9 +219,18 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>o2_dbg_free</b> (void
 <tr class="memitem:ga33bd6f43cf100d78b5e2282409fc63a0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="group__basics.html#gaa38553f092bb619d41d5b13020bcc21d">o2_time</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__basics.html#ga33bd6f43cf100d78b5e2282409fc63a0">o2_set_discovery_period</a> (<a class="el" href="group__basics.html#gaa38553f092bb619d41d5b13020bcc21d">o2_time</a> period)</td></tr>
 <tr class="memdesc:ga33bd6f43cf100d78b5e2282409fc63a0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set discovery period.  <a href="#ga33bd6f43cf100d78b5e2282409fc63a0">More...</a><br /></td></tr>
 <tr class="separator:ga33bd6f43cf100d78b5e2282409fc63a0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gaaed73746128098a0fcb54224a43755cd"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__basics.html#gaaed73746128098a0fcb54224a43755cd">o2_hub</a> (const char *ipaddress, int port)</td></tr>
+<tr class="memdesc:gaaed73746128098a0fcb54224a43755cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Connect to a hub.  <a href="#gaaed73746128098a0fcb54224a43755cd">More...</a><br /></td></tr>
+<tr class="separator:gaaed73746128098a0fcb54224a43755cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga5567b921081dfade1c5f447ed20d201e"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__basics.html#ga5567b921081dfade1c5f447ed20d201e">o2_get_address</a> (const char **ipaddress, int *port)</td></tr>
+<tr class="memdesc:ga5567b921081dfade1c5f447ed20d201e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get IP address and TCP connection port number.  <a href="#ga5567b921081dfade1c5f447ed20d201e">More...</a><br /></td></tr>
+<tr class="separator:ga5567b921081dfade1c5f447ed20d201e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gacd22196d91300f33ba67d596549d2a69"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__basics.html#gacd22196d91300f33ba67d596549d2a69">o2_service_new</a> (const char *service_name)</td></tr>
 <tr class="memdesc:gacd22196d91300f33ba67d596549d2a69"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add a service to the current application.  <a href="#gacd22196d91300f33ba67d596549d2a69">More...</a><br /></td></tr>
 <tr class="separator:gacd22196d91300f33ba67d596549d2a69"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gac9323c695fd37d9a5ff063ee60493823"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__basics.html#gac9323c695fd37d9a5ff063ee60493823">o2_tap</a> (const char *tappee, const char *tapper)</td></tr>
+<tr class="memdesc:gac9323c695fd37d9a5ff063ee60493823"><td class="mdescLeft">&#160;</td><td class="mdescRight">copy messages from one service to another  <a href="#gac9323c695fd37d9a5ff063ee60493823">More...</a><br /></td></tr>
+<tr class="separator:gac9323c695fd37d9a5ff063ee60493823"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga316a1d88c3c728d6c0a4ba49228a8f35"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__basics.html#ga316a1d88c3c728d6c0a4ba49228a8f35">o2_service_free</a> (char *service_name)</td></tr>
 <tr class="memdesc:ga316a1d88c3c728d6c0a4ba49228a8f35"><td class="mdescLeft">&#160;</td><td class="mdescRight">Remove a local service.  <a href="#ga316a1d88c3c728d6c0a4ba49228a8f35">More...</a><br /></td></tr>
 <tr class="separator:ga316a1d88c3c728d6c0a4ba49228a8f35"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -694,6 +703,82 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
 
 </div>
 </div>
+<a class="anchor" id="ga5567b921081dfade1c5f447ed20d201e"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int o2_get_address </td>
+          <td>(</td>
+          <td class="paramtype">const char **&#160;</td>
+          <td class="paramname"><em>ipaddress</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int *&#160;</td>
+          <td class="paramname"><em>port</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Get IP address and TCP connection port number. </p>
+<p>Before calling <a class="el" href="group__basics.html#gaaed73746128098a0fcb54224a43755cd" title="Connect to a hub. ">o2_hub()</a>, you need to know the IP address and TCP connection port of another process. This call will retrieve the information, but the mechanism to transfer this information to another O2 process (or all of them) must be implemented outside of O2. (If the local network allows UDP broadcast and all hosts are on the local network, then you do not need this function or <a class="el" href="group__basics.html#gaaed73746128098a0fcb54224a43755cd" title="Connect to a hub. ">o2_hub()</a>. Instead, let the discovery protocol exchange process addresses automatically.)</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ipaddress</td><td>is a pointer that will be set to either NULL (on failure) or a string of the form "128.2.10.6". The string should not be modified, and the string will be freed by O2 if <a class="el" href="group__basics.html#gaeb0a8ba7f6be0f8f95ad7e7803fa0698" title="release the memory and shut down O2. ">o2_finish()</a> is called.</td></tr>
+    <tr><td class="paramname">port</td><td>will be set to a pointer to the O2 TCP connection port (or NULL on failure).</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="gaaed73746128098a0fcb54224a43755cd"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int o2_hub </td>
+          <td>(</td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>ipaddress</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>port</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Connect to a hub. </p>
+<p>A "hub" is an O2 process that shares discovery information with other processes. This is an alternate form of discovery that is completely compatible with the broadcast-based discovery protocol, except (1) you do not need broadcast messages to communicate with a hub, (2) you <em>do</em> need the hub's IP address and port number. If the IP and port number can be shared, e.g. through a server or online database with a fixed address, you can work with networks that disallow broadcast, and you can connect across networks (which will not work with O2's normal discovery protocol if broadcast messages are not delivered across networks). To use a hub, you call <a class="el" href="group__basics.html#gaaed73746128098a0fcb54224a43755cd" title="Connect to a hub. ">o2_hub()</a> with the hub's IP address and port. All O2 processes are effectively hubs with no clients, and <a class="el" href="group__basics.html#gaaed73746128098a0fcb54224a43755cd" title="Connect to a hub. ">o2_hub()</a> simply connects to the hub as a client. The hub will then send discovery messages for all current and future O2 processes that are discovered, either through the normal discovery protocol or by connecting with the <a class="el" href="group__basics.html#gaaed73746128098a0fcb54224a43755cd" title="Connect to a hub. ">o2_hub()</a> call.</p>
+<p>After <a class="el" href="group__basics.html#gaaed73746128098a0fcb54224a43755cd" title="Connect to a hub. ">o2_hub()</a> is called, discovery broadcasting is stopped, so if <a class="el" href="group__basics.html#gaaed73746128098a0fcb54224a43755cd" title="Connect to a hub. ">o2_hub()</a> fails to connect to another process, you will only discover more processes if they initiate the exchange. You can use <a class="el" href="group__basics.html#gaaed73746128098a0fcb54224a43755cd" title="Connect to a hub. ">o2_hub()</a> specifically to disable broadcast-based discovery by passing NULL as the ipaddress parameter.</p>
+<p>You can call <a class="el" href="group__basics.html#gaaed73746128098a0fcb54224a43755cd" title="Connect to a hub. ">o2_hub()</a> multiple times. Each time potentially makes a remote process become a hub for this local process. This might result in duplicate messages when new processes join the O2 application, but duplicate messages are ignored.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ipaddress</td><td>the IP address of the hub or NULL </td></tr>
+    <tr><td class="paramname">port</td><td>the port number of the hub's TCP port</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not. </dd></dl>
+
+</div>
+</div>
 <a class="anchor" id="ga54991832ea34fc9a0a14b5a6669c3e6c"></a>
 <div class="memitem">
 <div class="memproto">
@@ -1057,7 +1142,8 @@ int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group
 </div><div class="memdoc">
 
 <p>Get network round-trip information. </p>
-<dl class="section return"><dt>Returns</dt><dd>If clock is synchronized, return O2_SUCCESS and set <code>*mean</code> to the mean round-trip time and <code>*min</code> to the minimum round-trip time of the last 5 (where 5 is the value of CLOCK_SYNC_HISTORY_LEN) clock sync requests. Otherwise, O2_FAIL is returned and <code>*mean</code> and <code>*min</code> are unaltered. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>If clock is synchronized, return O2_SUCCESS and set <code>*mean</code> to the mean round-trip time and <code>*min</code> to the minimum round-trip time of the last 5 (where 5 is the value of CLOCK_SYNC_HISTORY_LEN) clock sync requests. Otherwise, O2_FAIL is returned and <code>*mean</code> and <code>*min</code> are unaltered.</dd></dl>
+<p>Note: You can get this information from a remote process by sending a message to <code>!ip:port/cs/rt</code>, where <code>ip:port</code> is the ip:port string for a process. (One way to get this is to call <code>o2_get_address</code> and construct a ip:port process name from the information returned. But then you can just call <code>o2_roundtrip</code> for the local process round trip information. For a remote process names, you can create a handler for <code>/_o2/si</code>. The process name is provided whenever one of its services is created or otherwise changes status.) The type string for <code>!ip:port/cs/rt</code> is "s", and the parameter is an O2 address prefix. When the message is received, a reply is sent to an address formed by appending "/get-reply" to the address prefix. The reply message has the type string "sff", and the parameters are (1) the process ip:port name, (2) the mean of recent round trip times to the master clock, and (3) the minimum of recent round trip times. (The clock is set using the minimum, so this number is an upper bound on the clock skew for this process. </p>
 
 </div>
 </div>
@@ -1238,7 +1324,45 @@ Note that codes are carefully ordered to allow testing for categories:<ul>
 </dd></dl>
 <p>In the cases with no clock sync, it is safe to send an immediate message with timestamp = 0, but non-zero timestamps are meaningless because either the sending process has no way to obtain a valid timestamp or the receiver has no way to schedule delivery according to a timestamp.</p>
 <p>Messages to services are <em>dropped</em> if the service has not been discovered. Timestamped messages (timestamp != 0) are <em>dropped</em> if the sender and receiver are not clock-synchronized. (<code>o2_status(service) &gt;= O2_LOCAL</code>).</p>
-<p>A special case is with <code>BRIDGE</code> and <code>OSC</code> services. In these cases, the O2 process offering the service can either schedule the messages locally, sending them according to the timestamp (and suffering some network latency), or if the destination process is synchronized, messages can be forwarded immediately for more precise scheduling at their final destination. O2 does not provide any way for clients/users to determine which of these methods is in effect, and in the case of messages being forwarded by an intermediary O2 process, the originator of the message cannot determine whether the service is offered by an O2 server on the local network, by an OSC server, or through a bridge to another network such as Bluetooth. The status at the originator will be simply <a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status(): remote service with clock sync. ">O2_REMOTE</a> or <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status(): remote service but no clock sync yet ">O2_REMOTE_NOTIME</a>. </p>
+<p>A special case is with <code>BRIDGE</code> and <code>OSC</code> services. In these cases, the O2 process offering the service can either schedule the messages locally, sending them according to the timestamp (and suffering some network latency), or if the destination process is synchronized, messages can be forwarded immediately for more precise scheduling at their final destination. O2 does not provide any way for clients/users to determine which of these methods is in effect, and in the case of messages being forwarded by an intermediary O2 process, the originator of the message cannot determine whether the service is offered by an O2 server on the local network, by an OSC server, or through a bridge to another network such as Bluetooth. The status at the originator will be simply <a class="el" href="group__returncodes.html#ga4734fb75ba6972f958f09a027445a1f5" title="return value for o2_status(): remote service with clock sync. ">O2_REMOTE</a> or <a class="el" href="group__returncodes.html#gab65d15242eba537719936420ffea3766" title="return value for o2_status(): remote service but no clock sync yet ">O2_REMOTE_NOTIME</a>.</p>
+<p>When the status of a service changes, a message is sent with address <code>!_o2/si</code>. The type string is "sis" and the parameters are (1) the service name, (2) the new status, and (3) the ip:port string of the process that offers (or offered) the service. </p>
+
+</div>
+</div>
+<a class="anchor" id="gac9323c695fd37d9a5ff063ee60493823"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int o2_tap </td>
+          <td>(</td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>tappee</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>tapper</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>copy messages from one service to another </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">tappee</td><td>the service to be tapped</td></tr>
+    <tr><td class="paramname">tapper</td><td>the service to which copies are sent</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="group__returncodes.html#gabdd1c898b818fc47b744e42b401a3079" title="function was successful ">O2_SUCCESS</a> if success, <a class="el" href="group__returncodes.html#ga8f5f040b03042ee184f7f5bae734026d" title="an error return value: a non-specific error occurred. ">O2_FAIL</a> if not.</dd></dl>
+<p>After this call, messages to tappee are copied, modified by replacing the service with tapper, and sent. The original message to tappee is also delivered. </p>
 
 </div>
 </div>

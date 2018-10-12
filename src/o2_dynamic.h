@@ -2,6 +2,10 @@
 #ifndef o2_dynamic_h
 #define o2_dynamic_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct dyn_array {
     int32_t allocated;
     int32_t length;
@@ -14,7 +18,7 @@ typedef struct dyn_array {
 #define DA_INIT(a, typ, siz) { \
         (a).allocated = (siz); \
         (a).length = 0;        \
-        (a).array = ((siz) > 0 ? O2_MALLOC((siz) * sizeof(typ)) : NULL); }
+        (a).array = ((siz) > 0 ? (char *) O2_MALLOC((siz) * sizeof(typ)) : NULL); }
 
 /* get a pointer to the index'th item of array. The type of
  each element is typ. */
@@ -56,5 +60,9 @@ typedef struct dyn_array {
                        O2_FREE((a).array); (a).array = NULL; }
 
 void o2_da_expand(dyn_array_ptr array, int siz);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* o2_dynamic_h */

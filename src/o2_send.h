@@ -15,11 +15,13 @@
 #define MSG_NOSIGNAL 0
 #endif
 
+extern int o2_in_find_and_call_handlers;
+
 void o2_deliver_pending();
 
 services_entry_ptr *o2_services_find(const char *service_name);
 
-o2_info_ptr o2_msg_service(o2_msg_data_ptr msg);
+o2_info_ptr o2_msg_service(o2_msg_data_ptr msg, services_entry_ptr *services);
 
 /**
  *  \brief Use initial part of an O2 address to find an o2_service using
@@ -34,7 +36,7 @@ o2_info_ptr o2_msg_service(o2_msg_data_ptr msg);
  *          or OSC_REMOTE_SERVICE (redirect to OSC server),
  *          or NULL if name is not found.
  */
-o2_info_ptr o2_service_find(const char *name);
+o2_info_ptr o2_service_find(const char *name, services_entry_ptr *services);
 
 int o2_message_send_sched(o2_message_ptr msg, int schedulable);
 
