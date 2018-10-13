@@ -477,7 +477,7 @@ void o2_socket_remove(int i)
 #ifdef SHUT_WR
     shutdown(sock, SHUT_WR);
 #endif
-    if (closesocket(pfd->fd)) perror("closing socket");
+    if (info(pfd->fd)) perror("closing socket");
     if (o2_context->fds.length > i + 1) { // move last to i
         struct pollfd *lastfd = DA_LAST(o2_context->fds, struct pollfd);
         memcpy(pfd, lastfd, sizeof(struct pollfd));

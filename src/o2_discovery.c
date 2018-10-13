@@ -23,7 +23,7 @@
 double next_discovery_recv_time = 0;
 double o2_discovery_recv_interval = 0.1;
 double o2_discovery_send_interval = 0.133;
-int next_discovery_index = 0; // which port to send to (0 - 4)
+int next_discovery_index = 0; // index to o2_port_map, port to send to
 struct sockaddr_in broadcast_to_addr; // address for sending broadcast messages
 struct sockaddr_in local_to_addr; // address for sending local discovery msgs
 SOCKET broadcast_sock = INVALID_SOCKET;
