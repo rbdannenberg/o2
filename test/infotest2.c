@@ -119,14 +119,14 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
     int status = argv[1]->i32;
     const char *status_string = status_to_string(status);
     const char *ip_port = argv[2]->s;
-    printf("service_info_handler called: %s at %s status %s\n", 
+     printf("service_info_handler called: %s at %s status %s\n", 
            service_name, ip_port, status_string);
     const char *my_ip = NULL;
     int my_port = -1;
     o2_get_address(&my_ip, &my_port);
     if (!my_ip) my_ip = "none";
     sprintf(my_ip_port, "%s:%d", my_ip, my_port);
-    // the first 4 /_o2/si messages are listed in expected_si_service_first,
+    // the first 4 /_o2/si messages are listed in expected_si_service_1,
     // where "ip:port" is replaced by the real ip:port string.
 
     if (si_msg_count < EXPECTED_1) {
@@ -139,7 +139,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
 
     // after the first 5 messages, the clock becomes master, and we expect
     // 4 more messages in some order and we become O2_LOCAL. The services
-    // are in expected_si_service_later[], which we search and remove from
+    // are in expected_si_service_2[], which we search and remove from
     // to allow for any order of notification (order could vary because
     // O2 will enumerate what's in a hash table.
     } else if (si_msg_count < EXPECTED_2) {
