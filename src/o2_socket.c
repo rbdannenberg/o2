@@ -477,6 +477,7 @@ void o2_socket_remove(int i)
 #ifdef SHUT_WR
     shutdown(sock, SHUT_WR);
 #endif
+    O2_DBo(printf("calling closesocket(%lld).\n", (int64_t) (pfd->fd)));
     if (closesocket(pfd->fd)) perror("closing socket");
     if (o2_context->fds.length > i + 1) { // move last to i
         struct pollfd *lastfd = DA_LAST(o2_context->fds, struct pollfd);
@@ -717,14 +718,14 @@ static int read_whole_message(SOCKET sock, process_info_ptr info)
         // int, so int is ok for n
         int n = (int) recvfrom(sock, PTR(&(info->length)) + info->length_got,
                                4 - info->length_got, 0, NULL, NULL);
-        if (n < 0) { /* error: close the socket */
+        if (n == 0) { /* socket was gracefully closed */
+            O2_DBo(printf("recvfrom returned 0: deleting socket\n"));
+            tcp_message_cleanup(info);
+            return O2_TCP_HUP;
+        } else if (n < 0) { /* error: close the socket */
 #ifdef WIN32
-            if ((errno != EAGAIN && errno != EINTR) ||
-                (GetLastError() != WSAEWOULDBLOCK &&
-                 GetLastError() != WSAEINTR)) {
-                if (errno == ECONNRESET || GetLastError() == WSAECONNRESET) {
-                    return O2_TCP_HUP;
-                }
+            if (WSAGetLastError() != WSAEWOULDBLOCK &&
+                WSAGetLastError() != WSAEINTR) {
 #else
             if (errno != EAGAIN && errno != EINTR) {
 #endif
@@ -750,14 +751,14 @@ static int read_whole_message(SOCKET sock, process_info_ptr info)
         int n = (int) recvfrom(sock,
                                PTR(&(info->message->data)) + info->message_got,
                                info->length - info->message_got, 0, NULL, NULL);
-        if (n <= 0) {
+        if (n == 0) { /* socket was gracefully closed */
+            O2_DBo(printf("recvfrom returned 0: deleting socket\n"));
+            tcp_message_cleanup(info);
+            return O2_TCP_HUP;
+        } else if (n <= 0) {
 #ifdef WIN32
-            if ((errno != EAGAIN && errno != EINTR) ||
-                (GetLastError() != WSAEWOULDBLOCK &&
-                 GetLastError() != WSAEINTR)) {
-                if (errno == ECONNRESET || GetLastError() == WSAECONNRESET) {
-                    return O2_TCP_HUP;
-                }
+            if (WSAGetLastError() != WSAEWOULDBLOCK &&
+                WSAGetLastError() != WSAEINTR) {
 #else
             if (errno != EAGAIN && errno != EINTR) {
 #endif
