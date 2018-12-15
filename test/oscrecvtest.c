@@ -1,6 +1,7 @@
 //  oscrecvtest.c - test o2_osc_port_new()
 //
 //  this test is designed to run with oscsendtest.c
+//  see oscsendtest.c for details
 
 
 #include "stdio.h"
@@ -43,6 +44,12 @@ void osc_i_handler(o2_msg_data_ptr data, const char *types,
 #endif
         assert(approx(timed_start + i * 0.1 - now));
         timed_count++;
+    } else if (i == 5678) {
+        printf("osc_i_handler received 5678 but port should be closed.\n");
+        assert(FALSE);
+    } else if (i == 6789) {
+        printf("osc_i_handler received 6789 but port should be closed.\n");
+        assert(FALSE);
     } else {
         assert(FALSE); // unexpected message
     }
@@ -76,6 +83,13 @@ int main(int argc, const char * argv[])
         usleep(2000); // 2ms
     }
     o2_osc_port_free(8100);
+
+    // now wait for 2 seconds and check for more messages
+    for (int i = 0; i < 1000; i++) {
+        o2_poll();
+        usleep(2000); // 2ms
+    }
+        
     o2_finish();
     printf("OSCRECV DONE\n");
     sleep(1); // allow TCP to finish up

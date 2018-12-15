@@ -839,8 +839,11 @@ int o2_set_tap(const char *tappee, const char *tapper_name)
 
 // remove a service from o2_context->path_tree
 //
-int o2_service_free(char *service_name)
+int o2_service_free(const char *service_name)
 {
+    if (!o2_application_name) {
+        return O2_NOT_INITIALIZED;
+    }
     if (!service_name || strchr(service_name, '/'))
         return O2_BAD_SERVICE_NAME;
     return o2_service_provider_replace(o2_context->process, service_name, NULL);

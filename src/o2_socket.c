@@ -439,6 +439,7 @@ int o2_make_udp_recv_socket(int tag, int *port, process_info_ptr *info)
     O2_DBo(printf("%s created socket %ld and bind called to receive UDP\n",
                   o2_debug_prefix, (long) sock));
     *info = o2_add_new_socket(sock, tag, &udp_recv_handler);
+    (*info)->port = *port;
     // printf("%s: o2_make_udp_recv_socket: listening on port %d\n", o2_debug_prefix, o2_context->process.port);
     return O2_SUCCESS;
 }

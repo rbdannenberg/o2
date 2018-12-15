@@ -819,7 +819,7 @@ int o2_tap(const char *tappee, const char *tapper);
  * 
  * @return #O2_SUCCSS if success, #O2_FAIL if not.
  */
-int o2_service_free(char *service_name);
+int o2_service_free(const char *service_name);
 
 
 /**

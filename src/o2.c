@@ -644,7 +644,7 @@ int o2_service_provider_new(o2string service_name, o2_info_ptr service,
             O2_DBd(printf("%s o2_service_provider_new service exists %s\n",
                           o2_debug_prefix, service_name));
             // however, the tappee might be new or different
-            if (*tappee) {
+            if (tappee) {
                 return o2_set_tap(tappee, service_name);
             }
             return O2_SERVICE_EXISTS;

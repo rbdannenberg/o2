@@ -1,6 +1,26 @@
-//  oscsendtest.c - test o2_osc_delegate()
+// oscsendtest.c - test o2_osc_delegate()
 //
-//  this test is designed to run with oscrecvtest.c
+// this test is designed to run with oscrecvtest.c
+//
+// Usage: oscsendtest [flags] (see o2.h for flags, 
+//             use a for all, also u for UDP, M for master)
+//
+// The test:
+//   initialize as a clock slave or master depending on M flag
+//   if we are master, assume we are talking to a liblo server,
+//         so sleep 2 seconds allowing liblo server to launch
+//         (you should launch it first if running manually)
+//   send 12 messages, 1 every 0.5s, and stop,
+//         message are /oscsend/i 1234
+//   send 10 messages with timestamps,
+//         messages are /oscsend/i <2000+i>
+//   reciever can now call o2_osc_port_free to test closing the port
+//   wait 1 second
+//   send 1 message: /oscsend/i 5678
+//   wait 0.1 seconds
+//   send 1 message with timestamp: /oscsend/i 6789
+//   wait 1 second
+//   shut everything down
 
 #include "o2.h"
 #include "stdio.h"
@@ -33,7 +53,7 @@ int main(int argc, const char * argv[])
 
     o2_initialize("test");
 
-    // you can make this run without an O2 server by passing "master"
+    // you can make this run without an O2 server by passing "M" flag
     if (master)
         o2_clock_set(NULL, NULL);
     else if (argc > 2)
@@ -66,6 +86,25 @@ int main(int argc, const char * argv[])
         o2_send("/oscsend/i", now + n * 0.1, "i", 2000 + n);
     }
     // pause for 1s to make sure messages are sent
+    for (int i = 0; i < 500; i++) {
+        o2_poll();
+        usleep(2000); // 2ms
+    }
+    // receiver may want to close port now and check that these
+    printf("Time to close receiver's port if you want to test that.\n");
+    // messages are NOT received:
+    err = o2_send("/oscsend/i", 0, "i", 5678);
+    assert(err == O2_SUCCESS);
+    printf("sent 5678 to /oscsend/i\n");
+    // pause for 0.1s, but keep running O2 by polling
+    for (int i = 0; i < 50; i++) {
+        o2_poll();
+        usleep(2000); // 2ms
+    }
+    double ts = o2_time_get() + 0.1;
+    o2_send("/oscsend/i", ts, "i", 6789);
+    printf("sent 6789 to /oscsend/i with timestamp %g\n", ts);
+    // pause for 1s, but keep running O2 by polling
     for (int i = 0; i < 500; i++) {
         o2_poll();
         usleep(2000); // 2ms
