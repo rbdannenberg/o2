@@ -385,7 +385,7 @@ int o2_roundtrip(double *mean, double *min)
 
 // o2_ping_send_handler -- handler for /_o2/ps (short for "ping send")
 //   wait for clock sync service to be established,
-//   then send ping every 0.1s CLICK_SYNC_HISTORY_LEN times, 
+//   then send ping every 0.1s CLOCK_SYNC_HISTORY_LEN times, 
 //   then every 0.5s for 5s, then every 10s
 //
 void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,

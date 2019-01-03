@@ -801,9 +801,10 @@ int o2_service_new(const char *service_name);
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  *
- * After this call, messages to tappee are copied, modified by replacing
- * the service with tapper, and sent. The original message to tappee
- * is also delivered.
+ * Create a new service named #tapper and have messages
+ * copied from #tappee. After this call, messages to tappee 
+ * are copied, modified by replacing the service with tapper,
+ * and sent. The original message to tappee is also delivered.
  */
 int o2_tap(const char *tappee, const char *tapper);
 
