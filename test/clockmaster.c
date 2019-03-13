@@ -107,7 +107,7 @@ int main(int argc, const char * argv[])
             polling_rate = atoi(argv[2]);
             printf("O2 polling rate: %d\n", polling_rate);
         }
-        if (index(argv[2], 'z') != NULL) {
+        if (strchr(argv[2], 'z') != NULL) {
             printf("clockmaster will not stop, kill with ^C to quit.\n\n");
             keep_alive = TRUE;
         }
