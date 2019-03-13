@@ -13,6 +13,8 @@
 #include <unistd.h>
 #endif
 
+int keep_alive = FALSE;
+int polling_rate = 100;
 o2_time cs_time = 1000000.0;
 
 void clockslave(o2_msg_data_ptr msg, const char *types,
@@ -32,7 +34,7 @@ void clockslave(o2_msg_data_ptr msg, const char *types,
         }
     }
     // stop 10s later
-    if (o2_time_get() > cs_time + 10) {
+    if (o2_time_get() > cs_time + 10 && !keep_alive) {
         o2_stop_flag = TRUE;
         printf("clockslave set stop flag TRUE at %g\n", o2_time_get());
     }
@@ -48,13 +50,26 @@ void clockslave(o2_msg_data_ptr msg, const char *types,
 
 int main(int argc, const char * argv[])
 {
-    printf("Usage: clockslave [debugflags] "
-           "(see o2.h for flags, use a for all)\n");
-    if (argc == 2) {
+    printf("Usage: clockslave [debugflags] [1000z]\n"
+           "    see o2.h for flags, use a for all, - for none\n"
+           "    1000 (or another number) specifies O2 polling rate (optional, "
+           "default 100)\n"
+           "    use optional z flag to stay running for long-term tests\n");
+    if (argc >= 2 && strcmp(argv[1], "-") != 0) {
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);
     }
-    if (argc > 2) {
+    if (argc >= 3) {
+        if (isdigit(argv[2][0])) {
+            polling_rate = atoi(argv[2]);
+            printf("O2 polling rate: %d\n", polling_rate);
+        }
+        if (index(argv[2], 'z') != NULL) {
+            printf("clockslave will not stop, kill with ^C to quit.\n\n");
+            keep_alive = TRUE;
+        }
+    }
+    if (argc > 3) {
         printf("WARNING: clockslave ignoring extra command line argments\n");
     }
 
@@ -64,7 +79,7 @@ int main(int argc, const char * argv[])
     // this particular handler ignores all parameters, so this is OK:
     // start polling and reporting status
     clockslave(NULL, NULL, NULL, 0, NULL);
-    o2_run(100);
+    o2_run(polling_rate);
     o2_finish();
     sleep(1);
     printf("CLOCKSLAVE DONE\n");

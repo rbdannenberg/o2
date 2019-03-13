@@ -15,11 +15,11 @@
 #endif
 
 
-#define N_ADDRS 20
-
 int max_msg_count = 50000;
 
-char *server_addresses[N_ADDRS];
+char **server_addresses;
+int n_addrs = 20;
+
 int msg_count = 0;
 int running = TRUE;
 
@@ -36,7 +36,7 @@ void client_test(o2_msg_data_ptr data, const char *types,
         i = -1;
         running = FALSE;
     }
-    o2_send(server_addresses[msg_count % N_ADDRS], 0, "i", i);
+    o2_send(server_addresses[msg_count % n_addrs], 0, "i", i);
     if (msg_count % 10000 == 0) {
         printf("client received %d messages\n", msg_count);
     }
@@ -49,30 +49,38 @@ void client_test(o2_msg_data_ptr data, const char *types,
 
 int main(int argc, const char *argv[])
 {
-    printf("Usage: o2client maxmsgs debugflags "
-           "(see o2.h for flags, use a for all)\n");
+    printf("Usage: o2client [maxmsgs] [debugflags] [n_addrs]\n"
+           "    see o2.h for flags, use a for all, - for none\n"
+           "    n_addrs is number of addresses to use, default 20\n");
     if (argc >= 2) {
         max_msg_count = atoi(argv[1]);
         printf("max_msg_count set to %d\n", max_msg_count);
     }
     if (argc >= 3) {
-        o2_debug_flags(argv[2]);
-        printf("debug flags are: %s\n", argv[2]);
+        if (argv[1][0] != '-') {
+            o2_debug_flags(argv[2]);
+            printf("debug flags are: %s\n", argv[2]);
+        }
     }
-    if (argc > 3) {
+    if (argc >= 4) {
+        n_addrs = atoi(argv[3]);
+        printf("n_addrs is %d\n", n_addrs);
+    }
+    if (argc > 4) {
         printf("WARNING: o2client ignoring extra command line argments\n");
     }
 
     o2_initialize("test");
     o2_service_new("client");
     
-    for (int i = 0; i < N_ADDRS; i++) {
+    for (int i = 0; i < n_addrs; i++) {
         char path[100];
         sprintf(path, "/client/benchmark/%d", i);
         o2_method_new(path, "i", &client_test, NULL, FALSE, TRUE);
     }
     
-    for (int i = 0; i < N_ADDRS; i++) {
+    server_addresses = (char **) malloc(sizeof(char **) * n_addrs);
+    for (int i = 0; i < n_addrs; i++) {
         char path[100];
         sprintf(path, "!server/benchmark/%d", i);
         server_addresses[i] = (char *) (O2_MALLOC(strlen(path)));

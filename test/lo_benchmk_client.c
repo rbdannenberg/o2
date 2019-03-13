@@ -3,10 +3,9 @@
 #include <string.h>
 #include "lo/lo.h"
 
-#define N_ADDRS 20
-
 lo_address server;
-char *addresses[N_ADDRS];
+char **addresses;
+int n_addrs = 20;
 int msg_count = 0;
 
 int handler(const char *path, const char *types,
@@ -14,7 +13,7 @@ int handler(const char *path, const char *types,
 {
     // keep count and send a reply
     msg_count++;
-    lo_send(server, addresses[msg_count % N_ADDRS], "i", msg_count);
+    lo_send(server, addresses[msg_count % n_addrs], "i", msg_count);
     if (msg_count % 10000 == 0) {
         printf("client received %d messages\n", msg_count);
     }
@@ -22,8 +21,15 @@ int handler(const char *path, const char *types,
 }
 
 
-int main()
+int main(int argc, const char *argv[])
 {
+    printf("Usage: lo_benchmk_client [n_addrs]\n"
+           "  n_addrs is number of paths, default is 20\n");
+    if (argc == 2) {
+        n_addrs = atoi(argv[1]);
+        printf("n_addrs is %d\n", n_addrs);
+    }
+
     // create address for server
     server = lo_address_new("localhost", "8000");
 
@@ -31,7 +37,8 @@ int main()
     lo_server client = lo_server_new("8001", NULL);
 
     // make addresses and register them with server
-    for (int i = 0; i < N_ADDRS; i++) {
+    addresses = (char **) malloc(sizeof(char **) * n_addrs);
+    for (int i = 0; i < n_addrs; i++) {
         char path[100];
         sprintf(path, "/benchmark/%d", i);
         addresses[i] = (char *) malloc(strlen(path));
@@ -39,7 +46,7 @@ int main()
         lo_server_add_method(client, path, "i", &handler, NULL);
     }
 
-    lo_send(server, addresses[msg_count % N_ADDRS], "i", msg_count);
+    lo_send(server, addresses[msg_count % n_addrs], "i", msg_count);
     while (1) {
         lo_server_recv_noblock(client, 0);
     }
