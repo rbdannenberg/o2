@@ -53,25 +53,6 @@ static long start_time;
 static long start_time;
 #endif
 
-void o2_time_initialize()
-{
-#ifdef __APPLE__
-    start_time = AudioGetCurrentHostTime();
-#elif __linux__
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    start_time = tv.tv_sec;
-#elif WIN32
-    start_time = timeGetTime();
-#else
-#error o2_clock has no implementation for this system
-#endif
-    // until local clock is synchronized, LOCAL_TO_GLOBAL will return -1:
-    local_time_base = 0;
-    global_time_base = -1;
-    clock_rate = 0;
-}
-
 
 // call this with the local and master time when clock sync is first obtained
 //
@@ -451,21 +432,30 @@ void o2_clock_ping_at(o2_time when)
     o2_schedule(&o2_ltsched, m);
 }
 
+int clock_initialized = FALSE;
 
 void o2_clock_initialize()
 {
-    o2_clock_finish();
-    o2_method_new("/_o2/ps", "", &o2_ping_send_handler, NULL, FALSE, TRUE);
-    o2_method_new("/_o2/cu", "i", &catch_up_handler, NULL, FALSE, TRUE);
-}
+	if (clock_initialized) {
+		o2_clock_finish();
+	}
+#ifdef __APPLE__
+	start_time = AudioGetCurrentHostTime();
+#elif __linux__
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	start_time = tv.tv_sec;
+#elif WIN32
+	timeBeginPeriod(1); // get 1ms resolution on Windows
+	start_time = timeGetTime();
+#else
+#error o2_clock has no implementation for this system
+#endif
+	// until local clock is synchronized, LOCAL_TO_GLOBAL will return -1:
+	local_time_base = 0;
+	global_time_base = -1;
+	clock_rate = 0;
 
-
-void o2_clock_finish()
-// maybe all this should be in o2_clock_initialize() and there should
-// be nothing in o2_clock_finish(). Right now, o2_clock_finish() is
-// only called by o2_finish(), so the state doesn't really matter
-// until you call o2_initialize(), but that calls o2_clock_initialize().
-{
     is_master = FALSE;
     o2_clock_is_synchronized = FALSE;
     time_callback = NULL;
@@ -473,6 +463,17 @@ void o2_clock_finish()
     found_clock_service = FALSE;
     ping_reply_count = 0;
     time_offset = 0;
+    o2_method_new("/_o2/ps", "", &o2_ping_send_handler, NULL, FALSE, TRUE);
+    o2_method_new("/_o2/cu", "i", &catch_up_handler, NULL, FALSE, TRUE);
+}
+
+
+void o2_clock_finish()
+{
+#ifdef WIN32
+	timeEndPeriod(1); // give up 1ms resolution for Windows
+#endif
+	clock_initialized = FALSE;
 }    
 
 
@@ -584,7 +585,7 @@ o2_time o2_local_time()
     gettimeofday(&tv, NULL);
     return ((tv.tv_sec - start_time) + (tv.tv_usec * 0.000001)) - time_offset;
 #elif WIN32
-    return ((timeGetTime() - start_time) * 0.001) - time_offset;
+	return ((timeGetTime() - start_time) * 0.001) - time_offset;
 #else
 #error o2_clock has no implementation for this system
 #endif

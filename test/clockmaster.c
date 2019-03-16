@@ -18,6 +18,7 @@
 #define streql(a, b) (strcmp(a, b) == 0)
 
 int keep_alive = FALSE;
+int timing_info = FALSE;
 int polling_rate = 100;
 o2_time cs_time = 1000000.0;
 
@@ -90,14 +91,55 @@ void rtt_reply(o2_msg_data_ptr msg, const char *types,
     rtt_received = TRUE;
 }
 
+/* o2_run with modifications to explore timing */
+/* modifications are marked with TIMING_INFO */
+#define TIMING_INFO 1
+int o2_run_special(int rate)
+{
+	if (rate <= 0) rate = 1000; // poll about every ms
+	int sleep_usec = 1000000 / rate;
+	o2_stop_flag = FALSE;
+#if TIMING_INFO
+	double maxtime = 0.0;
+	double mintime = 100.0;
+	double lasttime = 0;
+	int count = 0;
+#endif
+	while (!o2_stop_flag) {
+		o2_poll();
+		usleep(sleep_usec);
+#if TIMING_INFO
+		count++;
+		if (timing_info) {
+			double now = o2_local_time();
+			double looptime = now - lasttime;
+			lasttime = now;
+			maxtime = max(maxtime, looptime);
+			mintime = min(mintime, looptime);
+			if (count % 1000 == 0) {
+				printf("now %g maxtime %g mintime %g looptime %g, sleep_usec %d\n", now, maxtime, mintime, looptime, sleep_usec);
+				lasttime = o2_local_time();
+				mintime = 100.0;
+				maxtime = 0.0;
+			}
+		}
+		if (count % 10000 == 0) {
+			printf("o2_time_get: %.3f\n", o2_time_get());
+		}
+#endif
+	}
+	return O2_SUCCESS;
+}
+
 
 int main(int argc, const char * argv[])
 {
-    printf("Usage: clockmaster [debugflags] [z]\n"
+    printf("Usage: clockmaster [debugflags] [zd]\n"
            "    see o2.h for flags, use a for all, - for none\n"
            "    1000 (or another number) specifies O2 polling rate (optional, "
            "default 100)\n"
-           "    use optional z flag to stay running for long-term tests\n");
+           "    use optional z flag to stay running for long-term tests\n"
+		   "    use optional d flag to print details of local clock time and polling\n");
     if (argc >= 2 && strcmp(argv[1], "-") != 0) {
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);
@@ -107,11 +149,15 @@ int main(int argc, const char * argv[])
             polling_rate = atoi(argv[2]);
             printf("O2 polling rate: %d\n", polling_rate);
         }
-        if (strchr(argv[2], 'z') != NULL) {
-            printf("clockmaster will not stop, kill with ^C to quit.\n\n");
-            keep_alive = TRUE;
-        }
-    }
+		if (strchr(argv[2], 'z') != NULL) {
+			printf("clockmaster will not stop, kill with ^C to quit.\n\n");
+			keep_alive = TRUE;
+		}
+		if (strchr(argv[2], 'd') != NULL) {
+			printf("d flag found - printing extra clock and polling info\n\n");
+			timing_info = TRUE;
+		}
+	}
     if (argc > 3) {
         printf("WARNING: clockmaster ignoring extra command line argments\n");
     }
@@ -124,7 +170,7 @@ int main(int argc, const char * argv[])
     // we are the master clock
     o2_clock_set(NULL, NULL);
     o2_send("!server/clockmaster", 0.0, ""); // start polling
-    o2_run(polling_rate);
+    o2_run_special(polling_rate);
     o2_finish();
     sleep(1);
     if (rtt_received) {
