@@ -867,7 +867,7 @@ int o2_method_new(const char *path, const char *typespec,
  *
  *  @return 0 (O2_SUCCESS) if succeed, -1 (O2_FAIL) if not.
  */
-int o2_poll();
+int o2_poll(void);
 
 /**
  * \brief Run O2.
@@ -1106,7 +1106,7 @@ int o2_message_send(o2_message_ptr msg);
  *
  *  @return the time in seconds, or -1 if global (master) time is unknown.
  */
-o2_time o2_time_get();
+o2_time o2_time_get(void);
 
 
 /**
@@ -1114,7 +1114,7 @@ o2_time o2_time_get();
  *
  * @return the local time in seconds
  */
-o2_time o2_local_time();
+o2_time o2_local_time(void);
 
 /**
  *  \brief Return text representation of an O2 error
@@ -1133,7 +1133,7 @@ const char *o2_error_to_string(int i);
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_finish();
+int o2_finish(void);
 
 
 // Interoperate with OSC
@@ -1407,7 +1407,7 @@ o2_blob_ptr o2_blob_new(uint32_t size);
  * such as o2_add_int32() to add parameters. Then call
  * o2_send_finish() to send the message.
  */
-int o2_send_start();
+int o2_send_start(void);
 
 
 /// \brief add a `float` to the message (see o2_send_start())

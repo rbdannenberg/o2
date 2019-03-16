@@ -21,11 +21,11 @@ extern int o2_port_map[16];
  *
  *  @return O2_SUCCESS (0) if succeed, O2_FAIL (-1) if not.
  */
-int o2_discovery_initialize();
+int o2_discovery_initialize(void);
 
-int o2_discovery_finish();
+int o2_discovery_finish(void);
 
-int o2_discovery_msg_initialize();
+int o2_discovery_msg_initialize(void);
 
 /**
  *  Discover function will send the discover messages and deal with all the discover
