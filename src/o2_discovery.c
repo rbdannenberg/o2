@@ -84,7 +84,7 @@ int o2_discovery_initialize()
     if (disc_port_index >= PORT_MAX) {
         broadcast_recv_port = -1; // no port to receive discovery messages
         disc_port_index = -1;
-        fprintf(stderr, "Unable to allocate a discovery port.");
+        fprintf(stderr, "Unable to allocate a discovery port.\n");
         return ret;
     }
     O2_DBo(printf("%s created discovery port %ld\n",

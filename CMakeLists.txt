@@ -183,7 +183,15 @@ target_link_libraries(infotest1 ${LIBRARIES})
 add_executable(infotest2 test/infotest2.c)    
 target_include_directories(infotest2 PRIVATE ${CMAKE_SOURCE_DIR}/src)    
 target_link_libraries(infotest2 ${LIBRARIES})  
-endif(BUILD_TESTS)
+
+add_executable(o2utclient test/o2utclient.c)  
+target_include_directories(o2utclient PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(o2utclient ${LIBRARIES}) 
+ 
+add_executable(o2utserver test/o2utserver.c)  
+target_include_directories(o2utserver PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(o2utserver ${LIBRARIES}) 
+ endif(BUILD_TESTS)
 
 if(UNIX)
   if(APPLE)

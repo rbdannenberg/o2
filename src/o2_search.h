@@ -193,7 +193,7 @@ int o2_entry_add(node_entry_ptr node, o2_entry_ptr entry);
 /**
  * make a new node
  */
-node_entry_ptr o2_node_new();
+node_entry_ptr o2_node_new(const char *key);
 
 int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
                                 o2_info_ptr new_service);

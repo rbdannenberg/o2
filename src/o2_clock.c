@@ -124,7 +124,7 @@ static void set_clock(double local_time, double new_master)
 {
     global_time_base = LOCAL_TO_GLOBAL(local_time); // current estimate
     local_time_base = local_time;
-    O2_DBk(printf("%s set_clock: using %g, should be %g\n",
+    O2_DBk(printf("%s set_clock: using %.3f, should be %.3f\n",
         o2_debug_prefix, global_time_base, new_master));
     double clock_advance = new_master - global_time_base; // how far to catch up
     clock_rate_id++; // cancel any previous calls to catch_up_handler()

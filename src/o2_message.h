@@ -18,14 +18,14 @@ extern thread_local o2_context_ptr o2_context;
 #endif
 
 /* MESSAGE EXTRACTION */
-void o2_argv_initialize();
+void o2_argv_initialize(void);
 
-void o2_argv_finish();
+void o2_argv_finish(void);
 
 /* MESSAGE CONSTRUCTION */
 int o2_add_bundle_head(int64_t time);
 
-int32_t *o2_msg_len_ptr();
+int32_t *o2_msg_len_ptr(void);
 
 int o2_set_msg_length(int32_t *msg_len_ptr);
 

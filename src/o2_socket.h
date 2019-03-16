@@ -163,7 +163,7 @@ int o2_initWSock();
 #ifndef O2_NO_DEBUGGING
 #define SOCKET_DEBUG
 #ifdef SOCKET_DEBUG
-void o2_sockets_show();
+void o2_sockets_show(void);
 #endif
 #endif
 
@@ -177,7 +177,7 @@ int o2_process_initialize(process_info_ptr info, int status, int hub_flag);
 
 void o2_socket_mark_to_free(process_info_ptr info);
 
-int o2_sockets_initialize();
+int o2_sockets_initialize(void);
 
 int o2_make_tcp_recv_socket(int tag, int port, o2_socket_handler handler,
                             process_info_ptr *info);
@@ -186,7 +186,7 @@ int o2_make_udp_recv_socket(int tag, int *port, process_info_ptr *info);
 
 int o2_osc_delegate_handler(SOCKET sock, process_info_ptr info);
 
-void o2_free_deleted_sockets();
+void o2_free_deleted_sockets(void);
 
 /**
  *  o2_recv will check all the set up sockets of the local process,
@@ -197,7 +197,7 @@ void o2_free_deleted_sockets();
  *
  *  @return O2_SUCESS if succeed, O2_FAIL if not.
  */
-int o2_recv();
+int o2_recv(void);
 
 
 int o2_tcp_initial_handler(SOCKET sock, process_info_ptr info);

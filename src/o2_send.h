@@ -17,7 +17,7 @@
 
 extern int o2_in_find_and_call_handlers;
 
-void o2_deliver_pending();
+void o2_deliver_pending(void);
 
 services_entry_ptr *o2_services_find(const char *service_name);
 
