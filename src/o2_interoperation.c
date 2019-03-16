@@ -152,6 +152,7 @@ int o2_osc_delegate(const char *service_name, const char *ip, int port_num, int 
         process_info_ptr info;
         RETURN_IF_ERROR(o2_make_tcp_recv_socket(
                 OSC_TCP_CLIENT, 0, &o2_osc_delegate_handler, &info));
+		printf("delegate created info %p\n", info);
         // make the connection
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_protocol = IPPROTO_TCP;

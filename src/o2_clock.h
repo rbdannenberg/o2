@@ -1,7 +1,5 @@
 // o2_clock.h -- header for internally shared clock declarations
 
-void o2_time_initialize();
-
 void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
                             o2_arg_ptr *argv, int argc, void *user_data);
 

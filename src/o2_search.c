@@ -616,7 +616,18 @@ void pick_service_provider(dyn_array_ptr list)
  * remove the whole services entry. Also, if NULL, find any tappee where this 
  * is the tapper and remove the tapper entry.
  *
- * prereq: service_name does not have '/'
+ * precond: service_name does not have '/'
+ *
+ * CASE 1: OSC_TCP_CLIENT gets hangup. new_service is NULL. service_name is 
+ *         from process_info with tag==OSC_TCP_CLIENT, 
+ *         proc is o2_context->process 
+ *     finds and frees osc_info pointed to by services_entry
+ *     finds service in proc.services and removes it
+ *     removes the osc_info pointer from services_entry
+ *     if services_entry is empty, remove service from path_tree
+ *     if proc is o2_context->process, notify that service is gone from proc
+ *     
+ *     
  */
 int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
                                 o2_info_ptr new_service)
@@ -629,11 +640,11 @@ int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
                       o2_debug_prefix, proc->proc.name, service_name));
         return O2_FAIL;
     }
-    dyn_array_ptr list = &((*services)->services); // list of services
+    dyn_array_ptr svlist = &((*services)->services); // list of services
     // search for the entry in the list of services that corresponds to proc
     int i;
-    for (i = 0; i < list->length; i++) {
-        o2_info_ptr service = GET_SERVICE(*list, i);
+    for (i = 0; i < svlist->length; i++) {
+        o2_info_ptr service = GET_SERVICE(*svlist, i);
         int tag = service->tag;
         if (tag == TCP_SOCKET && (process_info_ptr) service == proc) {
             break;
@@ -650,16 +661,18 @@ int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
         }
     }
     // if we did not find what we wanted to replace, stop here
-    if (i >= list->length) {
+    if (i >= svlist->length) {
         O2_DBg(printf("%s o2_service_provider_replace(%s, %s) did not find "
                       "service offered by this process\n",
                       o2_debug_prefix, proc->proc.name, service_name));
         return O2_FAIL;
     }
+	// ASSERT: i is now the index of the service we are deleting or replacing
+	//
     // we found the service to replace; finalized the info depending on the
     // type, so now we have a dangling pointer in the services list
     if (new_service) {  // replace and we're finished
-        DA_SET(*list, o2_info_ptr, i, new_service);
+        DA_SET(*svlist, o2_info_ptr, i, new_service);
         return O2_SUCCESS;
     }
     // send notification message
@@ -668,20 +681,40 @@ int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
     o2_send_cmd("!_o2/si", 0.0, "sis", service_name, O2_FAIL, proc->proc.name);
     o2_in_find_and_call_handlers--;
 
+	// Do this next before service_name in proc->proc.services is freed.
+	// proc has a list of services it provides; find the service
+	// in the list and remove it. It should always be first in the list
+	// because we're using the same list to enumerate the services, but
+	// just in case there's some other reason to remove a service, we'll
+	// search for it rather than assuming it's the first entry.
+	dyn_array_ptr pslist = &(proc->proc.services);
+	for (int j = 0; j < proc->proc.services.length; j++) {
+		printf("checking %p: %s at %ld vs %s\n", proc, *DA_GET(*pslist, char *, j), j, service_name);
+		if (streql(*DA_GET(*pslist, char *, j), service_name)) {
+			DA_REMOVE(*pslist, char *, j);
+			pslist = NULL;
+			break;
+		}
+	}
+	if (pslist) {
+		O2_DBg(printf("%s o2_service_provider_replace(%s, %s) did not find "
+			"service in process_info's services list\n",
+			o2_debug_prefix, proc->proc.name, service_name));
+	}
+
     // "replacement" is NULL, so we have to remove the listing
-    DA_REMOVE(*list, process_info_ptr, i);
-    if (list->length == 0) {
+    DA_REMOVE(*svlist, process_info_ptr, i);
+    if (svlist->length == 0) {
         entry_remove(&o2_context->path_tree, (o2_entry_ptr *) services, TRUE);
+		// service name (the key in path_tree) is now freed.
     } else if (i == 0) { // move top ip:port provider to top spot
-        pick_service_provider(list);
+        pick_service_provider(svlist);
     }
-//    printf("o2_service_provider_replace 2\n"); //RBDBG
     // now we probably have a new service, report it:
-    if (list->length > 0) {
-//        printf("o2_service_provider_replace 3\n"); //RBDBG
+    if (svlist->length > 0) {
         // THE FOLLOWING LINE SEEMS TO CRASH WHEN SERVICE DISAPPEARS AND WE ARE COMPILED
         // WITH OPTIMIZATION. IT MUST DEPEND ON SOMETHING BEING INITIALIZED IN DEBUG RUNS
-        o2_info_ptr info = GET_SERVICE(*list, 0);
+        o2_info_ptr info = GET_SERVICE(*svlist, 0);
         const char *process_name;
         int status = o2_status_from_info(info, &process_name);
         // note: if the entry is a TAPPER, status will be O2_FAIL (not a service)
@@ -692,29 +725,17 @@ int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
             o2_in_find_and_call_handlers--;
         }
     }
-//    printf("o2_service_provider_replace 4\n"); //RBDBG
 
     // if the service was local, tell other processes that it is gone
     if (proc == o2_context->process) {
         o2_notify_others(service_name, FALSE, NULL);
     }
 
-    // proc also has a list of services it provides; find the service
-    // in the list and remove it. It should always be first in the list
-    // because we're using the same list to enumerate the services, but
-    // just in case there's some other reason to remove a service, we'll
-    // search for it rather than assuming it's the first entry.
-    list = &(proc->proc.services);
-    for (int j = 0; j < proc->proc.services.length; j++) {
-        if (streql(*DA_GET(*list, char *, i), service_name)) {
-            DA_REMOVE(*list, char *, i);
-            return O2_SUCCESS;
-        }
-    }
-    O2_DBg(printf("%s o2_service_provider_replace(%s, %s) did not find "
-                  "service in process_info's services list\n",
-                  o2_debug_prefix, proc->proc.name, service_name));
-    
+	// TAP TODO: make an o2_untap(tapper, tappee) call.
+	// don't remove taps automatically as in the following code
+	// o2_tap(tapper, tappee) should only install tap on tappee
+	//    and only if it exists.
+
     // remove tapper entries if any. For each service, search the services_entries
     // to find each service, search o2_context->path_tree. This is a hash table, so searching
     // must include linked lists at each location.
@@ -743,7 +764,7 @@ int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
             }
         }
     }
-    return O2_FAIL;
+    return O2_SUCCESS;
 }
 
 
@@ -793,15 +814,6 @@ int o2_set_tap(const char *tappee, const char *tapper_name)
     int i = 0;
     if (!s) {
         s = o2_insert_new_service(padded_tappee, services);
-        // TODO: REMOVE THIS DEBUGGING CODE
-        if (streql(padded_tappee, "test")) {
-#ifndef NDEBUG
-            printf("--- node (o2_context->path_tree) %p key %s\n", &o2_context->path_tree, tappee);
-            o2_entry_ptr *ptr = // only needed in assert()
-#endif
-                o2_lookup(&o2_context->path_tree, padded_tappee);
-            assert(*ptr);
-        }
     } else {
         // now we have s, the services array. Look for tapper_name...
         if (s->services.length > 0) {
@@ -1283,6 +1295,36 @@ int o2_remove_method(const char *path)
     return remove_method_from_tree(remaining, name, &o2_context->path_tree);
 }
 
+// ORGANIZATION FOR OSC_TCP_CLIENT (service delegated to OSC over TCP)
+/***************************************
+o2_context->fds                       service
+         o2_context->fds_info         names
++----+   +---------+   +---------+    ______
+|    |   |        -+-> | local   +-->|______| (these pointers are equal
+|----|   |---------|   | process |   |______|  to keys in o2_context->path_tree)
+|    |   |         |   +---------+
+|----|   |---------|        ^     +---------+
+|    |   |        -|--------+---->| process +--> osc.service_name (not shared)
++----+   +---------+        |     |   info  | (this process info
+                            |     +---------+  has no service names)
+o2_context->path_tree |                    ^
++----------+    +--------+  |              |
+|         -+--->|services+--+             ++---------+
++----------+    | entry  +--------------->| osc_info |
+|         -+->  |        |   +-------- +  |          |
++----------+    |       -+-->| (local) |  +----------+
+                +--------+   | node   -+--->etc
+                             | entry   | -> +---------+
+                             +--------+     | handler |
+							                | entry   |
+                                            +---------+
+
+local process should have osc.service_name in it's list of service names
+osc_info has tag = OSC_REMOTE_SERVICE
+process info has tag = OSC_TCP_CLIENT (it's not a "real" process, which 
+   would be an O2 process to which we have a TCP connection. This OSC_TCP_CLIENT
+   process is just a place-holder for the TCP connection to an OSC server.
+*****************************************/
 
 
 // Called when TCP_SOCKET gets a TCP_HUP (hang-up) error;
@@ -1306,16 +1348,29 @@ int o2_remove_method(const char *path)
 //        "owned" by OSC_TCP_SERVER_SOCKET):
 //            free any message
 //            mark the socket to be freed later
-//    for OSC_SOCKET, OSC_TCP_SERVER_SOCKET, OSC_TCP_CLIENT:
+//    for OSC_SOCKET, OSC_TCP_SERVER_SOCKET:
 //        (it must be the case that we're shutting down: when we free the
 //         osc.service_name, all the OSC_TCP_SOCKETS accepted from this 
 //         socket will have freed osc.service_name fields)
 //        free the osc.service_name (it's a copy)
 //        free any message
 //        mark the socket to be freed later
+//    for OSC_TCP_CLIENT
+//        the service name is osc.service_name
+//        remember info's osc.service_name
+//       done by o2_service_provider_replace:
+//           find the services_entry array
+//           find the entry with tag OSC_REMOTE_SERVICE
+//           the entry's tcp_socket_info should point to info
+//           free the entry
+//           remove service_name from local process's services list
+//           free info (process_info_ptr)
+//           mark socket to be freed later
+//        free remembered info's osc.service_name
 //
 int o2_remove_remote_process(process_info_ptr info)
 {
+	printf("o2_remove_remote_process info %p tag %d\n", info, info->tag);
     if (info->tag == TCP_SOCKET) {
         // remove the remote services provided by the proc
         remove_remote_services(info);
@@ -1329,7 +1384,11 @@ int o2_remove_remote_process(process_info_ptr info)
         }
     } else if (info->tag == OSC_SOCKET || info->tag == OSC_TCP_SERVER_SOCKET ||
                info->tag == OSC_TCP_CLIENT) {
-        O2_FREE((void *) info->osc.service_name);
+		const char *service = info->osc.service_name;
+		if (info->tag == OSC_TCP_CLIENT) {
+			o2_service_provider_replace(o2_context->process, service, NULL);
+		}
+        O2_FREE((void *) service);
     }
     if (info->message) O2_FREE(info->message);
     o2_socket_mark_to_free(info); // close the TCP socket

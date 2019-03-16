@@ -496,9 +496,8 @@ int o2_initialize(const char *application_name)
     o2_method_new(address, "s", &o2_clockrt_handler, NULL, FALSE, FALSE);
     o2_method_new("/_o2/ds", NULL, &o2_discovery_send_handler,
                   NULL, FALSE, FALSE);
-    o2_time_initialize();
+	o2_clock_initialize();
     o2_sched_initialize();
-    o2_clock_initialize();
 
     // a few things can be disabled after o2_initialize() and before
     // o2_poll()ing starts, so pick a time in the future and schedule them
@@ -656,6 +655,7 @@ int o2_service_provider_new(o2string service_name, o2_info_ptr service,
     // 2) add the service name to the process so we can enumerate
     //    local services
     DA_APPEND(process->proc.services, o2string, s->key);
+	printf("inserted %s to %p at %ld\n", s->key, process, process->proc.services.length - 1);
     // 3) find insert location: either at front or at back of services->services
     DA_EXPAND(s->services, o2_entry_ptr);
     int index = s->services.length - 1;

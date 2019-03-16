@@ -85,30 +85,16 @@ int main(int argc, const char * argv[])
     for (int n = 0; n < 10; n++) {
         o2_send("/oscsend/i", now + n * 0.1, "i", 2000 + n);
     }
-    // pause for 1s to make sure messages are sent
+    // pause for 2s to make sure messages are sent and service is deleted
     for (int i = 0; i < 500; i++) {
         o2_poll();
         usleep(2000); // 2ms
     }
-    // receiver may want to close port now and check that these
-    printf("Time to close receiver's port if you want to test that.\n");
+    // receiver should close port now and check that these
     // messages are NOT received:
+    printf("Time to close receiver's port if you want to test that.\n");
     err = o2_send("/oscsend/i", 0, "i", 5678);
-    assert(err == O2_SUCCESS);
-    printf("sent 5678 to /oscsend/i\n");
-    // pause for 0.1s, but keep running O2 by polling
-    for (int i = 0; i < 50; i++) {
-        o2_poll();
-        usleep(2000); // 2ms
-    }
-    double ts = o2_time_get() + 0.1;
-    o2_send("/oscsend/i", ts, "i", 6789);
-    printf("sent 6789 to /oscsend/i with timestamp %g\n", ts);
-    // pause for 1s, but keep running O2 by polling
-    for (int i = 0; i < 500; i++) {
-        o2_poll();
-        usleep(2000); // 2ms
-    }
+    assert(err == (tcpflag ? O2_FAIL : O2_SUCCESS));
     o2_service_free("oscsend");
     o2_finish();
     sleep(1); // finish closing sockets
