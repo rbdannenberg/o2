@@ -188,11 +188,24 @@ add_executable(o2utclient test/o2utclient.c)
 target_include_directories(o2utclient PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(o2utclient ${LIBRARIES}) 
  
-add_executable(o2utserver test/o2utserver.c)  
-target_include_directories(o2utserver PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+add_executable(o2utserver test/o2utserver.c)   
+target_include_directories(o2utserver PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(o2utserver ${LIBRARIES}) 
- endif(BUILD_TESTS)
 
+add_executable(rawtcpserver test/rawtcpserver.c)   
+target_link_libraries(rawtcpserver ${LIBRARIES}) 
+
+add_executable(rawtcpclient test/rawtcpclient.c)   
+target_link_libraries(rawtcpclient ${LIBRARIES}) 
+
+add_executable(rawudpserver test/rawudpserver.c)   
+target_link_libraries(rawudpserver ${LIBRARIES}) 
+
+add_executable(rawudpclient test/rawudpclient.c)   
+target_link_libraries(rawudpclient ${LIBRARIES}) 
+
+endif(BUILD_TESTS)  
+ 
 if(UNIX)
   if(APPLE)
     # EXTRA_LO_LIBS is libraries needed by Liblo applications

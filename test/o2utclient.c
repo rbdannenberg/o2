@@ -70,6 +70,7 @@ int main(int argc, const char *argv[])
                 o2_send_cmd("!server/tcp", 0, "i", msg_count);
             }
             msg_count++;
+            next_time += 0.05;
         }
         ppause(0.0);
     }

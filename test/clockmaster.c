@@ -16,6 +16,8 @@
 #endif
 
 #define streql(a, b) (strcmp(a, b) == 0)
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
 
 int keep_alive = FALSE;
 int timing_info = FALSE;
@@ -114,8 +116,8 @@ int o2_run_special(int rate)
 			double now = o2_local_time();
 			double looptime = now - lasttime;
 			lasttime = now;
-			maxtime = max(maxtime, looptime);
-			mintime = min(mintime, looptime);
+			maxtime = MAX(maxtime, looptime);
+			mintime = MIN(mintime, looptime);
 			if (count % 1000 == 0) {
 				printf("now %g maxtime %g mintime %g looptime %g, sleep_usec %d\n", now, maxtime, mintime, looptime, sleep_usec);
 				lasttime = o2_local_time();

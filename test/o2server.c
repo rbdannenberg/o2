@@ -21,6 +21,7 @@
 //
 char **client_addresses;
 int n_addrs = 20;
+int use_tcp = FALSE;
 
 #define MAX_MSG_COUNT 50000
 
@@ -35,7 +36,10 @@ void server_test(o2_msg_data_ptr msg, const char *types,
 {
     assert(argc == 1);
     msg_count++;
-    o2_send(client_addresses[msg_count % n_addrs], 0, "i", msg_count);
+    if (use_tcp) 
+        o2_send_cmd(client_addresses[msg_count % n_addrs], 0, "i", msg_count);
+    else
+        o2_send(client_addresses[msg_count % n_addrs], 0, "i", msg_count);
     if (msg_count % 10000 == 0) {
         printf("server received %d messages\n", msg_count);
     }
@@ -54,7 +58,8 @@ int main(int argc, const char *argv[])
 {
     printf("Usage: o2server [debugflags] [n_addrs]\n"
            "    see o2.h for flags, use a for all, - for none\n"
-           "    n_addrs is number of addresses to use, default 20\n");
+           "    n_addrs is number of addresses to use, default 20\n"
+           "    end n_addrs with t, e.g. 20t to use TCP\n");
     if (argc >= 2) {
         if (argv[1][0] != '-') {
             o2_debug_flags(argv[1]);
@@ -64,6 +69,10 @@ int main(int argc, const char *argv[])
     if (argc >= 3) {
         n_addrs = atoi(argv[2]);
         printf("n_addrs is %d\n", n_addrs);
+        if (strchr(argv[2], 't')) {
+            use_tcp = TRUE;
+            printf("Using TCP\n");
+        }
     }
     if (argc > 3) {
         printf("WARNING: o2server ignoring extra command line argments\n");

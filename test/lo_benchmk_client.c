@@ -7,6 +7,7 @@ lo_address server;
 char **addresses;
 int n_addrs = 20;
 int msg_count = 0;
+int use_tcp = 0;
 
 int handler(const char *path, const char *types,
             lo_arg **argv, int argc, lo_message msg, void *user_data)
@@ -24,17 +25,21 @@ int handler(const char *path, const char *types,
 int main(int argc, const char *argv[])
 {
     printf("Usage: lo_benchmk_client [n_addrs]\n"
-           "  n_addrs is number of paths, default is 20\n");
+           "  n_addrs is number of paths, default is 20\n"
+           "  end n_addrs with t for TCP, e.g. 20t\n");
     if (argc == 2) {
         n_addrs = atoi(argv[1]);
         printf("n_addrs is %d\n", n_addrs);
+        use_tcp = (strchr(argv[1], 't') != NULL);
     }
 
     // create address for server
-    server = lo_address_new("localhost", "8000");
+    server = lo_address_new_with_proto(use_tcp ? LO_TCP : LO_UDP,
+                                       "localhost", "8000");
 
     // create client
-    lo_server client = lo_server_new("8001", NULL);
+    lo_server client = lo_server_new_with_proto("8001",
+                               use_tcp ? LO_TCP : LO_UDP, NULL);
 
     // make addresses and register them with server
     addresses = (char **) malloc(sizeof(char **) * n_addrs);

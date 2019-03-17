@@ -655,7 +655,6 @@ int o2_service_provider_new(o2string service_name, o2_info_ptr service,
     // 2) add the service name to the process so we can enumerate
     //    local services
     DA_APPEND(process->proc.services, o2string, s->key);
-	printf("inserted %s to %p at %ld\n", s->key, process, process->proc.services.length - 1);
     // 3) find insert location: either at front or at back of services->services
     DA_EXPAND(s->services, o2_entry_ptr);
     int index = s->services.length - 1;

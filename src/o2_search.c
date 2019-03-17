@@ -689,7 +689,6 @@ int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
 	// search for it rather than assuming it's the first entry.
 	dyn_array_ptr pslist = &(proc->proc.services);
 	for (int j = 0; j < proc->proc.services.length; j++) {
-		printf("checking %p: %s at %ld vs %s\n", proc, *DA_GET(*pslist, char *, j), j, service_name);
 		if (streql(*DA_GET(*pslist, char *, j), service_name)) {
 			DA_REMOVE(*pslist, char *, j);
 			pslist = NULL;

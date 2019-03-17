@@ -6,6 +6,7 @@
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
+#include "ctype.h"
 
 #ifdef WIN32
 #include "usleep.h" // special windows implementation of sleep/usleep
