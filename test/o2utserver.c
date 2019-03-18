@@ -14,7 +14,9 @@
 #include "stdio.h"
 #include "string.h"
 #include "assert.h"
-#define max(x, y) ((x) > (y) ? (x) : (y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+
+#define LATE 0.110 // how late increments late_counts?
 
 #ifdef WIN32
 #include "usleep.h" // special windows implementation of sleep/usleep
@@ -30,8 +32,10 @@ int last_tcp = -1;
 int running = TRUE;
 double last_tcp_time = 1000000;
 double max_tcp_interval = 0;
+int tcp_late_count = 0;
 double last_udp_time = 1000000;
 int udp_drop_count = 0;
+int udp_late_count = 0;
 double max_udp_interval = 0;
 
 
@@ -49,7 +53,9 @@ void server_tcp(o2_msg_data_ptr msg, const char *types,
         last_tcp += 2;
         assert(last_tcp == i);
         double now = o2_local_time();
-        max_tcp_interval = max(max_tcp_interval, now - last_tcp_time);
+		double lateness = now - last_tcp_time;
+        max_tcp_interval = MAX(max_tcp_interval, lateness);
+		if (lateness > LATE) tcp_late_count++;
         last_tcp_time = now;
     }
 }
@@ -68,7 +74,9 @@ void server_udp(o2_msg_data_ptr msg, const char *types,
         last_udp = i;
     }
     double now = o2_local_time();
-    max_udp_interval = max(max_udp_interval, now - last_udp_time);
+	double lateness = now - last_tcp_time;
+	max_udp_interval = MAX(max_udp_interval, lateness);
+	if (lateness > LATE) udp_late_count++;
     last_udp_time = now;
 }
 
@@ -113,10 +121,13 @@ int main(int argc, const char *argv[])
     }
     
     o2_finish();
+	printf("udp drop count %d\n", udp_drop_count);
     printf("last udp message id was %d\n", last_udp);
     printf("max_udp_interval %g\n", max_udp_interval);
+	printf("udp_late_count %d\n", udp_late_count);
     printf("last tcp message id was %d\n", last_tcp);
     printf("max_tcp_interval %g\n", max_tcp_interval);
+	printf("tcp_late_count %d\n", tcp_late_count);
     printf("SERVER DONE\n");
     return 0;
 }
