@@ -1,4 +1,6 @@
-//  typestest.c -- send messages of all (but vector and array) types
+//  taptest.c -- send messages of all (but vector and array) types
+//      to a collection of services that are tapped and check
+//      that the delivery to tapper services works
 //
 
 #include <stdio.h>
@@ -531,7 +533,7 @@ void service_noneptap(o2_msg_data_ptr data, const char *types,
 {
     assert(strcmp(types, "") == 0);
     assert(argc == 0);
-    printf("service_iptap types=%s\n", types);
+    printf("service_noneptap types=%s\n", types);
     tapped_the_message = TRUE;
 }
 
@@ -1047,11 +1049,20 @@ int main(int argc, const char * argv[])
     o2_service_new("three");
     o2_service_new("four");
 
+    o2_service_new("testtap");
+    o2_service_new("onetap");
+    o2_service_new("twotap");
+
+
     o2_tap("test", "testtap");
     o2_tap("one", "onetap");
     o2_tap("two", "twotap");
     o2_tap("three", "threetap");
     o2_tap("four", "fourtap");
+
+    // should be ok to make tapper AFTER the o2_tap call...
+    o2_service_new("threetap");
+    o2_service_new("fourtap");
 
     o2_method_new("/one/none", "", &service_none, NULL, FALSE, FALSE);
     o2_method_new("/onetap/none", "", &service_nonetap, NULL, FALSE, FALSE);

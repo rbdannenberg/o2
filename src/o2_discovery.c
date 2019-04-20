@@ -156,7 +156,7 @@ int o2_discovery_msg_initialize()
 {
     int err = o2_send_start() ||
         o2_add_int32(O2_NO_HUB) || // hub flag
-        o2_add_string(o2_application_name) ||
+        o2_add_string(o2_ensemble_name) ||
         o2_add_string(o2_local_ip) ||
         o2_add_int32(o2_local_tcp_port) ||
         o2_add_int32(broadcast_recv_port);
@@ -179,7 +179,7 @@ int o2_discovery_msg_initialize()
     O2_DBg(printf("%s in o2_initialize,\n    name is %s, local IP is %s, \n"
             "    udp receive port is %d,\n"
             "    tcp connection port is %d,\n    broadcast recv port is %d\n",
-            o2_debug_prefix, o2_application_name, o2_local_ip, o2_context->process->port,
+            o2_debug_prefix, o2_ensemble_name, o2_local_ip, o2_context->process->port,
             o2_local_tcp_port, broadcast_recv_port));
     return O2_SUCCESS;
 }
@@ -284,33 +284,53 @@ int o2_send_initialize(process_info_ptr process, int32_t hub_flag)
     // delivered by the o2_tcp_initial_handler() callback
     o2_message_ptr msg = o2_message_finish(0.0, "!_o2/in", TRUE);
     if (!msg) return O2_FAIL;
-    err = send_by_tcp_to_process(process, &msg->data);
-    o2_message_free(msg);
+    err = send_by_tcp_to_process(process, msg);
     return err;
 }
 
 
+// send local services info to remote process. The address is !ip:port/sv
+// The parameters are this process name, e.g. IP:port (as a string),
+// followed by (for each service): service_name, TRUE, "", where TRUE means
+// the service exists (not deleted), and "" is a placeholder for a tappee
+//
+// Send taps as well.
+// 
 int o2_send_services(process_info_ptr process)
 {
-    // send services if any
-    if (o2_context->process->proc.services.length <= 0) {
-        return O2_SUCCESS;
-    }
     o2_send_start();
     o2_add_string(o2_context->process->proc.name);
-    for (int i = 0; i < o2_context->process->proc.services.length; i++) {
-        char *service = *DA_GET(o2_context->process->proc.services, char *, i);
+    dyn_array_ptr services = &(o2_context->process->proc.services);
+    o2string dest = process->proc.name;
+    
+    for (int i = 0; i < services->length; i++) {
+        proc_service_data_ptr psdp = 
+                DA_GET(*services, proc_service_data, i);
+        services_entry_ptr ss = psdp->services;
         // ugly, but just a fast test if service is _o2:
-        if ((*((int32_t *) service) != *((int32_t *) "_o2"))) {
-            o2_add_string(service);
+        if (*((int32_t *) (ss->key)) != *((int32_t *) "_o2")) {
+            o2_add_string(ss->key);
             o2_add_true();
-            o2_add_string("");
+            o2_add_true();
+            o2_add_string(psdp->properties ? psdp->properties + 1 : "");
             O2_DBd(printf("%s o2_send_services sending %s to %s\n",
-                          o2_debug_prefix, service, process->proc.name));
-        }
+                          o2_debug_prefix, ss->key, dest));
+        }   
     }
+
+    for (int i = 0; i < process->proc.taps.length; i++) {
+        proc_tap_data_ptr ptdp = DA_GET(process->proc.taps, proc_tap_data, i);
+        services_entry_ptr ss = ptdp->services;
+        o2_add_string(ss->key); // tappee
+        o2_add_true();
+        o2_add_false();
+        o2_add_string(ptdp->tapper);
+        O2_DBd(printf("%s o2_send_services sending tappee %s tapper %s to %s\n",
+                      o2_debug_prefix, ss->key, ptdp->tapper, dest));
+    }
+
     char address[32];
-    snprintf(address, 32, "!%s/sv", process->proc.name);
+    snprintf(address, 32, "!%s/sv", dest);
     return o2_send_finish(0.0, address, TRUE);
 }
 
@@ -323,18 +343,18 @@ int o2_send_discovery(process_info_ptr process)
 {
     // now send info on every host
     for (int i = 0; i < o2_context->fds_info.length; i++) {
-        process_info_ptr info = GET_PROCESS(i);
-        // parse ip & port from info. If we do not have a proc.name, this
-        // info may be the result of a client running o2_hub() and making
+        process_info_ptr proc = GET_PROCESS(i);
+        // parse ip & port from proc. If we do not have a proc.name, this
+        // proc may be the result of a client running o2_hub() and making
         // a TCP connection solely for the purpose of sending a discovery
         // message. This tells us, the receiver, to make a TCP connection
         // in the other direction, so the "real" TCP socket pair is not
-        // represented by this info, and this connection will soon be
+        // represented by this proc, and this connection will soon be
         // closed by the connected process. (All this is explaining why
-        // we have to check for info->proc.name in the next line...)
-        if (info->tag == TCP_SOCKET && info->proc.name) {
+        // we have to check for proc->proc.name in the next line...)
+        if (proc->tag == TCP_SOCKET && proc->proc.name) {
             char ipaddress[32];
-            strcpy(ipaddress, info->proc.name);
+            strcpy(ipaddress, proc->proc.name);
             char *colon = strchr(ipaddress, ':');
             if (!colon) {
                 return O2_FAIL;
@@ -345,15 +365,14 @@ int o2_send_discovery(process_info_ptr process)
             // if this fails, we'll continue with other hosts
             int err = o2_send_start() ||
                       o2_add_int32(O2_FROM_HUB) || // hub flag
-                      o2_add_string(o2_application_name) ||
+                      o2_add_string(o2_ensemble_name) ||
                       o2_add_string(ipaddress) ||
                       o2_add_int32(port) || // the TCP port
                       o2_add_int32(-1); // broadcast receive port is not needed
             o2_message_ptr msg;
             if (err || !(msg = o2_message_finish(0.0, "!_o2/dy", TRUE)))
                 return O2_FAIL;
-            err = send_by_tcp_to_process(process, &msg->data);
-            o2_message_free(msg);
+            err = send_by_tcp_to_process(process, msg);
             if (err) {
                 return err;
             }
@@ -388,7 +407,7 @@ int o2_discovery_by_tcp(const char *ipaddress, int port, char *name,
                   // but we're the server, so we need the other process to connect to
                   // us. We tell it that with an !_o2/dy message with O2_NO_HUB
                   o2_add_int32(hub_flag ? O2_CLIENT_IS_HUB : O2_NO_HUB) || // hub flag
-                  o2_add_string(o2_application_name) ||
+                  o2_add_string(o2_ensemble_name) ||
                   o2_add_string(o2_local_ip) ||
                   o2_add_int32(o2_local_tcp_port) ||
                   o2_add_int32(broadcast_recv_port); // not used
@@ -397,11 +416,10 @@ int o2_discovery_by_tcp(const char *ipaddress, int port, char *name,
             return O2_FAIL;
         O2_DBh(printf("%s in o2_discovery_by_tcp, we are server sending /dy to %s:%d\n",
                       o2_debug_prefix, ipaddress, port));
-        err = send_by_tcp_to_process(remote, &msg->data);
-        o2_message_free(msg);
+        err = send_by_tcp_to_process(remote, msg);
     } else { // we are the client remote host is the server and hub
         remote->proc.name = o2_heapify(name);
-        o2_service_provider_new(name, (o2_info_ptr) remote, remote, "");
+        o2_service_provider_new(name, NULL, (o2_info_ptr) remote, remote);
         o2_send_initialize(remote, hub_flag ? O2_SERVER_IS_HUB : O2_NO_HUB);
         o2_send_services(remote);
     }
@@ -409,14 +427,14 @@ int o2_discovery_by_tcp(const char *ipaddress, int port, char *name,
 }
 
 
-// /_o2/dy handler, parameters are: hub, application name, ip, tcp, upd
+// /_o2/dy handler, parameters are: hub, ensemble name, ip, tcp, upd
 // 
 void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
                           o2_arg_ptr *argv, int argc, void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2_discovery_handler gets", msg, NULL, NULL));
     o2_arg_ptr app_arg, ip_arg, tcp_arg, udp_arg, hub_arg;
-    // get the arguments: application name, ip as string,
+    // get the arguments: ensemble name, ip as string,
     //                    tcp port, discovery port
     o2_extract_start(msg);
     if (!(hub_arg = o2_get_next('i')) || 
@@ -429,9 +447,9 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
     char *ip = ip_arg->s;
     int tcp = tcp_arg->i32;
     
-    if (!streql(app_arg->s, o2_application_name)) {
-        O2_DBd(printf("    Ignored: application name is not %s\n", 
-                      o2_application_name));
+    if (!streql(app_arg->s, o2_ensemble_name)) {
+        O2_DBd(printf("    Ignored: ensemble name is not %s\n", 
+                      o2_ensemble_name));
         return;
     }
     char name[32];
@@ -498,7 +516,7 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
         }
         remote->proc.name = o2_heapify(name);
         assert(remote->tag == TCP_SOCKET);
-        o2_service_provider_new(name, (o2_info_ptr) remote, remote, "");
+        o2_service_provider_new(name, NULL, (o2_info_ptr) remote, remote);
         o2_send_initialize(remote, hub_flag);
         o2_send_services(remote);
         if (hub_flag == O2_CLIENT_IS_HUB) {
@@ -525,7 +543,7 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
                                o2_arg_ptr *argv, int argc, void *user_data)
 {
     o2_arg_ptr ip_arg, tcp_arg, udp_arg, clocksync_arg, hub_arg;
-    // get the arguments: application name, ip as string,
+    // get the arguments: ensemble name, ip as string,
     //                    tcp port, udp port
     if (o2_extract_start(msg) != 5 ||
         !(ip_arg = o2_get_next('s')) ||
@@ -548,50 +566,52 @@ void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
     int status = (clocksync_arg->i32 ? PROCESS_OK : PROCESS_NO_CLOCK);
     
     // if o2_context->path_tree entry does not exist, create it
-    process_info_ptr info = (process_info_ptr) user_data;
-    assert(info->proc.status == PROCESS_CONNECTED);
+    process_info_ptr proc = (process_info_ptr) user_data;
+    assert(proc->proc.status == PROCESS_CONNECTED);
     o2_entry_ptr *entry_ptr = o2_lookup(&o2_context->path_tree, name);
     O2_DBd(printf("%s o2_discovery_init_handler looked up %s -> %p\n",
                   o2_debug_prefix, name, entry_ptr));
     if (!*entry_ptr) { // we are the server, and we accepted a client connection,
         // but we did not yet create a service named for client's IP:port
         int hub_flag = hub_arg->i32;
-        assert(info->tag == TCP_SOCKET);
-        o2_service_provider_new(name, (o2_info_ptr) info, info, "");
-        assert(info->proc.name == NULL);
-        info->proc.name = o2_heapify(name);
-        // uses_hub means info->proc, the remote proc, is using us as the hub;
+        assert(proc->tag == TCP_SOCKET);
+        o2_service_provider_new(name, NULL, (o2_info_ptr) proc, proc);
+        assert(proc->proc.name == NULL);
+        proc->proc.name = o2_heapify(name);
+        // uses_hub means proc->proc, the remote proc, is using us as the hub;
         // that's true if O2_SERVER_IS_HUB because we are the server:
-        info->proc.uses_hub = (hub_flag == O2_SERVER_IS_HUB);
+        proc->proc.uses_hub = (hub_flag == O2_SERVER_IS_HUB);
         // now that we have a name and service, we can send init message back:
-        o2_send_initialize(info, hub_flag);
-        o2_send_services(info);
+        o2_send_initialize(proc, hub_flag);
+        o2_send_services(proc);
         if (hub_flag == O2_SERVER_IS_HUB) {
-            o2_send_discovery(info);
+            o2_send_discovery(proc);
         }
     } // else we are the client, and we connected after receiving a
       // /dy message, also created a service named for server's IP:port
-    info->proc.status = status;
-    info->proc.udp_sa.sin_family = AF_INET;
-    assert(info != o2_context->process);
-    info->port = udp_port;
+    proc->proc.status = status;
+    proc->proc.udp_sa.sin_family = AF_INET;
+    assert(proc != o2_context->process);
+    proc->port = udp_port;
 
 #ifdef __APPLE__
-    info->proc.udp_sa.sin_len = sizeof(info->proc.udp_sa);
+    proc->proc.udp_sa.sin_len = sizeof(proc->proc.udp_sa);
 #endif
 
-    inet_pton(AF_INET, ip, &(info->proc.udp_sa.sin_addr.s_addr));
-    info->proc.udp_sa.sin_port = htons(udp_port);
+    inet_pton(AF_INET, ip, &(proc->proc.udp_sa.sin_addr.s_addr));
+    proc->proc.udp_sa.sin_port = htons(udp_port);
 
     O2_DBd(printf("%s init msg from %s (udp port %ld)\n   to local socket "
                   "%ld process_info %p\n", o2_debug_prefix, name, 
-                  (long) udp_port, (long) (info->fds_index), info));
+                  (long) udp_port, (long) (proc->fds_index), proc));
     return;
 }
 
 
 // /ip:port/sv: called to announce services available or removed. Arguments are
-//     process name, service1, added_flag, tappee, service2, added_flag, tappee, ...
+//     process name, service1, added_flag, service_or_tapper, 
+//     properties_or_tapper, service2, added_flag, service_or_tapper, 
+//     properties_or_tapper, ...
 //
 void o2_services_handler(o2_msg_data_ptr msg, const char *types,
                          o2_arg_ptr *argv, int argc, void *user_data)
@@ -609,20 +629,32 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
         return; // message is bogus (should we report this?)
     }
     o2_arg_ptr addarg;     // boolean - adding a service or deleting one?
-    o2_arg_ptr tappeearg;  // string - non-empty if we are tapping a service
+    o2_arg_ptr isservicearg; // boolean - service (true) or tap (false)?
+    o2_arg_ptr prop_tap_arg;  // string - properties string or tapper name
     while ((arg = o2_get_next('s')) && (addarg = o2_get_next('B')) &&
-           (tappeearg = o2_get_next('s'))) {
-        if (strchr(arg->s, '/')) {
+           (isservicearg = o2_get_next('B')) &&
+           (prop_tap_arg = o2_get_next('s'))) {
+        char *service = arg->s;
+        char *prop_tap = prop_tap_arg->s;
+        if (strchr(service, '/')) {
             O2_DBg(printf("%s ### ERROR: o2_services_handler got bad service "
-                          "name - %s\n", o2_debug_prefix, arg->s));
-        } else if (addarg->B) { // add a new service offered by remote proc
+                          "name - %s\n", o2_debug_prefix, service));
+        } else if (addarg->B) { // add a new service or tap from remote proc
             O2_DBd(printf("%s found service /%s offered by /%s%s%s\n",
-                          o2_debug_prefix, arg->s, proc->proc.name,
-                          (*tappeearg->s ? " tapping " : ""),
-                          tappeearg->s));
-            o2_service_provider_new(arg->s, (o2_info_ptr) proc, proc, tappeearg->s);
+                          o2_debug_prefix, service, proc->proc.name,
+                          (isservicearg->B ? " tapper " : ""), prop_tap));
+            if (isservicearg->B) {
+                o2_service_provider_new(service, prop_tap,
+                                        (o2_info_ptr) proc, proc);
+            } else {
+                o2_tap_new(service, proc, prop_tap);
+            }
         } else { // remove a service - it is no longer offered by proc
-            o2_service_provider_replace(proc, arg->s, NULL);
+            if (isservicearg->B) {
+                o2_service_remove(service, proc, NULL, -1);
+            } else {
+                o2_tap_remove(service, proc, prop_tap);
+            }
         }
     }
 }

@@ -57,7 +57,7 @@ typedef struct dyn_array {
 
 
 #define DA_FINISH(a) { (a).length = (a).allocated = 0; \
-                       O2_FREE((a).array); (a).array = NULL; }
+        if ((a).array) O2_FREE((a).array); (a).array = NULL; }
 
 void o2_da_expand(dyn_array_ptr array, int siz);
 

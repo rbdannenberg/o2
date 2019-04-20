@@ -11,7 +11,8 @@
 
 #define N_ADDRS 20
 
-int expected = 0;
+int expected = 0;  // expected encodes the expected order of invoking services
+// e.g. 2121 means (right to left) service1, service2, service1, service2
 
 void service_one(o2_msg_data_ptr data, const char *types,
                  o2_arg_ptr *argv, int argc, void *user_data)
@@ -56,6 +57,12 @@ int main(int argc, const char * argv[])
     o2_add_message(one);
     o2_add_message(two);
     o2_send_finish(0.0, "#one", TRUE);
+    // because delivery of messages in bundle is nested delivery,
+    // the nested messages are queued up. Delivery is strictly
+    // sequential. Therefore, we have to call o2_poll() to finish
+    // delivery. It's unspecified how many times you need to call
+    // o2_poll(), but once or twice should be enough. 100 to be sure!
+    for (int i = 0; i < 100 && expected != 0; i++) o2_poll();
     assert(expected == 0);
     
     expected = 21;
@@ -63,6 +70,7 @@ int main(int argc, const char * argv[])
     o2_add_message(one);
     o2_add_message(two);
     o2_send_finish(0.0, "#two", TRUE);
+    for (int i = 0; i < 100 && expected != 0; i++) o2_poll();
     assert(expected == 0);
     
     // make a nested bundle ((12)(12))
@@ -76,6 +84,7 @@ int main(int argc, const char * argv[])
     o2_add_message(bdl);
     o2_add_message(bdl);
     o2_send_finish(0.0, "#two", TRUE);
+    for (int i = 0; i < 100 && expected != 0; i++) o2_poll();
     assert(expected == 0);
     
     o2_finish();

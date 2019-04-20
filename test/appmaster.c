@@ -1,10 +1,10 @@
-//  appmaster.c - change application test/demo
+//  appmaster.c - change ensemble test/demo
 //
 //  This program works with appslave.c. Synopsis:
-//    connect to appslave as application test1, 
+//    connect to appslave as ensemble test1, 
 //    establish clock sync,
 //    receive "hello" message from slave,
-//    shut down and reinitialize as application test2,
+//    shut down and reinitialize as ensemble test2,
 //    establish clock sync,
 //    receive "hello" message from slave,
 //    shut down

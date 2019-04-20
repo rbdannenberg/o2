@@ -1,4 +1,4 @@
-//  appslave.c - change application test/demo
+//  appslave.c - change ensemble test/demo
 ////
 //  see appmaster.c for details
 

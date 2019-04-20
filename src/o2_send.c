@@ -143,9 +143,8 @@ int o2_message_send_sched(o2_message_ptr msg, int schedulable)
     if (!service) {
         o2_message_free(msg);
         return O2_FAIL;
-    } else if (service->tag == TCP_SOCKET) { // remote delivery?
-        o2_send_remote(&msg->data, msg->tcp_flag, (process_info_ptr) service);
-        o2_message_free(msg);
+    } else if (service->tag == TCP_SOCKET) { // remote delivery, UDP or TCP
+        return o2_send_remote(msg, (process_info_ptr) service);
     } else if (service->tag == BRIDGE_SERVICE) {
         bridge_info_ptr info = (bridge_info_ptr) service;
         (*info->send)(&msg->data, msg->tcp_flag, info);
@@ -181,6 +180,7 @@ int o2_message_send_sched(o2_message_ptr msg, int schedulable)
 }
 
 
+/*
 // deliver msg_data; similar to o2_message_send but local future
 //     delivery requires the creation of an o2_message
 int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag)
@@ -210,25 +210,27 @@ int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag)
     message->length = len;
     return o2_schedule(&o2_gtsched, message);
 }
+*/
 
-
-// send a message via IP
-int o2_send_remote(o2_msg_data_ptr msg, int tcp_flag, process_info_ptr info)
+// send a message via IP, frees the message
+int o2_send_remote(o2_message_ptr msg, process_info_ptr proc)
 {
     // send the message to remote process
-    if (tcp_flag) {
-        return send_by_tcp_to_process(info, msg);
+    if (msg->tcp_flag) {
+        return send_by_tcp_to_process(proc, msg);
     } else { // send via UDP
-        O2_DBs(if (msg->address[1] != '_' && !isdigit(msg->address[1]))
-                   o2_dbg_msg("sent UDP", msg, "to", info->proc.name));
-        O2_DBS(if (msg->address[1] == '_' || isdigit(msg->address[1]))
-                   o2_dbg_msg("sent UDP", msg, "to", info->proc.name));
+        O2_DBs(if (msg->data.address[1] != '_' && !isdigit(msg->data.address[1]))
+                   o2_dbg_msg("sent UDP", &(msg->data), "to", proc->proc.name));
+        O2_DBS(if (msg->data.address[1] == '_' || isdigit(msg->data.address[1]))
+                   o2_dbg_msg("sent UDP", &(msg->data), "to", proc->proc.name));
 #if IS_LITTLE_ENDIAN
-        o2_msg_swap_endian(msg, TRUE);
+        o2_msg_swap_endian(&(msg->data), TRUE);
 #endif
-        if (sendto(local_send_sock, (char *) msg, MSG_DATA_LENGTH(msg),
-                   0, (struct sockaddr *) &(info->proc.udp_sa),
-                   sizeof(info->proc.udp_sa)) < 0) {
+        int rslt = sendto(local_send_sock, (char *) &(msg->data), msg->length,
+                          0, (struct sockaddr *) &(proc->proc.udp_sa),
+                          sizeof(proc->proc.udp_sa));
+        o2_message_free(msg);
+        if (rslt < 0) {
             perror("o2_send_remote");
             return O2_FAIL;
         }
@@ -237,35 +239,74 @@ int o2_send_remote(o2_msg_data_ptr msg, int tcp_flag, process_info_ptr info)
 }
 
 
-// Note: the message is converted to network byte order. Free the
-// message after calling this.
-int send_by_tcp_to_process(process_info_ptr info, o2_msg_data_ptr msg)
+// send msg to socket fd. blocking means send can block.
+//    caller owns msg
+int o2_send_message(struct pollfd *pfd, o2_message_ptr msg,
+                           int blocking, process_info_ptr proc)
 {
-    O2_DBs(if (msg->address[1] != '_' && !isdigit(msg->address[1]))
-           o2_dbg_msg("sending TCP", msg, "to", info->proc.name));
-    O2_DBS(if (msg->address[1] == '_' || isdigit(msg->address[1]))
-           o2_dbg_msg("sending TCP", msg, "to", info->proc.name));
-#if IS_LITTLE_ENDIAN
-    o2_msg_swap_endian(msg, TRUE);
-#endif
+    int err;
+    int flags = MSG_NOSIGNAL;
+    if (!blocking) {
+        flags |= MSG_DONTWAIT;
+    }
+    o2_msg_data_ptr mdp = &(msg->data);
+    O2_DBs(if (mdp->address[1] != '_' && !isdigit(mdp->address[1]))
+           o2_dbg_msg("sending TCP", mdp, "to", proc->proc.name));
+    O2_DBS(if (mdp->address[1] == '_' || isdigit(mdp->address[1]))
+           o2_dbg_msg("sending TCP", mdp, "to", proc->proc.name));
     // Send the length of the message followed by the message.
-    // We want to do this in one send; otherwise, we'll send 2 
+    // We want to do this in one send; otherwise, we'll send 2
     // network packets due to the NODELAY socket option.
-    int32_t len = MSG_DATA_LENGTH(msg);
-    MSG_DATA_LENGTH(msg) = htonl(len);
-    SOCKET fd = DA_GET(o2_context->fds, struct pollfd, info->fds_index)->fd;
-    if (send(fd, (char *) &MSG_DATA_LENGTH(msg), len + sizeof(int32_t),
-             MSG_NOSIGNAL) < 0) {
-        if (errno != EAGAIN && errno != EINTR) {
-            O2_DBo(printf("%s removing remote process after send error to socket %ld", o2_debug_prefix, (long) fd));
-            o2_remove_remote_process(info);
-        } else {
-            perror("send_by_tcp_to_process");
+    int32_t len = msg->length;
+    msg->length = htonl(len);
+#if IS_LITTLE_ENDIAN
+    o2_msg_swap_endian(mdp, TRUE);
+#endif
+    // loop while we are getting interrupts (EINTR):
+    while ((err = send(pfd->fd, (char *) &(msg->length), len + sizeof(int32_t),
+                       flags)) < 0) {
+        if (!blocking && (errno == EWOULDBLOCK || errno == EAGAIN)) { // no rooom
+            msg->length = len; // restore byte-swapped len
+            proc->proc.pending_msg = msg; // save it for later
+            pfd->events |= POLLOUT;
+            return O2_BLOCKED;
+        } else if (errno != EINTR && errno != EAGAIN) {
+            O2_DBo(printf("%s removing remote process after send error "
+                          "to socket %ld", o2_debug_prefix, (long) (pfd->fd)));
+            o2_message_free(msg);
+            o2_remove_remote_process(proc);
+            return O2_FAIL;
         }
-        return O2_FAIL;
     }
     // restore len just in case caller needs it to skip over the
     // message, which has now been byte-swapped and should not be read
-    MSG_DATA_LENGTH(msg) = len;
+    msg->length = len;
+    o2_message_free(msg);
     return O2_SUCCESS;
-}    
+
+}
+
+
+// Note: the message is converted to network byte order.
+// This function "owns" msg. Caller should assume it has been freed
+// (although it might be saved as pending and sent/freed later.)
+int send_by_tcp_to_process(process_info_ptr proc, o2_message_ptr msg)
+{
+    struct pollfd *pfd = DA_GET(o2_context->fds, struct pollfd, proc->fds_index);
+    // if proc has a pending message, we must send it first with a
+    // blocking send:
+    if (proc->proc.pending_msg) {
+        int rslt = o2_send_message(pfd, proc->proc.pending_msg, TRUE, proc);
+        proc->proc.pending_msg = NULL;
+        if (rslt != O2_SUCCESS) { // process is dead and removed
+            o2_message_free(msg); // we drop the message
+            return rslt;
+        }
+    }
+    // now send the new msg
+    int rslt = o2_send_message(pfd, msg, FALSE, proc);
+    if (rslt == O2_BLOCKED) {
+        rslt = O2_SUCCESS;
+    }
+    return rslt;
+}

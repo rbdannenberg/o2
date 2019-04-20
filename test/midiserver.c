@@ -47,8 +47,8 @@ int main(int argc, const char * argv[])
 
     Pm_OpenOutput(&midi_out, dev_num, NULL, 0, TIME_PROC, TIME_INFO, 0);
 
-    o2_initialize("miditest"); // ideally, this application name should be
-    // passed from the command line so we provide service to any application
+    o2_initialize("miditest"); // ideally, this ensemble name should be
+    // passed from the command line so we provide service to any ensemble
 
     // we are the master clock
     o2_clock_set(NULL, NULL);

@@ -18,6 +18,32 @@ This documentation is divided into modules. Each module describes a
 different area of functionality: Basics, Return Codes, Low-Level
 Message Send, and Low-Level Message Parsing.
 
+ \section Notes on Building the O2 Library
+
+ O2 uses CMake, which can create a Linux Makefile, Xcode project, or
+ Visual Studio solution. The basic procedure is run CMake (ccmake on
+ Linux) to create the Makefile of project file, then build using make
+ or your IDE. The main options for CMake are BUILD_MIDI_EXAMPLE:
+ builds an example that depends on PortMidi (disable this option
+ unless you need it), BUILD_STATIC_LIB: builds a static O2 library
+ (recommended), BUILD_TESTS: builds a suite of tests (useful for
+ O2 developers), and BUILD_TESTS_WITH_LIBLO: includes some tests
+ that depends on the OSC library liblo (also useful for O2
+ developers).
+
+ To use O2 in your application, normally you should only need
+ to include the O2 static library `o2_static.lib` into your project,
+ make sure the path to o2.h is on your headers search path,
+ and maybe put the path to `o2_static.lib` on your libraries
+ search path.
+
+ O2 depends on some libraries. On Windows, if your application
+ includes O2, you will need to link to `winmm.lib` and
+ `ws2_32.lib`. On OS X, you will need to link to the `CoreAudio`
+ framework. On Linux, you will need to link to `asound` (you may
+ have to install a developer package to get this), `pthread`, and
+ `m` (the math library).
+
 \section Overview
 
 O2 is a communication protocol for interactive music and media
@@ -61,11 +87,11 @@ where o2_method_new is called to install a handler for each node, and each
 
 Some major components and concepts of O2 are the following:
 
-- **Application** - a collection of collaborating processes are called
-  an "application." Applications are named by a simple ASCII string.
-  In O2, all components belong to an application, and O2 supports
-  communication only *within* an application. This allows multiple
-  independent applications to co-exist and share the same local area
+- **Ensemble** - a collection of collaborating processes are called
+  an "ensemble." Ensembles are named by a simple ASCII string.
+  In O2, all components belong to an ensemble, and O2 supports
+  communication only *within* an ensemble. This allows multiple
+  independent ensembles to co-exist and share the same local area
   network.
 
 - **Host** - (conventional definition) a host is a computer (virtual
@@ -73,28 +99,32 @@ Some major components and concepts of O2 are the following:
   equivalent to an IP address.
 
 - **Process** - (conventional definition) an address space and one or
-  more threads. A process can offer one or more O2 services and
-  can serve as a client of O2 services in the same or other processes.
-  Each process using O2 has one directory of services shared by all
-  O2 activity in that process (thus, this O2 implementation can be
-  thought of as a "singleton" object). The single O2 instance in a
-  process belongs to one and only one application. O2 does not support
-  communication between applications.
+  more threads. O2 assumes that all processing is performed by a single
+  thread (O2 is not reentrant). A process can offer one or more O2 
+  services and can serve as a client of O2 services in the same or other 
+  processes. Each process using O2 has one directory of services shared
+  by all O2 activity in that process (thus, this O2 implementation can 
+  be thought of as a "singleton" object). The single O2 instance in a
+  process belongs to one and only one ensemble. O2 does not support
+  communication between ensembles. It is the responsibility of an O2 
+  process to call #o2_poll() frequently, giving O2 the opportunity to 
+  receive and process messages as well as run background activities for
+  discovery and clock synchronization. #o2_poll() is non-blocking.
 
 - **Service** - an O2 service is a named server that receives and acts
   upon O2 messages. A service is addressed by name. Multiple services
   can exist within one process. A service does not imply a (new) thread
-  because services are "activated" by calling o2_poll(). It is up to
-  the programmer ("user") to call o2_poll() frequently, and if this
-  is done using multiple threads, it is up to the programmer to deal
-  with all concurrency issues. O2 is not reentrant, so o2_poll() should
-  be called by only one thread. Since there is at most one O2 instance
-  per process, a single call to o2_poll() handles all services in the
-  process.
+  and all O2 messages are delivered sequentially from the single thread
+  that calls #o2_poll(). 
 
-- **Message** - an O2 message, similar to an OSC message, contains an address
-  pattern representing a function, a type string and a set of values
-  representing parameters.
+- **Message** - an O2 message, similar to an OSC message, contains an 
+  address pattern representing a function, a type string and a set of 
+  values representing parameters. Messages are delivered to and handled
+  be *services*. If there are multiple services with the same name, the
+  service with the highest IP address and port number (lexicographically)
+  gets the message. However, the *tap* mechanism can be used to achieve
+  fan out from a single service (the *tappee*) to multiple services 
+  (*tappers*).
 
 - **Address Pattern** - O2 messages use URL-like addresses, as does OSC,
   but the top-level node in the hierarchical address space is the
@@ -108,7 +138,7 @@ Some major components and concepts of O2 are the following:
 - **Scheduler** - O2 implements two schedulers for timed message
     delivery. Schedulers are served by the same o2_poll() call that
     runs other O2 activity. The #o2_gtsched schedules according to the
-    application's master clock time, but since this depends on clock
+    ensemble's master clock time, but since this depends on clock
     synchronization, nothing can be scheduled until clock
     synchronization is achieved (typically within a few seconds of
     starting the process that provides the master clock). For
@@ -117,6 +147,77 @@ Some major components and concepts of O2 are the following:
     messages and scheduling them with o2_schedule(). In any case,
     scheduling is useful *within* a service for any kind of timed
     activity.
+
+\section Standard Messages
+
+O2 uses O2 messages for some internal functions and also to communicate
+status information with O2 processes. Since messages are dropped if there
+is no handler, O2 processes need not set up handlers for all information.
+
+In the following descriptions, if the *service name* is `ip:port` it means
+the IP address and port number are used to construct a string, e.g. 
+"192.200.145.8:40521" might be the actual service name.
+
+
+\subsection Internal Messages
+
+`/_o2/dy "issii"` *hub_flag* *ensemble_name* *local_ip* *tcp_port* *udp_port* - 
+this message is normally sent to the discovery port, but it can also be sent
+as a result of calling o2_hub() and providing an O2 process address. 
+*hub_flag* is 0, 1 or 2; 0 means no hub protocol, this is a normal
+broadcast discovery message; 1 (O2_CLIENT_IS_HUB) or 2 (O2_SERVER_IS_HUB) 
+indicates that the receiver is the hub, designated by a call to 
+o2_hub(), and the message was delivered by making a TCP connection to the
+receiver. The difference is that O2_SERVER_IS_HUB means the receiver is
+the hub and should keep the TCP connection used to send this message. 
+The hub returns info to the client over this connection. O2_CLIENT_IS_HUB 
+means the receiver should be the client of the TCP connection, so the
+current connection is dropped, a new one is initiated by the receiver to 
+the original sender so that the original sender now acts as the server. 
+Then the hub sends information to the original sender.
+
+`/ip:port/cs/cs "s"` *name* - announces when clock sync is obtained. The
+*name* parameter is a remote service name.
+
+`/_o2/ds ""` - this message invokes the sending of discovery messages. It
+is used with a timestamp to schedule periodic discovery message sending.
+
+`/_cs/get "is" *serial-no* *reply-to* - send the time. The *reply-to*
+parameter is the reply prefix to which "/get-reply" is appended to create
+the full address for the reply. The reply contains the type string "it"
+and the parameters are the *serial-no* and the current time.
+
+`/ip:port/sv "ssbbs..."` *process-name* *service-name* *exists-flag*
+*tappee-flag* *tappee-or-properties* ... - reports service creation 
+or deletion. Each service is described by name, TRUE, and either TRUE
+followed by a properties string or FALSE followed by the the tappee 
+name. If a service is deleted, then FALSE is sent rather than TRUE,
+and if this is not a tap, the properties string is empty. The "..." 
+notation here indicates that there can be any number of services 
+described in this message, each service consisting of another "sbbs"
+(string, Boolean, Boolean, string) sequence. Properties strings are
+sent with escaped values and trailing ';' but no leading ';'.
+
+
+\subsection API Messages
+
+`/ip:port/cs/rt "s"` *reply-to* - A process can send this message to request
+round trip (to the clock master) information; *reply-to* is an address prefix.
+A reply is sent to *reply-to* concatenated with "/get-reply". The reply message
+has the type string "sff" and the parameters are the process name (ip:port), 
+the mean round-trip time, and the minimum round-trip time.
+
+`/_o2/ps ""` - this message invokes the sending of the `/_cs/get` message 
+to request the time as part of the clock synchronization protocol.
+
+`/_o2/si "sis"` *service_name* *status* *process-name* - Whenever an active
+service status changes, this message is sent to the local process. Note that
+when a local service is created, an `/sv` message is sent to all other
+processes, and when that process's services table is updated, if the service
+is or becomes active, the change is reported locally by sending this `/_o2/si`
+message. Normally, you should not add handlers or use the `_o2` service, but
+in this case, an application is expected to add a custom handler to receive
+status updates.
 
 */
 
@@ -232,6 +333,9 @@ void o2_debug_flags(const char *flags);
 /// an error return value: O2 has not been initialized
 #define O2_NOT_INITIALIZED (-18)
 
+/// TCP send would block, holding message locally to send later
+#define O2_BLOCKED (-19)
+
 
 // Status return codes for o2_status function:
 
@@ -323,6 +427,11 @@ void o2_debug_flags(const char *flags);
 /// The resulting OSC bundles are sent immediately.
 #define O2_TO_OSC 7
 
+/// \brief tag value for #o2_services_list()
+///
+#define O2_TAP 8
+    
+
 /** @} */
 
 
@@ -343,7 +452,7 @@ void *o2_calloc(size_t n, size_t s);
 
 #ifndef O2_NO_DEBUG
 void *o2_dbg_malloc(size_t size, const char *file, int line);
-void o2_dbg_free(void *obj, const char *file, int line);
+void o2_dbg_free(const void *obj, const char *file, int line);
 #define O2_MALLOC(x) o2_dbg_malloc(x, __FILE__, __LINE__)
 #define O2_FREE(x) o2_dbg_free(x, __FILE__, __LINE__)
 #endif
@@ -387,7 +496,7 @@ void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
 #endif
 
 /** \brief O2 timestamps are doubles representing seconds since the
- * approximate start time of the application.
+ * approximate start time of the ensemble.
  */
 typedef double o2_time;
 
@@ -575,7 +684,7 @@ extern o2_arg_ptr o2_got_end_array;
 
 /** \brief set this flag to stop o2_run()
  *
- * Some O2 applications will initialize and call o2_run(), which is a
+ * Some O2 processes will initialize and call o2_run(), which is a
  * simple loop that calls o2_poll(). To exit the loop, set
  * #o2_stop_flag to #TRUE
  */
@@ -583,17 +692,17 @@ extern int o2_stop_flag;
 
 /*
  * A collection of cooperating O2 processes forms an
- * *application*. Applications must have unique names. This allows
- * more than one application to exist within a single network without
- * conflict. For example, there could be two applications, "joe" and
- * "sue", each with services named "synth." Since the application
+ * *ensemble*. Ensembles must have unique names. This allows
+ * more than one ensemble to exist within a single network without
+ * conflict. For example, there could be two ensembles, "joe" and
+ * "sue", each with services named "synth." Since the ensemble
  * names are different, joe's messages to the synth service go to
  * joe's synth and not to sue's synth.
  *
  * Do not set, modify or free this variable! Consider it to be
  * read-only. It is managed by O2 using o2_initialize() and o2_finish().
  */
-extern const char *o2_application_name; // also used to detect initialization
+extern const char *o2_ensemble_name; // also used to detect initialization
 
 
 
@@ -636,17 +745,17 @@ typedef void (*o2_method_handler)(const o2_msg_data_ptr msg, const char *types,
  *
  *  If O2 has not been initialized, it is created and intialized.
  *  O2 will begin to establish connections to other instances
- *  with a matching application name.
+ *  with a matching ensemble name.
  *
- *  @param application_name the name of the application. O2 will attempt to
- *  discover other processes with a matching application name,
+ *  @param ensemble_name the name of the ensemble. O2 will attempt to
+ *  discover other processes with a matching ensemble name,
  *  ignoring all processes with non-matching names.
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if an error occurs,
- *  #O2_RUNNING if already running, #O2_BAD_NAME if `application_name`
+ *  #O2_RUNNING if already running, #O2_BAD_NAME if `ensemble_name`
  *  is NULL.
  */
-int o2_initialize(const char *application_name);
+int o2_initialize(const char *ensemble_name);
 
 
 /**
@@ -674,7 +783,7 @@ int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)));
  * \brief Set discovery period
  *
  * O2 discovery messages are broadcast periodically in case a new process
- * has joined the application. The default period is 4 seconds. If there
+ * has joined the ensemble. The default period is 4 seconds. If there
  * are N processes, each host will receive N/4 discovery messages per 
  * second. Since there are 5 discovery ports, each process will handle
  * N/20 discovery messages per second, and a discovery message from any
@@ -725,7 +834,7 @@ o2_time o2_set_discovery_period(o2_time period);
  * You can call o2_hub() multiple times. Each time potentially makes
  * a remote process become a hub for this local process. This might
  * result in duplicate messages when new processes join the O2 
- * application, but duplicate messages are ignored.
+ * ensemble, but duplicate messages are ignored.
  * 
  * @param ipaddress the IP address of the hub or NULL
  * @param port the port number of the hub's TCP port
@@ -761,10 +870,10 @@ int o2_get_address(const char **ipaddress, int *port);
 
 
 /**
- *  \brief Add a service to the current application.
+ *  \brief Add a service to the current process.
  *
  * Once created, services are "advertised" to other processes with
- * matching application names, and messages are delivered
+ * matching ensemble names, and messages are delivered
  * accordingly. E.g. to handle messages addressed to "/synth/volume"
  * you call
  * \code{.c}
@@ -773,7 +882,7 @@ int o2_get_address(const char **ipaddress, int *port);
  * \endcode
  * and define `synth_volume_handler` (see the type declaration for
  * #o2_method_handler and o2_method_new())
- * Normally, services should be *unique* across the application. If 
+ * Normally, services should be *unique* across the ensemble. If 
  * #service_name is already locally defined in this process (by a previous
  * call to #o2_service_new or #o2_osc_delegate), this call will fail,
  * returning #O2_SERVICE_EXISTS. If matching service names are defined
@@ -783,7 +892,7 @@ int o2_get_address(const char **ipaddress, int *port);
  * intervening time (typically a fraction of a second) during which a
  * service is handled by two different processes. Furthermore, the switch
  * to a new service provider could redirect a stream of messages, causing
- * unexpected behavior in the application.
+ * unexpected behavior in the ensemble.
  *
  *  @param service_name the name of the service
  *
@@ -793,20 +902,245 @@ int o2_service_new(const char *service_name);
 
 
 /**
- * \brief copy messages from one service to another
+ * \brief list known services and taps
+ *
+ * Currently active services and taps can be queried by calling
+ * #o2_services_list(). An internal snapshot of services and
+ * taps is saved. Information can then be accessed by calling
+ * #o2_service_name(), #o2_service_type(), #o2_service_process(), 
+ * #o2_service_tapper(), and #o2_service_properties(). When the 
+ * information is no longer needed, call #o2_services_list_free().
+
+
+ * 
+ * Only active services and their tappers are reported. If there are
+ * two services with the same name, only the active one is reported.
+ * Taps on active services are reported even if the tapper does not
+ * exist.
+ *
+ * @return #O2_SUCCESS if success, #O2_FAIL if not.
+ */
+int o2_services_list();
+
+
+/**
+ * \brief free the list of known services and taps
+ *
+ * Call this function when the information captured by 
+ * #o2_services_list() is no longer needed.
+ *
+ * @return #O2_SUCCESS if success, #O2_FAIL if not.
+ */
+int o2_services_list_free();
+
+
+/**
+ * \brief get a service name from a saved list of services
+ *
+ * Do not free the returned value. Instead, call #o2_services_list_free().
+ * The pointer will be invalid after calling #o2_services_list_free().
+ *
+ * @param i the index of the service, starting with zero
+ *
+ * @return a service name if #i is in range, otherwise NULL.
+ */
+const char *o2_service_name(int i);
+
+
+/**
+ * \brief get a type from a saved list of services
+ *
+ * The return value indicates the type of the service: 
+ * O2_LOCAL (4) if the service is local, O2_REMOTE (5) if the service
+ * is remote, and O2_TAP (8) for each tapper of the service.
+ *
+ * @param i the index of the service, starting with zero
+ *
+ * @return a service type, or zero if #i is not in range.
+ */
+int o2_service_type(int i);
+
+
+/**
+ * \brief get a process name from a saved list of services
+ *
+ * Do not free the returned value. Instead, call #o2_services_list_free().
+ * The pointer will be invalid after calling #o2_services_list_free().
+ *
+ * @param i the index of the service
+ *
+ * @return a process name if #i is in range, otherwise NULL. The
+ *         process name contains the IP address and TCP port number
+ *         of the process, making it a unique identifier.
+ */
+const char *o2_service_process(int i);
+
+
+/**
+ * \brief get a tapper name from a saved list of services
+ *
+ * Do not free the returned value. Instead, call #o2_services_list_free().
+ * The pointer will be invalid after calling #o2_services_list_free().
+ *
+ * @param i the index of the service
+ *
+ * @return a tapper name if the #i-th service is a tap, otherwise NULL.
+ */
+const char *o2_service_tapper(int i);
+
+
+/**
+ * \brief get the properties string from a saved list of services
+ *
+ * Properties have the form: "attr1:value1;attr2:value2;...", where
+ * attributes are alphanumeric, and values can be any string with
+ * colon represented by "\:", semicolon represented by "\;", and 
+ * slash represented by "\\". Escape characters are not removed, and
+ * the result should not be modified or freed.
+ *
+ * Do not free the returned value. Instead, call #o2_services_list_free().
+ * The pointer will be invalid after calling #o2_services_list_free().
+ *
+ * @param i the index of the service
+ *
+ * @return a properties string if #i is in range. The string may be 
+ *         empty if the service has no properties. The result is NULL
+ *         if #i is not in range.
+ */
+const char *o2_service_properties(int i);
+
+/**
+ * \brief get a property value from a saved list of services
+ *
+ * @param i the index of the service with the properties
+ *
+ * @param attr an attribute to search for
+ *
+ * @return the value of that attribute or NULL if not found or invalid
+ *         or attr is too long (limit is 64 characters). The result is
+ *         owned by the caller and should be freed using O2_FREE. The
+ *         returned value has escape characters removed.
+ */
+const char *o2_service_getprop(int i, const char *attr);
+
+/**
+ * \brief find a service matching attribute/value pair
+ *
+ * @param i the index from which to start searching
+ *
+ * @param attr the attribute to search
+ * 
+ * @param value the value substring that must match. To match a prefix,
+ *        use ":prefix"; to match a suffix, use "suffix;"; to make an
+ *        exact full match, use ":value;". The value string must escape
+ *        internal ':', '\' and ';' characters with '\'. (Unfortunately,
+ *        in a C or C++ literal string, the '\' must also be escaped, so
+ *        to search for an exact match to foo, the C string constant will
+ *        be "\\:foo\\;".
+ *
+ * @return the index of the first service (at index i or above) where
+ *       the property named by attr contains value as a substring or
+ *       prefix or suffix, as indicated by ":" and ";" characters.
+ *       If no match is found, return -1.
+ */
+int o2_service_search(int i, const char *attr, const char *value);
+
+
+/**
+ * \brief set an attribute and value property for a service
+ *
+ * @param service the name of a service offered by this process
+ *
+ * @param attribute the attribute name
+ * 
+ * @param value the value string; this string will be escaped. Do
+ *        not include escape characters in #value
+ *
+ * @returns O2_SUCCESS if successful
+ */
+int o2_service_set_property(const char *service, const char *attr,
+                            const char *value);
+
+
+/**
+ * \brief remove an attribute and value property from a service
+ *
+ * Search for a service offered by the current process named by
+ * #service. Then remove both the attribute and value of the 
+ * property named by #attribute.
+ *
+ * @param service the name of a service offered by this process
+ *
+ * @param attribute the attribute name
+ * 
+ * @returns O2_SUCCESS if successful
+ */
+int o2_service_property_free(const char *service, const char *attr);
+
+
+/**
+ * \brief install tap to copy messages from one service to another
  *
  * @param tappee the service to be tapped
  *
- * @param tapper the service to which copies are sent
+ * @param tapper the existing local service to which copies are sent
  *
- * @return #O2_SUCCESS if success, #O2_FAIL if not.
+ * @return #O2_SUCCESS if success, #O2_FAIL if a tap is not installed.
  *
- * Create a new service named #tapper and have messages
- * copied from #tappee. After this call, messages to tappee 
- * are copied, modified by replacing the service with tapper,
- * and sent. The original message to tappee is also delivered.
+ * Have messages delivered to #tappee copied to #tapper. After
+ * this call, messages to #tappee are first delivered. Then, if
+ * #tappee is local and #tapper exists, the message is copied, 
+ * modified by replacing the service name with #tapper, and sent.
+ * There may be multiple taps on a single service, resulting in 
+ * the delivery of multiple copies.
+ *
+ * If the #tapper service is freed or its process terminates, the tap
+ * is removed. Note that while services are normally independent of
+ * processes (for example, a new process can override an existing 
+ * one in another process), tappers are tied to processes and cannot
+ * be overridden by another service of the same name. When a tapper
+ * service is removed, the tap is also removed. It is not redirected
+ * to another service provider. Also, unlike ordinary message delivery
+ * that delivers one message even if there are multiple processes 
+ * offering the service, there can be multiple tappers, even with the
+ * same service names, and each tapper receives a copy of every message
+ * delivered to the tappee.
+ *
+ * Note also that taps can be used to implement a publish/subscribe
+ * model. The publisher creates a local service and need not install
+ * any message handlers. Subscribers install taps on the service to
+ * receive messages. It is more efficient for the tappee to be in the
+ * publisher process, but actually any process can publish to the
+ * service with the added cost of sending a message to the tappee's
+ * process.
+ *
+ * The lifetime of a tap is independent of the lifetimes of the tappee
+ * and the tapper, but the tap is tied to a process, so if the process
+ * is terminated, the tap is destroyed throughout the O2 ensemble. For
+ * example, if the tappee's process crashes and restarts, and if the
+ * tapper belongs to another process that survives, then the tap will
+ * be reinstated on the tappee. Similarly, a tap may be created *before*
+ * the tappee or the tapper. Calling #o2_service_free() on a tapper will
+ * *not* free the tap, so tap messages will continue to be delivered to
+ * the tap's process, and if the tappper service is (re)created, these
+ * tap messages will be delivered to the new tapper service.
  */
 int o2_tap(const char *tappee, const char *tapper);
+
+
+/**
+ * \brief remove tap from service
+ *
+ * @param tappee the service that is tapped
+ *
+ * @param tapper the service to which copies are sent
+ *
+ * @return #O2_SUCCESS if success, #O2_FAIL if no tap was removed.
+ *
+ * Remove a previously installed tap
+ */
+int o2_untap(const char *tappee, const char *tapper);
+
 
 /**
  *  \brief Remove a local service
@@ -946,6 +1280,29 @@ int o2_run(int rate);
  */
 int o2_status(const char *service);
 
+
+/**
+ * \brief Test if send_cmd will block.
+ *
+ * @param service the name of the service.
+ *
+ * @return #O2_SUCCESS if sending a command to this service will not
+ * block, or #O2_BLOCKED if sending a command to this service will block.
+ * #O2_FAIL is returned if the service is unknown.
+ *
+ * If a process is streaming data to another and the TCP buffers become
+ * full, the sender will block. Normally, blocking is short term, but
+ * if the receiver is not reading, the sender can block indefinitely. 
+ * It is possible for the receiver to be blocked sending responses, which
+ * is one case where deadlock can occur. If necessary for responsiveness
+ * or deadlock-avoidance, the sender should call #o2_can_send() before
+ * calling #o2_send_cmd(). If #O2_BLOCKED is returned, the caller should
+ * defer the call to #o2_send_cmd() but continue calling #o2_poll(),
+ * and at some point in the future #o2_can_send() should return #O2_SUCCESS.
+ */
+int o2_can_send(const char *service);
+
+
 /**
  * \brief A variable indicating that the clock is the master or is
  *        synchronized to the master.
@@ -967,7 +1324,7 @@ extern int o2_clock_is_synchronized;
  * `o2_get_address` and construct a ip:port process name from 
  * the information returned. But then you can just call 
  * `o2_roundtrip` for the local process round trip information.
- * For remote process names, you can create a handler for 
+ * To get remote process names, you can create a handler for 
  * `/_o2/si`. The process name is provided whenever one of its
  * services is created or otherwise changes status.) The 
  * type string for `!ip:port/cs/rt` is "s", and the parameter is
@@ -993,7 +1350,7 @@ typedef o2_time (*o2_time_callback)(void *rock);
 /**
  *  \brief Provide a time reference to O2.
  *
- *  Exactly one process per O2 application should provide a master
+ *  Exactly one process per O2 ensemble should provide a master
  *  clock. All other processes synchronize to the master. To become
  *  the master, call o2_clock_set(). 
  *
@@ -1063,6 +1420,13 @@ int o2_send_marker(const char *path, double time, int tcp_flag,
  *  protocol available. (Thus, this call is considered a "hint" rather
  *  than an absolute requirement.)
  *
+ *  If the send would block, the message is held until the socket 
+ *  unblocks, allowing O2 to send the message. In this state, where
+ *  one message is waiting to be sent, #o2_can_send() will return 
+ *  #O2_BLOCKED. In this state, #o2_send_cmd() will block until the
+ *  pending message can be sent. Then #o2_send_cmd() will try again,
+ *  possibly re-entering the #O2_BLOCKED state with the new message.
+ *
  *  @param path an address pattern
  *  @param time when to dispatch the message, 0 means right now. In any
  *  case, the message is sent to the receiving service as soon as
@@ -1073,7 +1437,9 @@ int o2_send_marker(const char *path, double time, int tcp_flag,
  *  @param ...  the data of the message. There is one parameter for each
  *  character in the typestring.
  *
- *  @return #O2_SUCCESS if success, #O2_FAIL if not.
+ *  @return #O2_SUCCESS if success (including holding the message as
+ *  pending until the socket unblocks). #O2_FAIL if an error occurred.
+ *
  */
 /** \hideinitializer */ // turn off Doxygen report on o2_send_marker()
 #define o2_send_cmd(path, time, ...) \
@@ -1098,7 +1464,7 @@ int o2_message_send(o2_message_ptr msg);
  *
  *  This function returns a valid value either after you call
  *  o2_clock_set(), making the local clock the master clock for the O2
- *  application, or after O2 has finished discovering and
+ *  ensemble, or after O2 has finished discovering and
  *  synchronizing with the master clock. Until then, -1 is returned.
  *
  *  The clock accuracy depends upon network latency, how often
@@ -1523,8 +1889,8 @@ int o2_add_message(o2_message_ptr msg);
  *
  * The message must be freed using o2_message_free() or by calling
  * o2_message_send(). If the message is a bundle (you have added
- * messages using o2_add_message()), do not call o2_message_finish().
- * Instead, call o2_service_message_finish().
+ * messages using o2_add_message()), the address should be '#' 
+ * followed by the service name, e.g. "#service1".
  */
 o2_message_ptr o2_message_finish(o2_time time, const char *address,
                                  int tcp_flag);
@@ -1534,8 +1900,7 @@ o2_message_ptr o2_message_finish(o2_time time, const char *address,
  *
  * @param time the timestamp for the message (0 for immediate)
  * @param service a string to prepend to address or NULL.
- * @param address the O2 address pattern for the message. If this
- *                is a bundle, address should be "" (empty string)
+ * @param address the O2 address pattern for the message.
  * @param tcp_flag boolean if true, send message reliably
  *
  * @return the address of the completed message, or NULL on error
@@ -1567,10 +1932,9 @@ void o2_message_free(o2_message_ptr msg);
  *
  * @param time the timestamp for the message
  * @param address the destination address including the service name.
- *                To send a bundle to a service named foo, use the 
- *                address "#foo"
+ *        To send a bundle to a service named foo, use the address "#foo".
  * @param tcp_flag boolean that says to send the message reliably.
- *                 Normally, true means use TCP, and false means use UDP.
+ *        Normally, true means use TCP, and false means use UDP.
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */

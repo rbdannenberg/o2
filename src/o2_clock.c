@@ -139,12 +139,12 @@ static void set_clock(double local_time, double new_master)
 }
 
 
-static int o2_send_clocksync(process_info_ptr info)
+static int o2_send_clocksync(process_info_ptr proc)
 {
     if (!o2_clock_is_synchronized)
         return O2_SUCCESS;
     char address[32];
-    snprintf(address, 32, "!%s/cs/cs", info->proc.name);
+    snprintf(address, 32, "!%s/cs/cs", proc->proc.name);
     return o2_send_cmd(address, 0.0, "s", o2_context->process->proc.name);
 }
     
@@ -203,38 +203,41 @@ static void announce_synchronized(o2_time now)
 }
 
 
-// all services offered by this proc, described by info, have changed to 
+// All services offered by this proc, described by info, have changed to 
 // status, so send !/_o2/si messages for them. protect should be 1 or 0.
 // Use 1 if messages should be queued and sent later by o2_poll(). Use 0
-// if it is OK to send messages immediately.
+// if it is OK to send messages immediately. Only active service changes
+// are searched and reported. This (as of this writing) is only called in
+// response to a /cs/cs clock sync status change announcement.
 //
-void clock_status_change(process_info_ptr info, int protect, int status)
+// In an earlier implementation we maintained a list of services offered
+// by each process so that we could go directly from info through the
+// top-level hash table to find the process's service. To simplify things
+// a bit, these backpointers were removed, so now we have to enumerate ALL
+// services and check each one to see if it is served by info. Even if
+// 100 processes offer 2 services each (plus the process ip:port service),
+// that would be 300 services. Well, at least we're not searching thousands.
+//
+void clock_status_change(process_info_ptr proc, int protect, int status)
 {
     // send service info updates for all services offered by this process
-    if (o2_clock_is_synchronized) { // status can only change if this process
-        // is synchronized (note also that once synchronized, the current 
-        // process does not lose sychronization, even if the cs service goes
-        // away. (Maybe this should be fixed or maybe it is a feature.)
-        int len = info->proc.services.length;
-        for (int i = 0; i < len; i++) {
-            o2string service_name = *DA_GET(info->proc.services, o2string, i);
-            services_entry_ptr *service_entry = (services_entry_ptr *)
-                    o2_lookup(&o2_context->path_tree, service_name);
-            dyn_array_ptr services;
-            assert(*service_entry);
-            if (*service_entry) {
-                services = &(*service_entry)->services;
-                if (services->length > 0) {
-                    process_info_ptr proc = *DA_GET(*services, process_info_ptr, 0);
-                    if (proc->tag == TCP_SOCKET && proc == info) {
-                        // this service is served by proc == info
-                        o2_in_find_and_call_handlers += protect;
-                        o2_send_cmd("!_o2/si", 0.0, "sis", service_name, status,
-                                    proc->proc.name);
-                        o2_in_find_and_call_handlers -= protect;
-                    }
-                }
-            }
+    if (!o2_clock_is_synchronized)
+        return;
+    // status can only change if this process
+    // is synchronized (note also that once synchronized, the current 
+    // process does not lose sychronization, even if the cs service goes
+    // away. (Maybe this should be fixed or maybe it is a feature.)
+    //
+    for (int i = 0; i < proc->proc.services.length; i++) {
+        services_entry_ptr ss = DA_GET(proc->proc.services,
+                                       proc_service_data, i)->services;
+        if (ss->services.length > 0 &&
+            *DA_GET(ss->services, process_info_ptr, 0) == proc) {
+            // see if this service is the active one
+            o2_in_find_and_call_handlers += protect;
+            o2_send_cmd("!_o2/si", 0.0, "sis", ss->key,
+                        status, proc->proc.name);
+            o2_in_find_and_call_handlers -= protect;
         }
     }
 }
@@ -373,7 +376,7 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
                           o2_arg_ptr *argv, int argc, void *user_data)
 {
     // this function gets called periodically to drive the clock sync
-    // protocol, but if the application calls o2_clock_set(), then we
+    // protocol, but if the process calls o2_clock_set(), then we
     // become the master, at which time we stop polling and announce
     // to all other processes that we know what time it is, and we
     // return without scheduling another callback.
@@ -478,7 +481,8 @@ void o2_clock_finish()
 
 
 // cs_ping_handler -- handler for /_cs/get
-//   return the master clock time
+//   return the master clock time. Arguments are serial_no and reply_to.
+//   send serial_no and current time to serial_no + "/get-reply"
 static void cs_ping_handler(o2_msg_data_ptr msg, const char *types,
                      o2_arg_ptr *argv, int argc, void *user_data)
 {
@@ -504,7 +508,7 @@ static void cs_ping_handler(o2_msg_data_ptr msg, const char *types,
 
 int o2_clock_set(o2_time_callback callback, void *data)
 {
-    if (!o2_application_name) {
+    if (!o2_ensemble_name) {
         O2_DBk(printf("%s o2_clock_set cannot be called before o2_initialize.\n",
                       o2_debug_prefix));
         return O2_FAIL;
@@ -540,8 +544,7 @@ int o2_clock_set(o2_time_callback callback, void *data)
                     (services_entry_ptr) o2_enumerate_next(&enumerator))) {
                 if ((services_ptr->tag == SERVICES) &&
                     (services_ptr->services.length > 0)) {
-                    o2_entry_ptr service = *DA_GET(services_ptr->services,
-                                                o2_entry_ptr, 0);
+                    o2_info_ptr service = GET_SERVICE(services_ptr->services, 0);
                     // _cs was just created above and was reported as O2_LOCAL,
                     // so don't do it again.
                     if ((service->tag == PATTERN_NODE ||

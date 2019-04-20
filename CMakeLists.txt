@@ -189,7 +189,7 @@ target_include_directories(o2utclient PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(o2utclient ${LIBRARIES}) 
  
 add_executable(o2utserver test/o2utserver.c)   
-target_include_directories(o2utserver PRIVATE ${CMAKE_SOURCE_DIR}/src)   
+target_include_directories(o2utserver PRIVATE ${CMAKE_SOURCE_DIR}/src)    
 target_link_libraries(o2utserver ${LIBRARIES}) 
 
 add_executable(rawtcpserver test/rawtcpserver.c)   
@@ -204,6 +204,18 @@ target_link_libraries(rawudpserver ${LIBRARIES})
 add_executable(rawudpclient test/rawudpclient.c)   
 target_link_libraries(rawudpclient ${LIBRARIES}) 
 
+add_executable(proptest test/proptest.c)    
+target_include_directories(proptest PRIVATE ${CMAKE_SOURCE_DIR}/src)     
+target_link_libraries(proptest ${LIBRARIES}) 
+ 
+add_executable(o2block test/o2block.c)    
+target_include_directories(o2block PRIVATE ${CMAKE_SOURCE_DIR}/src)     
+target_link_libraries(o2block ${LIBRARIES}) 
+ 
+add_executable(o2unblock test/o2unblock.c)    
+target_include_directories(o2unblock PRIVATE ${CMAKE_SOURCE_DIR}/src)     
+target_link_libraries(o2unblock ${LIBRARIES}) 
+ 
 endif(BUILD_TESTS)  
  
 if(UNIX)

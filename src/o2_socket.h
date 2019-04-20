@@ -88,7 +88,8 @@ typedef struct process_info { // "subclass" of o2_info
               // OSC_SOCKET, OSC_TCP_SERVER_SOCKET,
               // OSC_TCP_SOCKET, OSC_TCP_CLIENT
 
-    int fds_index;              // index of socket in o2_context->fds and o2_context->fds_info
+    int fds_index;              // index of socket in o2_context->fds and 
+                                //   o2_context->fds_info
                                 //   -1 if process known but not connected
     int delete_me;              // set to TRUE when socket should be removed
     int32_t length;             // message length
@@ -108,24 +109,43 @@ typedef struct process_info { // "subclass" of o2_info
               // o2_osc_port_free() to identify the sockets to close.)
     union {
         struct {
-            o2string name; // e.g. "128.2.1.100:55765", this is used so that when
-            // we add a service, we can enumerate all the processes and send
-            // them updates. Updates are addressed using this name field. Also,
-            // when a new process is connected, we send an /in message to this
-            // name. name is "owned" by the process_info struct and will be
-            // deleted when the struct is freed
+            o2string name; // e.g. "128.2.1.100:55765", this is used so that
+            // when we add a service, we can enumerate all the processes and
+            // send them updates. Updates are addressed using this name field.
+            // Also, when a new process is connected, we send an /in message
+            // to this name. name is "owned" by the process_info struct and
+            // will be deleted when the struct is freed
             int status; // PROCESS_LOCAL through PROCESS_OK
             int uses_hub; // indicates the remote process treats this as 
             // its hub -- discovery messages are sent over TCP
-            dyn_array services; // these are the keys of remote_service_entry
-                        // objects, owned by the service entries (do not free)
+            dyn_array services; // these proc_service_data elements
+            // describe services offered by this process, including
+            // property strings for the services. Property strings are
+            // owned by these elements, so free them if the element is
+            // removed from this array. (see proc_service_data below)
+            dyn_array taps; // these are taps asserted by this process, of
+            // type proc_tap_data (see below)
             struct sockaddr_in udp_sa;  // address for sending UDP messages
+            o2_message_ptr pending_msg; // held msg because of blocked stream
         } proc;
         struct {
             o2string service_name;
         } osc;
     };        
 } process_info, *process_info_ptr;
+
+struct services_entry; // break mutual dependency with o2_search.h
+
+typedef struct proc_service_data {
+    struct services_entry *services; // entry for the service
+    char *properties; // a property string, e.g. ";name:rbd;type:drummer"
+} proc_service_data, *proc_service_data_ptr;
+
+
+typedef struct proc_tap_data {
+    struct services_entry *services; // entry for the tappee's service
+    o2string tapper; // the tapper - owned by services, do not free
+} proc_tap_data, *proc_tap_data_ptr;
 
 
 // bridge_info is used to extend O2 to new transports. The info contains

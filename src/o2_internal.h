@@ -197,18 +197,24 @@ extern o2_time o2_discovery_period;
 #define MESSAGE_DEFAULT_SIZE 240
 
 #define GET_SERVICE(list, i) (*DA_GET((list), o2_info_ptr, (i)))
+#define GET_TAP(list, i) (*DA_GET((list), tap_info_ptr, (i)))
 
 
 // shared internal functions
 void o2_notify_others(const char *service_name, int added, const char *tappee);
 
-o2_info_ptr o2_proc_service_find(process_info_ptr proc, services_entry_ptr *services);
+o2_info_ptr o2_proc_service_find(process_info_ptr proc,
+                                 services_entry_ptr services);
 
-int o2_service_provider_new(o2string key, o2_info_ptr service, process_info_ptr process,
-                            o2string tappee);
+int o2_service_provider_new(o2string key, const char *properties,
+                            o2_info_ptr service, process_info_ptr proc);
 
 int o2_status_from_info(o2_info_ptr entry, const char **process);
 
+int o2_tap_new(o2string tappee, process_info_ptr process, o2string tapper);
+
+int o2_tap_remove(o2string tappee, process_info_ptr process,
+                     o2string tapper);
 
 #define O2_NO_HUB 0
 #define O2_CLIENT_IS_HUB 1

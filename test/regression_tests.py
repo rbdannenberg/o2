@@ -125,17 +125,20 @@ def runAllTests():
     if not runTest("arraytest"): return
     if not runTest("bundletest"): return
     if not runTest("infotest1"): return
+    if not runTest("proptest"): return
 
-    if not runDouble("clockmaster", "CLOCKMASTER DONE",
-                     "clockslave", "CLOCKSLAVE DONE"): return
     if not runDouble("statusclient", "CLIENT DONE",
                      "statusserver", "SERVER DONE"): return
-    if not runDouble("appmaster", "APPMASTER DONE",
-                     "appslave", "APPSLAVE DONE"): return
     if not runDouble("infotest2", "INFOTEST2 DONE",
                      "clockslave", "CLOCKSLAVE DONE"): return
+    if not runDouble("clockmaster", "CLOCKMASTER DONE",
+                     "clockslave", "CLOCKSLAVE DONE"): return
+    if not runDouble("appmaster", "APPMASTER DONE",
+                     "appslave", "APPSLAVE DONE"): return
     if not runDouble("o2client", "CLIENT DONE",
                      "o2server", "SERVER DONE"): return
+    if not runDouble("o2unblock", "CLIENT DONE",
+                     "o2block", "SERVER DONE"): return
     if not runDouble("oscsendtest u", "OSCSEND DONE",
                      "oscrecvtest u", "OSCRECV DONE"): return
     if not runDouble("oscsendtest u", "OSCSEND DONE",

@@ -13,12 +13,12 @@
 extern "C" {
 #endif
 
-#define PATTERN_NODE 0
-#define PATTERN_HANDLER 1
-#define SERVICES 2
-#define O2_BRIDGE_SERVICE 3
-#define OSC_REMOTE_SERVICE 4
-#define TAPPER 5
+#define PATTERN_NODE 10
+#define PATTERN_HANDLER 11
+#define SERVICES 12
+#define O2_BRIDGE_SERVICE 13
+#define OSC_REMOTE_SERVICE 14
+#define TAP 15
 
 /**
  *  Structures for hash look up.
@@ -39,9 +39,10 @@ typedef struct node_entry { // "subclass" of o2_entry
     o2string key; // key is "owned" by this node_entry struct
     o2_entry_ptr next;
     int num_children;
-    dyn_array children; // children is a dynamic array of o2_entry_ptr
-    // a o2_entry_ptr can point to a node_entry, a handler_entry, a
-    //   remote_service_entry, or an osc_entry (are there more?)
+    dyn_array children; // children is a dynamic array of o2_entry_ptr.
+    // At the top level, all children are services_entry_ptrs (tag
+    // SERVICES). Below that level children can have tags PATTERN_NODE
+    // or PATTERN_HANDLER.
 } node_entry, *node_entry_ptr;
 
 
@@ -76,17 +77,20 @@ typedef struct services_entry { // "subclass" of o2_entry
             // handler for all messages), process_info (for remote
             // service), osc_info (for service delegated to OSC server), or
             // bridge_info (for a bridge over alternate non-IP transport).
-            // Next in list are "taps" -- these are of type tapper_entry and
-            // indicate services that should get copies of messages sent
-            // to the service named by key.
+            // Valid tags for services in this array are:
+            //    PATTERN_NODE, PATTERN_HANDLER, O2_BRIDGE_SERVICE,
+            //    OSC_REMOTE_SERVICE, TAP, TCP_SOCKET
+    dyn_array taps; // the "taps" on this service -- these are of type
+            // tap_info_ptr and indicate services that should get copies
+            // of messages sent to the service named by key. 
 } services_entry, *services_entry_ptr;
 
 
-typedef struct tapper_entry { // "subclass" of o2_entry
-    int tag; // must be TAPPER
-    o2string tapper_name;
-    o2_entry_ptr next;
-} tapper_entry, *tapper_entry_ptr;
+typedef struct tap_info { // "subclass" of o2_info
+    int tag; // must be TAP
+    o2string tapper;
+    process_info_ptr proc;
+} tap_info, *tap_info_ptr;
 
 
 /*
@@ -177,7 +181,8 @@ void o2_info_show(o2_info_ptr info, int indent);
 #endif
 #endif
 
-int o2_service_or_tapper_new(const char *service_name, const char *tappee);
+    
+services_entry_ptr o2_must_get_services(o2string service_name);
 
 void o2_string_pad(char *dst, const char *src);
 
@@ -198,6 +203,25 @@ node_entry_ptr o2_node_new(const char *key);
 int o2_service_provider_replace(process_info_ptr proc, const char *service_name,
                                 o2_info_ptr new_service);
 
+int o2_service_remove(const char *service_name, process_info_ptr proc,
+                      services_entry_ptr ss, int index);
+
+/* void o2_find_proc_services(process_info_ptr proc, int tags_flag);
+// results are returned in these dynamic arrays:
+dyn_array o2_services_rslt;
+dyn_array o2_taps_rslt;
+// using these types:
+typedef struct service_data {
+    services_entry_ptr ss; // services node containing this service
+    o2_info_ptr s; // service provider
+    int i; // index of service provider in ss->services
+} service_data, *service_data_ptr;
+
+typedef struct tap_data {
+    services_entry_ptr ss; // services node containing this service
+    tap_info_ptr tap;
+} tap_data, *tap_data_ptr;
+*/
 
 int o2_embedded_msgs_deliver(o2_msg_data_ptr msg, int tcp_flag);
 
@@ -245,8 +269,6 @@ int o2_remove_remote_process(process_info_ptr info);
 
 services_entry_ptr o2_insert_new_service(o2string service_name,
                                          services_entry_ptr *services);
-
-int o2_set_tap(const char *tappee, const char *tapper);
 
 #ifdef __cplusplus
 }

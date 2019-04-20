@@ -80,6 +80,9 @@ while true; do
     runtest "infotest1"
     if [ $status == -1 ]; then break; fi
 
+    runtest "proptest"
+    if [ $status == -1 ]; then break; fi
+
     rundouble "statusserver" "SERVER DONE" "statusclient" "CLIENT DONE"
     if [ $status == -1 ]; then break; fi
 
@@ -93,6 +96,9 @@ while true; do
     if [ $status == -1 ]; then break; fi
 
     rundouble "o2client" "CLIENT DONE" "o2server" "SERVER DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "o2unblock" "CLIENT DONE" "o2block" "SERVER DONE"
     if [ $status == -1 ]; then break; fi
 
     rundouble "oscsendtest u" "OSCSEND DONE" "oscrecvtest u" "OSCRECV DONE"
