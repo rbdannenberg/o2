@@ -55,10 +55,12 @@
 // retain the types of all the arg vectors, requiring even more
 // allocation and bookkeeping.
 
+#include "ctype.h"
 #include "o2_internal.h"
 #include "o2_message.h"
 #include "o2_discovery.h"
 #include "o2_send.h"
+#include "o2_interoperation.h"
 
 
 // --------- PART 1 : SCRATCH AREAS FOR MESSAGE CONSTRUCTION --------
@@ -595,10 +597,7 @@ o2_blob_ptr o2_blob_new(uint32_t size)
     }
     // int64_t could be bigger than size_t. Avoid compiler warning by coercing:
     o2_blob_ptr blob = (o2_blob_ptr) O2_MALLOC((size_t) needed);
-    if (blob) {
-        // coerce to avoid compiler warning; we tested so this will not overflow
-        blob->size = (int) needed;
-    }
+    blob->size = (int) needed;
     return blob;
 }
 
@@ -932,17 +931,6 @@ int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
 }
 
 
-
-// state and macros for message construction
-// TODO CLEANUP:
-// use WR_ macros to write data, so 
-//     start is where the data starts, this is 1/5 of the way through
-//     the allocated message memory, assuming most arguments are floats
-//     and int32, so we need about 4x as much memory for data.
-// next is where the data ends, where to append the next argument.
-// TODO REMOVE static char *mc_barrier = NULL;  // end of allocated message data
-
-
 int o2_send_finish(o2_time time, const char *address, int tcp_flag)
 {
     o2_message_ptr msg = o2_message_finish(time, address, tcp_flag);
@@ -1089,10 +1077,6 @@ o2_arg_ptr o2_got_start_array = &sa;
 /// desired to_type to the character in the actual type
 /// string and if there is no match, do not call o2_get_next().
 ///
-// todo: vector to array
-//       array to vector
-//       vector to vector - done
-//       array to array
 o2_arg_ptr o2_get_next(o2_type to_type)
 {
     o2_arg_ptr rslt = (o2_arg_ptr) mx_data_next;
@@ -1562,4 +1546,49 @@ void o2_msg_data_print(o2_msg_data_ptr msg)
 {
     o2_msg_data_print_2(msg, -1);
     fflush(stdout);
+}
+
+// ------- PART 6 : MESSAGE DELIVERY AND DISPATCH -------
+//
+// return O2_SUCCESS to ask caller to free the incoming message
+// return O2_FAIL to ask caller to remove info and socket
+//
+int o2_message_deliver(o2n_info_ptr info)
+{
+    switch (info->tag) {
+        case INFO_UDP_SOCKET:
+        case INFO_TCP_NOCLOCK:
+        case INFO_TCP_SOCKET:
+            // make sure endian is compatible
+#if IS_LITTLE_ENDIAN
+            o2_msg_swap_endian(&(info->in_message->data), FALSE);
+#endif
+
+            O2_DBr(if (info->in_message->data.address[1] != '_' &&
+                       !isdigit(info->in_message->data.address[1]))
+                        o2_dbg_msg("msg received", &info->in_message->data,
+                                   "type", o2_tag_to_string(info->tag)));
+            O2_DBR(if (info->in_message->data.address[1] == '_' ||
+                       isdigit(info->in_message->data.address[1]))
+                        o2_dbg_msg("msg received", &info->in_message->data,
+                                   "type", o2_tag_to_string(info->tag)));
+            o2_message_source = info;
+            o2_message_send_sched(info->in_message, TRUE);
+            break;
+        case INFO_OSC_TCP_CLIENT:
+        case INFO_OSC_UDP_SERVER:
+            return o2_deliver_osc(info);
+        case INFO_OSC_TCP_SERVER: // should be impossible for a server
+        case INFO_TCP_SERVER:     // socket to receive a message
+        default: // bad tag indicates internal error
+            assert(FALSE);
+        case INFO_OSC_TCP_CONNECTING:
+        case INFO_OSC_TCP_CONNECTION:
+            // if we are connected to a server, the server should not send us
+            // messages. Just delete the message. Maybe we should print an error
+            // here, but do not assert(FALSE) because then an evil OSC server
+            // (or just a confused one) could shut us down mysteriously.
+            break;
+    }
+    return O2_SUCCESS;
 }

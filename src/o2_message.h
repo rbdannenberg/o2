@@ -57,6 +57,8 @@ char *o2_msg_data_get(int32_t *len_ptr);
 /* allocate message structure with at least size bytes in the data portion */
 o2_message_ptr o2_alloc_size_message(int size);
 
+int o2_message_deliver(o2n_info_ptr info);
+
 
 /* free a message and all the messages it links to */
 void o2_message_list_free(o2_message_ptr msg);

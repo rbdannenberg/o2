@@ -137,6 +137,8 @@ def runAllTests():
                      "appslave", "APPSLAVE DONE"): return
     if not runDouble("o2client", "CLIENT DONE",
                      "o2server", "SERVER DONE"): return
+    if not runDouble("nonblocksend", "CLIENT DONE",
+                     "nonblockrecv", "SERVER DONE"): return
     if not runDouble("o2unblock", "CLIENT DONE",
                      "o2block", "SERVER DONE"): return
     if not runDouble("oscsendtest u", "OSCSEND DONE",

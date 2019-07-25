@@ -10,6 +10,12 @@
 #include "string.h"
 #include "assert.h"
 
+/* added for special async_test */
+#include "o2_internal.h"
+#include "o2_send.h"
+void o2_context_init(o2_context_ptr context);
+extern o2_context_t main_context;
+
 #ifdef WIN32
 #include "usleep.h" // special windows implementation of sleep/usleep
 #else
@@ -17,6 +23,80 @@
 #endif
 
 int running = TRUE;
+
+o2_message_ptr make_message()
+{
+    o2_message_ptr m = o2_malloc(MESSAGE_DEFAULT_SIZE);
+    m->next = NULL;
+    m->tcp_flag = TRUE;
+    m->allocated = MESSAGE_ALLOCATED_FROM_SIZE(MESSAGE_DEFAULT_SIZE);
+    m->length = 40; // timestamp 8, address 28, typestring 4
+    m->data.timestamp = 0.0;
+    strncpy(m->data.address, "/This_is_from_make_message.\000,\000\000\000",
+            40 - 8);
+    return m;
+}
+
+
+int async_test_handler(o2n_info_ptr info)
+{
+    o2_message_ptr msg = info->in_message;
+    printf("Client got message: %s\n", msg->data.address);
+    o2_message_free(msg);
+    // close the connection
+    assert(info);
+    o2_socket_remove(info->fds_index);
+    return O2_SUCCESS;
+}
+
+
+void async_test()
+{
+    o2_context_init(&main_context);
+    o2_ensemble_name = "async"; // pretend initialized
+    o2_debug_flags("A");
+    printf("Calling o2n_initialize()\n");
+    o2n_initialize();
+    o2n_send_by_tcp = &async_test_handler;
+    printf("My address: %s\n", o2_context->info->proc.name);
+    int connection_index = o2_context->fds_info.length;
+    for (int i = 0; i < 15000; i++) { // 30s
+        o2n_recv();
+        if (o2_context->fds_info.length > connection_index) {
+            goto accepted;
+        }
+        if (i % 1000 == 0) { // print every 2s
+            printf("Waiting for connection\n");
+        }
+        usleep(2000); // 2ms
+    }
+    // up to ~30s have elapsed
+    printf("Connection never came, timed out, calling o2n_finish().\n");
+    o2n_finish();
+    return;
+  accepted:
+    printf("Accepted a connection. Sending a message.\n");
+    o2_message_ptr msg = make_message();
+    o2n_info_ptr connection = GET_PROCESS(connection_index);
+    o2_send_by_tcp(connection, FALSE, msg);
+    for (int i = 0; i < 15000; i++) { // 30s
+        o2n_recv();
+        if (o2_context->fds_info.length == connection_index) {
+            printf("Connection was closed.\n");
+            goto sent_message;
+        }
+        if (i % 1000 == 0) { // print every 2s
+            printf("Waiting for send and close\n");
+        }
+        usleep(2000); // 2ms
+    }
+    // up to ~30s have elapsed
+    printf("Connection WAS NOT CLOSED: timeout\n");
+  sent_message:
+    printf("Calling o2n_finish()\n");
+    o2n_finish();
+}
+
 
 
 int main(int argc, const char * argv[])
@@ -26,10 +106,19 @@ int main(int argc, const char * argv[])
     printf("Usage: statusserver [debugflags] [ip port] "
            "(see o2.h for flags, use a for all)\n"
            "    last args, if set, specify a hub to use; if only ip is given,\n"
-           "    o2_hub(NULL, 0) is called to turn off broadcasting\n");
+           "    o2_hub(NULL, 0) is called to turn off broadcasting\n"
+           "If debugflags is xxx, this code runs a special test of\n"
+           "    low-level asynchronous TCP connections. This is for\n"
+           "    debugging and not intended for real regression testing\n");
     if (argc >= 2) {
-        o2_debug_flags(argv[1]);
-        printf("debug flags are: %s\n", argv[1]);
+        if (streql(argv[1], "xxx")) {
+            printf("Special asynchronous tcp connection code test...\n");
+            async_test();
+            return 0;
+        } else {
+            o2_debug_flags(argv[1]);
+            printf("debug flags are: %s\n", argv[1]);
+        }
     }
     if (argc == 3) {
         port = 1;

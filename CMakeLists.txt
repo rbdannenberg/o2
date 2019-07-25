@@ -46,10 +46,11 @@ set(O2_SRC
   src/o2_sched.c src/o2_sched.h
   src/o2_search.c src/o2_search.h 
   src/o2_send.c src/o2_send.h 
-  src/o2_socket.c src/o2_socket.h 
+  src/o2_net.c src/o2_net.h 
   src/o2_clock.c src/o2_clock.h
   # src/o2_debug.c src/o2_debug.h
   src/o2_interoperation.c src/o2_interoperation.h
+  src/o2_bridge.c src/o2_bridge.h
   )  
  
 add_library(o2_static STATIC ${O2_SRC})  
@@ -112,14 +113,22 @@ add_executable(arraytest test/arraytest.c)
 target_include_directories(arraytest PRIVATE ${CMAKE_SOURCE_DIR}/src)     
 target_link_libraries(arraytest ${LIBRARIES}) 
     
-add_executable(o2client test/o2client.c) 
-target_include_directories(o2client PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+add_executable(o2client test/o2client.c)  
+target_include_directories(o2client PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(o2client ${LIBRARIES}) 
-
-add_executable(o2server test/o2server.c) 
-target_include_directories(o2server PRIVATE ${CMAKE_SOURCE_DIR}/src) 
+ 
+add_executable(o2server test/o2server.c)  
+target_include_directories(o2server PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(o2server ${LIBRARIES}) 
-
+ 
+add_executable(nonblocksend test/nonblocksend.c)  
+target_include_directories(nonblocksend PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(nonblocksend ${LIBRARIES}) 
+ 
+add_executable(nonblockrecv test/nonblockrecv.c)  
+target_include_directories(nonblockrecv PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(nonblockrecv ${LIBRARIES}) 
+ 
 add_executable(statusclient test/statusclient.c)
 target_include_directories(statusclient PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(statusclient ${LIBRARIES}) 

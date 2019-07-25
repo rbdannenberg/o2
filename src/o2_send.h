@@ -15,13 +15,13 @@
 #define MSG_NOSIGNAL 0
 #endif
 
-extern int o2_in_find_and_call_handlers;
+extern int o2_do_not_reenter;
 
 void o2_deliver_pending(void);
 
 services_entry_ptr *o2_services_find(const char *service_name);
 
-o2_info_ptr o2_msg_service(o2_msg_data_ptr msg, services_entry_ptr *services);
+o2_node_ptr o2_msg_service(o2_msg_data_ptr msg, services_entry_ptr *services);
 
 /**
  *  \brief Use initial part of an O2 address to find an o2_service using
@@ -30,23 +30,24 @@ o2_info_ptr o2_msg_service(o2_msg_data_ptr msg, services_entry_ptr *services);
  *  @param name points to the service name (do not include the
  *              initial '!' or '/' from the O2 address).
  *
- *  @return The pointer to the service, tag may be TCP_SOCKET 
- *          (remote process), PATTERN_NODE (local service), 
- *          PATTERN_HANDLER (local service with single handler),
- *          or OSC_REMOTE_SERVICE (redirect to OSC server),
+ *  @return The pointer to the service, tag may be INFO_TCP_SOCKET 
+ *          (remote process), NODE_HASH (local service), 
+ *          NODE_HANDLER (local service with single handler),
+ *          or NODE_OSC_REMOTE_SERVICE (redirect to OSC server),
  *          or NULL if name is not found.
  */
-o2_info_ptr o2_service_find(const char *name, services_entry_ptr *services);
+o2_node_ptr o2_service_find(const char *name, services_entry_ptr *services);
 
 int o2_message_send_sched(o2_message_ptr msg, int schedulable);
 
 int o2_msg_data_send(o2_msg_data_ptr msg, int tcp_flag);
 
-int o2_send_message(struct pollfd *pfd, o2_message_ptr msg,
-                    int blocking, process_info_ptr proc);
+// int o2_send_message(o2n_info_ptr proc, int blocking);
 
-int o2_send_remote(o2_message_ptr msg, process_info_ptr info);
+int o2_send_remote(o2_message_ptr msg, o2n_info_ptr info);
 
-int send_by_tcp_to_process(process_info_ptr proc, o2_message_ptr msg);
+// void o2_queue_message(o2_message_ptr msg, o2n_info_ptr proc);
+
+int o2_send_by_tcp(o2n_info_ptr proc, int block, o2_message_ptr msg);
 
 #endif /* o2_send_h */

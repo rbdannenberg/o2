@@ -115,7 +115,12 @@ Some major components and concepts of O2 are the following:
   upon O2 messages. A service is addressed by name. Multiple services
   can exist within one process. A service does not imply a (new) thread
   and all O2 messages are delivered sequentially from the single thread
-  that calls #o2_poll(). 
+  that calls #o2_poll(). Service names begin with a letter with the
+  exception of "_o2" which denotes a process, "_cs", which denotes
+  the master clock, and `ip:port` strings, beginning with a digit, that
+  denote a remote process. Sending to, e.g. `192.168.1.156:50917` will
+  actually send to `_o2` at the indicated process if that ip:port string
+  matches a connected process.
 
 - **Message** - an O2 message, similar to an OSC message, contains an 
   address pattern representing a function, a type string and a set of 
@@ -161,23 +166,15 @@ the IP address and port number are used to construct a string, e.g.
 
 \subsection Internal Messages
 
-`/_o2/dy "issii"` *hub_flag* *ensemble_name* *local_ip* *tcp_port* *udp_port* - 
+`/_o2/dy "ssiii"` *ensemble_name* *local_ip* *tcp_port* *udp_port* *dy* -
 this message is normally sent to the discovery port, but it can also be sent
-as a result of calling o2_hub() and providing an O2 process address. 
-*hub_flag* is 0, 1 or 2; 0 means no hub protocol, this is a normal
-broadcast discovery message; 1 (O2_CLIENT_IS_HUB) or 2 (O2_SERVER_IS_HUB) 
-indicates that the receiver is the hub, designated by a call to 
-o2_hub(), and the message was delivered by making a TCP connection to the
-receiver. The difference is that O2_SERVER_IS_HUB means the receiver is
-the hub and should keep the TCP connection used to send this message. 
-The hub returns info to the client over this connection. O2_CLIENT_IS_HUB 
-means the receiver should be the client of the TCP connection, so the
-current connection is dropped, a new one is initiated by the receiver to 
-the original sender so that the original sender now acts as the server. 
-Then the hub sends information to the original sender.
+as a result of calling o2_hub() and providing an O2 process address.
+Processes must exchange discovery messages to be connected. The *dy* 
+parameter, if true, requests that the receiver reply with a discovery message.
 
-`/ip:port/cs/cs "s"` *name* - announces when clock sync is obtained. The
-*name* parameter is a remote service name.
+`/_o2/hub ""` - requests the receiver to become the hub for the sender
+
+`/_o2/cs ""` - announces when clock sync is obtained.
 
 `/_o2/ds ""` - this message invokes the sending of discovery messages. It
 is used with a timestamp to schedule periodic discovery message sending.
@@ -187,21 +184,22 @@ parameter is the reply prefix to which "/get-reply" is appended to create
 the full address for the reply. The reply contains the type string "it"
 and the parameters are the *serial-no* and the current time.
 
-`/ip:port/sv "ssbbs..."` *process-name* *service-name* *exists-flag*
+`/_o2/sv "ssbbs..."` *process-name* *service-name* *exists-flag*
 *tappee-flag* *tappee-or-properties* ... - reports service creation 
 or deletion. Each service is described by name, TRUE, and either TRUE
-followed by a properties string or FALSE followed by the the tappee 
+followed by a properties string or FALSE followed by the tappee 
 name. If a service is deleted, then FALSE is sent rather than TRUE,
 and if this is not a tap, the properties string is empty. The "..." 
 notation here indicates that there can be any number of services 
 described in this message, each service consisting of another "sbbs"
 (string, Boolean, Boolean, string) sequence. Properties strings are
-sent with escaped values and trailing ';' but no leading ';'.
+sent with escaped values and trailing ';' but no leading ';'. This is
+the first message sent when a process-to-process connection is made.
 
 
 \subsection API Messages
 
-`/ip:port/cs/rt "s"` *reply-to* - A process can send this message to request
+`/_o2/cs/rt "s"` *reply-to* - A process can send this message to request
 round trip (to the clock master) information; *reply-to* is an address prefix.
 A reply is sent to *reply-to* concatenated with "/get-reply". The reply message
 has the type string "sff" and the parameters are the process name (ip:port), 
@@ -217,7 +215,13 @@ processes, and when that process's services table is updated, if the service
 is or becomes active, the change is reported locally by sending this `/_o2/si`
 message. Normally, you should not add handlers or use the `_o2` service, but
 in this case, an application is expected to add a custom handler to receive
-status updates.
+status updates. See `o2_status()` for a list of status values. Note also that
+services named `_o2` and something like `128.237.176.176:51634` (i.e. port:ip)
+are created before you can install a handler for `/_o2/si`, so you will not
+receive `si` messages when these services are created. Other processes will
+receive a notice of the port:ip name when a connection is made, and the
+local process will see both `_o2` and port:ip services change to state
+`O2_LOCAL` when clock sync is acquired.
 
 */
 
@@ -256,7 +260,9 @@ status updates.
 ///   - o - trace socket creating and closing
 ///   - O - open sound control messages
 ///   - g - print general status info
+///   - n - all network flags (no malloc or scheduling)
 ///   - a - all debug flags except m (malloc/free)
+///   - A - all debug flags except malloc and scheduling
 #ifndef O2_NO_DEBUG
 void o2_debug_flags(const char *flags);
 #endif
@@ -277,11 +283,9 @@ void o2_debug_flags(const char *flags);
 /// such as O2_SERVICE_CONFLICT, O2_NO_MEMORY, etc.
 #define O2_FAIL (-1)
 
-// TODO: this value is never used/returned
 /// an error return value: path to handler specifies a remote service
 #define O2_SERVICE_CONFLICT (-2)
 
-// TODO: this value is never used/returned
 /// an error return value: path to handler specifies non-existant service
 #define O2_NO_SERVICE (-3)
 
@@ -291,7 +295,8 @@ void o2_debug_flags(const char *flags);
 /// an error return value for o2_initialize(): O2 is already running.
 #define O2_ALREADY_RUNNING (-5)
 
-/// an error return value for o2_initialize(): invalid name parameter.
+/// an error return value for #o2_initialize() or #o2_service_new():
+/// invalid name parameter.
 #define O2_BAD_NAME (-6)
 
 /// an error return value for o2_add_vector(): invalid element type
@@ -882,6 +887,7 @@ int o2_get_address(const char **ipaddress, int *port);
  * \endcode
  * and define `synth_volume_handler` (see the type declaration for
  * #o2_method_handler and o2_method_new())
+ * User-created service names must begin with a letter.
  * Normally, services should be *unique* across the ensemble. If 
  * #service_name is already locally defined in this process (by a previous
  * call to #o2_service_new or #o2_osc_delegate), this call will fail,
@@ -910,8 +916,6 @@ int o2_service_new(const char *service_name);
  * #o2_service_name(), #o2_service_type(), #o2_service_process(), 
  * #o2_service_tapper(), and #o2_service_properties(). When the 
  * information is no longer needed, call #o2_services_list_free().
-
-
  * 
  * Only active services and their tappers are reported. If there are
  * two services with the same name, only the active one is reported.
@@ -937,7 +941,8 @@ int o2_services_list_free();
 /**
  * \brief get a service name from a saved list of services
  *
- * Do not free the returned value. Instead, call #o2_services_list_free().
+ * See #o2_services_list(). Do not free the returned value. 
+ * Instead, call #o2_services_list_free().
  * The pointer will be invalid after calling #o2_services_list_free().
  *
  * @param i the index of the service, starting with zero
@@ -950,7 +955,7 @@ const char *o2_service_name(int i);
 /**
  * \brief get a type from a saved list of services
  *
- * The return value indicates the type of the service: 
+ * See #o2_services_list(). The return value indicates the type of the service:
  * O2_LOCAL (4) if the service is local, O2_REMOTE (5) if the service
  * is remote, and O2_TAP (8) for each tapper of the service.
  *
@@ -964,7 +969,8 @@ int o2_service_type(int i);
 /**
  * \brief get a process name from a saved list of services
  *
- * Do not free the returned value. Instead, call #o2_services_list_free().
+ * See #o2_services_list(). Do not free the returned value. 
+ * Instead, call #o2_services_list_free().
  * The pointer will be invalid after calling #o2_services_list_free().
  *
  * @param i the index of the service
@@ -979,7 +985,8 @@ const char *o2_service_process(int i);
 /**
  * \brief get a tapper name from a saved list of services
  *
- * Do not free the returned value. Instead, call #o2_services_list_free().
+ * See #o2_services_list(). Do not free the returned value. 
+ * Instead, call #o2_services_list_free().
  * The pointer will be invalid after calling #o2_services_list_free().
  *
  * @param i the index of the service
@@ -992,7 +999,8 @@ const char *o2_service_tapper(int i);
 /**
  * \brief get the properties string from a saved list of services
  *
- * Properties have the form: "attr1:value1;attr2:value2;...", where
+ * See #o2_services_list(). Properties have the form: 
+ * "attr1:value1;attr2:value2;...", where
  * attributes are alphanumeric, and values can be any string with
  * colon represented by "\:", semicolon represented by "\;", and 
  * slash represented by "\\". Escape characters are not removed, and
@@ -1056,7 +1064,16 @@ int o2_service_search(int i, const char *attr, const char *value);
  * @param value the value string; this string will be escaped. Do
  *        not include escape characters in #value
  *
- * @returns O2_SUCCESS if successful
+ * @returns O2_SUCCESS if successful.
+ *
+ * Note that each call will broadcast the property change to every
+ * other O2 process in the ensemble. Therefore properties are not
+ * recommended for publishing values frequently to clients, expecially
+ * if multiple properties are typically updated in sequence, e.g.
+ * X, Y, Z coordinates, which would result in 3 messages to each 
+ * other process. Consider sending X, Y, Z together in a normal O2
+ * message, and consider using taps if the "publisher" does not know
+ * all the "subscribers."
  */
 int o2_service_set_property(const char *service, const char *attr,
                             const char *value);
@@ -1094,19 +1111,17 @@ int o2_service_property_free(const char *service, const char *attr);
  * There may be multiple taps on a single service, resulting in 
  * the delivery of multiple copies.
  *
- * If the #tapper service is freed or its process terminates, the tap
- * is removed. Note that while services are normally independent of
- * processes (for example, a new process can override an existing 
+ * Note that while services are normally independent of
+ * processes (for example, a new service can override an existing
  * one in another process), tappers are tied to processes and cannot
- * be overridden by another service of the same name. When a tapper
- * service is removed, the tap is also removed. It is not redirected
+ * be overridden by another service of the same name. It is not redirected
  * to another service provider. Also, unlike ordinary message delivery
  * that delivers one message even if there are multiple processes 
  * offering the service, there can be multiple tappers, even with the
  * same service names, and each tapper receives a copy of every message
  * delivered to the tappee.
  *
- * Note also that taps can be used to implement a publish/subscribe
+ * Taps can be used to implement a publish/subscribe
  * model. The publisher creates a local service and need not install
  * any message handlers. Subscribers install taps on the service to
  * receive messages. It is more efficient for the tappee to be in the
@@ -1511,7 +1526,8 @@ int o2_finish(void);
  *  `/foo/x`, then the message is directed to and handled by
  *  `/maxmsp/foo/x`. If the #service_name does not exist at any time
  *  after calling #o2_osc_port_new, incoming OSC messages will be dropped
- *  until the service is available again.
+ *  until the service is available again. Note that this function does
+ *  not automatically create a service named `service_name`.
  *
  *  @param service_name The name of the service to which messages are delivered
  *  @param port_num     Port number.
@@ -1526,9 +1542,12 @@ int o2_osc_port_new(const char *service_name, int port_num, int tcp_flag);
  *
  * This removes a port created by #o2_osc_port_new(). If you want to 
  * remove the corresponding service, you must also call #o2_service_free()
- * with the service name.
+ * with the service name. The port should be the same port passed to
+ * #o2_osc_port_new(). In the case of TCP, this will close all connections
+ * that were *accepted* from this server port.
  *
- * @param port_num The port number that receives OSC messages.
+ * @param port_num The port number that receives OSC messages or that receives
+          connect requests for TCP connections.
  * 
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  *
@@ -1834,8 +1853,13 @@ int o2_add_only_typecode(o2_type typecode);
 /// \brief add a "false" to the message (see o2_send_start())
 #define o2_add_false() o2_add_only_typecode(O2_FALSE);
 
+/// \brief add a boolean typecode T or F
+///  (this differs from `o2_add_bool` which uses typecode B and adds
+///  a 0 or 1 as data)
+#define o2_add_tf(x) o2_add_only_typecode((x) != 0 ? O2_TRUE : O2_FALSE)
+
 /// \brief add 0 (false) or 1 (true) to the message (see o2_send_start())
-#define o2_add_bool(x) o2_add_int32_or_char(O2_BOOL, x != 0)
+#define o2_add_bool(x) o2_add_int32_or_char(O2_BOOL, (x) != 0)
 
 /// \brief add "nil" to the message (see o2_send_start())
 #define o2_add_nil() o2_add_only_typecode(O2_NIL);

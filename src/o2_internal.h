@@ -25,7 +25,7 @@
 #endif
 
 typedef const char *o2string; // string padded to 4-byte boundary
-#include "o2_socket.h"
+#include "o2_net.h"
 #include "o2_search.h"
 
 // Configuration:
@@ -73,7 +73,7 @@ typedef const char *o2string; // string padded to 4-byte boundary
 #define O2_DBo(x)
 #define O2_DBO(x)
 #define O2_DBg(x)
-// speical multiple category tests:
+// special multiple category tests:
 #define O2_DBoO(x)
 #else
 extern int o2_debug;
@@ -93,6 +93,8 @@ void o2_dbg_msg(const char *src, o2_msg_data_ptr msg,
 #define O2_DBm_FLAG 0x400
 #define O2_DBo_FLAG 0x800
 #define O2_DBO_FLAG 0x1000
+// All flags but malloc and schedulers, enabled by "A"
+#define O2_DBA_FLAGS (0x1FFF-O2_DBm_FLAG-O2_DBt_FLAG-O2_DBT_FLAG)
 // All flags but DBm (malloc/free) enabled by "a"
 #define O2_DBa_FLAGS (0x1FFF-O2_DBm_FLAG)
 
@@ -157,7 +159,6 @@ void o2_dbg_msg(const char *src, o2_msg_data_ptr msg,
 #include <assert.h>
 
 extern char *o2_debug_prefix;
-extern SOCKET local_send_sock; // socket for sending all UDP msgs
 
 extern o2_time o2_local_now;
 extern o2_time o2_global_now;
@@ -196,31 +197,42 @@ extern o2_time o2_discovery_period;
 
 #define MESSAGE_DEFAULT_SIZE 240
 
-#define GET_SERVICE(list, i) (*DA_GET((list), o2_info_ptr, (i)))
-#define GET_TAP(list, i) (*DA_GET((list), tap_info_ptr, (i)))
+#define GET_SERVICE(list, i) (*DA_GET((list), o2_node_ptr, (i)))
+#define GET_TAP(list, i) DA_GET((list), service_tap, (i))
 
 
 // shared internal functions
-void o2_notify_others(const char *service_name, int added, const char *tappee);
+void o2_notify_others(const char *service_name, int added,
+                      const char *tappee, const char *properties);
 
-o2_info_ptr o2_proc_service_find(process_info_ptr proc,
+o2_node_ptr o2_proc_service_find(o2n_info_ptr proc,
                                  services_entry_ptr services);
 
 int o2_service_provider_new(o2string key, const char *properties,
-                            o2_info_ptr service, process_info_ptr proc);
+                            o2_node_ptr service, o2n_info_ptr proc);
 
-int o2_status_from_info(o2_info_ptr entry, const char **process);
+int o2_status_from_info(o2_node_ptr entry, const char **process);
 
-int o2_tap_new(o2string tappee, process_info_ptr process, o2string tapper);
+int o2_service_new2(o2string padded_name);
 
-int o2_tap_remove(o2string tappee, process_info_ptr process,
+int o2_tap_new(o2string tappee, o2n_info_ptr process, o2string tapper);
+
+int o2_tap_remove(o2string tappee, o2n_info_ptr process,
                      o2string tapper);
 
+// hub flags are used to tell receiver of /dy message what to do.
+// Four cases:
+//   1. receiver is the hub
+#define O2_BE_MY_HUB 1
+//   2. receiver is the hub, but hub needs to close socket and
+//      connect to sender
+#define O2_HUB_CALL_ME_BACK 2
+//   3. sender is the hub (and client), OR if this is an o2n_info.proc.hub
+#define O2_I_AM_HUB 3
+//   4. sender is normal discovery broadcast
 #define O2_NO_HUB 0
-#define O2_CLIENT_IS_HUB 1
-#define O2_SERVER_IS_HUB 2
-#define O2_FROM_HUB 3 // this discovery message came from the hub
-
+//   5. remote is HUB
+#define O2_HUB_REMOTE 4
 
 #endif /* O2_INTERNAL_H */
 /// \endcond

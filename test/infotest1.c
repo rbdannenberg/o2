@@ -6,6 +6,7 @@
 #include "string.h"
 
 #define N_ADDRS 10
+#define EXPECTED_COUNT 6
 
 const char *status_strings[] = {
     "O2_LOCAL_NOTIME",
@@ -30,8 +31,6 @@ const char *status_to_string(int status)
 }
 
 
-
-
 void service_one(o2_msg_data_ptr data, const char *types,
                  o2_arg_ptr *argv, int argc, void *user_data)
 {
@@ -46,10 +45,10 @@ void service_two(o2_msg_data_ptr data, const char *types,
 
 #define streql(a, b) (!strcmp(a, b))
 
-#define FIRST_COUNT 5
+#define FIRST_COUNT 3
 int si_msg_count = 0;
-char *expected_si_service_first[] = {"_o2", "ip:port", "one", "two", "_cs"};
-int expected_si_status_first[] = {O2_LOCAL_NOTIME, O2_LOCAL_NOTIME,
+char *expected_si_service_first[] = {"one", "two", "_cs"};
+int expected_si_status_first[] = {
         O2_LOCAL_NOTIME, O2_LOCAL_NOTIME, O2_LOCAL};
 char *expected_si_service_later[] = {"_o2", "ip:port", "one", "two"};
 
@@ -68,7 +67,8 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
     char my_ip_port[32];
     if (!my_ip) my_ip = "none";
     sprintf(my_ip_port, "%s:%d", my_ip, my_port);
-    // the first 5 /_o2/si messages are listed in expected_si_service_first,
+/*
+    // the first 3 /_o2/si messages are listed in expected_si_service_first,
     // where "ip:port" is replaced by the real ip:port string.
     if (si_msg_count < FIRST_COUNT) {
         char *expected_service = expected_si_service_first[si_msg_count];
@@ -81,11 +81,14 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
             printf("FAILURE\n");
             exit(-1);
         }
-    // 9 messages are expected, so si_msg_count will go from 0 through 8
-    } else if (si_msg_count > 8) {
+    // EXPECTED_COUNT messages are expected, so si_msg_count will go from
+    //  0 through EXPECTED_COUNT - 1
+    } else 
+*/
+    if (si_msg_count >= EXPECTED_COUNT) {
         printf("FAILURE\n");
         exit(-1);
-    // after the first 5 messages, the clock becomes master, and we expect
+    // after the first 3 messages, the clock becomes master, and we expect
     // 4 more messages in some order and we become O2_LOCAL. The services
     // are in expected_si_service_later[], which we search and remove from
     // to allow for any order of notification (order could vary because
@@ -95,9 +98,11 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
         int i;
         for (i = 0; i < 4; i++) {
             char *expected_service = expected_si_service_later[i];
+/* It seems like we are not expecting ip:port, so fail if we get it...
             if (streql(expected_service, "ip:port")) {
                 expected_service = my_ip_port;
             }
+*/
             if (streql(expected_service, service_name) &&
                 status == O2_LOCAL &&
                 streql(ip_port, my_ip_port)) {
@@ -117,6 +122,11 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
 int main(int argc, const char * argv[])
 {
     // o2_debug_flags("a");
+    printf("Usage: infotest1 flags\n");
+    if (argc == 2) {
+        printf("Calling o2_debug_flags(\"%s\")\n", argv[1]);
+        o2_debug_flags(argv[1]);
+    }
     o2_initialize("test");    
     o2_method_new("/_o2/si", "sis", &service_info_handler, NULL, FALSE, TRUE);
 
@@ -145,8 +155,9 @@ int main(int argc, const char * argv[])
     }
 
     o2_finish();
-    if (si_msg_count != 9) {
-        printf("FAILURE - wrong si_msg_count (%d)\n", si_msg_count);
+    if (si_msg_count != EXPECTED_COUNT) {
+        printf("FAILURE - wrong si_msg_count (%d), expected %d\n",
+               si_msg_count, EXPECTED_COUNT);
     } else {
         printf("DONE\n");
     }

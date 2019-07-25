@@ -19,8 +19,4 @@ o2_time o2_local_to_global(o2_time local);
 
 void o2_clock_ping_at(o2_time when);
 
-
-
-
-
-
+int o2_send_clocksync(o2n_info_ptr proc);

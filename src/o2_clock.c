@@ -28,7 +28,6 @@ static int found_clock_service = FALSE; // set when service appears
 static o2_time start_sync_time; // local time when we start syncing
 static int clock_sync_id = 0;
 static o2_time clock_sync_send_time;
-static o2string clock_sync_reply_to;
 static o2_time_callback time_callback = NULL;
 static void *time_callback_data = NULL;
 static int clock_rate_id = 0;
@@ -53,6 +52,9 @@ static long start_time;
 static long start_time;
 #endif
 
+static void announce_synchronized();
+static void clock_status_change(o2n_info_ptr info, int status);
+static void compute_osc_time_offset(o2_time now);
 
 // call this with the local and master time when clock sync is first obtained
 //
@@ -71,6 +73,15 @@ static void o2_clock_synchronized(o2_time local_time, o2_time master_time)
         global_time_base = master_time;
         clock_rate = 1.0;
     }
+    // tell all other processes that this one's status is synchronized;
+    // also gets clock_status_change() to send !_o2/si for any active
+    // service that is now synchronized
+    announce_synchronized();
+    // in addition, compute the offset to absolute time in case we need an
+    // OSC timestamp
+    compute_osc_time_offset(master_time);
+    O2_DBg(printf("%s obtained clock sync at %g\n",
+                  o2_debug_prefix, o2_time_get()));
 }
 
 // catch_up_handler -- handler for "/_o2/cu"
@@ -129,23 +140,27 @@ static void set_clock(double local_time, double new_master)
     } else if (clock_advance > -1) { // we are a little ahead
         clock_rate = 0.9; // go slower until the master clock catches up
         will_catch_up_after(clock_advance * -10);
-    } else {
+    } else { // clock_advance <= -1
         clock_rate = 0; // we're way ahead: stop until next clock sync
-        // TODO: maybe we should try to run clock sync soon since we are
-        //       way out of sync and do not know if master time is running
+        // maybe we should try to run clock sync soon since we are
+        // way out of sync and do not know if master time is running
+        // This seems to be such a bad situation that the best recovery
+        // is probably application-dependent. Until we have a real
+        // problem to fix, we'll just let things resynchronize (perhaps
+        // after a long time) on their own.
     }
     O2_DBk(printf("%s adjust clock to %g, rate %g\n",
                   o2_debug_prefix, LOCAL_TO_GLOBAL(local_time), clock_rate));
 }
 
 
-static int o2_send_clocksync(process_info_ptr proc)
+int o2_send_clocksync(o2n_info_ptr proc)
 {
     if (!o2_clock_is_synchronized)
         return O2_SUCCESS;
-    char address[32];
-    snprintf(address, 32, "!%s/cs/cs", proc->proc.name);
-    return o2_send_cmd(address, 0.0, "s", o2_context->process->proc.name);
+    if (o2_send_start()) return O2_FAIL;
+    o2_send_by_tcp(proc, FALSE, o2_message_finish(0.0, "!_o2/cs", TRUE));
+    return O2_SUCCESS;
 }
     
 
@@ -184,83 +199,95 @@ static void compute_osc_time_offset(o2_time now)
 }
 
 
-static void announce_synchronized(o2_time now)
+// when clock becomes synchronized, we must tell all other
+// processes about it. To find all other processes, use the o2_context->fds_info
+// table since all but a few of the entries are connections to processes
+//
+// additionally, call clock_status_change for every synchronized remote process,
+// because we need to send !_o2/si messages for their newly synchronized services
+//
+static void announce_synchronized()
 {
-    // when clock becomes synchronized, we must tell all other
-    // processes about it. To find all other processes, use the o2_context->fds_info
-    // table since all but a few of the entries are connections to processes
     for (int i = 0; i < o2_context->fds_info.length; i++) {
-        process_info_ptr info = GET_PROCESS(i);
-        if (info->tag == TCP_SOCKET) {
+        o2n_info_ptr info = GET_PROCESS(i);
+        if (TAG_IS_REMOTE(info->tag)) {
             o2_send_clocksync(info);
+            // if info is synchronized, call clock_status_change()
+            if (info->tag != INFO_TCP_SOCKET) { // remote process is also synchronized
+                clock_status_change(info, O2_REMOTE);
+            }
         }
     }
-    // in addition, compute the offset to absolute time in case we need an
-    // OSC timestamp
-    compute_osc_time_offset(now);
-    O2_DBg(printf("%s obtained clock sync at %g\n",
-                  o2_debug_prefix, o2_time_get()));
+    clock_status_change(o2_context->info, O2_LOCAL);
 }
 
 
 // All services offered by this proc, described by info, have changed to 
-// status, so send !/_o2/si messages for them. protect should be 1 or 0.
-// Use 1 if messages should be queued and sent later by o2_poll(). Use 0
-// if it is OK to send messages immediately. Only active service changes
-// are searched and reported. This (as of this writing) is only called in
-// response to a /cs/cs clock sync status change announcement.
+// status, so send !_o2/si messages for them. Only active service changes
+// are searched and reported. This is called in response to a /_o2/cs clock
+// sync status change announcement. Also, when the local process gets sync,
+// o2_clock_synchronized() calls this for *every other process that is
+// synchronized* because all services offered by them now have status
+// O2_REMOTE *and* o2_clock_synchronized() calls this with the local
+// process so that !_o2/si messages are sent with status O2_LOCAL for each
+// active local service.
 //
-// In an earlier implementation we maintained a list of services offered
-// by each process so that we could go directly from info through the
-// top-level hash table to find the process's service. To simplify things
-// a bit, these backpointers were removed, so now we have to enumerate ALL
-// services and check each one to see if it is served by info. Even if
-// 100 processes offer 2 services each (plus the process ip:port service),
-// that would be 300 services. Well, at least we're not searching thousands.
-//
-void clock_status_change(process_info_ptr proc, int protect, int status)
+static void clock_status_change(o2n_info_ptr info, int status)
 {
-    // send service info updates for all services offered by this process
-    if (!o2_clock_is_synchronized)
-        return;
-    // status can only change if this process
-    // is synchronized (note also that once synchronized, the current 
+    // status can only change if the local process
+    // is synchronized (note also that once synchronized, the local
     // process does not lose sychronization, even if the cs service goes
     // away. (Maybe this should be fixed or maybe it is a feature.)
     //
-    for (int i = 0; i < proc->proc.services.length; i++) {
-        services_entry_ptr ss = DA_GET(proc->proc.services,
-                                       proc_service_data, i)->services;
-        if (ss->services.length > 0 &&
-            *DA_GET(ss->services, process_info_ptr, 0) == proc) {
-            // see if this service is the active one
-            o2_in_find_and_call_handlers += protect;
-            o2_send_cmd("!_o2/si", 0.0, "sis", ss->key,
-                        status, proc->proc.name);
-            o2_in_find_and_call_handlers -= protect;
-        }
+    if (!o2_clock_is_synchronized) {
+        return;
     }
+    o2_do_not_reenter++;
+    for (int i = 0; i < info->proc.services.length; i++) {
+        services_entry_ptr ss = DA_GET(info->proc.services,
+                                       proc_service_data, i)->services;
+        // if the active service is provided by info (the newly synchronized
+        // process), then send a status info (/_o2/si) message with status
+        if (ss->services.length == 0) {
+            continue;
+        } else if (status == O2_LOCAL) { // local process
+            o2_node_ptr node = GET_SERVICE(ss->services, 0);
+            if (node->tag != NODE_HASH && node->tag != NODE_HANDLER) {
+                continue;
+            }
+        } else { // status == O2_REMOTE
+            if (GET_SERVICE(ss->services, 0) != (o2_node_ptr) info) {
+                continue;
+            }
+        }
+        // assert: either active service is local and info is the local
+        // process (so active service is offered by info) or active service
+        // is remote and offered by info as a remote process
+        o2_send_cmd("!_o2/si", 0.0, "sis", ss->key,
+                    status, info->proc.name);
+    }
+    o2_do_not_reenter--;
 }
 
 
-// handle messages to /ip:port/cs/cs that announce when clock sync is obtained
+// handle messages to /_o2/cs that announce when clock sync is obtained
 //
 void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
                             o2_arg_ptr *argv, int argc, void *user_data)
 {
-    o2_extract_start(msg);
-    o2_arg_ptr arg = o2_get_next('s');
-    if (!arg) return;
-    char *name = arg->s;
+    o2string name = o2_message_source->proc.name;
     services_entry_ptr services;
-    o2_info_ptr entry = o2_service_find(name, &services);
-    if (entry) {
-        assert(entry->tag == TCP_SOCKET);
-        process_info_ptr info = (process_info_ptr) entry;
-        if (info->proc.status != PROCESS_OK) {
-            info->proc.status = PROCESS_OK;
-            clock_status_change(info, 1, O2_REMOTE);
+    o2_node_ptr entry = o2_service_find(name, &services);
+    if (entry && entry->tag == INFO_TCP_NOCLOCK) {
+        o2n_info_ptr info = (o2n_info_ptr) entry;
+        if (info->net_tag != NET_TCP_CLIENT && info->net_tag != NET_TCP_CONNECTION) {
+            printf("ERROR: unexpected net_tag %d on entry %p in o2_clocksynced handler\n",
+                   info->net_tag, info);
+            return;
         }
+        entry->tag = INFO_TCP_SOCKET;
+        printf("info %p gets status INFO_TCP_SOCKET in o2_clocksynced_handler\n", info);
+        clock_status_change(info, O2_REMOTE);
         return;
     }
     O2_DBg(printf("%s ### ERROR in o2_clocksynced_handler, bad service %s\n", o2_debug_prefix, name));
@@ -286,7 +313,7 @@ void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
     char address[1024];
     memcpy(address, replyto, len);
     memcpy(address + len, "/get-reply", 11); // include EOS
-    o2_send(address, 0, "sff", o2_context->process->proc.name, mean_rtt, min_rtt);
+    o2_send(address, 0, "sff", o2_context->info->proc.name, mean_rtt, min_rtt);
 }
 
 
@@ -350,7 +377,6 @@ static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
         o2_time new_master = now + master_minus_local[best_i];
         if (!o2_clock_is_synchronized) {
             o2_clock_synchronized(now, new_master);
-            announce_synchronized(new_master);
         } else {
             set_clock(now, new_master);
         }
@@ -395,13 +421,8 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
                 assert(is_master);
             } else { // record when we started to send clock sync messages
                 start_sync_time = clock_sync_send_time;
-                char path[48]; // enough room for !IP:PORT/cs/get-reply
-                snprintf(path, 48, "!%s/cs/get-reply",
-                         o2_context->process->proc.name);
-                o2_method_new(path, "it", &cs_ping_reply_handler,
+                o2_method_new("!_cs/cs/get-reply", "it", &cs_ping_reply_handler,
                               NULL, FALSE, FALSE);
-                snprintf(path, 32, "!%s/cs", o2_context->process->proc.name);
-                clock_sync_reply_to = o2_heapify(path);
             }
         }
     }
@@ -412,7 +433,12 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
             found_clock_service = FALSE;
         } else {
             clock_sync_id++;
-            o2_send("!_cs/get", 0, "is", clock_sync_id, clock_sync_reply_to); // TODO: test return?
+            o2_send("!_cs/get", 0, "i", clock_sync_id);
+            // we're not checking the return value here. The worst that can
+            // happen seems to be an error sending to a UDP port, and if that
+            // happens, perror() will be called so at least if there is a console
+            // an error message will appear. Not much else we can do.
+            //
             // run every 0.1 second until at least CLOCK_SYNC_HISTORY_LEN pings
             // have been sent to get a fast start, then ping every 0.5s until 5s,
             // then every 10s.
@@ -509,12 +535,13 @@ static void cs_ping_handler(o2_msg_data_ptr msg, const char *types,
 int o2_clock_set(o2_time_callback callback, void *data)
 {
     if (!o2_ensemble_name) {
-        O2_DBk(printf("%s o2_clock_set cannot be called before o2_initialize.\n",
-                      o2_debug_prefix));
+        O2_DBk(printf("%s o2_clock_set cannot be called before "
+                      "o2_initialize.\n", o2_debug_prefix));
         return O2_FAIL;
     }
-    int was_synchronized = o2_clock_is_synchronized;
-    // adjust local_start_time to ensure continuity of time:
+
+    // adjust local_start_time to ensure continuity of time (this allows
+    // user to change the time source):
     //   new_local_time - new_time_offset == old_local_time - old_time_offset
     //   new_time_offset = new_local_time - (old_local_time - old_time_offset)
     o2_time old_local_time = o2_local_time(); // (includes -old_time_offset)
@@ -524,51 +551,20 @@ int o2_clock_set(o2_time_callback callback, void *data)
     o2_time new_local_time = o2_local_time();
     time_offset = new_local_time - old_local_time;
 
-    if (!is_master) {
-        o2_clock_synchronized(new_local_time, new_local_time);
-        o2_service_new("_cs");
-        o2_method_new("/_cs/get", "is", &cs_ping_handler, NULL, FALSE, FALSE);
-        O2_DBg(printf("%s ** master clock established, time is now %g\n",
-                     o2_debug_prefix, o2_local_time()));
-        is_master = TRUE;
-        announce_synchronized(new_local_time);
-        if (!was_synchronized) {
-            // every service including local ones and those provided by a
-            // synchronized processes are now synchronized
-            dyn_array_ptr table = &o2_context->path_tree.children;
-            enumerate enumerator;
-            o2_enumerate_begin(&enumerator, table);
-            services_entry_ptr services_ptr;
-            o2_in_find_and_call_handlers++;
-            while ((services_ptr =
-                    (services_entry_ptr) o2_enumerate_next(&enumerator))) {
-                if ((services_ptr->tag == SERVICES) &&
-                    (services_ptr->services.length > 0)) {
-                    o2_info_ptr service = GET_SERVICE(services_ptr->services, 0);
-                    // _cs was just created above and was reported as O2_LOCAL,
-                    // so don't do it again.
-                    if ((service->tag == PATTERN_NODE ||
-                         service->tag == PATTERN_HANDLER) &&
-                        !streql(services_ptr->key, "_cs")) {
-                        o2_send_cmd("!_o2/si", 0.0, "sis", 
-                                    services_ptr->key, O2_LOCAL,
-                                    o2_context->process->proc.name);
-                    } else if (service->tag == OSC_REMOTE_SERVICE) {
-                        o2_send_cmd("!_o2/si", 0.0, "sis", 
-                                    services_ptr->key, O2_TO_OSC,
-                                    o2_context->process->proc.name);
-                    } else if (service->tag == TCP_SOCKET &&
-                               ((process_info_ptr) service)->proc.status == 
-                               PROCESS_OK) {
-                        o2_send_cmd("!_o2/si", 0.0, "sis", 
-                                    services_ptr->key, O2_REMOTE,
-                                    o2_context->process->proc.name);
-                    }
-                }
-            }
-        }
-        o2_in_find_and_call_handlers--;
+    // if we are already the master, then there is nothing more to do.
+    if (is_master) {
+        return O2_SUCCESS;
     }
+    
+    // start the scheduler, record that we are synchronized now:
+    o2_clock_synchronized(new_local_time, new_local_time);
+    
+    o2_service_new2("_cs\000\000");
+    o2_method_new("/_cs/get", "is", &cs_ping_handler, NULL, FALSE, FALSE);
+    O2_DBg(printf("%s ** master clock established, time is now %g\n",
+                  o2_debug_prefix, o2_local_time()));
+    is_master = TRUE;
+
     return O2_SUCCESS;
 }
 

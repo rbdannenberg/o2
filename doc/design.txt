@@ -91,7 +91,7 @@ discovery message, handled by:
       - make_tcp_recv_socket and is connected to the remote process.
     After connection, the status becomes PROCESS_CONNECTED.
     We send the !_o2/in initialization message using 
-    - send_by_tcp_to_process. 
+    - o2_send_by_tcp. 
     We then send services to the remote process.  
     When we made the socket, the handler was set to
   - tcp_initial_handler, which calls
@@ -114,7 +114,7 @@ handler to
       - add_remote_process. The process entry is intialized and the
         status becomes either PROCESS_OK or PROCESS_NO_CLOCK.
       We send the !_o2/in initialization message using 
-      - send_by_tcp_to_process. 
+      - o2_send_by_tcp. 
     We then send services to the remote process.  
 
 

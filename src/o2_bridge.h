@@ -3,23 +3,25 @@
 // Roger B. Dannenberg
 // April 2018
 
+struct bridge_entry;
+typedef struct bridge_entry *bridge_entry_ptr;
 
-typedef void (*bridge_poll_fn)(bridge_info_ptr info);
+typedef void (*bridge_poll_fn)(bridge_entry_ptr node);
 
 typedef void (*bridge_send_fn)(o2_msg_data_ptr msg, int tcp_flag,
-                               bridge_info_ptr info);
+                               bridge_entry_ptr node);
 
 
-typedef struct bridge_info { // "subclass" of o2_info
+typedef struct bridge_entry { // "subclass" of o2_node
     int tag; // O2_BRIDGE
     bridge_poll_fn bridge_poll;
     bridge_send_fn bridge_send;
     void *info;
-} bridge_info, *bridge_info_ptr;
+} bridge_entry, *bridge_entry_ptr;
 
-extern bridges
+int o2_bridge_new(bridge_poll_fn bridge_poll, bridge_send_fn bridge_send, void *info);
 
-int o2_create_bridge(bridge_send_fn bridge_send, void *info);
+int o2_bridge_remove(bridge_entry_ptr bridge);
 
 int o2_poll_bridges();
 
