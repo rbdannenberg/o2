@@ -13,4 +13,9 @@ to OSC and is mostly compatible with and similar to
 OSC. O2 addresses the problems of inter-process communication
 with a minimum of complexity.
 
+O2 is currently undergoing major changes to support asynchronous
+sends. Please look for a released version -- these work and have been
+used fairly extensively. Do not try to use the most recent (head)
+version from the repository.
+
 [O2 web pages with documentation](https://rbdannenberg.github.io/o2/)
