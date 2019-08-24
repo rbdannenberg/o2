@@ -1,5 +1,5 @@
 # o2
-O2 is a new communication protocol and implementation
+O2 is a communication protocol and implementation
 for music systems that aims to replace Open Sound Control
 (OSC). Many computer musicians routinely deal with
 problems of interconnection in local area networks, unreliable
