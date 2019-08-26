@@ -44,16 +44,37 @@ uint64_t start_time = 0;
 
 void start_clock()
 {
+#ifdef __APPLE__
     start_time = AudioGetCurrentHostTime();
+#elif __linux__
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    start_time = tv.tv_sec;
+#elif WIN32
+    timeBeginPeriod(1); // get 1ms resolution on Windows
+    start_time = timeGetTime();
+#else
+#error o2_clock has no implementation for this system
+#endif
 }
 
 
 double the_time()
 {
+#ifdef __APPLE__
     uint64_t clock_time, nsec_time;
     clock_time = AudioGetCurrentHostTime() - start_time;
     nsec_time = AudioConvertHostTimeToNanos(clock_time);
     return nsec_time * 1.0E-9;
+#elif __linux__
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return ((tv.tv_sec - start_time) + (tv.tv_usec * 0.000001));
+#elif WIN32
+    return ((timeGetTime() - start_time) * 0.001);
+#else
+#error o2_clock has no implementation for this system
+#endif
 }
 
 /*
