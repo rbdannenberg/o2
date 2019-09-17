@@ -50,6 +50,7 @@
 // saved on a list and dispatched later. 
 
 
+#include <ctype.h>
 #include <stdio.h>
 #include "o2_internal.h"
 #include "o2_message.h"
@@ -189,7 +190,7 @@ void o2_info_show(o2n_info_ptr info, int indent)
         handler_entry_ptr h = (handler_entry_ptr) info;
         if (h->full_path) printf(" full_path=%s", h->full_path);
         printf("\n");
-    } else if (info->tag == INFO_TCP_SOCKET) {
+    } else if (TAG_IS_REMOTE(info->tag)) {
         printf(" port=%d name=%s\n", info->proc.udp_port, info->proc.name);
     } else {
         printf("\n");
@@ -341,7 +342,7 @@ static void find_and_call_handlers_rec(char *remaining, char *name,
 void osc_info_free(osc_info_ptr osc)
 {
     if (osc->tcp_socket_info) { // TCP: close the TCP socket
-        o2n_socket_mark_to_free(osc->tcp_socket_info);
+        o2n_info_mark_to_free(osc->tcp_socket_info);
         osc->tcp_socket_info->osc.service_name = NULL;
         osc->tcp_socket_info = NULL;   // just to be safe
         osc->service_name = NULL; // shared pointer with services_entry
@@ -400,8 +401,7 @@ static void entry_free(o2_node_ptr entry)
                 entry_free(service);
             } else if (service->tag == NODE_OSC_REMOTE_SERVICE) {
                 osc_info_free((osc_info_ptr) service);
-            } else assert(service->tag == INFO_TCP_SOCKET ||
-                          service->tag == INFO_TCP_NOCLOCK);
+            } else assert(TAG_IS_REMOTE(service->tag));
         }
         DA_FINISH(ss->services);
         // free the taps
@@ -746,8 +746,9 @@ static void remove_empty_services_entry(services_entry_ptr ss,
  *  
  * CASE 2: /ip:port/sv gets a service removed message. proc is remote
  *
- * CASE 3: INFO_TCP_SOCKET gets hangup. remove_remote_services makes a list
- *     of services to remove, then calls this to do the work.
+ * CASE 3: INFO_TCP_SOCKET gets hangup. remove_remote_services
+ *         calls this with each service to do the work. We remove the
+ *         back-pointer from info to services.
  *
  * CASE 4: service is removed from local process by o2_service_free()
  */
@@ -771,8 +772,7 @@ int o2_service_remove(const char *service_name, o2n_info_ptr proc,
         for (index = 0; index < svlist->length; index++) {
             o2_node_ptr s = GET_SERVICE(*svlist, index);
             int tag = s->tag;
-            if ((tag == INFO_TCP_SOCKET || tag == INFO_TCP_NOCLOCK) &&
-                (o2n_info_ptr) s == proc) {
+            if (TAG_IS_REMOTE(tag) && (o2n_info_ptr) s == proc) {
                 break;
             } else if ((tag == NODE_HASH || tag == NODE_HANDLER) &&
                        proc == o2_context->info) {
@@ -805,7 +805,10 @@ int o2_service_remove(const char *service_name, o2n_info_ptr proc,
     o2_do_not_reenter++; // protect data structures
     // send notification message
     assert(proc->proc.name[0]);
-    o2_send_cmd("!_o2/si", 0.0, "sis", service_name, O2_FAIL, proc->proc.name);
+    // exclude reports of our own IP:PORT service
+    if (!isdigit(service_name[0]) || proc->tag != INFO_TCP_SERVER) {
+        o2_send_cmd("!_o2/si", 0.0, "sis", service_name, O2_FAIL, proc->proc.name);
+    }
 
     // if we deleted active service, pick a new one
     if (index == 0) { // move top ip:port provider to top spot
@@ -818,11 +821,14 @@ int o2_service_remove(const char *service_name, o2n_info_ptr proc,
         int status = o2_status_from_info(info, &process_name);
         if (status != O2_FAIL) {
             assert(process_name[0]);
-            o2_send_cmd("!_o2/si", 0.0, "sis", service_name, status,
-                        process_name);
+            // exclude reports of our own IP:PORT service
+            if (!isdigit(service_name[0] || info->tag != INFO_TCP_SERVER)) {
+                o2_send_cmd("!_o2/si", 0.0, "sis", service_name, status,
+                            process_name);
+            }
         }
     }
-
+    // if no more services or taps, remove the whole services_entry:
     remove_empty_services_entry(ss, proc);
 
     // if the service was local, tell other processes that it is gone
@@ -1423,18 +1429,12 @@ process info has tag = OSC_TCP_CLIENT (it's not a "real" process, which
 int o2_info_remove(o2n_info_ptr info)
 {
     printf("o2_info_remove info tag %d name %s\n", info->tag, info->proc.name);
-    if (info->tag == INFO_TCP_SOCKET || info->tag == INFO_TCP_NOCLOCK) {
+    if (TAG_IS_REMOTE(info->tag)) {
         // remove the remote services provided by the proc
+        // circularity in pointers is taken care of by removing each service,
+        // services in turn remove the back pointer in info->proc.services
         remove_remote_services(info);
         remove_taps_by(info);
-        // proc.name may be NULL if we have not received an init (/_o2/dy)
-        // message
-        if (info->proc.name) {
-            O2_DBd(printf("%s removing remote process %s\n",
-                          o2_debug_prefix, info->proc.name));
-            O2_FREE((void *) info->proc.name);
-            info->proc.name = NULL;
-        }
     } else if (info->tag == INFO_OSC_UDP_SERVER ||
                info->tag == INFO_OSC_TCP_SERVER ||
                info->tag == INFO_OSC_TCP_CONNECTING ||
@@ -1442,6 +1442,17 @@ int o2_info_remove(o2n_info_ptr info)
                info->tag == INFO_OSC_TCP_CLIENT) {
         // TODO: Does EVERY one of these cases have an osc.service.name?
         O2_FREE(info->osc.service_name);
+    } else {
+        printf("o2_info_remove no special handling?\n");
+    }
+    // proc.name may be NULL if we have not received an init (/_o2/dy)
+    // message
+    if ((TAG_IS_REMOTE(info->tag) || info->tag == INFO_TCP_SERVER) &&
+        info->proc.name) {
+        O2_DBd(printf("%s removing process %s\n",
+                      o2_debug_prefix, info->proc.name));
+        O2_FREE((void *) info->proc.name);
+        info->proc.name = NULL;
     }
     if (info->in_message) O2_FREE(info->in_message);
     while (info->out_message) {
@@ -1449,7 +1460,10 @@ int o2_info_remove(o2n_info_ptr info)
         info->out_message = p->next;
         O2_FREE(p);
     }
-    o2n_socket_mark_to_free(info); // close the TCP socket
+    info->net_tag = NET_INFO_REMOVED;
+    // continue: now that services are freed, we can remove the
+    // socket and actually free info:
+    o2_socket_remove(info);
     return O2_SUCCESS;
 }
 
@@ -1637,6 +1651,7 @@ static int remove_remote_services(o2n_info_ptr info)
             break;
         }
     }
+    DA_FINISH(info->proc.services);
     return O2_SUCCESS;
 }
 
@@ -1650,6 +1665,7 @@ static int remove_taps_by(o2n_info_ptr info)
             return O2_FAIL; // avoid infinite loop, can't remove tap
         }
     }
+    DA_FINISH(info->proc.taps);
     return O2_SUCCESS;
 }
 

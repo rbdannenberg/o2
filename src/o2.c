@@ -189,9 +189,9 @@ Process Creation
 ----------------
 
 o2_discovery_handler() receives !_o2/dy message. There are two cases
-based on whether the local host is the server or client. The server is
+based on whether the local host is the server or client. (The server is
 the host with the greater ip:port string. The client connects to the
-server. If the server gets a discovery message from the client, it
+server.) If the server gets a discovery message from the client, it
 can't connect because it's the server, so it merely generates an
 !_o2/dy message to the client to prompt the client to connect. 
 
@@ -217,14 +217,14 @@ Either way, the client now knows the server and connects to it:
         /dy message arrives, the client will not make another connection.
     Client connect()'s to server, creating TCP socket.
     Client sends /dy (discovery) message to server using the TCP socket.
-    Client sends /cs (clocksync) to server using the TCP socket if
+    Client sends /cs/cs (clocksync) to server using the TCP socket if
         client has clock sync.
     Client sends /sv (services) to server using the TCP socket.
 Server accepts connect request, creating TCP socket.
     Locally, the server creates an O2 service named "IP:port"
         representing the client so that if another /dy message
         arrives, the server will not respond.
-    Server sends /cs (clocksync) to client using the TCP socket if
+    Server sends /cs/cs (clocksync) to client using the TCP socket if
         client has clock sync.
     Server sends /sv (services) to client using the TCP socket.
 Since /dy messages are used in many ways, they carry a *dy* parameter
@@ -382,18 +382,15 @@ already pending, then o2_send() performs a blocking
 send of the pending message, then performs a non-blocking
 send of the current message.
 
-In discovery, when connecting to a newly discovered
-process, a non-blocking connect is performed. The order of
-events is:
-1. this is the server: send !_o2/dy message by UDP
-2. this is the client side:
-   A. non-blocking connect
-      if connect returns success, raise an error
-      normally connect returns EINPROGRESS
-   B. socket becomes writable
-   B. otherwise: send initialize, send services <- YOU ARE HERE
-
-
+To facilitate sending multiple messages (discovery and
+service information for example), o2_net code allows you
+to queue up multiple messages to send. This feature is
+only available to internal O2 functions and is only used
+when a connection is created. If the user process tries
+to send a message when there are already message(s) in
+the queue, the messages are sent synchronously and the
+user blocks until all pending messages are sent (or at 
+least they are accepted by the kernel for delivery).
 
 Services and Processes
 ----------------------
@@ -448,6 +445,7 @@ service_entry_ptr to represent the service in the
 o2_context->path_tree.
 
 The process name is freed by o2_info_remove().
+
 
 OSC Service Name: Allocation, References, Freeing
 -------------------------------------------------
@@ -534,6 +532,7 @@ void o2_debug_flags(const char *flags)
     if (strchr(flags, 't')) o2_debug |= O2_DBt_FLAG;
     if (strchr(flags, 'T')) o2_debug |= O2_DBT_FLAG;
     if (strchr(flags, 'm')) o2_debug |= O2_DBm_FLAG;
+    if (strchr(flags, 'n')) o2_debug |= O2_DBn_FLAGS;
     if (strchr(flags, 'o')) o2_debug |= O2_DBo_FLAG;
     if (strchr(flags, 'O')) o2_debug |= O2_DBO_FLAG;
     if (strchr(flags, 'g')) o2_debug |= O2_DBg_FLAGS;
@@ -656,13 +655,13 @@ int o2_initialize(const char *ensemble_name)
 
     if ((err = o2n_initialize())) goto cleanup;
     
+    o2_service_new2(o2_context->info->proc.name);
     o2_service_new2("_o2\000\000");
     o2_method_new("/_o2/dy", "ssiii", &o2_discovery_handler, 
                   NULL, FALSE, FALSE);
     o2_method_new("/_o2/hub", "", &o2_hub_handler, NULL, FALSE, FALSE);
     o2_method_new("/_o2/sv", NULL, &o2_services_handler, NULL, FALSE, FALSE);
-    o2_method_new("/_o2/cs", "", &o2_clocksynced_handler, NULL, FALSE, FALSE);
-    o2_method_new("/_o2/cs/rt", "s", &o2_clockrt_handler, NULL, FALSE, FALSE);
+    o2_method_new("/_o2/cs/cs", "", &o2_clocksynced_handler, NULL, FALSE, FALSE);
     o2_method_new("/_o2/ds", NULL, &o2_discovery_send_handler,
                   NULL, FALSE, FALSE);
     o2_clock_initialize();
@@ -744,7 +743,7 @@ void o2_notify_others(const char *service_name, int added,
     // entries are connections to processes
     for (int i = 0; i < o2_context->fds_info.length; i++) {
         o2n_info_ptr proc = GET_PROCESS(i);
-        if (proc->tag == INFO_TCP_SOCKET) {
+        if (TAG_IS_REMOTE(proc->tag)) {
             o2_send_start();
             o2_add_string(o2_context->info->proc.name);
             o2_add_string(service_name);
@@ -775,7 +774,7 @@ o2_node_ptr o2_proc_service_find(o2n_info_ptr proc,
     if (!services) return FALSE;
     for (int i = 0; i < services->services.length; i++) {
         o2_node_ptr service = GET_SERVICE(services->services, i);
-        if (TAG_IS_REMOTE(service->tag)) {
+        if (TAG_IS_REMOTE(service->tag) || service->tag == INFO_TCP_SERVER) {
             if ((o2n_info_ptr) service == proc) {
                 return service;
             }
@@ -926,13 +925,15 @@ int o2_service_provider_new(o2string service_name, const char *properties,
         // /si msg needs: *service_name* *status* *process-name*
         const char *process_name;
         int status = o2_status_from_info(service, &process_name);
-        // process_name can be NULL if this is a new process connection,
-        // so use the service_name which is the ip:port string we want
-        if (!process_name) {
-            process_name = service_name;
+        // if this is a new process connection, process_name is NULL
+        // and we do not send !_o2/si yet. See o2n_recv() in o2_net.c
+        // where connection completes and !_o2/si is sent.
+        if (process_name) {
+            o2_send_cmd("!_o2/si", 0.0, "sis", service_name, status, process_name);
         }
-        o2_send_cmd("!_o2/si", 0.0, "sis", service_name, status, process_name);
     }
+    printf("after o2_service_provider_new:\n");
+    o2_info_show((o2n_info_ptr) (&o2_context->path_tree), 2);
     return O2_SUCCESS;
 }
 
@@ -969,6 +970,9 @@ int o2_service_new2(o2string padded_name)
         O2_FREE(node);
         return rslt;
     }
+    // Note that when the local IP:PORT service is created,
+    // there are no remote connections yet, so o2_notify_others()
+    // will not send any messages.
     o2_notify_others(padded_name, TRUE, NULL, NULL);
 
     return O2_SUCCESS;
@@ -1123,7 +1127,7 @@ int o2_can_send(const char *service)
     if (!entry) {
         return O2_FAIL;
     }
-    if (entry->tag == INFO_TCP_SOCKET) {
+    if (TAG_IS_REMOTE(entry->tag)) {
         o2n_info_ptr proc = (o2n_info_ptr) entry;
         return (proc->out_message ? O2_BLOCKED : O2_SUCCESS);
     } else if (entry->tag == NODE_OSC_REMOTE_SERVICE) {
@@ -1204,8 +1208,14 @@ int o2_finish()
     // Close all the sockets.
     if (o2_context) {
         for (int i = 0 ; i < o2_context->fds.length; i++) {
-            printf("o2_finish calling o2_info_remove on %d\n", i);
-            o2_info_remove(GET_PROCESS(i));
+            o2n_info_ptr info = GET_PROCESS(i);
+            if (TAG_IS_REMOTE(info->tag)) {
+                printf("o2_finish calls o2n_mark_to_free %d \n", i);
+                o2n_info_mark_to_free(GET_PROCESS(i));
+            } else {
+                o2n_info_mark_to_free(GET_PROCESS(i));
+                printf("o2_finish ignoring info->tag %d\n", info->tag);
+            }
         }
         o2n_free_deleted_sockets(); // deletes process_info structs
         o2_node_finish(&o2_context->path_tree);

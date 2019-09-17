@@ -92,6 +92,7 @@ struct o2n_info;
 #define NET_TCP_CONNECTING 32   // client side socket during async connection
 #define NET_TCP_CLIENT     33   // client side of a TCP connection
 #define NET_TCP_CONNECTION 34   // server side accepted TCP connection
+#define NET_INFO_REMOVED   35   // o2_info_remove() has been called on this
 
 /* Here are all the types of o2n_info structures and their life-cycles:
 
@@ -220,9 +221,9 @@ int o2_process_initialize(o2n_info_ptr proc, int hub_flag);
 // prepare to exit this module
 void o2n_finish();
 
-void o2_socket_remove(int i);
+void o2_socket_remove(o2n_info_ptr info);
 
-void o2n_socket_mark_to_free(o2n_info_ptr info);
+void o2n_info_mark_to_free(o2n_info_ptr info);
 
 // free sockets that have been flagged as freed (sockets are normally not
 //     freed immediately because doing so will cause other sockets to move

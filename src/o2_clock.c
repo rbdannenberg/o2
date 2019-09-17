@@ -2,6 +2,7 @@
 //
 // Roger Dannenberg, 2016
 
+#include <ctype.h>
 #include "o2_internal.h"
 #include "o2_message.h"
 #include "o2_clock.h"
@@ -28,6 +29,7 @@ static int found_clock_service = FALSE; // set when service appears
 static o2_time start_sync_time; // local time when we start syncing
 static int clock_sync_id = 0;
 static o2_time clock_sync_send_time;
+static o2string clock_sync_reply_to;
 static o2_time_callback time_callback = NULL;
 static void *time_callback_data = NULL;
 static int clock_rate_id = 0;
@@ -159,7 +161,7 @@ int o2_send_clocksync(o2n_info_ptr proc)
     if (!o2_clock_is_synchronized)
         return O2_SUCCESS;
     if (o2_send_start()) return O2_FAIL;
-    o2_send_by_tcp(proc, FALSE, o2_message_finish(0.0, "!_o2/cs", TRUE));
+    o2_send_by_tcp(proc, FALSE, o2_message_finish(0.0, "!_o2/cs/cs", TRUE));
     return O2_SUCCESS;
 }
     
@@ -224,11 +226,11 @@ static void announce_synchronized()
 
 // All services offered by this proc, described by info, have changed to 
 // status, so send !_o2/si messages for them. Only active service changes
-// are searched and reported. This is called in response to a /_o2/cs clock
+// are searched and reported. This is called in response to a /_o2/cs/cs clock
 // sync status change announcement. Also, when the local process gets sync,
 // o2_clock_synchronized() calls this for *every other process that is
 // synchronized* because all services offered by them now have status
-// O2_REMOTE *and* o2_clock_synchronized() calls this with the local
+// O2_REMOTE, *and* o2_clock_synchronized() calls this with the local
 // process so that !_o2/si messages are sent with status O2_LOCAL for each
 // active local service.
 //
@@ -255,6 +257,9 @@ static void clock_status_change(o2n_info_ptr info, int status)
             if (node->tag != NODE_HASH && node->tag != NODE_HANDLER) {
                 continue;
             }
+            if (isdigit(ss->key[0])) { // Don't report the local IP:PORT service.
+                continue;           // It is redundant with "_o2"
+            }
         } else { // status == O2_REMOTE
             if (GET_SERVICE(ss->services, 0) != (o2_node_ptr) info) {
                 continue;
@@ -270,7 +275,7 @@ static void clock_status_change(o2n_info_ptr info, int status)
 }
 
 
-// handle messages to /_o2/cs that announce when clock sync is obtained
+// handle messages to /_o2/cs/cs that announce when clock sync is obtained
 //
 void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
                             o2_arg_ptr *argv, int argc, void *user_data)
@@ -421,8 +426,15 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
                 assert(is_master);
             } else { // record when we started to send clock sync messages
                 start_sync_time = clock_sync_send_time;
-                o2_method_new("!_cs/cs/get-reply", "it", &cs_ping_reply_handler,
+                char path[48]; // enough room for !IP:PORT/cs/get-reply
+                snprintf(path, 48, "/%s/cs/get-reply",
+                         o2_context->info->proc.name);
+                o2_method_new(path, "it", &cs_ping_reply_handler,
                               NULL, FALSE, FALSE);
+                snprintf(path, 48, "/%s/cs/rt", o2_context->info->proc.name);
+                o2_method_new(path, "s", &o2_clockrt_handler, NULL, FALSE, FALSE);
+                snprintf(path, 32, "!%s/cs", o2_context->info->proc.name);
+                clock_sync_reply_to = o2_heapify(path);
             }
         }
     }
@@ -433,7 +445,7 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
             found_clock_service = FALSE;
         } else {
             clock_sync_id++;
-            o2_send("!_cs/get", 0, "i", clock_sync_id);
+            o2_send("!_cs/get", 0, "is", clock_sync_id, clock_sync_reply_to);
             // we're not checking the return value here. The worst that can
             // happen seems to be an error sending to a UDP port, and if that
             // happens, perror() will be called so at least if there is a console

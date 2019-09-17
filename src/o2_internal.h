@@ -70,6 +70,7 @@ typedef const char *o2string; // string padded to 4-byte boundary
 #define O2_DBt(x)
 #define O2_DBT(x)
 #define O2_DBm(x)
+#define O2_DBn(x)
 #define O2_DBo(x)
 #define O2_DBO(x)
 #define O2_DBg(x)
@@ -91,6 +92,7 @@ void o2_dbg_msg(const char *src, o2_msg_data_ptr msg,
 #define O2_DBt_FLAG 0x100
 #define O2_DBT_FLAG 0x200
 #define O2_DBm_FLAG 0x400
+#define O2_DBn_FLAGS (O2_DBr_FLAG | O2_DBR_FLAG | O2_DBs_FLAG | O2_DBS_FLAG)
 #define O2_DBo_FLAG 0x800
 #define O2_DBO_FLAG 0x1000
 // All flags but malloc and schedulers, enabled by "A"
@@ -110,6 +112,7 @@ void o2_dbg_msg(const char *src, o2_msg_data_ptr msg,
 #define O2_DBt(x) O2_DB(O2_DBt_FLAG, x)
 #define O2_DBT(x) O2_DB(O2_DBT_FLAG, x)
 #define O2_DBm(x) O2_DB(O2_DBm_FLAG, x)
+#define O2_DBn(x) O2_DB(O2_DBn_FLAGS, x)
 #define O2_DBo(x) O2_DB(O2_DBo_FLAG, x)
 #define O2_DBO(x) O2_DB(O2_DBO_FLAG, x)
 // general debug msgs ('g') are printed if ANY other debugging enabled

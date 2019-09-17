@@ -366,37 +366,40 @@ int o2n_tcp_socket_new(int tag, int net_tag, int port)
 }
 
 
-void o2n_socket_mark_to_free(o2n_info_ptr info)
+void o2n_info_mark_to_free(o2n_info_ptr info)
 {
     info->delete_me = TRUE;
     o2n_socket_delete_flag = TRUE;
 }
 
 
-// remove the i'th socket from o2_context->fds and o2_context->fds_info
+// remove a socket from o2_context->fds and o2_context->fds_info
 //
-void o2_socket_remove(int i)
+void o2_socket_remove(o2n_info_ptr info)
 {
-    struct pollfd *pfd = DA_GET(o2_context->fds, struct pollfd, i);
+    int index = info->fds_index;
+    struct pollfd *pfd = DA_GET(o2_context->fds, struct pollfd, index);
 
     O2_DBo(printf("%s o2_socket_remove: tag %d port %d closing socket %lld index %d\n",
-                  o2_debug_prefix, GET_PROCESS(i)->tag, GET_PROCESS(i)->port,
-                  (long long) pfd->fd, i));
+                  o2_debug_prefix, GET_PROCESS(index)->tag, GET_PROCESS(index)->port,
+                  (long long) pfd->fd, index));
     SOCKET sock = pfd->fd;
 #ifdef SHUT_WR
     shutdown(sock, SHUT_WR);
 #endif
     O2_DBo(printf("calling closesocket(%lld).\n", (int64_t) (pfd->fd)));
     if (closesocket(pfd->fd)) perror("closing socket");
-    if (o2_context->fds.length > i + 1) { // move last to i
+    if (o2_context->fds.length > index + 1) { // move last to i
         struct pollfd *lastfd = DA_LAST(o2_context->fds, struct pollfd);
         memcpy(pfd, lastfd, sizeof(struct pollfd));
-        o2n_info_ptr info = *DA_LAST(o2_context->fds_info, o2n_info_ptr);
-        GET_PROCESS(i) = info; // move to new index
-        info->fds_index = i;
+        o2n_info_ptr replace = *DA_LAST(o2_context->fds_info, o2n_info_ptr);
+        GET_PROCESS(index) = replace; // move to new index
+        replace->fds_index = index;
     }
     o2_context->fds.length--;
     o2_context->fds_info.length--;
+    assert(info->net_tag == NET_INFO_REMOVED); // info is already removed by o2_info_remove when we get here
+    O2_FREE(info);
 }
 
 
@@ -409,8 +412,7 @@ void o2n_free_deleted_sockets()
     for (int i = 0; i < o2_context->fds_info.length; i++) {
         o2n_info_ptr info = GET_PROCESS(i);
         if (info->delete_me) {
-            o2_socket_remove(i);
-            O2_FREE(info);
+            o2_info_remove(info);
             i--;
         }
     }
@@ -510,7 +512,7 @@ int o2n_send(o2n_info_ptr info, int block)
                            "%d to socket %ld index %d\n", o2_debug_prefix,
                             errno, (long) (pfd->fd), info->fds_index));
                 o2_message_free(msg);
-                o2_info_remove(info);
+                o2n_info_mark_to_free(info);
                 return O2_FAIL;
             } // else EINTR or EAGAIN, so try again
         } else {
@@ -619,7 +621,7 @@ int o2n_recv()
         struct pollfd *d = DA_GET(o2_context->fds, struct pollfd, i);
         FD_SET(d->fd, &o2_read_set);
         o2n_info_ptr info = GET_PROCESS(i);
-        if (info->tag == INFO_TCP_SOCKET && info->proc.pending_msg) {
+        if (TAG_IS_REMOTE(info->tag) && info->proc.pending_msg) {
             FD_SET(d->fd, &o2_write_set);
         }
     }
@@ -695,6 +697,9 @@ int o2n_recv()
             printf("pollout for process %d %s\n", i, info->proc.name);
             if (info->net_tag == NET_TCP_CONNECTING) { // connect() completed
                 info->net_tag = NET_TCP_CLIENT;
+                // Reporting is suppressed until this connection completes
+                o2_send_cmd("!_o2/si", 0.0, "sis", info->proc.name,
+                            O2_REMOTE_NOTIME, info->proc.name);
             }
             // now we have a completed connection and events has POLLOUT
             if (info->out_message) {
@@ -853,7 +858,7 @@ static int read_event_handler(SOCKET sock, o2n_info_ptr info)
         setsockopt(connection, SOL_SOCKET, SO_NOSIGPIPE,
                    (void *) &set, sizeof(int));
 #endif
-        int tag = (info->tag == INFO_TCP_SERVER ? INFO_TCP_SOCKET :
+        int tag = (info->tag == INFO_TCP_SERVER ? INFO_TCP_NOCLOCK :
                                                   INFO_OSC_TCP_CLIENT);
         o2n_info_ptr conn = socket_info_new(connection, tag, NET_TCP_CONNECTION);
         O2_DBdo(printf("%s O2 server socket %ld accepts client as socket %ld index %d\n",
@@ -869,7 +874,7 @@ static int read_event_handler(SOCKET sock, o2n_info_ptr info)
         info_message_cleanup(info);
     } else if (info->net_tag == NET_TCP_CONNECTING || info->net_tag == NET_TCP_CLIENT ||
                info->net_tag == NET_TCP_CONNECTION) {
-        o2_info_remove(info);
+        o2n_info_mark_to_free(info);
     }
     return O2_SUCCESS;
 }

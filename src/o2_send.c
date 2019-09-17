@@ -81,6 +81,7 @@ o2_node_ptr o2_msg_service(o2_msg_data_ptr msg, services_entry_ptr *services)
     char *slash = strchr(service_name, '/');
     if (slash) *slash = 0;
     o2_node_ptr rslt = NULL; // return value if not found
+    /*
     // if starts with digit, see if it is local process
     if (isdigit(service_name[0])) {
         if (streql(service_name, o2_context->info->proc.name)) {
@@ -89,14 +90,26 @@ o2_node_ptr o2_msg_service(o2_msg_data_ptr msg, services_entry_ptr *services)
             for (int i = 0; i < o2_context->fds_info.length; i++) {
                 o2n_info_ptr info = GET_PROCESS(i);
                 if (TAG_IS_REMOTE(info->tag) && streql(info->proc.name, service_name)) {
-                    rslt = (o2_node_ptr) rslt;
+                    rslt = (o2_node_ptr) info;
                     break;
                 }
             }
         }
     } else {
-        rslt = o2_service_find(service_name, services);
+    if (isdigit(service_name[0])) {
+        printf("o2_msg_service(%s)\n", service_name);
     }
+     */
+    rslt = o2_service_find(service_name, services);
+    if (rslt && rslt->tag == INFO_TCP_SERVER) {
+        // service name might be an IP:PORT string. Map that
+        // to _o2, so _o2 is an alias for IP:PORT. (However,
+        // messages using "!" will do a hash table lookup on
+        // the full address (!IP:PORT/x/y), so if the method
+        // is entered as !_o2/x/y, the lookup will fail.)
+        rslt = o2_service_find("_o2", services);
+    }
+    /* } */
     if (slash) *slash = '/';
     return rslt;
 }
@@ -162,7 +175,7 @@ int o2_message_send_sched(o2_message_ptr msg, int schedulable)
     if (!service) {
         o2_message_free(msg);
         return O2_FAIL;
-    } else if (service->tag == INFO_TCP_SOCKET) { // remote delivery, UDP or TCP
+    } else if (TAG_IS_REMOTE(service->tag)) { // remote delivery, UDP or TCP
         return o2_send_remote(msg, (o2n_info_ptr) service);
     } else if (service->tag == NODE_BRIDGE_SERVICE) {
         bridge_entry_ptr info = (bridge_entry_ptr) service;
@@ -239,9 +252,9 @@ int o2_send_remote(o2_message_ptr msg, o2n_info_ptr proc)
         return o2_send_by_tcp(proc, TRUE, msg);
     } else { // send via UDP
         O2_DBs(if (msg->data.address[1] != '_' && !isdigit(msg->data.address[1]))
-                   o2_dbg_msg("sent UDP", &(msg->data), "to", proc->proc.name));
+                   o2_dbg_msg("sending UDP", &(msg->data), "to", proc->proc.name));
         O2_DBS(if (msg->data.address[1] == '_' || isdigit(msg->data.address[1]))
-                   o2_dbg_msg("sent UDP", &(msg->data), "to", proc->proc.name));
+                   o2_dbg_msg("sending UDP", &(msg->data), "to", proc->proc.name));
 #if IS_LITTLE_ENDIAN
         o2_msg_swap_endian(&(msg->data), TRUE);
 #endif
@@ -250,6 +263,7 @@ int o2_send_remote(o2_message_ptr msg, o2n_info_ptr proc)
                           sizeof(proc->proc.udp_sa));
         o2_message_free(msg);
         if (rslt < 0) {
+            O2_DBn(printf("o2_send_remote error, port %d\n", ntohs(proc->proc.udp_sa.sin_port)));
             perror("o2_send_remote");
             return O2_FAIL;
         }
@@ -329,7 +343,7 @@ int o2n_send(o2n_info_ptr info, int blocking)
                 O2_DBo(printf("%s removing remote process after send error "
                            "to socket %ld", o2_debug_prefix, (long) (pfd->fd)));
                 o2_message_free(msg);
-                o2_info_remove(info);
+                o2n_info_mark_to_free(info);
                 return O2_FAIL;
             } // else EINTR or EAGAIN, so try again
         } else {
@@ -392,7 +406,7 @@ int o2_send_message(struct pollfd *pfd, o2_message_ptr msg,
             O2_DBo(printf("%s removing remote process after send error "
                           "to socket %ld", o2_debug_prefix, (long) (pfd->fd)));
             o2_message_free(msg);
-            o2_info_remove(proc);
+            o2n_info_mark_to_free(proc);
             return O2_FAIL;
         }
     }

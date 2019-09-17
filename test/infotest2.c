@@ -1,4 +1,3 @@
-
 //  infotest2.c -- test if we get info via /_o2/si
 //
 
@@ -93,14 +92,13 @@ int check_service_name(const char *service, const char **names, int index)
 int si_msg_count = 0;
 
 // first wave of status info is local before set_clock
-#define EXPECTED_1 5
-const char *expected_si_service_1[] = {"_o2", "ip:port", "one", "server", "_cs"};
-int expected_si_status_1[] = {O2_LOCAL_NOTIME, O2_LOCAL_NOTIME,
-        O2_LOCAL_NOTIME, O2_LOCAL_NOTIME, O2_LOCAL};
+#define EXPECTED_1 3
+const char *expected_si_service_1[] = {"one", "server", "_cs"};
+int expected_si_status_1[] = {O2_LOCAL_NOTIME, O2_LOCAL_NOTIME, O2_LOCAL};
 
 // second wave of status info is local after set_clock
-#define EXPECTED_2 (4 + (EXPECTED_1))
-const char *expected_si_service_2[] = {"_o2", "ip:port", "one", "server"};
+#define EXPECTED_2 (3 + (EXPECTED_1))
+const char *expected_si_service_2[] = {"_o2", "one", "server"};
 
 // third wave of status info is for remote process
 #define EXPECTED_3 (2 + (EXPECTED_2))
@@ -119,7 +117,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
     int status = argv[1]->i32;
     const char *status_string = status_to_string(status);
     const char *ip_port = argv[2]->s;
-     printf("service_info_handler called: %s at %s status %s\n", 
+    printf("service_info_handler called: %s at %s status %s\n", 
            service_name, ip_port, status_string);
     const char *my_ip = NULL;
     int my_port = -1;
@@ -137,15 +135,15 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
             exit(-1);
         }
 
-    // after the first 5 messages, the clock becomes master, and we expect
-    // 4 more messages in some order and we become O2_LOCAL. The services
+    // after the first EXPECTED_1 messages, the clock becomes master, and we
+    // expect messages in some order and we become O2_LOCAL. The services
     // are in expected_si_service_2[], which we search and remove from
     // to allow for any order of notification (order could vary because
     // O2 will enumerate what's in a hash table.
     } else if (si_msg_count < EXPECTED_2) {
         int found_it = 0;
         int i;
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < EXPECTED_2 - EXPECTED_1; i++) {
             if (check_service_name(service_name, expected_si_service_2, i) &&
                 status == O2_LOCAL &&
                 streql(ip_port, my_ip_port)) {
@@ -159,12 +157,18 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
         }
     } else if (si_msg_count < EXPECTED_3) {
         if (remote_ip_port[0] == 0) {
-            strcpy(remote_ip_port, service_name);
+            strcpy(remote_ip_port, ip_port);
         }
-        if (!check_service_name(service_name, expected_si_service_3,
-                                si_msg_count - EXPECTED_2) ||
-            !streql(ip_port, remote_ip_port) ||
-            status != O2_REMOTE_NOTIME) {
+        int found_it = 0;
+        int i;
+        for (i = 0; i < EXPECTED_3 - EXPECTED_2; i++) {
+            if (check_service_name(service_name, expected_si_service_3, i) &&
+                streql(ip_port, remote_ip_port) &&
+                status == O2_REMOTE_NOTIME) {
+                found_it = 1;
+            }
+        }
+        if (!found_it) {
             printf("FAILURE\n");
             exit(-1);
         }
@@ -235,7 +239,7 @@ int main(int argc, const char * argv[])
     o2_run(100);
     o2_finish();
     sleep(1);
-    if (si_msg_count != 15) {
+    if (si_msg_count != 12) {
         printf("FAILURE - wrong si_msg_count (%d)\n", si_msg_count);
     } else {
         printf("INFOTEST2 DONE\n");

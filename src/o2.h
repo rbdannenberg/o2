@@ -116,11 +116,9 @@ Some major components and concepts of O2 are the following:
   can exist within one process. A service does not imply a (new) thread
   and all O2 messages are delivered sequentially from the single thread
   that calls #o2_poll(). Service names begin with a letter with the
-  exception of "_o2" which denotes a process, "_cs", which denotes
+  exception of "_o2" which denotes the local process, "_cs", which denotes
   the master clock, and `ip:port` strings, beginning with a digit, that
-  denote a remote process. Sending to, e.g. `192.168.1.156:50917` will
-  actually send to `_o2` at the indicated process if that ip:port string
-  matches a connected process.
+  denote a remote process.
 
 - **Message** - an O2 message, similar to an OSC message, contains an 
   address pattern representing a function, a type string and a set of 
@@ -174,7 +172,7 @@ parameter, if true, requests that the receiver reply with a discovery message.
 
 `/_o2/hub ""` - requests the receiver to become the hub for the sender
 
-`/_o2/cs ""` - announces when clock sync is obtained.
+`/_o2/cs/cs ""` - announces when clock sync is obtained.
 
 `/_o2/ds ""` - this message invokes the sending of discovery messages. It
 is used with a timestamp to schedule periodic discovery message sending.
@@ -208,20 +206,23 @@ the mean round-trip time, and the minimum round-trip time.
 `/_o2/ps ""` - this message invokes the sending of the `/_cs/get` message 
 to request the time as part of the clock synchronization protocol.
 
-`/_o2/si "sis"` *service_name* *status* *process-name* - Whenever an active
-service status changes, this message is sent to the local process. Note that
-when a local service is created, an `/sv` message is sent to all other
-processes, and when that process's services table is updated, if the service
-is or becomes active, the change is reported locally by sending this `/_o2/si`
-message. Normally, you should not add handlers or use the `_o2` service, but
-in this case, an application is expected to add a custom handler to receive
-status updates. See `o2_status()` for a list of status values. Note also that
-services named `_o2` and something like `128.237.176.176:51634` (i.e. port:ip)
-are created before you can install a handler for `/_o2/si`, so you will not
-receive `si` messages when these services are created. Other processes will
-receive a notice of the port:ip name when a connection is made, and the
-local process will see both `_o2` and port:ip services change to state
-`O2_LOCAL` when clock sync is acquired.
+`/_o2/si "sis"` *service_name* *status* *process-name* - Whenever an
+active service status changes, this message is sent to the local process.
+Note that when a local service is created, an *internal* `/sv` message is
+sent to all other processes, and when that process's services table is
+updated, if theservice is or becomes active, the change is reported
+locally to the application by sending this `/_o2/si` message. Normally,
+you should not add handlers or use the `_o2` service, but in this case,
+an application is expected to add a custom handler to receive status
+updates. See `o2_status()` for a list of status values. Note also that
+the service `_o2` is created before you can install a handler for
+`/_o2/si`, so you will not receive an `si` messages when `_o2` is
+created. If the service name begins with a digit, it represents a
+remote process and the name has the form IP:PORT, e.g.
+`128.237.161.165:50404`. There is also an `IP:PORT` service representing
+the local process, but the local process is also represented by `_o2`,
+so the local `IP:PORT` service is never reported in an `/_o2/si` message.
+You can get the local `IP:PORT` string by calling `o2_get_address()`.
 
 */
 
@@ -1040,11 +1041,13 @@ const char *o2_service_getprop(int i, const char *attr);
  * 
  * @param value the value substring that must match. To match a prefix,
  *        use ":prefix"; to match a suffix, use "suffix;"; to make an
- *        exact full match, use ":value;". The value string must escape
- *        internal ':', '\' and ';' characters with '\'. (Unfortunately,
- *        in a C or C++ literal string, the '\' must also be escaped, so
- *        to search for an exact match to foo, the C string constant will
- *        be "\\:foo\\;".
+ *        exact full match, use ":value;". Since the value itself may
+ *        contain ':', ';', and '\' characters, these must be escaped
+ *        with '\'. (Unfortunately, in a C or C++ literal string, the 
+ *        '\' itself must also be escaped, so to search for an exact 
+ *        to the value "x;y", we must escape ';' to get the 4 character
+ *        string denoted in C by "x\\;y", then add ':' and ';' to indicate
+ *        an exact match: ":x\\;y;")
  *
  * @return the index of the first service (at index i or above) where
  *       the property named by attr contains value as a substring or

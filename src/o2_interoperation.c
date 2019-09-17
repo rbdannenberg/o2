@@ -101,7 +101,7 @@ int o2_osc_port_free(int port_num)
                 service_name_copy = info->osc.service_name;
                 info->osc.service_name = NULL;
             }
-            o2n_socket_mark_to_free(info);
+            o2n_info_mark_to_free(info);
             result = O2_SUCCESS; // actually found and removed a port
         }
     }
