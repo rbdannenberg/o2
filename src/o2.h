@@ -6,6 +6,27 @@
 #ifndef O2_H
 #define O2_H
 
+#ifndef O2_EXPORT
+#ifdef o2_EXPORTS
+ /* We are building this library */
+# if defined(__GNUC__)
+#  define O2_EXPORT __attribute__((visibility("default"))) extern
+# elif defined _MSC_VER
+#  define O2_EXPORT __declspec(dllimport) extern
+# endif
+#else
+ /* We are using this library */
+# if defined(__GNUC__)
+#  define O2_EXPORT __attribute__((visibility("default"))) extern
+# elif defined _MSC_VER
+#  define O2_EXPORT __declspec(dllexport) extern
+# endif
+#endif
+#endif
+#ifndef O2_EXPORT
+# define O2_EXPORT extern
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -265,7 +286,7 @@ You can get the local `IP:PORT` string by calling `o2_get_address()`.
 ///   - a - all debug flags except m (malloc/free)
 ///   - A - all debug flags except malloc and scheduling
 #ifndef O2_NO_DEBUG
-void o2_debug_flags(const char *flags);
+O2_EXPORT void o2_debug_flags(const char *flags);
 #endif
 
 /** @} */
@@ -448,17 +469,17 @@ void o2_debug_flags(const char *flags);
 #define O2_MARKER_B (void *) 0xf00baa23f00baa23L
 //#endif
 
-extern void *((*o2_malloc)(size_t size));
-extern void ((*o2_free)(void *));
-void *o2_calloc(size_t n, size_t s);
+O2_EXPORT void *((*o2_malloc)(size_t size));
+O2_EXPORT void ((*o2_free)(void *));
+O2_EXPORT void *o2_calloc(size_t n, size_t s);
 
 /** \defgroup basics Basics
  * @{
  */
 
 #ifndef O2_NO_DEBUG
-void *o2_dbg_malloc(size_t size, const char *file, int line);
-void o2_dbg_free(const void *obj, const char *file, int line);
+O2_EXPORT void *o2_dbg_malloc(size_t size, const char *file, int line);
+O2_EXPORT void o2_dbg_free(const void *obj, const char *file, int line);
 #define O2_MALLOC(x) o2_dbg_malloc(x, __FILE__, __LINE__)
 #define O2_FREE(x) o2_dbg_free(x, __FILE__, __LINE__)
 #endif
@@ -493,10 +514,10 @@ void o2_dbg_free(const void *obj, const char *file, int line);
 /** \brief allocate and zero memory (see #O2_MALLOC) */
 #ifndef O2_CALLOC
 #ifdef NO_O2_DEBUG
-void *o2_calloc(size_t n, size_t s);
+O2_EXPORT void *o2_calloc(size_t n, size_t s);
 #define O2_CALLOC(n, s) o2_calloc((n), (s))
 #else
-void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
+O2_EXPORT void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
 #define O2_CALLOC(n, s) o2_dbg_calloc((n), (s), __FILE__, __LINE__)
 #endif
 #endif
@@ -684,8 +705,8 @@ typedef union {
 } o2_arg, *o2_arg_ptr;
 
 
-extern o2_arg_ptr o2_got_start_array;
-extern o2_arg_ptr o2_got_end_array;
+O2_EXPORT o2_arg_ptr o2_got_start_array;
+O2_EXPORT o2_arg_ptr o2_got_end_array;
 
 
 /** \brief set this flag to stop o2_run()
@@ -694,7 +715,7 @@ extern o2_arg_ptr o2_got_end_array;
  * simple loop that calls o2_poll(). To exit the loop, set
  * #o2_stop_flag to #TRUE
  */
-extern int o2_stop_flag;
+O2_EXPORT int o2_stop_flag;
 
 /*
  * A collection of cooperating O2 processes forms an
@@ -708,7 +729,7 @@ extern int o2_stop_flag;
  * Do not set, modify or free this variable! Consider it to be
  * read-only. It is managed by O2 using o2_initialize() and o2_finish().
  */
-extern const char *o2_ensemble_name; // also used to detect initialization
+O2_EXPORT const char *o2_ensemble_name; // also used to detect initialization
 
 
 
@@ -761,7 +782,7 @@ typedef void (*o2_method_handler)(const o2_msg_data_ptr msg, const char *types,
  *  #O2_RUNNING if already running, #O2_BAD_NAME if `ensemble_name`
  *  is NULL.
  */
-int o2_initialize(const char *ensemble_name);
+O2_EXPORT int o2_initialize(const char *ensemble_name);
 
 
 /**
@@ -782,7 +803,7 @@ int o2_initialize(const char *ensemble_name);
  *
  * @return O2_SUCCESS if succeed, O2_FAIL if not.
  */
-int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)));
+O2_EXPORT int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)));
 
 
 /**
@@ -809,7 +830,7 @@ int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)));
  *
  * @return the previous polling period
  */
-o2_time o2_set_discovery_period(o2_time period);
+O2_EXPORT o2_time o2_set_discovery_period(o2_time period);
 
 
 /**
@@ -847,7 +868,7 @@ o2_time o2_set_discovery_period(o2_time period);
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_hub(const char *ipaddress, int port);
+O2_EXPORT int o2_hub(const char *ipaddress, int port);
 
 
 /**
@@ -872,7 +893,7 @@ int o2_hub(const char *ipaddress, int port);
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_get_address(const char **ipaddress, int *port);
+O2_EXPORT int o2_get_address(const char **ipaddress, int *port);
 
 
 /**
@@ -905,7 +926,7 @@ int o2_get_address(const char **ipaddress, int *port);
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_service_new(const char *service_name);
+O2_EXPORT int o2_service_new(const char *service_name);
 
 
 /**
@@ -925,7 +946,7 @@ int o2_service_new(const char *service_name);
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_services_list();
+O2_EXPORT int o2_services_list();
 
 
 /**
@@ -936,7 +957,7 @@ int o2_services_list();
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_services_list_free();
+O2_EXPORT int o2_services_list_free();
 
 
 /**
@@ -950,7 +971,7 @@ int o2_services_list_free();
  *
  * @return a service name if #i is in range, otherwise NULL.
  */
-const char *o2_service_name(int i);
+O2_EXPORT const char *o2_service_name(int i);
 
 
 /**
@@ -964,7 +985,7 @@ const char *o2_service_name(int i);
  *
  * @return a service type, or zero if #i is not in range.
  */
-int o2_service_type(int i);
+O2_EXPORT int o2_service_type(int i);
 
 
 /**
@@ -980,7 +1001,7 @@ int o2_service_type(int i);
  *         process name contains the IP address and TCP port number
  *         of the process, making it a unique identifier.
  */
-const char *o2_service_process(int i);
+O2_EXPORT const char *o2_service_process(int i);
 
 
 /**
@@ -994,7 +1015,7 @@ const char *o2_service_process(int i);
  *
  * @return a tapper name if the #i-th service is a tap, otherwise NULL.
  */
-const char *o2_service_tapper(int i);
+O2_EXPORT const char *o2_service_tapper(int i);
 
 
 /**
@@ -1016,7 +1037,7 @@ const char *o2_service_tapper(int i);
  *         empty if the service has no properties. The result is NULL
  *         if #i is not in range.
  */
-const char *o2_service_properties(int i);
+O2_EXPORT const char *o2_service_properties(int i);
 
 /**
  * \brief get a property value from a saved list of services
@@ -1030,7 +1051,7 @@ const char *o2_service_properties(int i);
  *         owned by the caller and should be freed using O2_FREE. The
  *         returned value has escape characters removed.
  */
-const char *o2_service_getprop(int i, const char *attr);
+O2_EXPORT const char *o2_service_getprop(int i, const char *attr);
 
 /**
  * \brief find a service matching attribute/value pair
@@ -1054,7 +1075,7 @@ const char *o2_service_getprop(int i, const char *attr);
  *       prefix or suffix, as indicated by ":" and ";" characters.
  *       If no match is found, return -1.
  */
-int o2_service_search(int i, const char *attr, const char *value);
+O2_EXPORT int o2_service_search(int i, const char *attr, const char *value);
 
 
 /**
@@ -1078,8 +1099,8 @@ int o2_service_search(int i, const char *attr, const char *value);
  * message, and consider using taps if the "publisher" does not know
  * all the "subscribers."
  */
-int o2_service_set_property(const char *service, const char *attr,
-                            const char *value);
+O2_EXPORT int o2_service_set_property(const char *service, const char *attr,
+                                      const char *value);
 
 
 /**
@@ -1095,7 +1116,7 @@ int o2_service_set_property(const char *service, const char *attr,
  * 
  * @returns O2_SUCCESS if successful
  */
-int o2_service_property_free(const char *service, const char *attr);
+O2_EXPORT int o2_service_property_free(const char *service, const char *attr);
 
 
 /**
@@ -1143,7 +1164,7 @@ int o2_service_property_free(const char *service, const char *attr);
  * the tap's process, and if the tappper service is (re)created, these
  * tap messages will be delivered to the new tapper service.
  */
-int o2_tap(const char *tappee, const char *tapper);
+O2_EXPORT int o2_tap(const char *tappee, const char *tapper);
 
 
 /**
@@ -1157,7 +1178,7 @@ int o2_tap(const char *tappee, const char *tapper);
  *
  * Remove a previously installed tap
  */
-int o2_untap(const char *tappee, const char *tapper);
+O2_EXPORT int o2_untap(const char *tappee, const char *tapper);
 
 
 /**
@@ -1172,7 +1193,7 @@ int o2_untap(const char *tappee, const char *tapper);
  * 
  * @return #O2_SUCCSS if success, #O2_FAIL if not.
  */
-int o2_service_free(const char *service_name);
+O2_EXPORT int o2_service_free(const char *service_name);
 
 
 /**
@@ -1196,8 +1217,9 @@ int o2_service_free(const char *service_name);
  *
  * @return O2_SUCCESS if succeed, O2_FAIL if not.
  */
-int o2_method_new(const char *path, const char *typespec,
-                  o2_method_handler h, void *user_data, int coerce, int parse);
+O2_EXPORT int o2_method_new(const char *path, const char *typespec,
+                            o2_method_handler h, void *user_data,
+                            int coerce, int parse);
 
 
 /**
@@ -1219,7 +1241,7 @@ int o2_method_new(const char *path, const char *typespec,
  *
  *  @return 0 (O2_SUCCESS) if succeed, -1 (O2_FAIL) if not.
  */
-int o2_poll(void);
+O2_EXPORT int o2_poll(void);
 
 /**
  * \brief Run O2.
@@ -1227,7 +1249,7 @@ int o2_poll(void);
  * Call o2_poll() at the rate (in Hz) indicated.
  * Returns if a handler sets #o2_stop_flag to non-zero.
  */
-int o2_run(int rate);
+O2_EXPORT int o2_run(int rate);
 
 /**
  * \brief Check the status of the service.
@@ -1296,7 +1318,7 @@ int o2_run(int rate);
  * service name, (2) the new status, and (3) the ip:port string of
  * the process that offers (or offered) the service.
  */
-int o2_status(const char *service);
+O2_EXPORT int o2_status(const char *service);
 
 
 /**
@@ -1318,14 +1340,14 @@ int o2_status(const char *service);
  * defer the call to #o2_send_cmd() but continue calling #o2_poll(),
  * and at some point in the future #o2_can_send() should return #O2_SUCCESS.
  */
-int o2_can_send(const char *service);
+O2_EXPORT int o2_can_send(const char *service);
 
 
 /**
  * \brief A variable indicating that the clock is the master or is
  *        synchronized to the master.
  */
-extern int o2_clock_is_synchronized;
+O2_EXPORT int o2_clock_is_synchronized;
 
 /**
  *  \brief Get network round-trip information.
@@ -1355,7 +1377,7 @@ extern int o2_clock_is_synchronized;
  * using the minimum, so this number is an upper bound on the
  * clock skew for this process.
  */
-int o2_roundtrip(double *mean, double *min);
+O2_EXPORT int o2_roundtrip(double *mean, double *min);
 
 
 /** \brief signature for callback that defines the master clock
@@ -1392,7 +1414,7 @@ typedef o2_time (*o2_time_callback)(void *rock);
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_clock_set(o2_time_callback gettime, void *rock);
+O2_EXPORT int o2_clock_set(o2_time_callback gettime, void *rock);
 
 
 /**
@@ -1425,7 +1447,7 @@ int o2_clock_set(o2_time_callback gettime, void *rock);
                    __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
 /** \cond INTERNAL */ \
-int o2_send_marker(const char *path, double time, int tcp_flag, 
+O2_EXPORT int o2_send_marker(const char *path, double time, int tcp_flag,
                    const char *typestring, ...);
 /** \endcond */
 
@@ -1475,7 +1497,7 @@ int o2_send_marker(const char *path, double time, int tcp_flag,
  * After the call, the `msg` parameter is "owned" by O2, which will
  * free it. Therefore, do *not* free msg after calling o2_message_send().
  */
-int o2_message_send(o2_message_ptr msg);
+O2_EXPORT int o2_message_send(o2_message_ptr msg);
 
 /**
  * \brief Get the estimated synchronized global O2 time.
@@ -1490,7 +1512,7 @@ int o2_message_send(o2_message_ptr msg);
  *
  *  @return the time in seconds, or -1 if global (master) time is unknown.
  */
-o2_time o2_time_get(void);
+O2_EXPORT o2_time o2_time_get(void);
 
 
 /**
@@ -1498,7 +1520,7 @@ o2_time o2_time_get(void);
  *
  * @return the local time in seconds
  */
-o2_time o2_local_time(void);
+O2_EXPORT o2_time o2_local_time(void);
 
 /**
  *  \brief Return text representation of an O2 error
@@ -1507,7 +1529,7 @@ o2_time o2_local_time(void);
  *
  *  @return return the error message as a string
  */
-const char *o2_error_to_string(int i);
+O2_EXPORT const char *o2_error_to_string(int i);
 
 /**
  *  \brief release the memory and shut down O2.
@@ -1517,7 +1539,7 @@ const char *o2_error_to_string(int i);
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_finish(void);
+O2_EXPORT int o2_finish(void);
 
 
 // Interoperate with OSC
@@ -1538,7 +1560,7 @@ int o2_finish(void);
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_osc_port_new(const char *service_name, int port_num, int tcp_flag);
+O2_EXPORT int o2_osc_port_new(const char *service_name, int port_num, int tcp_flag);
 
 /**
  * \brief Remove a port receiving OSC messages.
@@ -1555,7 +1577,7 @@ int o2_osc_port_new(const char *service_name, int port_num, int tcp_flag);
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  *
  */
-int o2_osc_port_free(int port_num);
+O2_EXPORT int o2_osc_port_free(int port_num);
 
 
 /**
@@ -1582,8 +1604,9 @@ int o2_osc_port_free(int port_num);
  *
  * If this is a tcp connection, close it by calling #o2_service_free().
  */
-int o2_osc_delegate(const char *service_name, const char *ip, int port_num, 
-                    int tcp_flag);
+O2_EXPORT int o2_osc_delegate(const char *service_name,
+                              const char *ip, int port_num,
+                              int tcp_flag);
 
 /**
  *  \brief Set the OSC time offset.
@@ -1596,7 +1619,7 @@ int o2_osc_delegate(const char *service_name, const char *ip, int port_num,
  * OSC time starts at 1 Jan 1900. The offset is the OSC time corresponding
  * to O2 time 0.0. Equivalently, OSC_time = O2_time + offset.
  */
-uint64_t o2_osc_time_offset(uint64_t offset);
+O2_EXPORT uint64_t o2_osc_time_offset(uint64_t offset);
 
 
 /** @} */ // end of Basics
@@ -1782,7 +1805,7 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  *
  * @return the address of the new blob or NULL if memory cannot be allocated.
  */
-o2_blob_ptr o2_blob_new(uint32_t size);
+O2_EXPORT o2_blob_ptr o2_blob_new(uint32_t size);
 
 
 /**
@@ -1795,15 +1818,15 @@ o2_blob_ptr o2_blob_new(uint32_t size);
  * such as o2_add_int32() to add parameters. Then call
  * o2_send_finish() to send the message.
  */
-int o2_send_start(void);
+O2_EXPORT int o2_send_start(void);
 
 
 /// \brief add a `float` to the message (see o2_send_start())
-int o2_add_float(float f);
+O2_EXPORT int o2_add_float(float f);
 
 /// \brief This function suppports o2_add_symbol() and o2_add_string()
 /// Normally, you should not call this directly.
-int o2_add_string_or_symbol(o2_type tcode, const char *s);
+O2_EXPORT int o2_add_string_or_symbol(o2_type tcode, const char *s);
 
 /// \brief add a symbol to the message (see o2_send_start())
 #define o2_add_symbol(s) o2_add_string_or_symbol(O2_SYMBOL, s)
@@ -1813,18 +1836,18 @@ int o2_add_string_or_symbol(o2_type tcode, const char *s);
 
 /// \brief add an `o2_blob` to the message (see o2_send_start()), where
 ///        the blob is given as a pointer to an #o2_blob object.
-int o2_add_blob(o2_blob_ptr b);
+O2_EXPORT int o2_add_blob(o2_blob_ptr b);
 
 /// \brief add an `o2_blob` to the message (see o2_send_start()), where
 ///        the blob is specified by a size and a data address.
-int o2_add_blob_data(uint32_t size, void *data);
+O2_EXPORT int o2_add_blob_data(uint32_t size, void *data);
 
 /// \brief add an `int64` to the message (see o2_send_start())
-int o2_add_int64(int64_t i);
+O2_EXPORT int o2_add_int64(int64_t i);
 
 /// \brief This function supports o2_add_double() and o2_add_time()
 /// Normally, you should not call this directly.
-int o2_add_double_or_time(o2_type tchar, double d);
+O2_EXPORT int o2_add_double_or_time(o2_type tchar, double d);
 
 /// \brief add a `double` to the message (see o2_send_start())
 #define o2_add_double(d) o2_add_double_or_time(O2_DOUBLE, d)
@@ -1834,7 +1857,7 @@ int o2_add_double_or_time(o2_type tchar, double d);
 
 /// \brief This function supports o2_add_int32() and o2_add_char()
 /// Normally, you should not call this directly.
-int o2_add_int32_or_char(o2_type tcode, int32_t i);
+O2_EXPORT int o2_add_int32_or_char(o2_type tcode, int32_t i);
 
 /// \brief add an `int32` to the message (see o2_send_start())
 #define o2_add_int32(i) o2_add_int32_or_char(O2_INT32, i)
@@ -1843,12 +1866,12 @@ int o2_add_int32_or_char(o2_type tcode, int32_t i);
 #define o2_add_char(c) o2_add_int32_or_char(O2_CHAR, c)
 
 /// \brief add a short midi message to the message (see o2_send_start())
-int o2_add_midi(uint32_t m);
+O2_EXPORT int o2_add_midi(uint32_t m);
 
 /// \brief This function supports o2_add_true(), o2_add_false(), o2_add_bool(),
 /// o2_add_nil(), o2_add_infinitum(), and others.
 /// Normally, you should not call this directly.
-int o2_add_only_typecode(o2_type typecode);
+O2_EXPORT int o2_add_only_typecode(o2_type typecode);
 
 /// \brief add "true" to the message (see o2_send_start())
 #define o2_add_true() o2_add_only_typecode(O2_TRUE);
@@ -1884,7 +1907,7 @@ int o2_add_only_typecode(o2_type typecode);
  *             in a format determined by element_type. The element
  *             type is restricted to a character in "ifhtdc"
  */
-int o2_add_vector(o2_type element_type,
+O2_EXPORT int o2_add_vector(o2_type element_type,
                   int length, void *data);
 
 /**
@@ -1902,7 +1925,7 @@ int o2_add_vector(o2_type element_type,
  * This function does NOT free msg. Probably you should call 
  * o2_message_free(msg) after calling o2_add_message(msg).
  */
-int o2_add_message(o2_message_ptr msg);
+O2_EXPORT int o2_add_message(o2_message_ptr msg);
 
 
 /**
@@ -1919,8 +1942,8 @@ int o2_add_message(o2_message_ptr msg);
  * messages using o2_add_message()), the address should be '#' 
  * followed by the service name, e.g. "#service1".
  */
-o2_message_ptr o2_message_finish(o2_time time, const char *address,
-                                 int tcp_flag);
+O2_EXPORT o2_message_ptr o2_message_finish(o2_time time, const char *address,
+                                           int tcp_flag);
 
 /**
  * \brief finish and return a message, prepending service name
@@ -1937,7 +1960,7 @@ o2_message_ptr o2_message_finish(o2_time time, const char *address,
  * forward OSC messages to a service, but it is the implementation
  * of o2_message_finish(), which simply passes NULL for service.
  */
-o2_message_ptr o2_service_message_finish(o2_time time,
+O2_EXPORT o2_message_ptr o2_service_message_finish(o2_time time,
              const char *service, const char *address, int tcp_flag);
 
 /**
@@ -1946,7 +1969,7 @@ o2_message_ptr o2_service_message_finish(o2_time time,
  * This function is not normally used because O2 functions that send
  * messages take "ownership" of messages and (eventually) free them.
  */
-void o2_message_free(o2_message_ptr msg);
+O2_EXPORT void o2_message_free(o2_message_ptr msg);
 
 
 /**
@@ -1965,7 +1988,7 @@ void o2_message_free(o2_message_ptr msg);
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_send_finish(o2_time time, const char *address, int tcp_flag);
+O2_EXPORT int o2_send_finish(o2_time time, const char *address, int tcp_flag);
 
 
 /** @} */
@@ -1993,7 +2016,7 @@ int o2_send_finish(o2_time time, const char *address, int tcp_flag);
  * To get arguments from a message, call o2_extract_start(), then for
  * each parameter, call o2_get_next().
  */
-int o2_extract_start(o2_msg_data_ptr msg);
+O2_EXPORT int o2_extract_start(o2_msg_data_ptr msg);
 
 /**
  * \brief get the next message parameter
@@ -2078,7 +2101,7 @@ from o2_get_next(), where NULL indicates incompatible types.
  *
  * @return the next message parameter or NULL if no more parameters
 */
-o2_arg_ptr o2_get_next(o2_type type_code);
+O2_EXPORT o2_arg_ptr o2_get_next(o2_type type_code);
 
 /** @} */
 
@@ -2114,7 +2137,7 @@ typedef struct o2_sched {
  * timed message sends will fail and attempts to o2_schedule() will
  * fail.
  */
-extern o2_sched o2_gtsched;
+O2_EXPORT o2_sched o2_gtsched;
 
 /**
  * \brief Scheduler that schedules according to local clock time
@@ -2129,7 +2152,7 @@ extern o2_sched o2_gtsched;
  *
  * In these cases, you should schedule messages using #o2_ltsched.
  */
-extern o2_sched o2_ltsched;
+O2_EXPORT o2_sched o2_ltsched;
 
 /**
  * \brief Current scheduler.
@@ -2139,7 +2162,7 @@ extern o2_sched o2_ltsched;
  * schedules a message can use this pointer to continue using the same
  * scheduler.
  */
-extern o2_sched_ptr o2_active_sched; // the scheduler that should be used
+O2_EXPORT o2_sched_ptr o2_active_sched; // the scheduler that should be used
 
 
 /**
@@ -2167,7 +2190,7 @@ extern o2_sched_ptr o2_active_sched; // the scheduler that should be used
  * messages scheduled within handlers are appended to a "pending
  * messages" queue and delivered after the handler returns.
  */
-int o2_schedule(o2_sched_ptr scheduler, o2_message_ptr msg);
+O2_EXPORT int o2_schedule(o2_sched_ptr scheduler, o2_message_ptr msg);
 
 /** @} */ // end of a basics group
 

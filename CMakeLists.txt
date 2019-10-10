@@ -54,6 +54,8 @@ set(O2_SRC
   )  
  
 add_library(o2_static STATIC ${O2_SRC})  
+add_library(o2 SHARED ${O2_SRC})
+set_target_properties(o2 PROPERTIES C_VISIBILITY_PRESET hidden)
  
 #target_include_directories(o2_static PRIVATE ${no include directories})
 
