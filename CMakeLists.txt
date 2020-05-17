@@ -39,18 +39,23 @@ endif(UNIX)
 # o2
  
 set(O2_SRC  
-  src/o2_dynamic.c src/o2_dynamic.h
-  src/o2.c src/o2.h src/o2_internal.h 
-  src/o2_discovery.c src/o2_discovery.h
-  src/o2_message.c src/o2_message.h 
-  src/o2_sched.c src/o2_sched.h
-  src/o2_search.c src/o2_search.h 
-  src/o2_send.c src/o2_send.h 
-  src/o2_net.c src/o2_net.h 
-  src/o2_clock.c src/o2_clock.h
-  # src/o2_debug.c src/o2_debug.h
-  src/o2_interoperation.c src/o2_interoperation.h
-  src/o2_bridge.c src/o2_bridge.h
+  src/bridge.c src/bridge.h 
+  src/clock.c src/clock.h 
+  src/debug.c src/debug.h 
+  src/discovery.c src/discovery.h 
+  src/dynarray.c src/dynarray.h
+  src/hashnode.c src/hashnode.h
+  src/message.c src/message.h 
+  src/msgsend.c src/msgsend.h 
+  src/network.c src/network.h 
+  src/o2.c src/o2.h src/o2internal.h 
+  src/o2osc.c src/o2osc.h
+  src/pathtree.c src/pathtree.h
+  src/processes.c src/processes.h
+  src/properties.c src/properties.h
+  src/sched.c src/sched.h
+  src/services.c src/services.h 
+  src/o2mem.c src/o2mem.h 
   )  
  
 add_library(o2_static STATIC ${O2_SRC})  

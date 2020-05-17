@@ -35,6 +35,9 @@ void server_test(o2_msg_data_ptr msg, const char *types,
     assert(strcmp(types, "iB") == 0);
     assert(argv[0]->i32 == msg_count);
     msg_count++;
+    if (msg_count % 5000 == 0) {
+        printf("msg_count %d\n", msg_count);
+    }
     if (argv[1]->B) {
         running = FALSE;
     }
@@ -54,7 +57,7 @@ int main(int argc, const char * argv[])
     }
     o2_initialize("test");
     o2_service_new("server");
-    o2_method_new("/server/test", "i", &server_test, NULL, FALSE, TRUE);
+    o2_method_new("/server/test", "iB", &server_test, NULL, FALSE, TRUE);
     
     // we are the master clock
     o2_clock_set(NULL, NULL);
@@ -62,13 +65,13 @@ int main(int argc, const char * argv[])
     while (running) {
         o2_poll();
         // usleep(msg_count > 0 ? 100000 : 2000); // 100ms or 2ms
-        usleep(2000);
+        usleep(500);
     }
-
-    // poll for 1s to make sure messages are sent
-    for (int i = 0; i < 500; i++) {
+    o2_send_cmd("!sender/done", 0, "");
+    printf("Poll for 1s to make sure message is received\n");
+    for (int i = 0; i < 1000; i++) {
         o2_poll();
-        usleep(2000); // 2ms
+        usleep(1000); // 1ms
     }
     
     o2_finish();

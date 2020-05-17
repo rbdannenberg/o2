@@ -526,6 +526,12 @@ void send_the_message()
 
 int main(int argc, const char * argv[])
 {
+    printf("Usage: typestest [debugflags] "
+           "(see o2.h for flags, use a for all)\n");
+    if (argc >= 2) {
+        o2_debug_flags(argv[1]);
+        printf("debug flags are: %s\n", argv[1]);
+    }
     a_blob = malloc(20);
     a_blob->size = 15;
     memcpy(a_blob->data, "This is a blob", 15);

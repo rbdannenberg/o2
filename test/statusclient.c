@@ -9,7 +9,7 @@
 #include "assert.h"
 
 /* added for special async_test */
-#include "o2_internal.h"
+#include "o2internal.h"
 #include "o2_send.h"
 void o2_context_init(o2_context_ptr context);
 extern o2_context_t main_context;

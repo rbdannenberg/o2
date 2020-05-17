@@ -31,6 +31,16 @@ int msg_count = 0;
 int running = TRUE;
 
 
+// at the end, we get a message to /sender/done
+void sender_done(o2_msg_data_ptr msg, const char *types,
+                 o2_arg_ptr *argv, int argc, void *user_data)
+{
+    assert(argc == 0);
+    assert(strlen(types) == 0);
+    running = FALSE;
+}
+
+
 int main(int argc, const char * argv[])
 {
     printf("Usage: nonblocksend [flags]] "
@@ -43,6 +53,8 @@ int main(int argc, const char * argv[])
         printf("WARNING: tcpclient ignoring extra command line arguments\n");
     }
     o2_initialize("test");
+    o2_service_new("sender"); // that's us
+    o2_method_new("/sender/done", "", &sender_done, NULL, FALSE, TRUE);
     
     while (o2_status("server") < O2_LOCAL) {
         o2_poll();
@@ -72,7 +84,7 @@ int main(int argc, const char * argv[])
         usleep(2000); // 2ms
     }
     assert(o2_can_send("server") == O2_SUCCESS);
-    printf("Resuming sends\n");
+    printf("Resuming sends after blocked message.\n");
 
     // send until blocks again
     while (o2_can_send("server") == O2_SUCCESS) {
@@ -80,6 +92,7 @@ int main(int argc, const char * argv[])
         msg_count++;
         o2_poll();
     }
+    printf("Blocked again after %d messages.\n", msg_count);
 
     // send 2 * msg_count more messages to make sure blocking works
     int n = 2 * msg_count;
@@ -87,14 +100,23 @@ int main(int argc, const char * argv[])
         o2_send_cmd("!server/test", 0, "iB", msg_count, FALSE);
         msg_count++;
         o2_poll();
+        if (msg_count % 2000 == 0) {
+            printf("msg_count %d\n", msg_count);
+        }
     }        
+    printf("Sent %d more messages to make sure blocking works\n", n);
 
     // send last message
     o2_send_cmd("!server/test", 0, "iB", msg_count, TRUE);
     printf("Sent %d messages total.\n", msg_count);
 
-    // poll for 1s to make sure messages are sent
-    for (int i = 0; i < 500; i++) {
+    // now, the problem is we could have 1000's of buffered
+    // messages being received at 1000 per second, so how long
+    // do we need to wait before we delete the socket? Let's
+    // get an ACK from the receiver.
+
+    printf("Poll until we get a done message from receiver.\n");
+    while (running) {
         o2_poll();
         usleep(2000); // 2ms
     }

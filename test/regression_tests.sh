@@ -98,7 +98,7 @@ while true; do
     rundouble "o2client" "CLIENT DONE" "o2server" "SERVER DONE"
     if [ $status == -1 ]; then break; fi
 
-    rundouble "o2nonblocksend" "CLIENT DONE" "o2nonblockrecv" "SERVER DONE"
+    rundouble "nonblocksend" "CLIENT DONE" "nonblockrecv" "SERVER DONE"
     if [ $status == -1 ]; then break; fi
 
     rundouble "o2unblock" "CLIENT DONE" "o2block" "SERVER DONE"
