@@ -5,6 +5,8 @@
 
 #ifndef O2_H
 #define O2_H
+// allow declarations like int fn() as opposed to int fn(void):
+#pragma clang diagnostic ignored "-Wstrict-prototypes"
 
 #ifdef __cplusplus
 extern "C" {
@@ -210,7 +212,7 @@ to request the time as part of the clock synchronization protocol.
 active service status changes, this message is sent to the local process.
 Note that when a local service is created, an *internal* `/sv` message is
 sent to all other processes, and when that process's services table is
-updated, if theservice is or becomes active, the change is reported
+updated, if the service is or becomes active, the change is reported
 locally to the application by sending this `/_o2/si` message. Normally,
 you should not add handlers or use the `_o2` service, but in this case,
 an application is expected to add a custom handler to receive status
@@ -342,6 +344,11 @@ void o2_debug_flags(const char *flags);
 /// TCP send would block, holding message locally to send later
 #define O2_BLOCKED (-19)
 
+/// Unable to allocate a discovery port
+#define O2_NO_PORT (-20)
+
+/// SOCKET_ERROR in select call
+#define O2_SOCKET_ERROR (-21)
 
 // Status return codes for o2_status function:
 
@@ -448,20 +455,12 @@ void o2_debug_flags(const char *flags);
 #define O2_MARKER_B (void *) 0xf00baa23f00baa23L
 //#endif
 
-extern void *((*o2_malloc)(size_t size));
-extern void ((*o2_free)(void *));
-void *o2_calloc(size_t n, size_t s);
-
 /** \defgroup basics Basics
  * @{
  */
 
-#ifndef O2_NO_DEBUG
-void *o2_dbg_malloc(size_t size, const char *file, int line);
-void o2_dbg_free(const void *obj, const char *file, int line);
-#define O2_MALLOC(x) o2_dbg_malloc(x, __FILE__, __LINE__)
-#define O2_FREE(x) o2_dbg_free(x, __FILE__, __LINE__)
-#endif
+extern void *((*o2_malloc_ptr)(size_t size));
+extern void ((*o2_free_ptr)(void *));
 
 /** \brief allocate memory
  *
@@ -475,8 +474,9 @@ void o2_dbg_free(const void *obj, const char *file, int line);
  */
 #ifndef O2_MALLOC
 #ifdef NO_O2_DEBUG
-#define O2_MALLOC(x) (*o2_malloc)(x)
+#define O2_MALLOC(x) (*o2_malloc_ptr)(x)
 #else
+void *o2_dbg_malloc(size_t size, const char *file, int line);
 #define O2_MALLOC(x) o2_dbg_malloc(x, __FILE__, __LINE__)
 #endif
 #endif
@@ -484,9 +484,10 @@ void o2_dbg_free(const void *obj, const char *file, int line);
 /** \brief free memory allocated by #O2_MALLOC */
 #ifndef O2_FREE
 #ifdef NO_O2_DEBUG
-#define O2_FREE(x) (*o2_free)(x)
+#define O2_FREE(x) (*o2_free_ptr)(x)
 #else
-#define O2_FREE(x) (*o2_dbg_free)(x, __FILE__, __LINE__)
+void o2_dbg_free(const void *obj, const char *file, int line);
+#define O2_FREE(x) o2_dbg_free(x, __FILE__, __LINE__)
 #endif
 #endif
 
@@ -499,6 +500,21 @@ void *o2_calloc(size_t n, size_t s);
 void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
 #define O2_CALLOC(n, s) o2_dbg_calloc((n), (s), __FILE__, __LINE__)
 #endif
+#endif
+
+// if debugging is on, default is O2MEM_DEBUG
+#ifndef NO_O2_DEBUG
+#ifndef O2MEM_DEBUG
+#define O2MEM_DEBUG 1
+#endif
+#endif
+
+// if O2_MEMDEBUG, extra checks are made for memory consistency,
+// and you can check any pointer using o2_mem_check(ptr):
+#ifdef O2MEM_DEBUG
+void o2_mem_check(void *ptr);
+#else
+#define o2_mem_check(ptr) // make o2_mem_check() a noop
 #endif
 
 /** \brief O2 timestamps are doubles representing seconds since the
@@ -516,16 +532,10 @@ typedef double o2_time;
  * o2_msg_data structure. We would use o2_message everywhere instead
  * of o2_msg_data, but bundles can contain multiple o2_msg_data 
  * structures without the extra baggage contained in an o2_message.
- *
- * Note: it is assumed that an o2_msg_data struct is always preceded
- * by a 32-bit length. Ideally, length should therefore be in this
- * struct, but then the compiler might add padding to put the timestamp
- * on an 8-byte alignment. This could be solved with a pack pragma, but
- * that is not standard C. To be safe and portable, I decided to just 
- * leave length out of the struct. The macro MSG_DATA_LENGTH can be used
- * to access the length field.
  */
 typedef struct o2_msg_data {
+    int32_t length;
+    int32_t flags; // O2_TAP_FLAG and O2_TCP_FLAG
     o2_time timestamp;   ///< the message delivery time (0 for immediate)
     /** \brief the message address string
      *
@@ -538,29 +548,23 @@ typedef struct o2_msg_data {
     char address[4];
 } o2_msg_data, *o2_msg_data_ptr;
 
-// get the length from a pointer to an o2_msg_data. This macro dereferences
-// the o2_msg_data pointer to impose some mild typechecking. Not just any
-// pointer will work.
-#define MSG_DATA_LENGTH(m) (((int32_t *) &((m)->timestamp))[-1])
-
 
 /** \brief get the type string from o2_msg_data_ptr
  *
  * Type strings begin with the comma (",") character, which is skipped
  */
-#define WORD_ALIGN_PTR(p) ((char *) (((size_t) (p)) & ~3))
+#define O2MEM_ALIGN 8
+#define O2MEM_ALIGNUP(s) ( ((s)+(O2MEM_ALIGN-1)) & ~(O2MEM_ALIGN-1) )
+#define O2MEM_BIT32_ALIGN_PTR(p) ((char *) (((size_t) (p)) & ~3))
 #define O2_MSG_TYPES(msg) \
-    WORD_ALIGN_PTR((msg)->address + strlen((msg)->address) + 4) + 1;
+    O2MEM_BIT32_ALIGN_PTR((msg)->address + strlen((msg)->address) + 4) + 1;
 
 
 /** \brief an O2 message container
  *
  * Note: This struct represents an O2 message that is stored on the heap.
- * The length field must preceded data with no padding (see o2_msg_data
- * declaration and the note that precedes it). To make sure there is no
- * padding between length and data, we force the next pointer to occupy
- * 8 bytes even if this is a 32-bit machine by making it part of a union
- * with an 8-byte int64_t field named "pad_if_needed."
+ * o2_message is an alias for o2n_message. At the o2n (network)
+ * abstraction, there is no o2_msg_data type.
  *
  * Note that o2_messages are on the heap and can be allocated, scheduled,
  * sent, and freed.  In contrast, o2_msg_data structures are contained 
@@ -573,12 +577,6 @@ typedef struct o2_message {
         struct o2_message *next; ///< links used for free list and scheduler
         int64_t pad_if_needed;   ///< make sure allocated is 8-byte aligned
     };
-    union {
-        int tcp_flag;            ///< send message by tcp?
-        int64_t pad_if_needed2;  ///< make sure allocated is 8-byte aligned 
-    };
-    int32_t allocated;       ///< how many bytes allocated in data part
-    int32_t length;          ///< the length of the message in data part
     o2_msg_data data;
 } o2_message, *o2_message_ptr;
 
@@ -949,6 +947,8 @@ int o2_services_list_free();
  * @param i the index of the service, starting with zero
  *
  * @return a service name if #i is in range, otherwise NULL.
+ *         if #i-th service is a tap, then the name returned
+ *         is the name of the tapped service.
  */
 const char *o2_service_name(int i);
 
@@ -962,7 +962,7 @@ const char *o2_service_name(int i);
  *
  * @param i the index of the service, starting with zero
  *
- * @return a service type, or zero if #i is not in range.
+ * @return a service type, or O2_FAIL if #i is not in range.
  */
 int o2_service_type(int i);
 
@@ -978,7 +978,9 @@ int o2_service_type(int i);
  *
  * @return a process name if #i is in range, otherwise NULL. The
  *         process name contains the IP address and TCP port number
- *         of the process, making it a unique identifier.
+ *         of the process, making it a unique identifier. If the
+ *         #i-th service is a tap, the returned value is the 
+ *         tapping process name.
  */
 const char *o2_service_process(int i);
 
@@ -992,7 +994,8 @@ const char *o2_service_process(int i);
  *
  * @param i the index of the service
  *
- * @return a tapper name if the #i-th service is a tap, otherwise NULL.
+ * @return if the #i-th service is a tap, return the service name 
+ *         to which tapped messages are sent, otherwise NULL.
  */
 const char *o2_service_tapper(int i);
 
@@ -1012,11 +1015,12 @@ const char *o2_service_tapper(int i);
  *
  * @param i the index of the service
  *
- * @return a properties string if #i is in range. The string may be 
- *         empty if the service has no properties. The result is NULL
- *         if #i is not in range.
+ * @return a properties string if #i is in range and the #i-th
+ *         service is not a tap, otherwise NULL. The string may
+ *         be empty if the service has no properties.
  */
 const char *o2_service_properties(int i);
+
 
 /**
  * \brief get a property value from a saved list of services
@@ -1062,7 +1066,7 @@ int o2_service_search(int i, const char *attr, const char *value);
  *
  * @param service the name of a service offered by this process
  *
- * @param attribute the attribute name
+ * @param attr the attribute name
  * 
  * @param value the value string; this string will be escaped. Do
  *        not include escape characters in #value
@@ -1091,7 +1095,7 @@ int o2_service_set_property(const char *service, const char *attr,
  *
  * @param service the name of a service offered by this process
  *
- * @param attribute the attribute name
+ * @param attr the attribute name
  * 
  * @returns O2_SUCCESS if successful
  */
@@ -1900,7 +1904,7 @@ int o2_add_vector(o2_type element_type,
  * o2_add_int32() and o2_add_message() on the same message.
  * 
  * This function does NOT free msg. Probably you should call 
- * o2_message_free(msg) after calling o2_add_message(msg).
+ * O2_FREE(msg) after calling o2_add_message(msg).
  */
 int o2_add_message(o2_message_ptr msg);
 
@@ -1914,7 +1918,7 @@ int o2_add_message(o2_message_ptr msg);
  *
  * @return the address of the completed message, or NULL on error
  *
- * The message must be freed using o2_message_free() or by calling
+ * The message must be freed using O2_FREE() or by calling
  * o2_message_send(). If the message is a bundle (you have added
  * messages using o2_add_message()), the address should be '#' 
  * followed by the service name, e.g. "#service1".
@@ -1932,21 +1936,13 @@ o2_message_ptr o2_message_finish(o2_time time, const char *address,
  *
  * @return the address of the completed message, or NULL on error
  *
- * The message must be freed using o2_message_free() or by calling
+ * The message must be freed using O2_FREE() or by calling
  * o2_message_send(). This function is intended to be used to 
  * forward OSC messages to a service, but it is the implementation
  * of o2_message_finish(), which simply passes NULL for service.
  */
 o2_message_ptr o2_service_message_finish(o2_time time,
              const char *service, const char *address, int tcp_flag);
-
-/**
- * \brief free a message allocated by o2_send_start().
- *
- * This function is not normally used because O2 functions that send
- * messages take "ownership" of messages and (eventually) free them.
- */
-void o2_message_free(o2_message_ptr msg);
 
 
 /**

@@ -1,0 +1,195 @@
+/* o2internal.h - o2.h + declarations needed for implementation */
+
+/* Roger B. Dannenberg
+ * April 2020
+ */
+
+/// \cond INTERNAL
+
+#ifndef O2INTERNAL_H
+#define O2INTERNAL_H
+
+/**
+ *  Common head for both Windows and Unix.
+ */
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+#include <math.h>
+#include <assert.h>
+
+// hash keys are processed in 32-bit chunks so we declare a special
+// string type. These are used in messages as well.
+typedef const char *o2string; // string padded to 4-byte boundary
+
+#include "o2.h"
+#include "debug.h"
+#include "dynarray.h"
+#include "network.h" // to get o2n_info_ptr declaration
+#include "hashnode.h"
+#include "processes.h"
+
+void o2_mem_finish(); // implemented by o2mem.c, called to free
+// any memory managed by o2mem module.
+
+/* gcc doesn't know _Thread_local from C11 yet */
+#ifdef __GNUC__
+# define thread_local __thread
+#elif __STDC_VERSION__ >= 201112L
+# define thread_local _Thread_local
+#elif defined(_MSC_VER)
+# define thread_local __declspec(thread)
+#else
+# error Cannot define thread_local
+#endif
+
+// Configuration:
+#define IP_ADDRESS_LEN 32
+
+/** Note: No struct literals in MSVC. */
+#ifdef _MSC_VER
+
+#ifndef USE_ANSI_C
+#define USE_ANSI_C
+#endif
+
+#ifndef _CRT_SECURE_NO_WARNINGS
+// Preclude warnings for string functions
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
+// OS X and Linux call it "snprintf":
+// snprintf seems to be defined Visual Studio now,
+// Visual Studio 2015 is the first version which defined snprintf, and its _MSC_VER is 1900.
+#if _MSC_VER < 1900
+#define snprintf _snprintf
+#endif
+
+#else    // Linux or OS X
+
+#define ioctlsocket ioctl
+#define closesocket close
+
+#endif   // _MSC_VER
+
+
+#define RETURN_IF_ERROR(expr) { int err = (expr); if (err) return err; }
+
+// define IS_BIG_ENDIAN, IS_LITTLE_ENDIAN, and swap64(i),
+// swap32(i), and swap16(i)
+#if WIN32
+// WIN32 requires predefinition of IS_BIG_ENDIAN=1 or IS_BIG_ENDIAN=0
+#else
+ #ifdef __APPLE__
+  #include "machine/endian.h" // OS X endian.h is in MacOSX10.8.sdk/usr/include/machine/endian.h
+  #define LITTLE_ENDIAN __DARWIN_LITTLE_ENDIAN
+ #else
+  #include <endian.h>
+  #define LITTLE_ENDIAN __LITTLE_ENDIAN
+  #define BYTE_ORDER __BYTE_ORDER
+ #endif
+ #define IS_BIG_ENDIAN (BYTE_ORDER != LITTLE_ENDIAN)
+#endif
+#define IS_LITTLE_ENDIAN (!(IS_BIG_ENDIAN))
+#define swap16(i) ((((i) >> 8) & 0xff) | (((i) & 0xff) << 8))
+#define swap32(i) ((((i) >> 24) & 0xff) | (((i) & 0xff0000) >> 8) | \
+                   (((i) & 0xff00) << 8) | (((i) & 0xff) << 24))
+#define swap64(i) ((((uint64_t) swap32(i)) << 32) | swap32((i) >> 32))
+#define O2_DEF_TYPE_SIZE 8
+#define O2_DEF_DATA_SIZE 8
+
+#define ROUNDUP_TO_32BIT(i) (((i) + 3) & ~3)
+
+#define streql(a, b) (strcmp(a, b) == 0)
+
+extern o2_time o2_local_now;
+extern o2_time o2_global_now;
+extern int o2_gtsched_started;
+
+#define DEFAULT_DISCOVERY_PERIOD 4.0
+extern o2_time o2_discovery_period;
+
+#define O2_ARGS_END O2_MARKER_A, O2_MARKER_B
+/** Default max send and recieve buffer. */
+#define MAX_BUFFER 1024
+
+/** \brief Maximum length of address node names
+ */
+#define O2_MAX_NODE_NAME_LEN 1020
+#define NAME_BUF_LEN ((O2_MAX_NODE_NAME_LEN) + 4)
+
+/* \brief Maximum length of UDP messages in bytes
+ */
+#define O2_MAX_MSG_SIZE 32768
+
+
+// shared internal functions
+void o2_notify_others(const char *service_name, int added,
+                      const char *tappee, const char *properties);
+
+//o2_node_ptr o2_proc_service_find(o2n_info_ptr proc,
+//                                 services_entry_ptr services);
+
+int o2_service_provider_new(o2string key, const char *properties,
+                            o2_node_ptr service, proc_info_ptr proc);
+
+
+int o2_service_new2(o2string padded_name);
+
+int o2_tap_new(o2string tappee, proc_info_ptr process, o2string tapper);
+
+int o2_tap_remove(o2string tappee, proc_info_ptr process,
+                  o2string tapper);
+
+// hub flags are used to tell receiver of /dy message what to do.
+// Four cases:
+//   1. receiver is the hub
+#define O2_BE_MY_HUB 1
+//   2. receiver is the hub, but hub needs to close socket and
+//      connect to sender
+#define O2_HUB_CALL_ME_BACK 2
+//   3. sender is the hub (and client), OR if this is an o2n_info.proc.hub
+#define O2_I_AM_HUB 3
+//   4. sender is normal discovery broadcast
+#define O2_NO_HUB 0
+//   5. remote is HUB
+#define O2_HUB_REMOTE 4
+
+typedef struct {
+    // msg_types is used to hold type codes as message args are accumulated
+    dyn_array msg_types;
+    // msg_data is used to hold data as message args are accumulated
+    dyn_array msg_data;
+    o2_arg_ptr *argv; // arg vector extracted by calls to o2_get_next()
+
+    int argc; // length of argv
+
+    // o2_argv_data is used to create the argv for handlers. It is expanded as
+    // needed to handle the largest message and is reused.
+    dyn_array argv_data;
+
+    // o2_arg_data holds parameters that are coerced from message data
+    // It is referenced by o2_argv_data and expanded as needed.
+    dyn_array arg_data;
+
+    hash_node full_path_table;
+    hash_node path_tree;
+        
+    proc_info_ptr proc; ///< the process descriptor for this process
+} o2_context_t, *o2_context_ptr;
+
+
+/* O2 should not be called from multiple threads. One exception
+ * is the o2x_ functions are designed to run in a high-priority thread
+ * (such as an audio callback) that exchanges messages with a full O2
+ * process. There is a small problem that O2 message construction and
+ * decoding functions use some static, preallocated storage, so sharing
+ * across threads is not allowed. To avoid this, we put shared storage
+ * in an o2_context_t structure. One structure must be allocated per
+ * thread, and we use a thread-local variable o2_thread_info to locate
+ * the context.
+ */
+extern thread_local o2_context_ptr o2_context;
+
+#endif /* O2INTERNAL_H */
+/// \endcond
