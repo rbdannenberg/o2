@@ -1,0 +1,16 @@
+modular.txt - ideas for a more modular O2
+
+Modules:
+
+o storage - real-time allocation, non-blocking queues for freelists and
+    message passing. Every block has a header with link (64bit),
+    size (32 bit) and bytes used (32 bit).
+o pathtree - a tree of named branches for searching paths
+o network - sockets, message send, message receive, polling
+o message - marshalling O2 messages
+o unmessage - parameter unpacking, coercion, etc.
+o discovery - run discovery protocol
+o clock - clock model and synchronization
+
+STORAGE API
+
