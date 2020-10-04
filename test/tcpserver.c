@@ -23,7 +23,7 @@
 
 char *client_addresses[N_ADDRS];
 int msg_count = 0;
-int running = TRUE;
+bool running = true;
 
 // this is a handler for incoming messages. It simply sends a message
 // back to one of the client addresses
@@ -41,7 +41,7 @@ void server_test(o2_msg_data_ptr msg, const char *types,
         printf("server message %d is %d\n", msg_count, argv[0]->i32);
     }
     if (argv[0]->i32 == -1) {
-        running = FALSE;
+        running = false;
     } else {
         assert(msg_count == argv[0]->i32);
     }
@@ -67,7 +67,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/server/benchmark/%d", i);
-        o2_method_new(path, "i", &server_test, NULL, FALSE, TRUE);
+        o2_method_new(path, "i", &server_test, NULL, false, true);
     }
     
     // create an address for each destination so we do not have to
@@ -75,7 +75,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "!client/benchmark/%d", i);
-        client_addresses[i] = (char *) (O2_MALLOC(strlen(path)));
+        client_addresses[i] = O2_MALLOCNT(strlen(path), char);
         strcpy(client_addresses[i], path);
     }
     

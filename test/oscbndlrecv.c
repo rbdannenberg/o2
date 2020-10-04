@@ -113,7 +113,7 @@ int main(int argc, const char * argv[])
 {
     printf("Usage: oscbndlrecv flags "
            "(see o2.h for flags, use a for all, also u for UDP)\n");
-    int tcpflag = TRUE;
+    int tcpflag = true;
     if (argc == 2) {
         o2_debug_flags(argv[1]);
         tcpflag = (strchr(argv[1], 'u') == NULL);
@@ -131,10 +131,10 @@ int main(int argc, const char * argv[])
 
     o2_clock_set(NULL, NULL);
     
-    o2_method_new("/oscrecv/xyz/msg1", "is", msg1_handler, NULL, FALSE, TRUE);
+    o2_method_new("/oscrecv/xyz/msg1", "is", msg1_handler, NULL, false, true);
     o2_method_new("/oscrecv/abcdefg/msg2", "is", msg2_handler, 
-                  NULL, FALSE, TRUE);
-    o2_method_new("/oscrecv/first", "is", first_handler, NULL, FALSE, TRUE);
+                  NULL, false, true);
+    o2_method_new("/oscrecv/first", "is", first_handler, NULL, false, true);
     while (msg_count < 16) {
         o2_poll();
         usleep(1000); // 1ms

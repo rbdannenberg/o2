@@ -93,13 +93,13 @@ if [ $status == -1 ]; then break; fi
 #    rundouble "statusserver A" "SERVER DONE" "statusclient A" "CLIENT DONE"
 #    if [ $status == -1 ]; then break; fi
 #
-#    rundouble "infotest2" "INFOTEST2 DONE" "clockslave" "CLOCKSLAVE DONE"
+#    rundouble "infotest2" "INFOTEST2 DONE" "clockmirror" "CLOCKMIRROR DONE"
 #    if [ $status == -1 ]; then break; fi
 #
-#    rundouble "clockmaster" "CLOCKMASTER DONE" "clockslave" "CLOCKSLAVE DONE"
+#    rundouble "clockref" "CLOCKREF DONE" "clockmirror" "CLOCKMIRROR DONE"
 #    if [ $status == -1 ]; then break; fi
 #
-#    rundouble "appmaster" "APPMASTER DONE" "appslave" "APPSLAVE DONE"
+#    rundouble "applead" "APPLEAD DONE" "appfollow" "APPFOLLOW DONE"
 #    if [ $status == -1 ]; then break; fi
 #
 #    rundouble "o2client" "CLIENT DONE" "o2server" "SERVER DONE"
@@ -132,10 +132,10 @@ if [ $status == -1 ]; then break; fi
 ## tests for compatibility with liblo are run only if the binaries were built
 ## In CMake, set BUILD_TESTS_WITH_LIBLO to create the binaries
 #    if [ -f "$BIN/lo_oscrecv" ]; then
-#        rundouble "oscsendtest Mu" "OSCSEND DONE" "lo_oscrecv u" "OSCRECV DONE"
+#        rundouble "oscsendtest @u" "OSCSEND DONE" "lo_oscrecv u" "OSCRECV DONE"
 #        if [ $status == -1 ]; then break; fi
 #
-#        rundouble "oscsendtest M" "OSCSEND DONE" "lo_oscrecv" "OSCRECV DONE"
+#        rundouble "oscsendtest @" "OSCSEND DONE" "lo_oscrecv" "OSCRECV DONE"
 #        if [ $status == -1 ]; then break; fi
 #    fi
 #

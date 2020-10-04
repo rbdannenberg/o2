@@ -5,8 +5,8 @@ These are test programs for o2, benchmarking and development.
 broadcastclient.c - development code; see if broadcasting works
 broadcastserver.c
 
-clockmaster.c - test of O2 clock synchronization (there are no 
-clockslave.c    provisions here to test accuracy, only if it works).
+clockref.c    - test of O2 clock synchronization (there are no 
+clockmirror.c   provisions here to test accuracy, only if it works).
                 To test, run both processes on the same host or on 
                 the same local network. They should discover each 
                 other, run the clock sync protocol, and print 

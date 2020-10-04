@@ -10,7 +10,7 @@
 
 typedef struct service_info {
     o2string name;
-    int service_type;
+    o2_status_t service_type;
     o2string process; // the port:ip of process offering the service
     o2string properties; // service properties or the tapper of tappee
 } service_info, *service_info_ptr;
@@ -28,12 +28,13 @@ int o2_services_list()
     }
     o2_services_list_free();
     enumerate enumerator;
-    o2_enumerate_begin(&enumerator, &o2_context->path_tree.children);
+    o2_enumerate_begin(&enumerator, &o2_ctx->path_tree.children);
     o2_node_ptr entry;
     while ((entry = o2_enumerate_next(&enumerator))) {
         services_entry_ptr services = TO_SERVICES_ENTRY(entry);
         if (services->services.length > 0) {
-            service_provider_ptr spp = GET_SERVICE_PROVIDER(services->services, 0);
+            service_provider_ptr spp =
+                    GET_SERVICE_PROVIDER(services->services, 0);
             service_info_ptr sip = DA_EXPAND(service_list, service_info);
             sip->name = o2_heapify(entry->key);
             sip->process = o2_heapify(o2_node_to_ipport(spp->service));
@@ -45,7 +46,7 @@ int o2_services_list()
         }
         service_tap_ptr stp;
         for (int i = 0; i < services->taps.length; i++) {
-            stp = GET_TAP_PTR(services->services, i);
+            stp = GET_TAP_PTR(services->taps, i);
             service_info_ptr sip = DA_EXPAND(service_list, service_info);
             sip->name = o2_heapify(entry->key);
             sip->process = o2_heapify(stp->proc->name);
@@ -65,10 +66,18 @@ int o2_services_list_free()
         service_info_ptr sip = SERVICE_INFO(service_list, i);
         O2_FREE(sip->name);
         O2_FREE(sip->process);
-        O2_FREE(sip->properties); // NULL is OK
+        if (sip->properties) O2_FREE(sip->properties);
     }
     service_list.length = 0;
     return O2_SUCCESS;
+}
+
+
+// internal function to release all services_list memory
+void o2_services_list_finish()
+{
+    o2_services_list_free();
+    DA_FINISH(service_list);
 }
 
 
@@ -193,7 +202,7 @@ const char *o2_service_getprop(int i, const char *attr)
             int len = value_len(loc);
             const char *end = loc + len;
             // len may be too big given that we will remove escape characters
-            char *rslt = O2_MALLOC(len + 1); // include space for EOS
+            char *rslt = O2_MALLOCNT(len + 1, char); // include space for EOS
             // copy string value, removing escape characters
             char *dest = rslt;
             while (loc < end) {
@@ -244,7 +253,7 @@ static void encode_value_to(char *p, const char *v)
 
 // returns true if properties string has changed
 //
-static int service_property_free(service_provider_ptr spp,
+static bool service_property_free(service_provider_ptr spp,
                                   const char *attr)
 {
     // see if attr already exists. If so, just remove it in place.
@@ -259,9 +268,9 @@ static int service_property_free(service_provider_ptr spp,
             *dst++ = *src++;
         }
         *dst = 0;
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 
@@ -280,9 +289,9 @@ static void service_property_add(service_provider_ptr spp, const char *attr,
     if (!old_p) old_p = ";";
     int len =  (int) (attr_len + value_len + strlen(old_p) + 3);
     if (len > O2_MAX_MSG_SIZE) {
-        return; // property cannot grow too large, even O2_MAX_MSG_SIZE is too big
-    }
-    char *p = O2_MALLOC(len);
+        return; // property cannot grow too large,
+    }           // even O2_MAX_MSG_SIZE is too big
+    char *p = O2_MALLOCNT(len, char);
     p[0] = ';';
     strcpy(p + 1, attr);
     p[1 + attr_len] = ':'; // "1 +" is for leading ';'
@@ -294,7 +303,7 @@ static void service_property_add(service_provider_ptr spp, const char *attr,
     // but since attr has just changed, maybe lookups of attr are more
     // likely and putting it first will make lookups faster
     strcpy(p + attr_len + value_len + 3, old_p + 1);
-    O2_FREE(spp->properties);
+    if (spp->properties) O2_FREE(spp->properties);
     spp->properties = p;
 }
 
@@ -314,11 +323,14 @@ int o2_service_set_property(const char *service, const char *attr,
             service_property_free(spp, attr);
             // this test allows us to free attr by passing in value == NULL:
             if (value) service_property_add(spp, attr, value);
-            o2_notify_others(service, TRUE, NULL, spp->properties + 1);
+            o2_notify_others(service, true, NULL, spp->properties);
+            o2_send_cmd("!_o2/si", 0.0, "siss", service, O2_FAIL,
+                        o2_ctx->proc->name,
+                        spp->properties ? spp->properties + 1 : "");
             return O2_SUCCESS;
         }
     }
-    return O2_FAIL;
+    return O2_FAIL; // failed to find local service
 }
 
 

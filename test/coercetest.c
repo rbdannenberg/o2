@@ -12,7 +12,7 @@
 #define snprintf _snprintf
 #endif
 
-int got_the_message = FALSE;
+bool got_the_message = false;
 
 // we do not declare a different handler for each send type, but
 // we check that the message has the expected type string. To
@@ -33,7 +33,7 @@ void service_i(o2_msg_data_ptr data, const char *types,
     assert(arg->i == ((strcmp(send_types, "T") == 0) ||
                       strcmp(send_types, "B") == 0) ? 1 :
            ((strcmp(send_types, "F") == 0) ? 0 : 12345));
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -47,7 +47,7 @@ void service_ip(o2_msg_data_ptr data, const char *types,
     assert(argv[0]->i == ((strcmp(send_types, "T") == 0 ||
                            strcmp(send_types, "B") == 0) ? 1 :
                           ((strcmp(send_types, "F") == 0) ? 0 : 12345)));
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -61,7 +61,7 @@ void service_B(o2_msg_data_ptr data, const char *types,
     assert(arg);
     printf("service_B types=%s bool=%d\n", types, arg->B);
     assert(arg->B == (strcmp(send_types, "F") != 0));
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -73,7 +73,7 @@ void service_Bp(o2_msg_data_ptr data, const char *types,
     assert(argv[0]);
     printf("service_Bp types=%s bool=%d\n", types, argv[0]->B);
     assert(argv[0]->B == (strcmp(send_types, "F") != 0));
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -90,7 +90,7 @@ void service_h(o2_msg_data_ptr data, const char *types,
     assert(arg->h == ((strcmp(send_types, "T") == 0) ||
                        strcmp(send_types, "B") == 0) ? 1 :
                       ((strcmp(send_types, "F") == 0) ? 0 : 12345LL));
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -106,7 +106,7 @@ void service_hp(o2_msg_data_ptr data, const char *types,
     assert(argv[0]->h == ((strcmp(send_types, "T") == 0 ||
                            strcmp(send_types, "B") == 0) ? 1 :
                           ((strcmp(send_types, "F") == 0) ? 0 : 12345)));
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -123,7 +123,7 @@ void service_f(o2_msg_data_ptr data, const char *types,
                        strcmp(send_types, "B") == 0) ? 1 :
                       ((strcmp(send_types, "F") == 0) ? 0 : 1234.0));
 
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -137,7 +137,7 @@ void service_fp(o2_msg_data_ptr data, const char *types,
     assert(argv[0]->f == ((strcmp(send_types, "T") == 0 ||
                            strcmp(send_types, "B") == 0) ? 1 :
                           ((strcmp(send_types, "F") == 0) ? 0 : 1234.0)));
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -154,7 +154,7 @@ void service_d(o2_msg_data_ptr data, const char *types,
                        strcmp(send_types, "B") == 0) ? 1 :
                      ((strcmp(send_types, "F") == 0) ? 0 : 1234.0));
 
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -168,7 +168,7 @@ void service_dp(o2_msg_data_ptr data, const char *types,
     assert(argv[0]->d == ((strcmp(send_types, "T") == 0 ||
                            strcmp(send_types, "B") == 0) ? 1 :
                           ((strcmp(send_types, "F") == 0) ? 0 : 1234.0)));
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -182,7 +182,7 @@ void service_t(o2_msg_data_ptr data, const char *types,
     assert(arg);
     printf("service_t types=%s time=%g\n", types, arg->t);
     assert(arg->t == 1234.0);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -195,7 +195,7 @@ void service_tp(o2_msg_data_ptr data, const char *types,
     assert(argv[0]);
     printf("service_tp types=%s time=%g\n", types, argv[0]->t);
     assert(argv[0]->t == 1234.0);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -209,7 +209,7 @@ void service_S(o2_msg_data_ptr data, const char *types,
     assert(arg);
     printf("service_S types=%s symbol=%s\n", types, arg->S);
     assert(strcmp(arg->S, "aString") == 0);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -222,7 +222,7 @@ void service_Sp(o2_msg_data_ptr data, const char *types,
     assert(argv[0]);
     printf("service_Sp types=%s symbol=%s\n", types, argv[0]->S);
     assert(strcmp(argv[0]->S, "aString") == 0);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -236,7 +236,7 @@ void service_s(o2_msg_data_ptr data, const char *types,
     assert(arg);
     printf("service_S types=%s symbol=%s\n", types, arg->s);
     assert(strcmp(arg->s, "aSymbol") == 0);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -249,12 +249,12 @@ void service_sp(o2_msg_data_ptr data, const char *types,
     assert(argv[0]);
     printf("service_Sp types=%s string=%s\n", types, argv[0]->s);
     assert(strcmp(argv[0]->s, "aSymbol") == 0);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
 
-// receive different sent types as True
+// receive different sent types as true
 void service_T(o2_msg_data_ptr data, const char *types,
                o2_arg_ptr *argv, int argc, void *user_data)
 {
@@ -266,7 +266,7 @@ void service_T(o2_msg_data_ptr data, const char *types,
     o2_get_next('T');
     printf("service_T types=%s\n", types);
     assert(arg);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -276,11 +276,11 @@ void service_Tp(o2_msg_data_ptr data, const char *types,
     assert(strcmp(types, "T") == 0);
     assert(argc == 1);
     printf("service_Tp types=%s\n", types);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
-// receive int32 as FALSE
+// receive int32 as false
 void service_F(o2_msg_data_ptr data, const char *types,
                o2_arg_ptr *argv, int argc, void *user_data)
 {
@@ -292,7 +292,7 @@ void service_F(o2_msg_data_ptr data, const char *types,
     o2_get_next('F');
     assert(arg);
     printf("service_F types=%s\n", types);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -302,7 +302,7 @@ void service_Fp(o2_msg_data_ptr data, const char *types,
     assert(strcmp(types, "F") == 0);
     assert(argc == 1);
     printf("service_Fp types=%s\n", types);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -327,7 +327,7 @@ void service_many(o2_msg_data_ptr data, const char *types,
     assert(arg->f == 123.456F);
     assert(strcmp(types, "hifdt") == 0);
     printf("service_many types=%s\n", types);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -345,7 +345,7 @@ void service_manyp(o2_msg_data_ptr data, const char *types,
     assert(argv[4]->f == 123.456F);
     assert(strcmp(types, "ihdff") == 0);
     printf("service_manyp types=%s\n", types);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -354,7 +354,7 @@ void send_the_message()
     while (!got_the_message) {
         o2_poll();
     }
-    got_the_message = FALSE;
+    got_the_message = false;
 }
 
 
@@ -370,45 +370,45 @@ int main(int argc, const char * argv[])
         send_types[0] = send_type;
         send_types[1] = 0;
         snprintf(address, 32, "/one/%ci", send_type);
-        o2_method_new(address, send_types, &service_i, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, &service_i, NULL, true, false);
 
         snprintf(address, 32, "/one/%cB", send_type);
-        o2_method_new(address, send_types, service_B, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_B, NULL, true, false);
     
         snprintf(address, 32, "/one/%ch", send_type);
-        o2_method_new(address, send_types, service_h, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_h, NULL, true, false);
 
         snprintf(address, 32, "/one/%cf", send_type);
-        o2_method_new(address, send_types, service_f, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_f, NULL, true, false);
 
         snprintf(address, 32, "/one/%cd", send_type);
-        o2_method_new(address, send_types, service_d, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_d, NULL, true, false);
 
         snprintf(address, 32, "/one/%ct", send_type);
-        o2_method_new(address, send_types, service_t, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_t, NULL, true, false);
 
         snprintf(address, 32, "/one/%cT", send_type);
-        o2_method_new(address, send_types, service_T, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_T, NULL, true, false);
 
         snprintf(address, 32, "/one/%cF", send_type);
-        o2_method_new(address, send_types, service_F, NULL, TRUE, FALSE);
+        o2_method_new(address, send_types, service_F, NULL, true, false);
     }
-    o2_method_new("/one/sS", "S", service_S, NULL, TRUE, FALSE);
-    o2_method_new("/one/Ss", "s", service_s, NULL, TRUE, FALSE);
+    o2_method_new("/one/sS", "S", service_S, NULL, true, false);
+    o2_method_new("/one/Ss", "s", service_s, NULL, true, false);
     
-    o2_method_new("/one/ip", "i", &service_ip, NULL, TRUE, TRUE);
-    o2_method_new("/one/Bp", "B", &service_Bp, NULL, TRUE, TRUE);
-    o2_method_new("/one/hp", "h", &service_hp, NULL, TRUE, TRUE);
-    o2_method_new("/one/fp", "f", &service_fp, NULL, TRUE, TRUE);
-    o2_method_new("/one/dp", "d", &service_dp, NULL, TRUE, TRUE);
-    o2_method_new("/one/tp", "t", &service_tp, NULL, TRUE, TRUE);
-    o2_method_new("/one/Tp", "T", &service_Tp, NULL, TRUE, TRUE);
-    o2_method_new("/one/Fp", "F", &service_Fp, NULL, TRUE, TRUE);
-    o2_method_new("/one/sp", "s", &service_sp, NULL, TRUE, TRUE);
-    o2_method_new("/one/Sp", "S", &service_Sp, NULL, TRUE, TRUE);
+    o2_method_new("/one/ip", "i", &service_ip, NULL, true, true);
+    o2_method_new("/one/Bp", "B", &service_Bp, NULL, true, true);
+    o2_method_new("/one/hp", "h", &service_hp, NULL, true, true);
+    o2_method_new("/one/fp", "f", &service_fp, NULL, true, true);
+    o2_method_new("/one/dp", "d", &service_dp, NULL, true, true);
+    o2_method_new("/one/tp", "t", &service_tp, NULL, true, true);
+    o2_method_new("/one/Tp", "T", &service_Tp, NULL, true, true);
+    o2_method_new("/one/Fp", "F", &service_Fp, NULL, true, true);
+    o2_method_new("/one/sp", "s", &service_sp, NULL, true, true);
+    o2_method_new("/one/Sp", "S", &service_Sp, NULL, true, true);
 
-    o2_method_new("/one/many", "hifdt", &service_many, NULL, TRUE, FALSE);
-    o2_method_new("/one/manyp", "ihdff", &service_manyp, NULL, TRUE, TRUE);
+    o2_method_new("/one/many", "hifdt", &service_many, NULL, true, false);
+    o2_method_new("/one/manyp", "ihdff", &service_manyp, NULL, true, true);
 
     o2_send("/one/many", 0, "hifdt", 12345LL, 1234,
             123.456, 123.456, 123.456);
@@ -629,37 +629,37 @@ int main(int argc, const char * argv[])
     send_the_message();
 
     send_types = "B";
-    o2_send("/one/Bi", 0, "B", TRUE);
+    o2_send("/one/Bi", 0, "B", true);
     send_the_message();
-    o2_send("/one/ip", 0, "B", TRUE);
+    o2_send("/one/ip", 0, "B", true);
     send_the_message();
-    o2_send("/one/BB", 0, "B", TRUE);
+    o2_send("/one/BB", 0, "B", true);
     send_the_message();
-    o2_send("/one/Bp", 0, "B", TRUE);
+    o2_send("/one/Bp", 0, "B", true);
     send_the_message();
-    o2_send("/one/Bh", 0, "B", TRUE);
+    o2_send("/one/Bh", 0, "B", true);
     send_the_message();
-    o2_send("/one/hp", 0, "B", TRUE);
+    o2_send("/one/hp", 0, "B", true);
     send_the_message();
-    o2_send("/one/Bf", 0, "B", TRUE);
+    o2_send("/one/Bf", 0, "B", true);
     send_the_message();
-    o2_send("/one/fp", 0, "B", TRUE);
+    o2_send("/one/fp", 0, "B", true);
     send_the_message();
-    o2_send("/one/Bd", 0, "B", TRUE);
+    o2_send("/one/Bd", 0, "B", true);
     send_the_message();
-    o2_send("/one/dp", 0, "B", TRUE);
+    o2_send("/one/dp", 0, "B", true);
     send_the_message();
-    o2_send("/one/BB", 0, "B", TRUE);
+    o2_send("/one/BB", 0, "B", true);
     send_the_message();
-    o2_send("/one/Bp", 0, "B", TRUE);
+    o2_send("/one/Bp", 0, "B", true);
     send_the_message();
-    o2_send("/one/BF", 0, "B", FALSE);
+    o2_send("/one/BF", 0, "B", false);
     send_the_message();
-    o2_send("/one/Fp", 0, "B", FALSE);
+    o2_send("/one/Fp", 0, "B", false);
     send_the_message();
-    o2_send("/one/BT", 0, "B", TRUE);
+    o2_send("/one/BT", 0, "B", true);
     send_the_message();
-    o2_send("/one/Tp", 0, "B", TRUE);
+    o2_send("/one/Tp", 0, "B", true);
     send_the_message();
     
     send_types = "S";

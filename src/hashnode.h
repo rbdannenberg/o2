@@ -14,7 +14,7 @@ extern "C" {
 #define NODE_HASH 10         // tag for hash_node
 #define NODE_HANDLER 11      // tag for handler_entry
 #define NODE_SERVICES 12     // tag for services_entry
-#define NODE_BRIDGE_SERVICE 13  // tag for bridge_entry
+#define NODE_EMPTY 13        // tag that redirects to full path table
 // see also the tag values in o2_net.h for o2n_info_ptr's
 
 
@@ -27,8 +27,8 @@ extern "C" {
 //     hash_node, 
 //     handler_entry, 
 //     services_entry,
-//     osc_info_entry,
-//     bridge_service_entry
+//     osc_info,
+//     bridge_inst
 // Any o2_node can be an entry in a hash table, so hash tables
 // can be used to form trees with named links, i.e. path trees
 // for O2 address search.
@@ -74,10 +74,11 @@ typedef struct handler_entry { // "subclass" of o2_node
     o2_node_ptr next;
     o2_method_handler handler;
     void *user_data;
-    char *full_path; // this is the key for this entry in the o2_context->full_path_table
-    // it is a copy of the key in the master table entry, so you should never
-    // free this pointer -- it will be freed when the master table entry is
-    // freed.
+    char *full_path; // this is the key for this entry in the
+    // o2_ctx->full_path_table; it is a copy of the key in the
+    // path_tree table entry, so you should never free this pointer
+    // -- it will be freed when the path_tree table entry is freed.
+    // (Exception: if O2_NO_PATTERNS, there is no path_tree.)
     o2string type_string; ///< types expected by handler, or NULL to ignore
     int types_len;     ///< the length of type_string
     int coerce_flag;   ///< boolean - coerce types to match type_string?
@@ -102,7 +103,6 @@ o2_node_ptr o2_enumerate_next(enumerate_ptr enumerator);
 
 
 #ifndef O2_NO_DEBUG
-const char *o2_tag_to_string(int tag);
 void o2_node_show(o2_node_ptr info, int indent);
 #endif
 
@@ -132,7 +132,7 @@ hash_node_ptr o2_hash_node_new(const char *key);
 
 hash_node_ptr o2_tree_insert_node(hash_node_ptr node, o2string key);
 
-int o2_embedded_msgs_deliver(o2_msg_data_ptr msg);
+o2_err_t o2_embedded_msgs_deliver(o2_msg_data_ptr msg);
 
 int o2_remove_hash_entry_by_name(hash_node_ptr node, o2string key);
 
@@ -146,7 +146,7 @@ o2string o2_heapify(const char *path);
 /**
  *  Initialize a table entry.
  *
- *  @param node The path tree entry to be initialized.
+ *  @param node table entry to be initialized.
  *  @param key The key (name) of this entry. key is owned by the caller and
  *         a copy is made and owned by the node.
  *

@@ -18,7 +18,7 @@
 int MAX_MSG_COUNT = 50000;
 
 int msg_count = 0;
-int running = TRUE;
+bool running = true;
 
 void client_test(o2_msg_data_ptr data, const char *types,
                  o2_arg_ptr *argv, int argc, void *user_data)
@@ -28,10 +28,9 @@ void client_test(o2_msg_data_ptr data, const char *types,
         sleep(5); // cause sender to block
         o2_send_cmd("/server/hello", 0, "i", 1);
     }
-    int32_t i = msg_count + 1;
 
     if (msg_count >= MAX_MSG_COUNT) {
-        running = FALSE;
+        running = false;
         o2_send_cmd("/server/hello", 0, "i", msg_count);
     }
     if (msg_count % 5000 == 0) {
@@ -60,7 +59,7 @@ int main(int argc, const char *argv[])
 
     o2_initialize("test");
     o2_service_new("client");
-    o2_method_new("/client/hello", "i", &client_test, NULL, FALSE, TRUE);
+    o2_method_new("/client/hello", "i", &client_test, NULL, false, true);
     
     while (o2_status("server") < O2_REMOTE) {
         o2_poll();

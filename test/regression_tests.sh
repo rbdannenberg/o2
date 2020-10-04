@@ -11,6 +11,9 @@ if [ `uname` == 'Linux' ]; then
     BIN=".."
 fi
 
+ABIN=`realpath $BIN`
+
+read -p "Run pattern match and bundle tests? [y,n]: " extensions
 
 # runtest testname - runs testname, saving output in output.txt,
 #    searches output.txt for single full line containing "DONE",
@@ -74,8 +77,19 @@ while true; do
     runtest "arraytest"
     if [ $status == -1 ]; then break; fi
 
-    runtest "bundletest"
+    runtest "bridgeapi"
     if [ $status == -1 ]; then break; fi
+
+    runtest "o2litemsg"
+    if [ $status == -1 ]; then break; fi
+
+    if [ $extensions == "y" ]; then
+        runtest "bundletest"
+        if [ $status == -1 ]; then break; fi
+
+        runtest "patterntest"
+        if [ $status == -1 ]; then break; fi
+    fi
 
     runtest "infotest1"
     if [ $status == -1 ]; then break; fi
@@ -83,16 +97,19 @@ while true; do
     runtest "proptest"
     if [ $status == -1 ]; then break; fi
 
+    runtest "stuniptest"
+    if [ $status == -1 ]; then break; fi
+
     rundouble "statusserver" "SERVER DONE" "statusclient" "CLIENT DONE"
     if [ $status == -1 ]; then break; fi
 
-    rundouble "infotest2" "INFOTEST2 DONE" "clockslave" "CLOCKSLAVE DONE"
+    rundouble "infotest2" "INFOTEST2 DONE" "clockmirror" "CLOCKMIRROR DONE"
     if [ $status == -1 ]; then break; fi
 
-    rundouble "clockmaster" "CLOCKMASTER DONE" "clockslave" "CLOCKSLAVE DONE"
+    rundouble "clockref" "CLOCKREF DONE" "clockmirror" "CLOCKMIRROR DONE"
     if [ $status == -1 ]; then break; fi
 
-    rundouble "appmaster" "APPMASTER DONE" "appslave" "APPSLAVE DONE"
+    rundouble "applead" "APPLEAD DONE" "appfollow" "APPFOLLOW DONE"
     if [ $status == -1 ]; then break; fi
 
     rundouble "o2client" "CLIENT DONE" "o2server" "SERVER DONE"
@@ -116,19 +133,44 @@ while true; do
     rundouble "tcpclient" "CLIENT DONE" "tcpserver" "SERVER DONE"
     if [ $status == -1 ]; then break; fi
 
-    rundouble "oscbndlsend u" "OSCSEND DONE" "oscbndlrecv u" "OSCRECV DONE"
+    rundouble "hubclient" "HUBCLIENT DONE" "hubserver" "HUBSERVER DONE"
     if [ $status == -1 ]; then break; fi
 
-    rundouble "oscbndlsend" "OSCSEND DONE" "oscbndlrecv" "OSCRECV DONE"
+    rundouble "propsend" "DONE" "proprecv" "DONE"
     if [ $status == -1 ]; then break; fi
 
+    rundouble "tappub" "SERVER DONE" "tapsub" "CLIENT DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "dropclient" "DROPCLIENT DONE" "dropserver" "DROPSERVER DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "o2litehost 500t" "CLIENT DONE" "o2liteserv t" "SERVER DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "o2litehost 500" "CLIENT DONE" "o2liteserv u" "SERVER DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "o2client 1000t" "CLIENT DONE" "shmemserv t" "SERVER DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "o2client 1000" "CLIENT DONE" "shmemserv u" "SERVER DONE"
+    if [ $status == -1 ]; then break; fi
+
+    if [ $extensions == "y" ]; then
+        rundouble "oscbndlsend u" "OSCSEND DONE" "oscbndlrecv u" "OSCRECV DONE"
+        if [ $status == -1 ]; then break; fi
+
+        rundouble "oscbndlsend" "OSCSEND DONE" "oscbndlrecv" "OSCRECV DONE"
+        if [ $status == -1 ]; then break; fi
+    fi
 # tests for compatibility with liblo are run only if the binaries were built
 # In CMake, set BUILD_TESTS_WITH_LIBLO to create the binaries
     if [ -f "$BIN/lo_oscrecv" ]; then
-        rundouble "oscsendtest Mu" "OSCSEND DONE" "lo_oscrecv u" "OSCRECV DONE"
+        rundouble "oscsendtest @u" "OSCSEND DONE" "lo_oscrecv u" "OSCRECV DONE"
         if [ $status == -1 ]; then break; fi
 
-        rundouble "oscsendtest M" "OSCSEND DONE" "lo_oscrecv" "OSCRECV DONE"
+        rundouble "oscsendtest @" "OSCSEND DONE" "lo_oscrecv" "OSCRECV DONE"
         if [ $status == -1 ]; then break; fi
     fi
 
@@ -140,20 +182,22 @@ while true; do
         if [ $status == -1 ]; then break; fi
     fi
 
-    if [ -f "$BIN/lo_bndlsend" ]; then
-        rundouble "lo_bndlsend u" "OSCSEND DONE" "oscbndlrecv u" "OSCRECV DONE"
-        if [ $status == -1 ]; then break; fi
+    if [ $extensions == "y" ]; then
+        if [ -f "$BIN/lo_bndlsend" ]; then
+            rundouble "lo_bndlsend u" "OSCSEND DONE" "oscbndlrecv u" "OSCRECV DONE"
+            if [ $status == -1 ]; then break; fi
 
-        rundouble "lo_bndlsend" "OSCSEND DONE" "oscbndlrecv" "OSCRECV DONE"
-        if [ $status == -1 ]; then break; fi
-    fi
+            rundouble "lo_bndlsend" "OSCSEND DONE" "oscbndlrecv" "OSCRECV DONE"
+            if [ $status == -1 ]; then break; fi
+        fi
+        
+        if [ -f "$BIN/lo_bndlrecv" ]; then
+            rundouble  "oscbndlsend Mu" "OSCSEND DONE" "lo_bndlrecv u" "OSCRECV DONE"
+            if [ $status == -1 ]; then break; fi
 
-    if [ -f "$BIN/lo_bndlrecv" ]; then
-        rundouble  "oscbndlsend Mu" "OSCSEND DONE" "lo_bndlrecv u" "OSCRECV DONE"
-        if [ $status == -1 ]; then break; fi
-
-        rundouble  "oscbndlsend M" "OSCSEND DONE" "lo_bndlrecv" "OSCRECV DONE"
-        if [ $status == -1 ]; then break; fi
+            rundouble  "oscbndlsend M" "OSCSEND DONE" "lo_bndlrecv" "OSCRECV DONE"
+            if [ $status == -1 ]; then break; fi
+        fi
     fi
 
     # exit with no errors

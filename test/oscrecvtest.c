@@ -29,11 +29,14 @@ void osc_i_handler(o2_msg_data_ptr data, const char *types,
     assert(argc == 1);
     int i = argv[0]->i;
     if (i == 1234) {
-        printf("osc_i_handler received 1234 at /oscrecv/i\n");
+        printf("osc_i_handler received 1234 at /oscrecv/i @ %g\n",
+               o2_time_get());
         message_count++;
     } else if (i == 2000) {
         timed_start = o2_time_get();
         timed_count = 1;
+        printf("osc_i_handler received %d @ %g\n",
+               i, o2_time_get());
     } else if (2000 < i && i < 2010) {
         printf("osc_i_handler received %d at elapsed %g\n", i,
                o2_time_get() - timed_start);
@@ -45,13 +48,15 @@ void osc_i_handler(o2_msg_data_ptr data, const char *types,
         assert(approx(timed_start + i * 0.1 - now));
         timed_count++;
     } else if (i == 5678) {
-        printf("osc_i_handler received 5678 but port should be closed.\n");
-        assert(FALSE);
+        printf("osc_i_handler received 5678 @ %g but port should be closed.\n",
+               o2_time_get());
+        assert(false);
     } else if (i == 6789) {
-        printf("osc_i_handler received 6789 but port should be closed.\n");
-        assert(FALSE);
+        printf("osc_i_handler received 6789 @ %g but port should be closed.\n",
+               o2_time_get());
+        assert(false);
     } else {
-        assert(FALSE); // unexpected message
+        assert(false); // unexpected message
     }
 }
 
@@ -60,7 +65,7 @@ int main(int argc, const char * argv[])
 {
     printf("Usage: oscrecvtest [flags] "
            "(see o2.h for flags, use a for all, also u for UDP)\n");
-    int tcpflag = TRUE;
+    int tcpflag = true;
     if (argc == 2) {
         o2_debug_flags(argv[1]);
         tcpflag = (strchr(argv[1], 'u') == NULL);
@@ -77,19 +82,22 @@ int main(int argc, const char * argv[])
     
     o2_clock_set(NULL, NULL);
     o2_service_new("oscrecv");
-    o2_method_new("/oscrecv/i", "i", osc_i_handler, NULL, FALSE, TRUE);
+    o2_method_new("/oscrecv/i", "i", osc_i_handler, NULL, false, true);
     while (message_count < 10 || timed_count < 10) {
         o2_poll();
         usleep(2000); // 2ms
     }
-    o2_osc_port_free(8100);
+    err = o2_osc_port_free(8100);
+    assert(err == O2_SUCCESS);
+    printf("*** osc port freed @ %g\n", o2_time_get());
 
-    // now wait for 2 seconds and check for more messages
-    for (int i = 0; i < 1000; i++) {
+    // now wait for 4 seconds and check for more messages
+    // sender will send after 1 seconds
+    for (int i = 0; i < 2000; i++) {
         o2_poll();
         usleep(2000); // 2ms
     }
-        
+    printf("*** calling o2_finish @ %g\n", o2_time_get());
     o2_finish();
     printf("OSCRECV DONE\n");
     sleep(1); // allow TCP to finish up

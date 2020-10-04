@@ -8,6 +8,8 @@
 #define N_ADDRS 10
 #define EXPECTED_COUNT 6
 
+int fail_and_exit = false;
+
 const char *status_strings[] = {
     "O2_LOCAL_NOTIME",
     "O2_REMOTE_NOTIME",
@@ -50,7 +52,7 @@ int si_msg_count = 0;
 char *expected_si_service_first[] = {"one", "two", "_cs"};
 int expected_si_status_first[] = {
         O2_LOCAL_NOTIME, O2_LOCAL_NOTIME, O2_LOCAL};
-char *expected_si_service_later[] = {"_o2", "ip:port", "one", "two"};
+char *expected_si_service_later[] = {"_o2", "one", "two"};
 
 void service_info_handler(o2_msg_data_ptr data, const char *types,
                  o2_arg_ptr *argv, int argc, void *user_data)
@@ -58,61 +60,71 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
     const char *service_name = argv[0]->s;
     int status = argv[1]->i32;
     const char *status_string = status_to_string(status);
-    const char *ip_port = argv[2]->s;
-    printf("service_info_handler called: %s at %s status %s\n", 
-           service_name, ip_port, status_string);
+    const char *process = argv[2]->s;
+    const char *properties = argv[3]->s;
+    printf("service_info_handler called: %s at %s status %s properties %s\n", 
+           service_name, process, status_string, properties);
+    if (!properties || properties[0]) {
+        printf("FAILURE -- expected empty string for properties\n");
+    }
+    // ***** this check is not really relevant anymore because we
+    // ***** do not use the ip:port name (now we use _o2 instead)
+    // ***** but I left this check here because it is not being
+    // ***** tested anywhere else -- why not?
+    // here are 2 ways to get the IP:Port name of this process:
+    // (1) construct from IP string and Port number
     const char *my_ip = NULL;
     int my_port = -1;
     o2_get_address(&my_ip, &my_port);
-    char my_ip_port[32];
+    char my_ip_port[O2_MAX_PROCNAME_LEN];
     if (!my_ip) my_ip = "none";
-    sprintf(my_ip_port, "%s:%d", my_ip, my_port);
-/*
-    // the first 3 /_o2/si messages are listed in expected_si_service_first,
-    // where "ip:port" is replaced by the real ip:port string.
+    snprintf(my_ip_port, O2_MAX_PROCNAME_LEN, "%s:%d", my_ip, my_port);
+
+    // (2) get the name from o2_context (now part of O2 API):
+    const char *o2_ip_port = o2_get_ip_port_string();
+
+    // make sure two methods agree; just a sanity check
+    if (!streql(my_ip_port, o2_ip_port)) {
+        printf("FAILURE -- problem with naming IP and Port for process\n");
+        fail_and_exit = true;
+        return;
+    }
+    // **** END OF o2_get_ip_port_string() AND o2_get_address() TESTS
+
+    // the first 3 /_o2/si messages are listed in expected_si_service_first
     if (si_msg_count < FIRST_COUNT) {
         char *expected_service = expected_si_service_first[si_msg_count];
-        if (streql(expected_service, "ip:port")) {
-            expected_service = my_ip_port;
-        }
         if (!streql(expected_service, service_name) ||
-            !streql(my_ip_port, ip_port) ||
+            !streql(process, "_o2") ||
             status != expected_si_status_first[si_msg_count]) {
-            printf("FAILURE\n");
-            exit(-1);
+            printf("FAILURE: unexpected service_name %s\n", service_name);
+            fail_and_exit = true;
         }
     // EXPECTED_COUNT messages are expected, so si_msg_count will go from
     //  0 through EXPECTED_COUNT - 1
-    } else 
-*/
-    if (si_msg_count >= EXPECTED_COUNT) {
-        printf("FAILURE\n");
-        exit(-1);
+    } else if (si_msg_count >= EXPECTED_COUNT) {
+        printf("FAILURE: si_msg_count >= EXPECTED_COUNT\n");
+        fail_and_exit = true;
     // after the first 3 messages, the clock becomes master, and we expect
-    // 4 more messages in some order and we become O2_LOCAL. The services
+    // 3 more messages in some order and we become O2_LOCAL. The services
     // are in expected_si_service_later[], which we search and remove from
     // to allow for any order of notification (order could vary because
     // O2 will enumerate what's in a hash table.
     } else if (si_msg_count >= FIRST_COUNT) {
         int found_it = 0;
         int i;
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < 3; i++) {
             char *expected_service = expected_si_service_later[i];
-/* It seems like we are not expecting ip:port, so fail if we get it...
-            if (streql(expected_service, "ip:port")) {
-                expected_service = my_ip_port;
-            }
-*/
             if (streql(expected_service, service_name) &&
                 status == O2_LOCAL &&
-                streql(ip_port, my_ip_port)) {
+                streql(process, "_o2")) {
                 expected_si_service_later[i] = "";
                 found_it = 1;
             }
         }
         if (!found_it) {
-            printf("FAILURE\n");
-            exit(-1);
+            printf("FAILURE: !found_it, service_name %s\n", service_name);
+            fail_and_exit = true;
         }
     }
     si_msg_count++;
@@ -128,20 +140,20 @@ int main(int argc, const char * argv[])
         o2_debug_flags(argv[1]);
     }
     o2_initialize("test");    
-    o2_method_new("/_o2/si", "sis", &service_info_handler, NULL, FALSE, TRUE);
+    o2_method_new("/_o2/si", "siss", &service_info_handler, NULL, false, true);
 
     o2_service_new("one");
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/one/benchmark/%d", i);
-        o2_method_new(path, "i", &service_one, NULL, FALSE, FALSE);
+        o2_method_new(path, "i", &service_one, NULL, false, false);
     }
     
     o2_service_new("two");
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/two/benchmark/%d", i);
-        o2_method_new(path, "i", &service_two, NULL, FALSE, FALSE);
+        o2_method_new(path, "i", &service_two, NULL, false, false);
     }
 
     o2_send("/one/benchmark/0", 0, "i", 0);
@@ -152,13 +164,14 @@ int main(int argc, const char * argv[])
     o2_clock_set(NULL, NULL);
     for (int i = 0; i < 1000; i++) {
         o2_poll();
+        if (fail_and_exit) break;
     }
 
     o2_finish();
     if (si_msg_count != EXPECTED_COUNT) {
         printf("FAILURE - wrong si_msg_count (%d), expected %d\n",
                si_msg_count, EXPECTED_COUNT);
-    } else {
+    } else if (!fail_and_exit) {
         printf("DONE\n");
     }
     return 0;

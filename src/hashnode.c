@@ -7,6 +7,7 @@
 #include "o2internal.h"
 #include "services.h"
 #include "o2osc.h"
+#include "bridge.h"
 
 #if IS_LITTLE_ENDIAN
 // for little endian machines
@@ -34,7 +35,8 @@ static int initialize_hashtable(dyn_array_ptr table, int locations)
     DA_INIT_ZERO(*table, o2_node_ptr, locations);
     if (!table->array) return O2_FAIL;
     table->length = locations; // this is a hash table, all locations are used
-    printf("init htable array %p bytes %ld\n", table->array, table->length * sizeof(o2_node_ptr));
+    // printf("init htable array %p bytes %ld\n", table->array,
+    //        table->length * sizeof(o2_node_ptr));
     return O2_SUCCESS;
 }
 
@@ -47,7 +49,7 @@ int o2_node_add(hash_node_ptr hnode, o2_node_ptr entry)
     o2_node_ptr *ptr = o2_lookup(hnode, entry->key);
     if (*ptr) { // if we found it, this is a replacement
         // splice out existing entry and delete it
-        o2_hash_entry_remove(hnode, ptr, FALSE);
+        o2_hash_entry_remove(hnode, ptr, false);
     }
     return o2_add_entry_at(hnode, ptr, entry);
 }
@@ -56,7 +58,7 @@ int o2_node_add(hash_node_ptr hnode, o2_node_ptr entry)
 static int resize_table(hash_node_ptr node, int new_locs)
 {
     dyn_array old = node->children; // copy whole dynamic array
-    if (initialize_hashtable(&(node->children), new_locs))
+    if (initialize_hashtable(&node->children, new_locs))
         return O2_FAIL;
     // now, old array is in old, node->children is newly allocated
     // copy all entries from old to node->children
@@ -89,7 +91,7 @@ static int resize_table(hash_node_ptr node, int new_locs)
 // removed from the full_path_table, which hashes full paths.
 // Note that the full_path_table entries do not have full_path
 // fields (the .full_path field is NULL), so we know that
-// an entry is in the o2_context->path_tree by looking at the
+// an entry is in the o2_ctx->path_tree by looking at the
 // .full_path field.
 //
 // The parameter should be an entry to remove -- either an
@@ -97,15 +99,20 @@ static int resize_table(hash_node_ptr node, int new_locs)
 //
 void o2_node_free(o2_node_ptr entry)
 {
-    // printf("node_free: freeing %s %s\n",
-    //        o2_tag_to_string(entry->tag), entry->key);
     if (entry->tag == NODE_HASH) {
         o2_hash_node_finish(TO_HASH_NODE(entry));
     } else if (entry->tag == NODE_HANDLER) {
         o2_handler_entry_finish((handler_entry_ptr) entry);
     } else if (entry->tag == NODE_SERVICES) {
         o2_services_entry_finish(TO_SERVICES_ENTRY(entry));
-    } else assert(FALSE); // nothing else should be freed
+#ifndef O2_NO_BRIDGES
+    } else if (ISA_BRIDGE(entry)) {
+        bridge_inst_ptr inst = (bridge_inst_ptr) entry;
+        (*(inst->proto->bridge_inst_finish))(inst);
+#endif
+    } else if (entry->tag == NODE_EMPTY) {
+        ;
+    } else assert(false); // nothing else should be freed
     O2_FREE(entry);
 }
 
@@ -123,7 +130,7 @@ void o2_node_show(o2_node_ptr node, int indent)
         printf("\n");
         hash_node_ptr hn = TO_HASH_NODE(node);
         enumerate en;
-        o2_enumerate_begin(&en, &(hn->children));
+        o2_enumerate_begin(&en, &hn->children);
         o2_node_ptr entry;
         while ((entry = o2_enumerate_next(&en))) {
             // see if each entry can be found
@@ -142,12 +149,18 @@ void o2_node_show(o2_node_ptr node, int indent)
     } else if (node->tag == NODE_HANDLER) {
         o2_handler_entry_show(TO_HANDLER_ENTRY(node));
         printf("\n");
-    } else if (PROC_IS_REMOTE(node)) {
+    } else if (ISA_PROC(node)) {
         o2_proc_info_show(TO_PROC_INFO(node));
         printf("\n");
+#ifndef O2_NO_OSC
     } else if (ISA_OSC(node)) {
         o2_osc_info_show(TO_OSC_INFO(node));
         printf("\n");
+#endif
+#ifndef O2_NO_BRIDGES
+    } else if (ISA_BRIDGE(node)) {
+        o2_bridge_show((bridge_inst_ptr) node);
+#endif
     } else {
         printf("\n");
     }
@@ -207,7 +220,7 @@ void o2_hash_node_finish(hash_node_ptr node)
 o2string o2_heapify(const char *path)
 {
     long len = o2_strsize(path);
-    char *rslt = (char *) O2_MALLOC(len);
+    char *rslt = O2_MALLOCNT(len, char);
     // zero fill last 4 bytes
     int32_t *end_ptr = (int32_t *) O2MEM_BIT32_ALIGN_PTR(rslt + len - 1);
     *end_ptr = 0;
@@ -233,7 +246,7 @@ hash_node_ptr o2_node_initialize(hash_node_ptr node, const char *key)
         }
     }
     node->num_children = 0;
-    initialize_hashtable(&(node->children), 2);
+    initialize_hashtable(&node->children, 2);
     return node;
 }
 
@@ -247,13 +260,12 @@ o2_node_ptr *o2_lookup(hash_node_ptr node, o2string key)
     int n = node->children.length;
     int64_t hash = get_hash(key);
     int index = hash % n;
-    // printf("o2_lookup %s in %s hash %ld index %d\n", key, node->key, hash, *index);
     o2_node_ptr *ptr = DA_GET_ADDR(node->children, o2_node_ptr, index);
     while (*ptr) {
         if (streql(key, (*ptr)->key)) {
             break;
         }
-        ptr = &((*ptr)->next);
+        ptr = &(*ptr)->next;
     }
     return ptr;
 }
@@ -261,7 +273,7 @@ o2_node_ptr *o2_lookup(hash_node_ptr node, o2string key)
 
 // remove a child from a hash node. Then free the child
 // (deleting its entire subtree, or if it is a leaf, removing the
-// entry from the o2_context->full_path_table).
+// entry from the o2_ctx->full_path_table).
 // ptr is the address of the pointer to the table entry to be removed.
 // This ptr must be a value returned by o2_lookup or o2_service_find
 // Often, we remove an entry to make room for an insertion, so
@@ -290,7 +302,7 @@ int o2_hash_entry_remove(hash_node_ptr node, o2_node_ptr *child, int resize)
 
 // o2_tree_insert_node -- insert a node for pattern matching.
 // on entry, table points to a tree node pointer, initially it is the
-// address of o2_context->path_tree. If key is already in the table and the
+// address of o2_ctx->path_tree. If key is already in the table and the
 // entry is another node, then just return a pointer to the node address.
 // Otherwise, if key is a handler, remove it, and then create a new node
 // to represent this key.
@@ -309,7 +321,7 @@ hash_node_ptr o2_tree_insert_node(hash_node_ptr node, o2string key)
             return TO_HASH_NODE(*entry_ptr);
         } else {
             // this node cannot be a handler (leaf) and a (non-leaf) node
-            o2_hash_entry_remove(node, entry_ptr, FALSE);
+            o2_hash_entry_remove(node, entry_ptr, false);
         }
     }
     // entry is a valid location. Insert a new node:
@@ -349,7 +361,7 @@ int o2_remove_hash_entry_by_name(hash_node_ptr node, o2string key)
 {
     o2_node_ptr *ptr = o2_lookup(node, key);
     if (*ptr) {
-        return o2_hash_entry_remove(node, ptr, TRUE);
+        return o2_hash_entry_remove(node, ptr, true);
     }
     return O2_FAIL;
 }

@@ -51,7 +51,7 @@ void osc_i_handler(o2_msg_data_ptr data, const char *types,
         assert(approx(timed_start + i * 0.1 - now));
         timed_count++;
     } else {
-        assert(FALSE); // unexpected message
+        assert(false); // unexpected message
     }
 }
 
@@ -60,7 +60,7 @@ int main(int argc, const char * argv[])
 {
     printf("Usage: oscrecvtest [flags] "
            "(see o2.h for flags, use a for all, also u for UDP)\n");
-    int tcpflag = TRUE;
+    int tcpflag = true;
     if (argc == 2) {
         o2_debug_flags(argv[1]);
         tcpflag = (strchr(argv[1], 'u') == NULL);
@@ -77,7 +77,7 @@ int main(int argc, const char * argv[])
     
     o2_clock_set(NULL, NULL);
     o2_service_new("oscrecv");
-    o2_method_new("/oscrecv/i", NULL, osc_i_handler, NULL, FALSE, TRUE);
+    o2_method_new("/oscrecv/i", NULL, osc_i_handler, NULL, false, true);
     while (message_count < 10 || timed_count < 10) {
         o2_poll();
         usleep(2000); // 2ms

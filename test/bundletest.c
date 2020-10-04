@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include "o2.h"
-#include "o2_dynamic.h"
 #include "assert.h"
 // why do we need this? If we need this we also need thread_local from o2_internal.h
 //          #include "o2_message.h"
@@ -39,24 +38,24 @@ int main(int argc, const char * argv[])
 {
     o2_initialize("test");
     o2_service_new("one");
-    o2_method_new("/one/i", "i", &service_one, NULL, TRUE, TRUE);  
+    o2_method_new("/one/i", "i", &service_one, NULL, true, true);
     o2_service_new("two");
-    o2_method_new("/two/i", "i", &service_two, NULL, TRUE, TRUE);
+    o2_method_new("/two/i", "i", &service_two, NULL, true, true);
 
     // make a bundle, starting with two messages
     o2_send_start();
     o2_add_int32(1234);
-    o2_message_ptr one = o2_message_finish(0.0, "/one/i", TRUE);
+    o2_message_ptr one = o2_message_finish(0.0, "/one/i", true);
 
     o2_send_start();
     o2_add_int32(2345);
-    o2_message_ptr two = o2_message_finish(0.0, "/two/i", TRUE);
+    o2_message_ptr two = o2_message_finish(0.0, "/two/i", true);
 
     expected = 21;
     o2_send_start();
     o2_add_message(one);
     o2_add_message(two);
-    o2_send_finish(0.0, "#one", TRUE);
+    o2_send_finish(0.0, "#one", true);
     // because delivery of messages in bundle is nested delivery,
     // the nested messages are queued up. Delivery is strictly
     // sequential. Therefore, we have to call o2_poll() to finish
@@ -69,7 +68,7 @@ int main(int argc, const char * argv[])
     o2_send_start();
     o2_add_message(one);
     o2_add_message(two);
-    o2_send_finish(0.0, "#two", TRUE);
+    o2_send_finish(0.0, "#two", true);
     for (int i = 0; i < 100 && expected != 0; i++) o2_poll();
     assert(expected == 0);
     
@@ -77,13 +76,16 @@ int main(int argc, const char * argv[])
     o2_send_start();
     o2_add_message(one);
     o2_add_message(two);
-    o2_message_ptr bdl = o2_message_finish(0.0, "#one", TRUE);
+    o2_message_ptr bdl = o2_message_finish(0.0, "#one", true);
+    O2_FREE(one);
+    O2_FREE(two);
 
     expected = 2121;
     o2_send_start();
     o2_add_message(bdl);
     o2_add_message(bdl);
-    o2_send_finish(0.0, "#two", TRUE);
+    o2_send_finish(0.0, "#two", true);
+    O2_FREE(bdl);
     for (int i = 0; i < 100 && expected != 0; i++) o2_poll();
     assert(expected == 0);
     

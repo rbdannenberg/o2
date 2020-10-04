@@ -17,11 +17,11 @@ typedef struct services_entry { // "subclass" of o2_node
             // (local service), handler_entry (local service with just one
             // handler for all messages), proc_info (for remote
             // service), osc_info (for service delegated to OSC), or
-            // bridge_entry (for a bridge over alternate non-IP transport).
+            // bridge_inst (for a bridge over alternate non-IP transport).
             // Valid tags for services in this array are:
-            //    NODE_HASH, NODE_HANDLER, NODE_BRIDGE_SERVICE,
-            //    OSC_TCP_CLIENT, OSC_TCP_SERVER, NODE_TAP, INFO_TCP_NOMSGYET,
-            //    PROC_NOCLOCK, PROC_SYNCED
+            //    NODE_HASH, NODE_HANDLER, BRIDGE_NOCLOCK, BRIDGE_SYNCED,
+            //    OSC_TCP_CLIENT, OSC_UDP_CLIENT, INFO_TCP_NOMSGYET,
+            //    PROC_NOCLOCK, PROC_SYNCED, NODE_EMPTY
     dyn_array taps; // the "taps" on this service -- these are of type
             // service_tap and indicate services that should get copies
             // of messages sent to the service named by key.
@@ -48,6 +48,12 @@ typedef struct service_tap {
     proc_info_ptr proc;  // send the message copy to this process
 } service_tap, *service_tap_ptr;
 
+
+o2_err_t o2_service_new2(o2string padded_name);
+
+
+o2_err_t o2_service_provider_new(o2string key, const char *properties,
+                                 o2_node_ptr service, proc_info_ptr proc);
 
 
 /**
@@ -77,7 +83,7 @@ int o2_service_remove(const char *service_name, proc_info_ptr proc,
 int o2_remove_services_by(proc_info_ptr proc);
 
 int o2_tap_remove_from(services_entry_ptr ss, proc_info_ptr proc,
-                       o2string tapper);
+                       const char *tapper);
 
 int o2_remove_taps_by(proc_info_ptr proc);
 
@@ -87,15 +93,17 @@ int o2_service_free(const char *service_name);
 
 void o2_services_entry_finish(services_entry_ptr entry);
 
-int o2_add_to_service_list(services_entry_ptr ss, o2string our_ip_port,
-                            o2_node_ptr service);
+bool o2_add_to_service_list(services_entry_ptr ss, o2string our_ip_port,
+                            o2_node_ptr service, char *properties);
 
 services_entry_ptr *o2_services_find(const char *service_name);
 
 services_entry_ptr *o2_services_from_msg(o2_message_ptr msg);
 
-o2_node_ptr *o2_proc_service_find(proc_info_ptr proc,
+service_provider_ptr o2_proc_service_find(proc_info_ptr proc,
                                   services_entry_ptr services);
+
+void o2_list_services(dyn_array_ptr list);
 
 #ifndef O2_NO_DEBUG
 void o2_services_entry_show(services_entry_ptr node, int indent);

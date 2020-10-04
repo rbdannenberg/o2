@@ -23,8 +23,8 @@ extern "C" {
 #endif
 
 
-void o2_mem_init(char *first_chunk, int64_t size, int mallocp);
-
+void o2_mem_init(char *first_chunk, int64_t size);
+/*
 #ifdef __APPLE__
 #define o2_queue_head OSQueueHead
 #define QUEUE_INIT(q) (q).opaque1 = 0; (q).opaque2 = 0;
@@ -33,11 +33,7 @@ void o2_mem_init(char *first_chunk, int64_t size, int mallocp);
 #else
 #error non-apple implementation needed
 #endif
-
-typedef struct {
-    o2_queue_head incoming; // messages are inserted here
-    o2_message_ptr pending;  // messages in correct order are here
-} o2_msg_queue, *o2_msg_queue_ptr;
+*/
 
 #ifdef __cplusplus
 }

@@ -21,7 +21,7 @@ int max_msg_count = 50000;
 
 char *server_addresses[N_ADDRS];
 int msg_count = 0;
-int running = TRUE;
+bool running = true;
 
 void client_test(o2_msg_data_ptr data, const char *types,
                 o2_arg_ptr *argv, int argc, void *user_data)
@@ -31,7 +31,7 @@ void client_test(o2_msg_data_ptr data, const char *types,
     // server will shut down when it gets data == -1
     if (msg_count >= max_msg_count) {
         i = -1;
-        running = FALSE;
+        running = false;
     }
     o2_send_cmd(server_addresses[msg_count % N_ADDRS], 0, "i", i);
     if (msg_count % 10000 == 0) {
@@ -65,13 +65,13 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/client/benchmark/%d", i);
-        o2_method_new(path, "i", &client_test, NULL, FALSE, TRUE);
+        o2_method_new(path, "i", &client_test, NULL, false, true);
     }
     
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "!server/benchmark/%d", i);
-        server_addresses[i] = (char *) (O2_MALLOC(strlen(path)));
+        server_addresses[i] = O2_MALLOCNT(strlen(path), char);
         strcpy(server_addresses[i], path);
     }
     
@@ -99,6 +99,11 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < 100; i++) {
         o2_poll();
         usleep(2000); // 2ms
+    }
+
+    // clean up
+    for (int i = 0; i < N_ADDRS; i++) {
+        O2_FREE(server_addresses[i]);
     }
     
     o2_finish();

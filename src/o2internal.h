@@ -18,6 +18,8 @@
 #include <math.h>
 #include <assert.h>
 
+typedef int o2_queue_head;
+
 // hash keys are processed in 32-bit chunks so we declare a special
 // string type. These are used in messages as well.
 typedef const char *o2string; // string padded to 4-byte boundary
@@ -28,8 +30,18 @@ typedef const char *o2string; // string padded to 4-byte boundary
 #include "network.h" // to get o2n_info_ptr declaration
 #include "hashnode.h"
 #include "processes.h"
+#include "stun.h"
+#include "mqtt.h"
+#include "bridge.h"
 
-void o2_mem_finish(); // implemented by o2mem.c, called to free
+/*
+ typedef struct {
+    o2_queue_head incoming; // messages are inserted here
+    o2_message_ptr pending;  // messages in correct order are here
+} o2_msg_queue, *o2_msg_queue_ptr;
+*/
+
+void o2_mem_finish(void); // implemented by o2mem.c, called to free
 // any memory managed by o2mem module.
 
 /* gcc doesn't know _Thread_local from C11 yet */
@@ -42,9 +54,6 @@ void o2_mem_finish(); // implemented by o2mem.c, called to free
 #else
 # error Cannot define thread_local
 #endif
-
-// Configuration:
-#define IP_ADDRESS_LEN 32
 
 /** Note: No struct literals in MSVC. */
 #ifdef _MSC_VER
@@ -60,7 +69,8 @@ void o2_mem_finish(); // implemented by o2mem.c, called to free
 
 // OS X and Linux call it "snprintf":
 // snprintf seems to be defined Visual Studio now,
-// Visual Studio 2015 is the first version which defined snprintf, and its _MSC_VER is 1900.
+// Visual Studio 2015 is the first version which defined snprintf,
+// and its _MSC_VER is 1900:
 #if _MSC_VER < 1900
 #define snprintf _snprintf
 #endif
@@ -81,7 +91,8 @@ void o2_mem_finish(); // implemented by o2mem.c, called to free
 // WIN32 requires predefinition of IS_BIG_ENDIAN=1 or IS_BIG_ENDIAN=0
 #else
  #ifdef __APPLE__
-  #include "machine/endian.h" // OS X endian.h is in MacOSX10.8.sdk/usr/include/machine/endian.h
+  // OS X endian.h is in MacOSX10.8.sdk/usr/include/machine/endian.h:
+  #include "machine/endian.h" 
   #define LITTLE_ENDIAN __DARWIN_LITTLE_ENDIAN
  #else
   #include <endian.h>
@@ -104,10 +115,8 @@ void o2_mem_finish(); // implemented by o2mem.c, called to free
 
 extern o2_time o2_local_now;
 extern o2_time o2_global_now;
+extern o2_time o2_global_offset; // o2_global_now - o2_local_now
 extern int o2_gtsched_started;
-
-#define DEFAULT_DISCOVERY_PERIOD 4.0
-extern o2_time o2_discovery_period;
 
 #define O2_ARGS_END O2_MARKER_A, O2_MARKER_B
 /** Default max send and recieve buffer. */
@@ -127,19 +136,12 @@ extern o2_time o2_discovery_period;
 void o2_notify_others(const char *service_name, int added,
                       const char *tappee, const char *properties);
 
-//o2_node_ptr o2_proc_service_find(o2n_info_ptr proc,
-//                                 services_entry_ptr services);
 
-int o2_service_provider_new(o2string key, const char *properties,
-                            o2_node_ptr service, proc_info_ptr proc);
+o2_err_t o2_tap_new(o2string tappee, proc_info_ptr process,
+                      const char *tapper);
 
-
-int o2_service_new2(o2string padded_name);
-
-int o2_tap_new(o2string tappee, proc_info_ptr process, o2string tapper);
-
-int o2_tap_remove(o2string tappee, proc_info_ptr process,
-                  o2string tapper);
+o2_err_t o2_tap_remove(o2string tappee, proc_info_ptr process,
+                  const char *tapper);
 
 // hub flags are used to tell receiver of /dy message what to do.
 // Four cases:
@@ -174,22 +176,46 @@ typedef struct {
 
     hash_node full_path_table;
     hash_node path_tree;
+
+    // support for o2mem:
+    char *chunk; // where to allocate bytes when freelist is empty
+    int64_t chunk_remaining; // how many bytes left in chunk
         
+    // one and only one of the following 2 addresses should be NULL:
     proc_info_ptr proc; ///< the process descriptor for this process
-} o2_context_t, *o2_context_ptr;
+
+    bridge_inst_ptr binst; ///< the bridge descriptor for this 
+                           /// shared memory process
+
+    // This is a stack of messages we are delivering implemented using
+    // the next fields to make a list. If the user receiving a message
+    // decides to exit(), we will find un-freed messages here and free
+    // them, avoiding a(n apparent) memory leak. When a message is not
+    // in a data structure (e.g. pending queue, schedule, network send
+    // queue, the message should be on this list).
+    o2_message_ptr msgs; ///< the message being delivered
+
+    // warning callback for dropped messages
+    void (*warning)(const char *warn, o2_msg_data_ptr msg);
+
+} o2_ctx_t, *o2_ctx_ptr;
+
+
+void o2_ctx_init(o2_ctx_ptr context);
 
 
 /* O2 should not be called from multiple threads. One exception
- * is the o2x_ functions are designed to run in a high-priority thread
+ * is the shared memory bridged processes call functions designed
+ * to run in a high-priority thread
  * (such as an audio callback) that exchanges messages with a full O2
  * process. There is a small problem that O2 message construction and
  * decoding functions use some static, preallocated storage, so sharing
  * across threads is not allowed. To avoid this, we put shared storage
- * in an o2_context_t structure. One structure must be allocated per
- * thread, and we use a thread-local variable o2_thread_info to locate
+ * in an o2_ctx_t structure. One structure must be allocated per
+ * thread, and we use a thread-local variable o2_ctx to locate
  * the context.
  */
-extern thread_local o2_context_ptr o2_context;
+extern thread_local o2_ctx_ptr o2_ctx;
 
 #endif /* O2INTERNAL_H */
 /// \endcond

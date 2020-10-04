@@ -25,11 +25,11 @@
 #define MAX_MSG_COUNT 50000
 
 int msg_count = 0;
-int running = TRUE;
+bool running = true;
 
-int got_start = FALSE;
-int got_one = FALSE;
-int got_max = FALSE;
+bool got_start = false;
+bool got_one = false;
+bool got_max = false;
 
 
 // this is a handler for incoming messages. It simply sends a message
@@ -40,9 +40,9 @@ void server_test(o2_msg_data_ptr msg, const char *types,
 {
     assert(argc == 1);
     assert(strcmp(types, "i") == 0);
-    if (argv[0]->i32 == 0) got_start = TRUE;
-    if (argv[0]->i32 == 1) got_one = TRUE;
-    if (argv[0]->i32 == MAX_MSG_COUNT) got_max = TRUE;
+    if (argv[0]->i32 == 0) got_start = true;
+    if (argv[0]->i32 == 1) got_one = true;
+    if (argv[0]->i32 == MAX_MSG_COUNT) got_max = true;
 }
 
 
@@ -62,7 +62,7 @@ int main(int argc, const char *argv[])
 
     o2_initialize("test");
     o2_service_new("server");
-    o2_method_new("/server/hello", "i", &server_test, NULL, FALSE, TRUE);
+    o2_method_new("/server/hello", "i", &server_test, NULL, false, true);
     
     // we are the master clock
     o2_clock_set(NULL, NULL);
@@ -83,7 +83,7 @@ int main(int argc, const char *argv[])
     }
     assert(got_start);
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
-    int blocked = FALSE;
+    int blocked = false;
     while (msg_count < MAX_MSG_COUNT) {
         if (o2_can_send("client") == O2_SUCCESS) {
             msg_count++;
@@ -98,7 +98,7 @@ int main(int argc, const char *argv[])
                 usleep(2000);
             }
             assert(got_one);
-            blocked = TRUE; // only expected got_one once
+            blocked = true; // only expected got_one once
         }
         o2_poll();
     }

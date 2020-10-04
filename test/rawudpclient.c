@@ -93,11 +93,11 @@ int main(int argc, char **argv)
     local_addr.sin_port = htons(C_PORT);
     /*
     unsigned int yes = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) < 0) {
         displayError("udp setsockopt");
     }
     */
-    if (bind(sock, (struct sockaddr *) &local_addr, sizeof(local_addr))) {
+    if (bind(sock, (struct sockaddr *) &local_addr, sizeof local_addr)) {
         displayError("udp bind");
     }
 
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 
         if (sendto(send_sock, &count, sizeof(int32_t), 0,
                    (struct sockaddr *) &remote_addr,
-                   sizeof(remote_addr)) < 0) {
+                   sizeof remote_addr) < 0) {
             displayError("sendto");
             done = TRUE;
         }

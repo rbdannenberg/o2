@@ -224,6 +224,7 @@ int main(int argc, const char * argv[])
     O2_FREE(gp);
     gp = o2_service_getprop(one, "attr4");
     assert(streql(gp, "\\\\\\\\\\;\\:value4"));
+    O2_FREE(gp);
     assert(o2_services_list_free() == O2_SUCCESS);
 
     o2_finish();

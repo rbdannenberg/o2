@@ -68,25 +68,9 @@ int main(int argc, char **argv)
     local_addr.sin_family = AF_INET;      //AF_INET means using IPv4
     local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     local_addr.sin_port = htons(S_PORT);
-    unsigned int yes = 1;
-    /*
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
-        displayError("udp setsockopt");
-    }
-    */
-    if (bind(sock, (struct sockaddr *) &local_addr, sizeof(local_addr))) {
+    if (bind(sock, (struct sockaddr *) &local_addr, sizeof local_addr)) {
         displayError("udp bind");
     }
-
-    /*
-    int32_t nmsg;
-    int nn;
-    if ((nn = recvfrom(sock, &nmsg, sizeof(int32_t), 0, NULL, NULL)) < 0) {
-        displayError("recvfrom");
-    }
-    printf("GOT ONE? nn == %d\n", nn);
-    */
-
     fds[0].fd = sock;
     fds[0].events = POLLIN;
     fds[0].revents = 0;
@@ -106,7 +90,7 @@ int main(int argc, char **argv)
                 if (n <= 0) break;
                 if (sendto(send_sock, &msg, sizeof(int32_t), 0,
                            (struct sockaddr *) &remote_addr,
-                           sizeof(remote_addr)) < 0) {
+                           sizeof remote_addr) < 0) {
                     displayError("sendto");
                 }
                 count++;

@@ -18,7 +18,7 @@ typedef struct dyn_array {
 #define DA_INIT(a, typ, siz) { \
     (a).allocated = (siz); \
     (a).length = 0;        \
-    (a).array = ((siz) > 0 ? (char *) O2_MALLOC((siz) * sizeof(typ)) : NULL); }
+    (a).array = ((siz) > 0 ? (char *) O2_MALLOCNT((siz), typ) : NULL); }
 
 #define DA_ZERO(a, typ) \
     memset((a).array, 0, sizeof(typ) * (a).allocated)
@@ -45,7 +45,7 @@ typedef struct dyn_array {
  * this variant of the macro that takes the address directly:
  */
 #define DA_GET_ADDR(a, typ, index) \
-    (assert(DA_CHECK(a, index)), &(DA(a, typ)[index]))
+    (assert(DA_CHECK(a, index)), &DA(a, typ)[index])
 
 /* get the last element. Assumes length > 0. */
 #define DA_LAST(a, typ) DA_GET(a, typ, (a).length - 1)
@@ -68,7 +68,7 @@ typedef struct dyn_array {
 #define DA_EXPAND(a, typ) \
         ((((a).length + 1 > (a).allocated) ?  \
              o2_da_expand(&(a), sizeof(typ)) : NULL), \
-         &(DA(a, typ)[(a).length++])) // return new element address
+         &DA(a, typ)[(a).length++]) // return new element address
 
 /* append data (of type typ) to the dynamic array */
 #define DA_APPEND(a, typ, data) { \

@@ -7,7 +7,7 @@
 #ifndef message_h
 #define message_h
 
-extern thread_local o2_context_ptr o2_context;
+extern thread_local o2_ctx_ptr o2_ctx;
 
 // you can OR these together to make message flags
 #define O2_UDP_FLAG 0   // UDP, not TCP
@@ -26,7 +26,11 @@ void o2_argv_initialize(void);
 void o2_argv_finish(void);
 
 /* MESSAGE CONSTRUCTION */
+void o2_message_check_length(int needed);
+
+#ifndef O2_NO_BUNDLES
 int o2_add_bundle_head(int64_t time);
+#endif
 
 int32_t *o2_msg_len_ptr(void);
 
@@ -36,9 +40,12 @@ int o2_add_raw_bytes(int32_t len, char *bytes);
 
 char *o2_msg_data_get(int32_t *len_ptr);
 
+void o2_msg_data_print_2(o2_msg_data_ptr msg);
+
 
 /* GENERAL MESSAGE FUNCIONS */
 
+#ifndef O2_NO_BUNDLES
 #define IS_BUNDLE(msg)((msg)->address[0] == '#')
 
 // Iterate over elements of a bundle. msg is an o2_msg_data_ptr, and
@@ -55,10 +62,10 @@ char *o2_msg_data_get(int32_t *len_ptr);
     while (PTR(embedded) < end_of_msg) { int32_t len; \
         code; \
         embedded = (o2_msg_data_ptr) (PTR(embedded) + len + sizeof(int32_t)); }
-
+#endif
 
 /* allocate message structure with at least size bytes in the data portion */
-#define o2_alloc_message(size) ((o2_message_ptr) o2n_alloc_message(size))
+#define o2_message_new(size) ((o2_message_ptr) o2n_message_new(size))
 
 void o2_message_list_free(o2_message_ptr msg);
 
@@ -75,20 +82,5 @@ int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
                      const char *service_name,
                      const char *path, const char *typestring,
                      int tcp_flag, va_list ap);
-
-/**
- * Print o2_msg_data to stdout
- *
- * @param msg The message to print
- */
-void o2_msg_data_print(o2_msg_data_ptr msg);
-
-
-/**
- * Print an O2 message to stdout
- *
- * @param msg The message to print
- */
-void o2_message_print(o2_message_ptr msg);
 
 #endif /* message_h */

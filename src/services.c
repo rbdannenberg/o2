@@ -6,9 +6,12 @@
 
 #include "o2internal.h"
 #include "services.h"
+#include "message.h"
 #include "msgsend.h"
 #include "o2osc.h"
+#include "bridge.h"
 #include "ctype.h"
+#include "mqtt.h"
 
 /*
 Creating and deleting services. 
@@ -29,6 +32,7 @@ Services entry is created when:
         - o2_service_provider_new()
 - o2_osc_delegate creates a service to forward messages over OSC, calls
     - o2_service_provider_new()
+- o2_mqtt_disc_handler() adds an MQTT process
 - note: no service for local PORT:IP - send to _o2 instead
 
 Services entry is destroyed when:
@@ -42,6 +46,132 @@ Services entry is destroyed when:
     - o2_remove_taps_by() called when process ends
 */
 
+
+// internal implementation of o2_service_new, assumes valid
+// service name with zero padding
+o2_err_t o2_service_new2(o2string padded_name)
+{
+    // find services_node if any
+    hash_node_ptr node = o2_hash_node_new(NULL);
+    if (!node) return O2_FAIL;
+    // this will send /_o2/si message to local process:
+    o2_err_t rslt = o2_service_provider_new(padded_name, NULL,
+                               (o2_node_ptr) node, o2_ctx->proc);
+    if (rslt != O2_SUCCESS) {
+        O2_FREE(node);
+        return rslt;
+    }
+    // Note that when the local IP:PORT service is created,
+    // there are no remote connections yet, so o2_notify_others()
+    // will not send any messages.
+    o2_notify_others(padded_name, true, NULL, NULL);
+
+    return O2_SUCCESS;
+}
+
+
+/* add or update a service provider - a service is added to the list of 
+ * services in  a service_entry struct.
+ * 1) create the service_entry struct if none exists
+ * 2) put the service onto process's list of service names
+ * 3) add new service to the list
+ *
+ * service_name: service to add or update
+ * properties: property string for the service
+ * service: the service provider (e.g. remote process) or the 
+ *          hash table or handler
+ * proc: the process offering the service (remember that a service can
+ *       be offered by many processes. The lowest IP:Port gets priority)
+ *
+ * CASE 1: this is a new local service
+ *
+ * CASE 2: this is the installation of /ip:port for a newly discovered
+ *         remote process. service == proc
+ *
+ * CASE 3: this is creating a service that delegates to OSC. service is
+ *         an osc_info_ptr, process is the local process
+ *
+ * CASE 4: handling /ip:port/sv: service is a o2n_info_ptr equal to
+ *         process. Note that /sv can indicate update to properties
+ * 
+ * CASE 5: this is the installation of /ip:ip:port for a newly discovered
+ *         MQTT process. service == proc
+ *
+ * Algorithm:
+ *  - create or lookup service_name
+ *  - find the service_provider entry in services for proc
+ *  - if we already know about proc, this is a property update: do it
+ *  - otherwise, add the proc by creating a new service_provider entry
+ *  - if the proc is the active service provider, send an /_o2/si message.
+ */
+o2_err_t o2_service_provider_new(o2string service_name,
+            const char *properties, o2_node_ptr service, proc_info_ptr proc)
+{
+    bool active = false;
+    O2_DBd(printf("%s %s o2_service_provider_new adding %s to %s\n",
+                  o2_debug_prefix,
+                  // highlight when proc->name is our IP:Port info:
+                  (streql(service_name, "_o2") ? "****" : ""),
+                  service_name, proc->name));
+    services_entry_ptr ss = o2_must_get_services(service_name);
+    // services exists, is this service already offered by proc?
+    service_provider_ptr spp = o2_proc_service_find(proc, ss);
+
+    // adjust properties to be either NULL or non-empty property string
+    if (properties) {
+        if (properties[0] == 0 || // convert "" or ";" to NULL (no properties)
+            (properties[0] == ';' && properties[1] == 0)) {
+            properties = NULL;
+        } else {
+            properties = o2_heapify(properties);
+        }
+    }
+
+    if (spp && (IS_REMOTE_PROC(spp->service)
+#ifndef O2_NO_MQTT
+                || IS_MQTT_PROC(spp->service)
+#endif
+               )) {
+        // now we know this is a remote service and we can set the properties
+        O2_DBd(printf("%s o2_service_provider_new service exists %s\n",
+                      o2_debug_prefix, service_name));
+        active = DA_GET_ADDR(ss->services, service_provider, 0)->service ==
+                 (o2_node_ptr) proc;
+        if (spp->properties) O2_FREE(spp->properties);
+        spp->properties = (char *) properties;
+    } else if (spp) { // it is an error to replace an existing local service
+        // you must call o2_service_free() first
+        assert(!properties);
+        return O2_SERVICE_EXISTS;
+    } else {
+        // Now we know it's safe to add a service and we have a place to put it
+        active = o2_add_to_service_list(ss, proc->name, service,
+                                        (char *) properties);
+        O2_DBG(printf("%s ** new service %s is %p (%s) active %d\n",
+                      o2_debug_prefix, ss->key, service,
+                      o2_tag_to_string(service->tag), active));
+    }
+    if (active) {
+        // we have an update in the active service, so report it to the local
+        // process; /si msg needs: *service_name* *status* *process-name*
+        int status = o2_status_from_proc(service, NULL);
+        // If this is a new process connection, process_name is NULL
+        // and we do not send !_o2/si yet. See o2n_recv() in o2_net.c
+        // where protocol completes and !_o2/si is sent.
+        const char *proc_name = proc->name;
+        if (proc_name) {
+            if (proc_name == o2_ctx->proc->name) {
+                proc_name = "_o2"; // local process alias is used
+            }
+            o2_send_cmd("!_o2/si", 0.0, "siss", service_name, status,
+                        proc_name, properties ? properties + 1 : "");
+        }
+    }
+
+    return O2_SUCCESS;
+}
+
+
 /* find existing services_entry node for service_name. If none exists,
  *     return NULL.
  * prereq: service_name does not contain '/'
@@ -52,7 +182,7 @@ services_entry_ptr *o2_services_find(const char *service_name)
     // need to copy the service_name to aligned storage and pad it
     char key[NAME_BUF_LEN];
     o2_string_pad(key, service_name);
-    return (services_entry_ptr *) o2_lookup(&o2_context->path_tree, key);
+    return (services_entry_ptr *) o2_lookup(&o2_ctx->path_tree, key);
 }    
 
 
@@ -64,33 +194,46 @@ o2_node_ptr o2_msg_service(o2_msg_data_ptr msg, services_entry_ptr *services)
     char *slash = strchr(service_name, '/');
     if (slash) *slash = 0;
     o2_node_ptr rslt = NULL; // return value if not found
-    //  Incoming messages should have IP:PORT mapped to _o2, and IP:PORT
-    //  should not be in services at all. See if things work that way
-    //  when we can trace the execution. I'm worried somewhere that IP:PORT
-    //  might be added to services by some discovery call and I could miss it
-    //  so need to check at runtime.
-    rslt = o2_service_find(service_name, services);
-    if (rslt && rslt->tag == PROC_TCP_SERVER) {
-        // service name might be an IP:PORT string. Map that
-        // to _o2, so _o2 is an alias for IP:PORT. (However,
-        // messages using "!" will do a hash table lookup on
-        // the full address (!IP:PORT/x/y), so if the method
-        // is entered as !_o2/x/y, the lookup will fail.)
-        rslt = o2_service_find("_o2", services);
+    // When a message if forwarded to a tap, it is marked with the O2_TAP_FLAG
+    // and delivered to a specific tapper process. So if O2_TAP_FLAG is set,
+    // we need to find the service offered by this local process even if it
+    // is not the active service, so we cannot use o2_service_find:
+    if (msg->flags & O2_TAP_FLAG) {
+        *services = *o2_services_find(service_name);
+        service_provider_ptr spp = o2_proc_service_find(o2_ctx->proc, *services);
+        if (spp) rslt = spp->service;
+    } else {
+        rslt = o2_service_find(service_name, services);
     }
-    /* } */
     if (slash) *slash = '/';
     return rslt;
 }
 
 /* prereq: service_name does not contain '/'
  */
-o2_node_ptr o2_service_find(const char *service_name, services_entry_ptr *services)
+o2_node_ptr o2_service_find(const char *service_name,
+                            services_entry_ptr *services)
 {
     *services = *o2_services_find(service_name);
-    if (!*services)
+    if (!*services) {
+        // map local IP:PORT string to "_o2": Note that we could save a hash
+        // lookup by doing this test first, but I think this is pretty rare:
+        // only system messages from remote processes will use !IP:PORT/
+        if (isdigit(service_name[0]) &&
+            streql(service_name, o2_ctx->proc->name)
+#ifndef O2_NO_MQTT
+            || streql(service_name, o2_full_name)
+#endif
+            ) {
+            *services = *o2_services_find("_o2");
+        } else {
+            return NULL;
+        }
+    }
+    // service entry could have taps but no service provider yet
+    if ((*services)->services.length == 0) {
         return NULL;
-    assert((*services)->services.length > 0);
+    }
     return GET_SERVICE((*services)->services, 0);
 }
 
@@ -117,25 +260,28 @@ services_entry_ptr *o2_services_from_msg(o2_message_ptr msg)
 
 
 /** find address of service in services that is offered by proc, if any */
-o2_node_ptr *o2_proc_service_find(proc_info_ptr proc,
-                                  services_entry_ptr services)
+service_provider_ptr o2_proc_service_find(proc_info_ptr proc,
+                                          services_entry_ptr services)
 {
     if (!services) return NULL;
     for (int i = 0; i < services->services.length; i++) {
-        o2_node_ptr *service_ptr = DA_GET_ADDR(services->services, o2_node_ptr, i);
-        o2_node_ptr service = *service_ptr;
-        if (PROC_IS_REMOTE(service) || service->tag == PROC_TCP_SERVER) {
+        service_provider_ptr spp =
+                DA_GET_ADDR(services->services, service_provider, i);
+        o2_node_ptr service = spp->service;
+        if (IS_REMOTE_PROC(service) || service->tag == PROC_TCP_SERVER) {
             if (TO_PROC_INFO(service) == proc) {
-                return service_ptr;
+                return spp;
             }
-        } else if (service->tag == OSC_TCP_CLIENT) {
-            if (o2_context->proc == proc) {
-                return service_ptr;
-            }
-        } else if (service->tag == NODE_HASH ||
-                   service->tag == NODE_HANDLER) { // must be local
-            if (o2_context->proc == proc) {
-                return service_ptr; // local service already exists
+        } else if (service->tag == NODE_HASH || service->tag == NODE_HANDLER
+#ifndef O2_NO_OSC
+                   || service->tag == OSC_TCP_CLIENT
+#endif
+#ifndef O2_NO_BRIDGES
+                   || ISA_BRIDGE(service)
+#endif
+                  ) { // must be local
+            if (o2_ctx->proc == proc) {
+                return spp; // local service already exists
             }
         }
     }
@@ -194,15 +340,22 @@ int o2_service_provider_replace(const char *service_name,
     assert(new_service);
     // clean up the old service node
     if ((*node_ptr)->tag == NODE_HASH ||
-        (*node_ptr)->tag == NODE_HANDLER) {
+        (*node_ptr)->tag == NODE_HANDLER ||
+        (*node_ptr)->tag == NODE_EMPTY) {
         o2_node_free(*node_ptr);
-    } else if ((*node_ptr)->tag == OSC_TCP_CLIENT ||
+    } else if (
+#ifndef O2_NO_OSC
                (*node_ptr)->tag == OSC_TCP_CLIENT ||
-               (*node_ptr)->tag == NODE_BRIDGE_SERVICE) {
-        // service is delegated to OSC, so you cannot install local handler
-        return O2_SERVICE_CONFLICT;
+               (*node_ptr)->tag == OSC_UDP_CLIENT ||
+#endif
+#ifndef O2_NO_BRIDGES
+               ISA_BRIDGE(*node_ptr) ||
+#endif
+               false) { // should optimize out if neither OSC nor BRIDGES
+        // service is delegated, so you cannot install local handler
+        return O2_SERVICE_EXISTS;
     } else {
-        O2_DBg(printf("%s o2_service_provider_replace(%s, ...) did not find "
+        O2_DBG(printf("%s o2_service_provider_replace(%s, ...) did not find "
                       "service offered by this process\n",
                       o2_debug_prefix, service_name));
         return O2_FAIL;  // unexpected tag, give up
@@ -221,10 +374,10 @@ static void remove_empty_services_entry(services_entry_ptr ss)
 {
     // if no service providers or taps left, remove service entry
     if (ss->services.length == 0 && ss->taps.length == 0) {
-        printf("Removing %s from &o2_context->path_tree\n", ss->key);
-        o2_remove_hash_entry_by_name(&o2_context->path_tree, ss->key);
-        printf(" Here is the result:\n");
-        o2_node_show((o2_node_ptr) &o2_context->path_tree, 2);
+        // printf("Removing %s from &o2_ctx->path_tree\n", ss->key);
+        o2_remove_hash_entry_by_name(&o2_ctx->path_tree, ss->key);
+        // printf(" Here is the result:\n");
+        // o2_node_show((o2_node_ptr) &o2_ctx->path_tree, 2);
         // service name (the key in path_tree) is now freed.
     }
 }
@@ -237,13 +390,14 @@ static void remove_empty_services_entry(services_entry_ptr ss)
  * service matching proc. Otherwise, pass NULL for ss. If the index
  * is unknown, pass -1 to do a search.
  *
- * CASE 1: OSC_TCP_CLIENT gets hangup. Get service_name is
- *         from with tag==OSC_TCP_CLIENT,
- *         proc is o2_context->proc
- *     finds and frees osc_info_entry pointed to by services_entry
- *     removes the osc_info_entry pointer from services_entry
+ * CASE 1: OSC_TCP_CLIENT gets hangup, tag==OSC_TCP_CLIENT,
+ *         proc is o2_ctx->proc
+ *     find osc_info_entry that is offering the service
+ *     remove the osc_info_entry pointer from services_entry
  *     if services_entry is empty, remove service from path_tree
- *     if proc is o2_context->proc, notify that service is gone from proc
+ *     notify that service is gone from proc
+ *     the osc_info_entry's service_name is owned by the services_entry
+ *     free the osc_info_entry
  *  
  * CASE 2: /ip:port/sv gets a service removed message. info is remote
  *
@@ -252,6 +406,8 @@ static void remove_empty_services_entry(services_entry_ptr ss)
  *         back-pointer from info to services.
  *
  * CASE 4: service is removed from local process by o2_service_free()
+ *
+ * CASE 5: service is a bridge service, proc is the o2_ctx-proc
  */
 int o2_service_remove(const char *service_name, proc_info_ptr proc,
                       services_entry_ptr ss, int index)
@@ -261,30 +417,38 @@ int o2_service_remove(const char *service_name, proc_info_ptr proc,
         index = -1; // indicates we should search ss
     }
     if (!ss || ss->tag != NODE_SERVICES) {
-        O2_DBg(printf("%s o2_service_remove(%s, %s) did not find "
+        O2_DBG(printf("%s o2_service_remove(%s, %s) did not find "
                       "service\n",
-                      o2_debug_prefix, service_name, proc->name));
+                      o2_debug_prefix, service_name,
+                      IS_REMOTE_PROC(proc) ? proc->name : "local"));
         return O2_FAIL;
     }
-    dyn_array_ptr svlist = &(ss->services); // list of services
+    dyn_array_ptr svlist = &ss->services; // list of services
     
-    // search for the entry in the list of services that corresponds to info
+    // search for the entry in the list of services that corresponds to proc
     if (index < 0) {
         for (index = 0; index < svlist->length; index++) {
             o2_node_ptr serv = GET_SERVICE(*svlist, index);
             int tag = serv->tag;
-            if (PROC_IS_REMOTE(serv) && TO_PROC_INFO(serv) == proc) {
+            if (IS_REMOTE_PROC(serv) && TO_PROC_INFO(serv) == proc) {
                 break;
-            } else if ((tag == NODE_HASH || tag == NODE_HANDLER) &&
-                       proc == o2_context->proc) {
+            } else if ((tag == NODE_HASH || tag == NODE_HANDLER ||
+                        tag == NODE_EMPTY
+#ifndef O2_NO_BRIDGES
+                        || tag == BRIDGE_NOCLOCK
+                        || tag == BRIDGE_SYNCED
+                       ) && proc == o2_ctx->proc) {
+#endif
                 o2_node_free(serv);
                 break;
+#ifndef O2_NO_OSC
             } else if (tag == OSC_TCP_CLIENT) {
                 osc_info_ptr osc = TO_OSC_INFO(serv);
                 // clearing service_name prevents o2_osc_info_free() from
                 // trying to remove the service (again):
+                O2_FREE(osc->service_name);
                 osc->service_name = NULL;
-                    // setting to N
+                // o2n_close_socket does nothing if the socket is already closed
                 o2n_close_socket(osc->net_info);
                 // later, when socket is removed, o2_osc_info_free()
                 // will be called
@@ -296,16 +460,18 @@ int o2_service_remove(const char *service_name, proc_info_ptr proc,
                 // osc_info object -- there's nothing else to clean up.
                 O2_FREE(TO_OSC_INFO(serv));
                 break;
+#endif
             } else {
-                assert(tag != NODE_BRIDGE_SERVICE);
+                assert(false);
             }
         }
     }
-    // if we did not find what we wanted to replace, stop here
+    // if we did not find what we wanted to remove, stop here
     if (index >= svlist->length) {
-        O2_DBg(printf("%s o2_service_remove(%s, %s, ...) did not find "
+        O2_DBG(printf("%s o2_service_remove(%s, %s, ...) did not find "
                       "service offered by this process\n",
-                      o2_debug_prefix, service_name, proc->name));
+                      o2_debug_prefix, service_name,
+                      IS_REMOTE_PROC(proc) ? proc->name : "local"));
         return O2_FAIL;
     }
     // ASSERT: index is now the index of the service we are deleting or
@@ -321,12 +487,8 @@ int o2_service_remove(const char *service_name, proc_info_ptr proc,
 
     o2_do_not_reenter++; // protect data structures
     // send notification message
-    assert(proc->name[0]);
-    // exclude reports of our own IP:PORT service
-    if (!isdigit(service_name[0]) || proc->tag != PROC_TCP_SERVER) {
-        o2_send_cmd("!_o2/si", 0.0, "sis", service_name, O2_FAIL,
-                    proc->name);
-    }
+    o2_send_cmd("!_o2/si", 0.0, "siss", service_name, O2_FAIL,
+                ISA_PROC(proc) ? proc->name : o2_ctx->proc->name, "");
 
     // if we deleted active service, pick a new one
     if (index == 0) { // move top ip:port provider to top spot
@@ -334,24 +496,33 @@ int o2_service_remove(const char *service_name, proc_info_ptr proc,
     }
     // now we probably have a new service, report it:
     if (svlist->length > 0) {
-        o2_node_ptr new_service = GET_SERVICE(*svlist, 0);
+        service_provider_ptr spp = GET_SERVICE_PROVIDER(*svlist, 0);
         const char *process_name;
-        int status = o2_status_from_proc(new_service, &process_name);
+        int status = o2_status_from_proc(spp->service, &process_name);
         if (status != O2_FAIL) {
             assert(process_name[0]);
             // exclude reports of our own IP:PORT service
-            if (!isdigit(service_name[0] || new_service->tag != PROC_TCP_SERVER)) {
-                o2_send_cmd("!_o2/si", 0.0, "sis", service_name, status,
-                            process_name);
-            }
+//        if (!isdigit(service_name[0] ||
+//            new_service->tag != PROC_TCP_SERVER)) {
+            o2_send_cmd("!_o2/si", 0.0, "siss", service_name, status,
+                        process_name,
+                        spp->properties ? spp->properties + 1 : "");
         }
     }
     // if no more services or taps, remove the whole services_entry:
+    // service_name might actually be ss->key, in which case is could
+    // be freed, so keep a copy so we can send notification below
+    char name[MAX_SERVICE_LEN];
+    strncpy(name, service_name, MAX_SERVICE_LEN);
     remove_empty_services_entry(ss);
 
     // if the service was local, tell other processes that it is gone
-    if (proc == o2_context->proc) {
-        o2_notify_others(service_name, FALSE, NULL, NULL);
+    if (proc == o2_ctx->proc
+#ifndef O2_NO_BRIDGES
+        || ISA_BRIDGE(proc)
+#endif
+       ) {
+        o2_notify_others(name, false, NULL, NULL);
     }
     o2_do_not_reenter--;
     return O2_SUCCESS;
@@ -363,7 +534,7 @@ int o2_service_remove(const char *service_name, proc_info_ptr proc,
 // returns O2_SUCCESS if at least one tap was removed, o.w. O2_FAIL
 //
 int o2_tap_remove_from(services_entry_ptr ss, proc_info_ptr proc,
-                       o2string tapper)
+                       const char *tapper)
 {
     int result = O2_FAIL;
     for (int i = 0; i < ss->taps.length; i++) {
@@ -391,21 +562,21 @@ int o2_tap_remove_from(services_entry_ptr ss, proc_info_ptr proc,
 services_entry_ptr o2_must_get_services(o2string service_name)
 {
     services_entry_ptr *services = (services_entry_ptr *)
-            o2_lookup(&o2_context->path_tree, service_name);
+            o2_lookup(&o2_ctx->path_tree, service_name);
     if (*services) return *services;
-    services_entry_ptr s = O2_CALLOC(1, sizeof(services_entry));
+    services_entry_ptr s = O2_CALLOCT(services_entry);
     s->tag = NODE_SERVICES;
     s->key = o2_heapify(service_name);
     s->next = NULL;
-    DA_INIT(s->services, o2n_info_ptr, 1);
+    DA_INIT(s->services, service_provider, 1);
     // No need to initialize s->taps because it is empty.
-    o2_add_entry_at(&o2_context->path_tree, (o2_node_ptr *) services,
+    o2_add_entry_at(&o2_ctx->path_tree, (o2_node_ptr *) services,
                     (o2_node_ptr) s);
     return s;
 }
 
 
-// remove a service from o2_context->path_tree
+// remove a service from o2_ctx->path_tree
 //
 int o2_service_free(const char *service_name)
 {
@@ -414,16 +585,16 @@ int o2_service_free(const char *service_name)
     }
     if (!service_name || strchr(service_name, '/'))
         return O2_BAD_SERVICE_NAME;
-    return o2_service_remove(service_name, o2_context->proc, NULL, -1);
+    return o2_service_remove(service_name, o2_ctx->proc, NULL, -1);
 }
 
 // put a list of services_entry's into an *unitialized* dynamic array
 //
-static void list_services(dyn_array_ptr list)
+void o2_list_services(dyn_array_ptr list)
 {
-    DA_INIT(*list, services_entry_ptr, o2_context->path_tree.num_children);
+    DA_INIT(*list, services_entry_ptr, o2_ctx->path_tree.num_children);
     enumerate enumerator;
-    o2_enumerate_begin(&enumerator, &o2_context->path_tree.children);
+    o2_enumerate_begin(&enumerator, &o2_ctx->path_tree.children);
     o2_node_ptr entry;
     while ((entry = o2_enumerate_next(&enumerator))) {
         services_entry_ptr services = TO_SERVICES_ENTRY(entry);
@@ -444,17 +615,22 @@ int o2_remove_services_by(proc_info_ptr proc)
     // first make a list of services. Then iterate over that list
     // to remove services.
     dyn_array services_list;
-    assert(proc != o2_context->proc); // assumes remote proc
-    list_services(&services_list);
+    assert(proc != o2_ctx->proc); // assumes remote proc
+    o2_list_services(&services_list);
     int result = O2_SUCCESS;
     for (int i = 0; i < services_list.length; i++) {
-        services_entry_ptr services = DA_GET(services_list, services_entry_ptr, i);
+        services_entry_ptr services =
+                DA_GET(services_list, services_entry_ptr, i);
         for (int j = 0; j < services->services.length; j++) {
-            service_provider_ptr spp = GET_SERVICE_PROVIDER(services->services, i);
+            service_provider_ptr spp =
+                    GET_SERVICE_PROVIDER(services->services, j);
             if (spp->service == (o2_node_ptr) proc) {
-                if (!o2_service_remove(services->key, proc, services, i)) {
+                if (!o2_service_remove(services->key, proc, services, j)) {
                     result = O2_FAIL; // this should never happen
                 }
+                break; // can only be one of services offered by proc, and maybe
+                // even services was removed, so we should move on to the next
+                // service in services list
             }
         }
     }
@@ -471,11 +647,12 @@ int o2_remove_services_by(proc_info_ptr proc)
 int o2_remove_taps_by(proc_info_ptr proc)
 {
     dyn_array services_list;
-    assert(proc != o2_context->proc); // assumes remote proc
-    list_services(&services_list);
+    assert(proc != o2_ctx->proc); // assumes remote proc
+    o2_list_services(&services_list);
     int result = O2_SUCCESS;
     for (int i = 0; i < services_list.length; i++) {
-        services_entry_ptr services = DA_GET(services_list, services_entry_ptr, i);
+        services_entry_ptr services =
+                DA_GET(services_list, services_entry_ptr, i);
         if (o2_tap_remove_from(services, proc, NULL) == O2_FAIL) {
             result = O2_FAIL; // avoid infinite loop, can't remove tap
         }
@@ -489,13 +666,24 @@ int o2_remove_taps_by(proc_info_ptr proc)
 void o2_services_entry_finish(services_entry_ptr ss)
 {
     for (int i = 0; i < ss->services.length; i++) {
-        o2_node_ptr service = GET_SERVICE(ss->services, i);
-        if (service->tag == NODE_HASH || service->tag == NODE_HANDLER) {
+        service_provider_ptr spp = GET_SERVICE_PROVIDER(ss->services, i);
+        o2_node_ptr service = spp->service;
+        if (service->tag == NODE_HASH || service->tag == NODE_HANDLER
+#ifndef O2_NO_BRIDGES
+            || ISA_BRIDGE(service)
+#endif
+            ) {
             o2_node_free(service);
+#ifndef O2_NO_OSC
         } else if (ISA_OSC(service)) {
             osc_info_ptr osc = TO_OSC_INFO(service);
             o2_osc_info_free(osc);
-        } else assert(PROC_IS_REMOTE(service));
+#endif
+        } else assert(IS_REMOTE_PROC(service));
+        // free the properties string if any
+        if (spp->properties) {
+            O2_FREE(spp->properties);
+        }
     }
     DA_FINISH(ss->services);
     // free the taps
@@ -508,25 +696,27 @@ void o2_services_entry_finish(services_entry_ptr ss)
 }
 
 
-int o2_add_to_service_list(services_entry_ptr ss, o2string our_ip_port,
-                           o2_node_ptr service)
+bool o2_add_to_service_list(services_entry_ptr ss, o2string our_ip_port,
+                           o2_node_ptr service, char *properties)
 {
     // find insert location: either at front or at back of services->services
-    DA_EXPAND(ss->services, o2_node_ptr);
+    DA_EXPAND(ss->services, service_provider);
     int index = ss->services.length - 1;
     // new service will go into services at index
     if (index > 0) { // see if we should go first
         // find the top entry
-        o2_node_ptr top_entry = GET_SERVICE(ss->services, 0);
-        o2string top_ipport = o2_node_to_ipport(top_entry);
+        service_provider_ptr top_entry = GET_SERVICE_PROVIDER(ss->services, 0);
+        o2string top_ipport = o2_node_to_ipport(top_entry->service);
         if (strcmp(our_ip_port, top_ipport) > 0) {
             // move top entry from location 0 to end of array at index
-            DA_SET(ss->services, o2_node_ptr, index, top_entry);
+            DA_SET(ss->services, service_provider, index, *top_entry);
             index = 0; // put new service at the top of the list
         }
     }
     // index is now indexing the first or last of services
-    DA_SET(ss->services, o2_node_ptr, index, service);
+    service_provider_ptr target = GET_SERVICE_PROVIDER(ss->services, index);
+    target->service = service;
+    target->properties = properties;
     o2_mem_check(ss->services.array);
     return (index == 0); // new service
 }

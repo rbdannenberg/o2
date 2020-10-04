@@ -1,9 +1,18 @@
 //  infotest2.c -- test if we get info via /_o2/si
 //
+// intended to run in parallel with clockmirror
+// Tests /si messages. Expected messages are listed in si_status. They
+// are grouped because the exact order is not specified, but we go through
+// a sequence of transitions resulting in groups of status messages as listed.
+//
+// Based on clockmaster.c
+//
+// Sequence is:
 
 #include <stdio.h>
 #include "o2.h"
 #include "string.h"
+#include <ctype.h>
 #ifdef WIN32
 #include "usleep.h" // special windows implementation of sleep/usleep
 #else
@@ -51,8 +60,8 @@ o2_time cs_time = 1000000.0;
 void clockmaster(o2_msg_data_ptr msg, const char *types,
                  o2_arg_ptr *argv, int argc, void *user_data)
 {
-    int ss = o2_status("server");
-    int cs = o2_status("client");
+    o2_status_t ss = o2_status("server");
+    o2_status_t cs = o2_status("client");
     printf("infotest2: local time %g global time %g "
            "server status %d client status %d\n",
            o2_local_time(), o2_time_get(), ss, cs);
@@ -63,52 +72,136 @@ void clockmaster(o2_msg_data_ptr msg, const char *types,
             printf("infotest2 sync time %g\n", cs_time);
         }
     }
-    // stop 12s later to make sure clockslave shuts down first and
+    // stop 12s later to make sure clockmirror shuts down first and
     // we get the status info (/_o2/si) messages about it
     if (o2_time_get() > cs_time + 12) {
-        o2_stop_flag = TRUE;
-        printf("infotest2 set stop flag TRUE at %g\n", o2_time_get());
+        o2_stop_flag = true;
+        printf("infotest2 set stop flag true at %g\n", o2_time_get());
     }
     o2_send("!server/clockmaster", o2_time_get() + 1, "");
 }
 
 
-char my_ip_port[32];
-char remote_ip_port[32];
-
-int check_service_name(const char *service, const char **names, int index)
-{
-    const char *expected = names[index];
-    if (streql(expected, "ip:port")) {
-        expected = my_ip_port;
-    } else if (streql(expected, "remote")) {
-        expected = remote_ip_port;
-    }
-    return streql(service, expected);
-}
-
-
+char remote_ip_port[O2_MAX_PROCNAME_LEN];
 
 int si_msg_count = 0;
 
-// first wave of status info is local before set_clock
-#define EXPECTED_1 3
-const char *expected_si_service_1[] = {"one", "server", "_cs"};
-int expected_si_status_1[] = {O2_LOCAL_NOTIME, O2_LOCAL_NOTIME, O2_LOCAL};
+// local services are create first in this order.
+// LN is local non-synchronized, L is local synchronized
 
-// second wave of status info is local after set_clock
-#define EXPECTED_2 (3 + (EXPECTED_1))
-const char *expected_si_service_2[] = {"_o2", "one", "server"};
+const char *group1[8] = {"one", "LN", NULL, NULL, NULL, NULL, NULL, NULL};
+const char *group2[8] = {"server", "LN", NULL, NULL, NULL, NULL, NULL, NULL};
+const char *group3[8] = {"_cs", "L", NULL, NULL, NULL, NULL, NULL, NULL};
+const char *group4[8] = {"one", "L", "server", "L", "_o2", "L", NULL, NULL};
 
-// third wave of status info is for remote process
-#define EXPECTED_3 (2 + (EXPECTED_2))
-const char *expected_si_service_3[] = {"remote", "client"};
+// "remote" refers to the remote process; client is a service it offers
+// RN is remote, not synchronized; R is remote, synchronized, X is dead
 
-// fourth wave of status info is for remote process
-#define EXPECTED_4 (2 + (EXPECTED_3))
+const char *group5[8] = {"remote", "RN", "client", "RN",
+                         NULL, NULL, NULL, NULL};
+const char *group6[8] = {"remote", "R", "client", "R", NULL, NULL, NULL, NULL};
+const char *group7[8] = {"remote", "X", "client", "X", NULL, NULL, NULL, NULL};
 
-// fifth wave of status info is for remote process closing down
-#define EXPECTED_5 (2 + (EXPECTED_4))
+const char **si_status[8];
+
+void init_si_status()
+{
+    si_status[0] = group1;
+    si_status[1] = group2;
+    si_status[2] = group3;
+    si_status[3] = group4;
+    si_status[4] = group5;
+    si_status[5] = group6;
+    si_status[6] = group7;
+    si_status[7] = NULL;
+}
+
+// Expected si service and status is encoded in si_status.
+// We need to find each member in the group at si_status[0].
+// Then we shift si_status to the next group.
+//
+const char **find_group()
+{
+    /*
+    printf("find_group\n");
+    for (int i = 0; si_status[i]; i++) {
+        printf("    [");
+        for (int j = 0; si_status[i][j]; j += 2) {
+            printf(" %s %s ", si_status[i][j], si_status[i][j + 1]);
+        }
+        printf("]\n");
+    } */
+    if (!si_status[0]) {
+        return NULL;
+    } else if (!si_status[0][0]) {
+        // used every member of si_status[0], so shift
+        int i = 0;
+        while (si_status[i]) {
+            si_status[i] = si_status[i + 1];
+            i++;
+        }
+    }
+    if (si_status[0]) {
+        printf("find_group returns [");
+        for (int j = 0; si_status[0][j]; j += 2) {
+            printf("%s %s  ", si_status[0][j], si_status[0][j + 1]);
+        }
+        printf("]\n");
+    } else {
+        printf("find_group returns (nothing left)\n");
+    }
+    return si_status[0];
+}
+
+
+int check_service(const char *service, const char *ip_port, int status)
+{
+    const char **group = find_group();
+    // when we first hear about a remote process, store the name here
+    if (!remote_ip_port[0] && !streql(ip_port, "_o2")) {
+        strcpy(remote_ip_port, ip_port);
+    }
+    // search group for expected service/status
+    int i = 0;
+    while (group[i]) {
+        if (streql(group[i], "remote")) {
+            group[i] = remote_ip_port;
+        }
+        if (streql(group[i], service)) { // found it
+            bool good_ip_port =
+                    (group[i + 1][0] == 'L' && streql(ip_port, "_o2")) ||
+                    (group[i + 1][0] == 'R' && streql(ip_port, remote_ip_port)) ||
+                    (group[i + 1][0] == 'X');
+            if (!good_ip_port) {
+                printf("Bad ip_port %s for service %s, status %s\n",
+                       ip_port, service, status_to_string(status));
+            }
+            if ((status == O2_LOCAL_NOTIME && streql(group[i+1], "LN")) ||
+                (status == O2_LOCAL && streql(group[i+1], "L")) ||
+                (status == O2_REMOTE_NOTIME && streql(group[i+1], "RN")) ||
+                (status == O2_REMOTE && streql(group[i+1], "R")) ||
+                (status == O2_FAIL && streql(group[i+1], "X"))) {
+                // delete by shifting remaining members
+                printf("    found service \"%s\" in group\n", service);
+                while (group[i]) {
+                    group[i] = group[i + 2];
+                    group[i + 1] = group[i + 3];
+                    i = i + 2;
+                }
+                return true;
+            } else {
+                printf("Bad status %s for %s, expected %s\n",
+                       status_to_string(status), service, group[i + 1]);
+                return false; // bad status
+            }
+        }
+        i += 2;
+    }
+    printf("Service %s not expected, status is %s.\n", service,
+           status_to_string(status));
+    return false; // did not find the service
+}
+
 
 void service_info_handler(o2_msg_data_ptr data, const char *types,
                  o2_arg_ptr *argv, int argc, void *user_data)
@@ -117,84 +210,14 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
     int status = argv[1]->i32;
     const char *status_string = status_to_string(status);
     const char *ip_port = argv[2]->s;
-    printf("service_info_handler called: %s at %s status %s\n", 
-           service_name, ip_port, status_string);
-    const char *my_ip = NULL;
-    int my_port = -1;
-    o2_get_address(&my_ip, &my_port);
-    if (!my_ip) my_ip = "none";
-    sprintf(my_ip_port, "%s:%d", my_ip, my_port);
-    // the first 4 /_o2/si messages are listed in expected_si_service_1,
-    // where "ip:port" is replaced by the real ip:port string.
-
-    if (si_msg_count < EXPECTED_1) {
-        if (!check_service_name(service_name, expected_si_service_1, si_msg_count) ||
-            !streql(my_ip_port, ip_port) ||
-            status != expected_si_status_1[si_msg_count]) {
-            printf("FAILURE\n");
-            exit(-1);
-        }
-
-    // after the first EXPECTED_1 messages, the clock becomes master, and we
-    // expect messages in some order and we become O2_LOCAL. The services
-    // are in expected_si_service_2[], which we search and remove from
-    // to allow for any order of notification (order could vary because
-    // O2 will enumerate what's in a hash table.
-    } else if (si_msg_count < EXPECTED_2) {
-        int found_it = 0;
-        int i;
-        for (i = 0; i < EXPECTED_2 - EXPECTED_1; i++) {
-            if (check_service_name(service_name, expected_si_service_2, i) &&
-                status == O2_LOCAL &&
-                streql(ip_port, my_ip_port)) {
-                expected_si_service_2[i] = "";
-                found_it = 1;
-            }
-        }
-        if (!found_it) {
-            printf("FAILURE\n");
-            exit(-1);
-        }
-    } else if (si_msg_count < EXPECTED_3) {
-        if (remote_ip_port[0] == 0) {
-            strcpy(remote_ip_port, ip_port);
-        }
-        int found_it = 0;
-        int i;
-        for (i = 0; i < EXPECTED_3 - EXPECTED_2; i++) {
-            if (check_service_name(service_name, expected_si_service_3, i) &&
-                streql(ip_port, remote_ip_port) &&
-                status == O2_REMOTE_NOTIME) {
-                found_it = 1;
-            }
-        }
-        if (!found_it) {
-            printf("FAILURE\n");
-            exit(-1);
-        }
-    } else if (si_msg_count < EXPECTED_4) {
-        if (remote_ip_port[0] == 0) {
-            strcpy(remote_ip_port, service_name);
-        }
-        if (!check_service_name(service_name, expected_si_service_3,
-                                si_msg_count - EXPECTED_3) ||
-            !streql(ip_port, remote_ip_port) ||
-            status != O2_REMOTE) {
-            printf("FAILURE\n");
-            exit(-1);
-        }
-    } else if (si_msg_count < EXPECTED_5) {
-        if (remote_ip_port[0] == 0) {
-            strcpy(remote_ip_port, service_name);
-        }
-        if (!check_service_name(service_name, expected_si_service_3,
-                                si_msg_count - EXPECTED_4) ||
-            !streql(ip_port, remote_ip_port) ||
-            status != O2_FAIL) {
-            printf("FAILURE\n");
-            exit(-1);
-        }
-    } else {
+    const char *properties = argv[3]->s;
+    printf("service_info_handler called: %s at %s status %s msg %d "
+           "properties %s\n", 
+           service_name, ip_port, status_string, si_msg_count, properties);
+    if (!properties || properties[0]) {
+        printf("FAILURE -- expected empty string for properties\n");
+    }
+    if (!check_service(service_name, ip_port, status)) {
         printf("FAILURE\n");
         exit(-1);
     }
@@ -204,6 +227,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
 
 int main(int argc, const char * argv[])
 {
+    init_si_status();
     printf("Usage: infotest2 [debugflags] "
            "(see o2.h for flags, use a for all)\n");
     if (argc == 2) {
@@ -215,18 +239,21 @@ int main(int argc, const char * argv[])
     }
 
     remote_ip_port[0] = 0; // initialize to empty string meaning "unknown"
-    o2_initialize("test");    
-    o2_method_new("/_o2/si", "sis", &service_info_handler, NULL, FALSE, TRUE);
+    if (o2_initialize("test")) {
+        printf("FAIL\n");
+        return -1;
+    }
+    o2_method_new("/_o2/si", "siss", &service_info_handler, NULL, false, true);
 
     o2_service_new("one");
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/one/benchmark/%d", i);
-        o2_method_new(path, "i", &service_one, NULL, FALSE, FALSE);
+        o2_method_new(path, "i", &service_one, NULL, false, false);
     }
     
     o2_service_new("server");
-    o2_method_new("/server/clockmaster", "", &clockmaster, NULL, FALSE, FALSE);
+    o2_method_new("/server/clockmaster", "", &clockmaster, NULL, false, false);
 
     o2_send("/one/benchmark/0", 0, "i", 0);
     for (int i = 0; i < 1000; i++) {

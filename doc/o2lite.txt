@@ -1,5 +1,11 @@
 O2 Lite -- O2 for Espressif ESP32 and other small processors
 
+Note: This is an early design document. See bridge.txt for
+revisions. Those changes should be incorporated into this
+document to make a single complete and usable description of
+the O2lite protocol.
+
+
 Introduction
 ----
 

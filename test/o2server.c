@@ -21,12 +21,12 @@
 //
 char **client_addresses;
 int n_addrs = 20;
-int use_tcp = FALSE;
+int use_tcp = false;
 
-#define MAX_MSG_COUNT 50000
+#define MAX_MSG_COUNT 1000
 
 int msg_count = 0;
-int running = TRUE;
+bool running = true;
 
 // this is a handler for incoming messages. It simply sends a message
 // back to one of the client addresses
@@ -47,7 +47,7 @@ void server_test(o2_msg_data_ptr msg, const char *types,
         printf("server message %d is %d\n", msg_count, argv[0]->i32);
     }
     if (argv[0]->i32 == -1) {
-        running = FALSE;
+        running = false;
     } else {
         assert(msg_count == argv[0]->i32);
     }
@@ -69,8 +69,9 @@ int main(int argc, const char *argv[])
     if (argc >= 3) {
         n_addrs = atoi(argv[2]);
         printf("n_addrs is %d\n", n_addrs);
+        assert(n_addrs > 0); // n_addrs should equal client's n_addrs
         if (strchr(argv[2], 't')) {
-            use_tcp = TRUE;
+            use_tcp = true;
             printf("Using TCP\n");
         }
     }
@@ -85,16 +86,16 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < n_addrs; i++) {
         char path[100];
         sprintf(path, "/server/benchmark/%d", i);
-        o2_method_new(path, "i", &server_test, NULL, FALSE, TRUE);
+        o2_method_new(path, "i", &server_test, NULL, false, true);
     }
     
     // create an address for each destination so we do not have to
     // do string manipulation to send a message
-    client_addresses = (char **) malloc(sizeof(char **) * n_addrs);
+    client_addresses = O2_MALLOCNT(n_addrs, char *);
     for (int i = 0; i < n_addrs; i++) {
         char path[100];
         sprintf(path, "!client/benchmark/%d", i);
-        client_addresses[i] = (char *) (O2_MALLOC(strlen(path)));
+        client_addresses[i] = O2_MALLOCNT(strlen(path), char);
         strcpy(client_addresses[i], path);
     }
 
@@ -122,6 +123,11 @@ int main(int argc, const char *argv[])
         o2_poll();
         //usleep(2000); // 2ms // as fast as possible
     }
+
+    for (int i = 0; i < n_addrs; i++) {
+        O2_FREE(client_addresses[i]);
+    }
+    O2_FREE(client_addresses);
 
     o2_finish();
     printf("SERVER DONE\n");

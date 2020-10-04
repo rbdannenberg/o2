@@ -21,7 +21,7 @@ char **server_addresses;
 int n_addrs = 20;
 
 int msg_count = 0;
-int running = TRUE;
+bool running = TRUE;
 
 void client_test(o2_msg_data_ptr data, const char *types,
                  o2_arg_ptr *argv, int argc, void *user_data)

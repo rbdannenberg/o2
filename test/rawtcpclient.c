@@ -80,13 +80,13 @@ int main(int argc, char **argv)
     remote_addr.sin_port = htons(PORT);
     printf("*** connecting to %d\n", PORT);
     if (connect(sock, (struct sockaddr *) &remote_addr,
-                sizeof(remote_addr)) < 0) {
+                sizeof remote_addr) < 0) {
         displayError("Connect Error!");
     }
 
     int option = 1;
     setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (const char *) &option,
-               sizeof(option));
+               sizeof option);
 
     fds[0].fd = sock;
     fds[0].events = POLLIN;

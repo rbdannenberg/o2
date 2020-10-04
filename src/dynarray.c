@@ -7,6 +7,7 @@
 
 void o2_da_expand(dyn_array_ptr array, int siz)
 {
+    // printf("o2_da_expand called with %d\n", siz);
     if (array->allocated > 0) array->allocated *= 2;
     else array->allocated = 1;
     void *bigger = O2_MALLOC(array->allocated * siz);

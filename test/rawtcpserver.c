@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     server_addr.sin_port = htons(PORT);
     printf("*** binding to port %d\n", PORT);
     if (bind(sock, (struct sockaddr *) &server_addr,
-             sizeof(server_addr)) < 0) {
+             sizeof server_addr) < 0) {
         displayError("bind error");
     }
     if ((listen(sock, 5)) != 0) {
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
     fds[0].revents = 0;
     fds_len = 1;
 
-    socklen_t client_size = sizeof(client);
+    socklen_t client_size = sizeof client;
     int conn = accept(sock, (struct sockaddr *) &client, &client_size);
     if (conn < 0) {
         printf("server acccept failed...\n");
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 
     int option = 1;
     setsockopt(conn, IPPROTO_TCP, TCP_NODELAY, (const char *) &option,
-               sizeof(option));
+               sizeof option);
 
     fds[1].fd = conn;
     fds[1].events = POLLIN;

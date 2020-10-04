@@ -1,0 +1,251 @@
+Notes on using MQTT with O2.
+Roger Dannenberg
+May 2020
+
+MQTT is a publish subscribe protocol for IOT. It is interesting mainly
+because there are servers on the web that anyone can use, at least for
+now. So MQTT is sort of a new Internet service -- now, in addition to
+delivering messages, the Internet offers publish/subscribe services
+for message routing.
+
+MQTT might not be the best protocol, and it might not survive in the
+long run, or it might be so successful that free servers are not
+possible to maintain. An alternative is IRC, which could be used even
+if it was really meant for human-human communication.
+
+In addition, MQTT can *store* data so that when you subscribe to a
+topic you get the last published value for that topic. This makes MQTT
+a free and open key-value store service.
+
+MQTT also has LWT messages that can announce when a process
+disconnects from the server, which is useful to mimic TCP hangup
+functionality. 
+
+After considering more complicated schemes, it seems that MQTT can
+simply replace the O2 hub protocol, so you are on the internet, 
+you can just use MQTT. 
+
+If you use O2lite, you need LAN discovery and
+unless you put MQTT into the O2lite client, you need to keep
+discovery. So MQTT will be an add-on for non-local networks, not
+a replacement for discovery in situations where there is Internet
+access.
+
+o2_mqtt_enable(const char *broker) first uses a stun server to find
+the public IP address, then sets up a connection to the MQTT broker
+and subscribes to the topics O2-<ensemblename>/disc and O2-<public
+ip>:<local ip>:<port>. Then, send public IP and local IP to the /disc
+topic. Other processes will also send to the /disc topic, so every
+process will discover every other process soon after it connects to
+the broker.
+
+Do not use the *store* feature so that when you crash, others will
+not "discover" a stale address. However, when you reboot, everyone
+already in the application will get the new correct address. Is
+there a race condition? Assume messages from one client are handled
+serially. If we assume the subcriptions are committed before the
+subsequent publish is allowed to take place, there is no race.
+
+If the incoming message has the same public IP and local IP, then
+assume the process is not behind NAT (it's possible that the LAN
+behind NAT uses the same IP address as the public address, but it
+seems very unlikely and non-standard). You can connect directly, so
+send it a discovery message and let the discovery protocol make the
+connection. The remote process will become a PROC_NOCLOCK and then a
+PROC_SYNCED. 
+
+If the incoming message has a different public IP and local IP and the  
+remote process public IP is different from the local process public  
+IP, then assume the remote process is behind NAT and can only be
+accessed via MQTT. Create an MQTT_NOCLOCK connection that will become
+an MQTT_SYNCED connection. The /publicip:localip:port service name
+will map to the MQTT node.  All messages will be sent via MQTT to the
+topic corresponding to the remote process IP addresses.
+
+If the incoming message has a different public IP and local IP and the 
+remote process public IP matches the local process public IP, then the
+processes are on the same LAN. Use the remote process local IP to send
+a discovery message and make a PROC_NOCLOCK connection.
+
+For clock sync, we send a return address. Now, a return address will
+become dependent on the connection. A return service for a message to
+a PROC will be just the process name /ipaddress:port/, but for an MQTT
+connection, the return service will be /publicip:localip:port/.
+
+Service messages to /_o2/sv must also be constructed carefully. If the
+message is going to a PROC, the process name is just IP:port, but
+messages must also be sent to all MQTT connections using process name
+publicIP:localIP:port.
+
+There is only one TCP connection to the MQTT broker, but may be many
+processes. The MQTT connection should be shared by all, created by 
+o2_mqtt_enable(const char *mqtt_broker), and closed by o2_finish().
+
+When a remote process or service is discovered through MQTT, we need
+to set up a service named remoteIP:localIP:port that maps to a node
+with tag MQTT_NOCLOCK or MQTT_SYNCED. This node should have a pointer
+back to the remoteIP:localIP:port key so we can find the process name
+for the provider of any service, but unlike PROC nodes that have
+net_info and udp_address fields for sending messages, these MQTT nodes
+will just send messages via the singleton MQTT connection.
+
+To enumerate MQTT processes, since they do not have corresponding
+o2n_info structures, we need an array of names. Names are added if we
+enter a new name in path_tree, and names are deleted if we remove one
+from the path_tree. This is linear in the number of remote processes,
+but it is not too common or too expensive since the array size will be
+less than 800 bytes if we have 8-byte pointers and up to 100
+processes.
+
+When a message is received from the MQTT broker, we get the topic,
+which is the receiver's publicIP:localIP:port name, but not the
+sender. We need to know the sender, e.g. for a /_cs/cs or /_o2/sv
+message. We will add the process name to /_cs/cs messages (it's
+already in /_o2/sv). 
+
+==== everything below this line is obsoleted by the design above ====
+==== It's here for reference in case I want to rethink things.   ====
+
+
+Hub Protocol
+------------
+
+One use of MQTT with O2 is to communicate a Hub IP address. The Hub
+protocol is an alternative to the O2 discovery protocol, especially
+for cases where UDP broadcast will not work: either UDP broadcast is
+not allowed or the O2 ensemble is not on the same local network. The
+problem with hubs is you need to designate a hub and share its IP/port
+location with the ensemble.
+
+A good solution is MQTT. The hub can publish its IP/port address to
+topic "O2-<ensemblename>/hub" with (ASCII) message of the form
+"128.2.100.73:4567", where <ensemblename> is replaced with the actual
+ensemble name. The hub should use the "retain" flag so that
+subscribers will get the message even if they subscribe after the
+message is posted (or if they restart later).
+
+We should create a separate library -- o2mqtt -- to implement this
+feature. The API is:
+  int o2m_initialize(const char *ensemble_name,
+                     const char *broker, int hub_flag);
+    Initialize O2 with ensemble_name and discovery disabled. address
+    is the domain name or ip address of an MQTT broker. If NULL, then
+    the default broker "mqtt.eclipse.org" is used. If hub_flag is
+    true, this process is the hub, so it publishes its IP:port address
+    to the MQTT broker, using topic O2-<ensemble_name>/hub. The call
+    may block to make a TCP connect, but it will not block waiting for
+    TCP messages. Instead, you must call o2m_poll() until the hub
+    address is published. If hub_flag is false, this process will
+    acquire the hub address from MQTT using broker to find the MQTT
+    broker and subscribing to the topic O2-<ensemble_name>/hub. This
+    call may block to make a TCP connect, but it will not block
+    waiting for TCP messages. Instead, you must call o2m_poll() until
+    the hub address is acquired.
+
+  int o2m_poll();
+    Carry out the MQTT publish or subscribe protocol. This call is
+    non-blocking and should be called frequently until the protocol
+    completes. Return values are: <0 for an error occurred, 0 for
+    no error but not complete, and 1 for protocol completed. It is an
+    error to call o2m_poll() before calling o2m_initialize(). After 1 is
+    received, you may stop calling o2m_poll() but if you call it
+    anyway, it will return another 1 quickly. If o2m_initialize() was
+    called with hub_flag != 0, then o2m_poll() publishes to the broker
+    and then closes the broker connection and cleans up. If hub_flag
+    was 0 (false), then o2m_poll() subscribes, waits for the hub
+    address (which may return almost immediately if it was previously
+    published), and calls o2_hub() with the hub IP/port address. The
+    subscription will remain active so if a new hub address is
+    published, o2_hub() will be called again to update O2 with the new
+    address.
+
+  int o2m_finish();
+    If o2m_initialize() was called with o2_hub == 0, call o2m_finish()
+    to close the subscription, sockets, free memory, etc. If o2_hub
+    was non-zero and o2m_poll() was called until it returned 1
+    (complete), then it is not necessary but not an error to call
+    o2m_finish().
+
+O2 Bridge from NAT to NAT
+-------------------------
+
+Another use of MQTT is to connect O2 processes where at least one is
+on a local area network protected by NAT (network address
+translation) and another process is on some other network, which
+implies that IP addresses cannot be used to make direct peer-to-peer
+connections. A simple way to send O2 messages is via the MQTT broker.
+Instead of sending directly to a socket, the sender could send a
+binary O2 message to the MQTT topic:
+"O2-<ensemble_name>/xxx.xxx.xxx.xxx:port". Every O2 process can then
+subscribe to this topic and process incoming messages.
+
+A problem here is that O2 processes use their local IP address as the
+process name, so we have to be careful with these addresses. Also, the
+general solution must handle the case where we have, say, 3 local area
+networks, each with 2 processes, so there are 3 pairs of processes
+that communicate directly across their LANs, and all other
+communication goes through MQTT. Perhaps an even harder problem is to
+have two LANs behind NAT and 2 processes not behind NAT. We want the
+possibility that ANY process acts as hub, and only messages that cross
+a NAT barrier go through MQTT.
+
+The proposed implementation uses the same optional o2mqtt library
+used for hub addresses to forward messages through an MQTT broker.
+
+Let's assume users only use o2mqtt if they have Internet
+connections. (Isolated networks can just use O2 discovery. If you need
+to bridge across NAT, then you must have Internet access.) So compare
+the IP address obtained locally to an IP address from a stun server
+(which is a pretty simple request -- we don't need a stun library). If
+they differ, then you are behind NAT. If you are behind NAT, assume
+every machine on your local network has the same public IP
+address. (The local IP address could match some other process on
+another local network.)
+
+Let's assume if you want to use MQTT at all, then every process can
+use it. And maybe o2_hub() is just a bad idea if you have some
+processes that need to bridge NAT. And if you can optimize the case
+where no bridge is necessary, then maybe you can simplify by always
+enabling bridges when necessary.
+
+So here's an alternative to the hub plan described above:
+
+(Let's use /x to mean "O2-<ensemble_name>/x" to shorten the
+names. Every MQTT topic will have "O2-<ensemble_name>" as the top-level
+topic.)
+
+Use MQTT directly for all discovery.  Every process "broadcasts" to
+topic "/disc", sending its local IP:port and its public IP. The public
+IP serves as a network identifier. If you are on the same network, you
+can directly message the process using its IP:port. If you are not on
+the same network and one of you is behind NAT, then you can message
+through MQTT by sending the binary O2 message to
+"/<public-ip>:<local-ip>:<local-port>". Note that both IP addresses
+and a port are needed to identify a process since we could have two
+processes on the same machine (same local-ip, different ports) and two
+different networks could reuse the local-ip (same local-ip, different
+public-ip). 
+
+Within o2m_poll(), we subscribe to both /disc and
+/<public-ip>:<local-ip>:<local-port>. When a /disc message arrrives,
+we do the normal thing of making a connection, but now we have a new
+connection type: MQTT. We'll have to modify the proc_info structure
+and message delivery to send the message either to a socket or through
+MQTT. That's about all there is to it.
+
+Under this scheme, processes start with 2-part names, but change names
+if they get a different public IP address. When that happens, the
+process will send a name-change discovery message to all other
+processes, and they will rename and rehash the service entry for the
+process.
+
+
+
+
+We add a bridge_flag to o2m_initialize():
+  int o2m_initialize(const char *ensemble_name,
+                     const char *broker, int hub_flag, int bridge_flag);
+
+
+    
+

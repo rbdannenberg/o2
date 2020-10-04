@@ -7,7 +7,7 @@
 
 #define N_ADDRS 20
 
-#define MAX_MESSAGES 50000
+#define MAX_MESSAGES 5000
 
 int s = 0;
 int w = 1;
@@ -49,18 +49,18 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/one/benchmark/%d", i);
-        o2_method_new(path, "i", &service_one, NULL, FALSE, FALSE);
+        o2_method_new(path, "i", &service_one, NULL, false, false);
     }
     
     o2_service_new("two");
     for (int i = 0; i < N_ADDRS; i++) {
         char path[100];
         sprintf(path, "/two/benchmark/%d", i);
-        o2_method_new(path, "i", &service_two, NULL, FALSE, FALSE);
+        o2_method_new(path, "i", &service_two, NULL, false, false);
     }
 
     o2_send("/one/benchmark/0", 0, "i", 0);
-    while (s < 50000) {
+    while (s < MAX_MESSAGES) {
         o2_poll();
     }
     o2_finish();

@@ -12,9 +12,11 @@
 #include "services.h"
 #include "msgsend.h"
 
-thread_local o2_context_ptr o2_context = NULL;
+thread_local o2_ctx_ptr o2_ctx = NULL;
 
-static int o2_pattern_match(const char *str, const char *p);
+#ifndef O2_NO_PATTERNS
+static bool o2_pattern_match(const char *str, const char *p);
+#endif
 static int remove_method_from_tree(char *remaining, char *name,
                                    hash_node_ptr node);
 
@@ -22,7 +24,7 @@ static int remove_method_from_tree(char *remaining, char *name,
 // enumerate is used to visit all entries in a hash table
 // it is used for:
 // - enumerating services with status change when we become the
-//       master clock process
+//       reference clock process
 // - enumerating all services offered by a given process when
 //       that process's clock status changes
 // - enumerating local services to send to another process
@@ -63,23 +65,6 @@ o2_node_ptr o2_enumerate_next(enumerate_ptr enumerator)
     return ret;
 }
 
-#ifndef O2_NO_DEBUG
-static const char *entry_tags[5] = { 
-    "NODE_HASH", "NODE_HANDLER", "NODE_SERVICES",
-    "NODE_OSC_REMOTE_SERVICE", "NODE_BRIDGE_SERVICE" };
-
-
-const char *o2_tag_to_string(int tag)
-{
-    if (tag >= NODE_HASH && tag <= NODE_BRIDGE_SERVICE)
-        return entry_tags[tag - NODE_HASH];
-    static char unknown[32];
-    snprintf(unknown, 32, "Tag-%d", tag);
-    return unknown;
-}
-#endif 
-
-
 
 // create a node in the path tree
 //
@@ -87,11 +72,11 @@ const char *o2_tag_to_string(int tag)
 //
 hash_node_ptr o2_hash_node_new(const char *key)
 {
-    hash_node_ptr node = (hash_node_ptr) O2_MALLOC(sizeof(hash_node));
+    hash_node_ptr node = O2_MALLOCT(hash_node);
     return o2_node_initialize(node, key);
 }
 
-
+#ifndef O2_NO_PATTERNS
 // This is the main worker for dispatching messages. It determines if a node
 // name is a pattern (if so, enumerate all nodes in the table and try to match)
 // or not a pattern (if so, do a faster hash lookup). In either case, when the
@@ -106,7 +91,9 @@ hash_node_ptr o2_hash_node_new(const char *key)
 // node is the current node in the tree
 // msg is message to be dispatched
 //
-void o2_find_handlers_rec(char *remaining, char *name,
+// returns true if a message was delivered
+//
+bool o2_find_handlers_rec(char *remaining, char *name,
         o2_node_ptr node, o2_msg_data_ptr msg,
         char *types)
 {
@@ -114,18 +101,20 @@ void o2_find_handlers_rec(char *remaining, char *name,
     if (slash) *slash = 0;
     char *pattern = strpbrk(remaining, "*?[{");
     if (slash) *slash = '/';
-    if (pattern) { // this is a pattern 
+    bool delivered = false;
+    if (pattern) { // this is a pattern
         enumerate enumerator;
-        o2_enumerate_begin(&enumerator, &(TO_HASH_NODE(node)->children));
+        o2_enumerate_begin(&enumerator, &TO_HASH_NODE(node)->children);
         o2_node_ptr entry;
         while ((entry = o2_enumerate_next(&enumerator))) {
-            if (slash && (entry->tag == NODE_HASH) &&
-                (o2_pattern_match(entry->key, remaining) == O2_SUCCESS)) {
-                o2_find_handlers_rec(slash + 1, name, entry, msg, types);
-            } else if (!slash && (entry->tag == NODE_HANDLER)) {
-                char *path_end = remaining + strlen(remaining);
-                path_end = O2MEM_BIT32_ALIGN_PTR(path_end);
-                o2_call_handler((handler_entry_ptr) entry, msg, path_end + 5);
+            if (o2_pattern_match(entry->key, remaining)) {
+                if (slash && (entry->tag == NODE_HASH)) {
+                    delivered |= o2_find_handlers_rec(slash + 1, name, entry,
+                                                      msg, types);
+                } else if (!slash && (entry->tag == NODE_HANDLER)) {
+                    o2_call_handler((handler_entry_ptr) entry, msg, types);
+                    delivered |= true;
+                }
             }
         }
     } else { // no pattern characters so do hash lookup
@@ -135,37 +124,38 @@ void o2_find_handlers_rec(char *remaining, char *name,
         o2_node_ptr entry = *o2_lookup(TO_HASH_NODE(node), name);
         if (entry) {
             if (slash && (entry->tag == NODE_HASH)) {
-                o2_find_handlers_rec(slash + 1, name, entry, msg, types);
+                delivered = o2_find_handlers_rec(slash + 1, name,
+                                                 entry, msg, types);
             } else if (!slash && (entry->tag == NODE_HANDLER)) {
                 char *path_end = remaining + strlen(remaining);
                 path_end = O2MEM_BIT32_ALIGN_PTR(path_end);
                 o2_call_handler((handler_entry_ptr) entry, msg, path_end + 5);
+                delivered = true; // either delivered or warning issued
             }
         }
     }
+    return delivered;
 }
+#endif // O2_NO_PATTERNS
 
-
-// insert whole path into master table, insert path nodes into tree.
+// insert whole path into flat table, insert path nodes into tree.
 // If this path exists, then first remove all sub-tree paths.
 //
 // path is "owned" by caller (so it is copied here)
 //
-int o2_method_new(const char *path, const char *typespec,
-                  o2_method_handler h, void *user_data, int coerce, int parse)
+int o2_method_new_internal(const char *path, const char *typespec,
+                  o2_method_handler h, void *user_data, bool coerce, bool parse)
 {
-    if (!o2_ensemble_name) {
-        return O2_NOT_INITIALIZED;
-    }
     // o2_heapify result is declared as const, but if we don't share it, there's
     // no reason we can't write into it, so this is a safe cast to (char *):
     char *key = (char *) o2_heapify(path);
     *key = '/'; // force key's first character to be '/', not '!'
-    
     // add path elements as tree nodes -- to get the keys, replace each
     // "/" with EOS and o2_heapify to copy it, then restore the "/"
     char *remaining = key + 1;
+#ifndef O2_NO_PATTERNS
     char name[NAME_BUF_LEN];
+#endif
     char *slash = strchr(remaining, '/');
     if (slash) *slash = 0;
     services_entry_ptr services = *o2_services_find(remaining);
@@ -175,16 +165,19 @@ int o2_method_new(const char *path, const char *typespec,
 
     int ret = O2_NO_SERVICE;
     if (!services) goto free_key_return; // cleanup and return because it is
-        // an error to add a method to a non-existent service
-    // find the service offered by this process (o2_context->proc) --
+                       // an error to add a method to a non-existent service
+    // find the service offered by this process (o2_ctx->proc) --
     // the method should be attached to our local offering of the service
-    o2_node_ptr *node_ptr = o2_proc_service_find(o2_context->proc, services);
-    assert(node_ptr); // initially service is an empty HASH_NODE, must exist
-    o2_node_ptr node = *node_ptr;
+    service_provider_ptr spp = o2_proc_service_find(o2_ctx->proc, services);
+    // if we have no service local, this fails with O2_NO_SERVICE
+    if (!spp) {
+        O2_FREE(key);
+        return O2_NO_SERVICE;
+    }
+    o2_node_ptr node = spp->service;
     assert(node);    // we must have a local offering of the service
 
-    handler_entry_ptr handler = (handler_entry_ptr)
-            O2_MALLOC(sizeof(handler_entry));
+    handler_entry_ptr handler = O2_MALLOCT(handler_entry);
     handler->tag = NODE_HANDLER;
     handler->key = NULL; // gets set below with the final node of the address
     handler->handler = h;
@@ -221,18 +214,26 @@ int o2_method_new(const char *path, const char *typespec,
     if (!slash) { // (cases 1 and 2: install new global handler)
         handler->key = NULL;
         handler->full_path = NULL;
-        ret = o2_service_provider_replace(key + 1, node_ptr,
+        ret = o2_service_provider_replace(key + 1, &spp->service,
                                           (o2_node_ptr) handler);
         goto free_key_return; // do not need full path for global handler
     }
 
     // cases 3 and 4: path has nodes. If service is a NODE_HANDLER, 
     //   replace with NODE_HASH
-    hash_node_ptr hnode = TO_HASH_NODE(node);
-    if (hnode->tag == NODE_HANDLER) { // change global handler to an empty hash_node
+    hash_node_ptr hnode = (hash_node_ptr) node;
+    if (hnode->tag == NODE_HANDLER) {
+        // change global handler to a null node
+#ifdef O2_NO_PATTERNS
+        // note that this is really an o2_node, not a hash_node_ptr
+        hnode = O2_CALLOCT(o2_node);
+        hnode->tag = NODE_EMPTY;
+#else
+        // change global handler to an empty hash_node
         hnode = o2_hash_node_new(NULL); // top-level key is NULL
+#endif
         if (!hnode) goto error_return_3;
-        if ((ret = o2_service_provider_replace(key + 1, node_ptr,
+        if ((ret = o2_service_provider_replace(key + 1, &spp->service,
                                                (o2_node_ptr) hnode))) {
             goto error_return_3;
         }
@@ -241,7 +242,8 @@ int o2_method_new(const char *path, const char *typespec,
     assert(slash);
     *slash = '/'; // restore the full path in key
     remaining = slash + 1;
-
+#ifndef O2_NO_PATTERNS
+    // support pattern matching by adding this path to the path tree
     while ((slash = strchr(remaining, '/'))) {
         *slash = 0; // terminate the string at the "/"
         o2_string_pad(name, remaining);
@@ -259,16 +261,20 @@ int o2_method_new(const char *path, const char *typespec,
     if ((ret = o2_node_add(hnode, (o2_node_ptr) handler))) {
         goto error_return_3;
     }
-    
-    // make an entry for the master table
-    handler_entry_ptr mhandler = (handler_entry_ptr) O2_MALLOC(sizeof(handler_entry));
-    memcpy(mhandler, handler, sizeof(handler_entry)); // copy the handler info
-    mhandler->key = key; // this key has already been copied
-    mhandler->full_path = NULL; // only leaf nodes have full_path pointer
+    // make an entry for the full path table
+    handler_entry_ptr full_path_handler = O2_MALLOCT(handler_entry);
+    memcpy(full_path_handler, handler, sizeof *handler); // copy info
+    full_path_handler->key = key; // this key has already been copied
+    full_path_handler->full_path = NULL; // only tree nodes have full_path
     if (types_copy) types_copy = o2_heapify(typespec);
-    mhandler->type_string = types_copy;
-    // put the entry in the master table
-    ret = o2_node_add(&o2_context->full_path_table, (o2_node_ptr) mhandler);
+    full_path_handler->type_string = types_copy;
+    handler = full_path_handler;
+#else // if O2_NO_PATTERNS:
+    handler->key = handler->full_path;
+    handler->full_path = NULL;
+#endif
+    // put the entry in the full path table
+    ret = o2_node_add(&o2_ctx->full_path_table, (o2_node_ptr) handler);
     goto just_return;
   error_return_3:
     if (types_copy) O2_FREE((void *) types_copy);
@@ -285,40 +291,43 @@ int o2_method_new(const char *path, const char *typespec,
 #define NEGATE  '!'
 #endif
 
+#ifndef O2_NO_PATTERNS
 /**
  * robust glob pattern matcher
  *
- *  @param str oringinal string, a node name terminated by zero (eos)
+ *  @param str original string, a node name terminated by zero (eos)
  *  @param p   the string with pattern, p can be the remainder of a whole
  *             address pattern, so it is terminated by either zero (eos)
  *             or slash (/)
  *
- *  @return Iff match, return TRUE.
+ *  @return Iff match, return true.
  *
  * glob patterns:
  *  *   matches zero or more characters
  *  ?   matches any single character
  *  [set]   matches any character in the set
- *  [^set]  matches any character NOT in the set
+ *  [!set]  matches any character NOT in the set
  *      where a set is a group of characters or ranges. a range
  *      is written as two characters seperated with a hyphen: a-z denotes
  *      all characters between a to z inclusive.
- *  [-set]  set matches a literal hypen and any character in the set
- *  []set]  matches a literal close bracket and any character in the set
+ *  [set-]  matches any character in the set or a literal hypen
+ *  {str1,str2,str3} matches any of str1, str2, or str3
  *
- *  char    matches itself except where char is '*' or '?' or '['
- *  \char   matches char, including any pattern character
+ *  char    matches itself except where char is '*' or '?'
+ *  the characters space, #, *, comma, /, ?, [, ], { and } are not permitted
+ *      in the string to be matched by a pattern, and thus literal characters
+ *      in patterns do not include these characters
  *
  * examples:
  *  a*c     ac abc abbc ...
  *  a?c     acc abc aXc ...
- *  a[a-z]c     aac abc acc ...
- *  a[-a-z]c    a-c aac abc ...
+ *  a[a-z]c     aac abc ... azc
+ *  a[a-z-]c    aac abc ... azc a-c
  */
-static int o2_pattern_match(const char *str, const char *p)
+static bool o2_pattern_match(const char *str, const char *p)
 {
-    int negate; // the ! is used before a character or range of characters
-    int match;  // a boolean used to exit a loop looking for a match
+    bool negate; // the ! is used before a character or range of characters
+    bool match;  // a boolean used to exit a loop looking for a match
     char c;     // a character from the pattern
     
     // match each character of the pattern p with string str up to
@@ -330,7 +339,7 @@ static int o2_pattern_match(const char *str, const char *p)
         // also, [!...] processing assumes a character to match in str
         //   without checking, so the case of !*str is handled here
         if (!*str && *p != '*') {
-            return FALSE;
+            return false;
         }
         
         // process the next character(s) of the pattern
@@ -342,7 +351,7 @@ static int o2_pattern_match(const char *str, const char *p)
                 // if there are no more pattern characters, we can match
                 //   '*' to the rest of str, so we have a match. This is an
                 //   optimization that tests for a special case:
-                if (!*p || *p == '/') return TRUE;
+                if (!*p || *p == '/') return true;
                 
                 // if the next pattern character is not a meta character,
                 //   we can skip over all the characters in str that
@@ -358,46 +367,45 @@ static int o2_pattern_match(const char *str, const char *p)
                 //   looking for special cases and just try everything:
                 while (*str) {
                     if (o2_pattern_match(str, p)) {
-                        return TRUE;
+                        return true;
                     }
                     str++;
                 }
-                return FALSE;
+                return false;
                 
             case '?': // matches exactly 1 character in str
                 if (*str) break; // success
-                return FALSE;
+                return false;
             /*
              * set specification is inclusive, that is [a-z] is a, z and
              * everything in between. this means [z-a] may be interpreted
              * as a set that contains z, a and nothing in between.
              */
             case '[':
-                if (*p != NEGATE) {
-                    negate = 1;
-                } else {
-                    negate = 0; // note that negate == 0 if '!' found
-                    p++;        //   so in this case, 0 means "true"
+                negate = (*p == NEGATE);
+                if (negate) {
+                    p++; // skip over '!'
                 }
                 
-                match = 0; // no match found yet
+                match = false; // no match found yet
                 // search in set for a match until it is found
                 // if/when you exit the loop, p is pointing to ']' or
                 //   before it, or c == ']' and p points to the
                 //   next character, or there is no matching ']'
                 while (!match && (c = *p++)) {
-                    if (!*p || *p == '/') { // no matching ']' in pattern
-                        return FALSE;
-                    } else if (c == ']') {
+                    if (c == ']') {
                         p--; // because we search forward for ']' below
                         break;
+                    } else if (!*p || *p == '/') { // no matching ']' in pattern
+                        return false;
                     } else if (*p == '-') {  // expected syntax is c-c
                         p++;
                         if (!*p || *p == '/')
-                            return FALSE; // expected to find at least ']'
+                            return false; // expected to find at least ']'
                         if (*p != ']') {  // found end of range
                             match = (*str == c || *str == *p ||
                                      (*str > c && *str < *p));
+                            p++;  // skip over end of range
                         } else {  //  c-] means ok to match c or '-'
                             match = (*str == c || *str == '-');
                         }
@@ -406,13 +414,13 @@ static int o2_pattern_match(const char *str, const char *p)
                     }
                 }
                 
-                if (negate == match) {
-                    return FALSE;
+                if (negate == match) { // tricky! 2 ways to pass, 2 ways to fail
+                    return false; // either !negate and !match or negate and match
                 }
                 // if there is a match, skip past the cset and continue on
                 while ((c = *p++) != ']') {
                     if (!c || c == '/') { // no matching ']' in pattern
-                        return FALSE;
+                        return false;
                     }
                 }
                 break;
@@ -432,7 +440,7 @@ static int o2_pattern_match(const char *str, const char *p)
                 c = *remainder;
                 while (c != '}') {
                     if (!c || c == '/') {  // unexpected end of pattern
-                        return FALSE;
+                        return false;
                     }
                     c = *remainder++;
                 }
@@ -450,13 +458,13 @@ static int o2_pattern_match(const char *str, const char *p)
                     if (c == ',') {
                         // recursively see if we can complete the match
                         if (o2_pattern_match(str, remainder)) {
-                            return TRUE;
+                            return true;
                         } else {
                             str = place; // backtrack on test string
                             // continue testing, skipping the comma
                             p++;
                             if (!*p || *p == '/') { // unexpected end
-                                return FALSE;
+                                return false;
                             }
                         }
                     } else if (c == '}') {
@@ -468,7 +476,7 @@ static int o2_pattern_match(const char *str, const char *p)
                         str = place;
                         while ((c = *p++) != ',') {
                             if (!c || c == '/' || c == '}') {
-                                return FALSE; // no more choices, so no match
+                                return false; // no more choices, so no match
                             }
                         }
                     }
@@ -479,7 +487,7 @@ static int o2_pattern_match(const char *str, const char *p)
                 
             default:
                 if (c != *str) {
-                    return FALSE;
+                    return false;
                 }
                 break;
         }
@@ -489,14 +497,14 @@ static int o2_pattern_match(const char *str, const char *p)
     //   also at the end of the string:
     return (*str == 0);
 }
-
+#endif // O2_NO_PATTERNS
 
 /**
  * \brief remove a path -- find the leaf node in the tree and remove it.
  *
  * When the method is no longer exist, or the method conflict with a new one.
- * we need to call this function to delete the old one. The master table entry
- * will be removed as a side effect. If a parent node becomes empty, the 
+ * we need to call this function to delete the old one. The full path table
+ * entry will be removed as a side effect. If a parent node becomes empty, the 
  * parent is removed. Thus we use a recursive algorithm so we can examine 
  * parents after visiting the children.
  *
@@ -515,7 +523,7 @@ int o2_remove_method(const char *path)
     // search path elements as tree nodes -- to get the keys, replace each
     // "/" with EOS and o2_heapify to copy it, then restore the "/"
     char *remaining = path_copy + 1; // skip the initial "/"
-    return remove_method_from_tree(remaining, name, &o2_context->path_tree);
+    return remove_method_from_tree(remaining, name, &o2_ctx->path_tree);
 }
 
 
@@ -527,8 +535,8 @@ int o2_remove_method(const char *path)
 //
 // returns O2_FAIL if path is not found in tree (should not happen)
 //
-static int remove_method_from_tree(char *remaining, char *name,
-                                   hash_node_ptr node)
+static o2_err_t remove_method_from_tree(char *remaining, char *name,
+                                          hash_node_ptr node)
 {
     char *slash = strchr(remaining, '/');
     o2_node_ptr *entry_ptr; // another return value from o2_lookup
@@ -546,7 +554,7 @@ static int remove_method_from_tree(char *remaining, char *name,
         remove_method_from_tree(slash + 1, name, node);
         if (node->num_children == 0) {
             // remove the empty table
-            return o2_hash_entry_remove(node, entry_ptr, TRUE);
+            return o2_hash_entry_remove(node, entry_ptr, true);
         }
         return O2_SUCCESS;
     }
@@ -556,7 +564,7 @@ static int remove_method_from_tree(char *remaining, char *name,
     entry_ptr = o2_lookup(node, name);
     // there should be an entry, remove it
     if (*entry_ptr) {
-        o2_hash_entry_remove(node, entry_ptr, TRUE);
+        o2_hash_entry_remove(node, entry_ptr, true);
         return O2_SUCCESS;
     }
     return O2_FAIL;
@@ -574,9 +582,10 @@ void o2_string_pad(char *dst, const char *src)
     if (len >= NAME_BUF_LEN) {
         len = NAME_BUF_LEN - 1;
     }
-    // first, fill last 32-bit word with zeros so the final word will be zero-padded
-    // round up len+1 to get the word after the end-of-string zero byte
-    int32_t *end = (int32_t *)(dst + ROUNDUP_TO_32BIT(len + 1)); // round down to word boundary
+    // first, fill last 32-bit word with zeros so the final word will be
+    // zero-padded; round up len+1 to get the word after the end-of-string
+    // zero byte
+    int32_t *end = (int32_t *)(dst + ROUNDUP_TO_32BIT(len + 1));
     end[-1] = 0;
     // now copy the string; this may overwrite some zero-pad bytes:
     strncpy(dst, src, len);
@@ -587,15 +596,18 @@ void o2_handler_entry_finish(handler_entry_ptr handler)
     // if we remove a leaf node from the tree, remove the
     //  corresponding full path:
     if (handler->full_path) {
-        o2_remove_hash_entry_by_name(&o2_context->full_path_table, handler->full_path);
+        o2_remove_hash_entry_by_name(&o2_ctx->full_path_table,
+                                     handler->full_path);
         handler->full_path = NULL; // this string should be freed
-            // in the previous call to remove_hash_entry_by_name(); remove the
-            // pointer so if anyone tries to reference it, it will
+            // in the previous call to remove_hash_entry_by_name(); remove
+            // the pointer so if anyone tries to reference it, it will
             // generate a more obvious and immediate runtime error.
     }
     if (handler->type_string)
         O2_FREE((void *) handler->type_string);
-    O2_FREE(handler->key);
+    if (handler->key) {        // key can be NULL if this is a global handler
+        O2_FREE(handler->key); // for everything in the service.
+    }
 }
 
 #ifndef O2_NO_DEBUG

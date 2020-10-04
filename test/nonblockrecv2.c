@@ -23,7 +23,7 @@
 // different addresses to use.
 //
 int msg_count = 0;
-int running = TRUE;
+bool running = true;
 
 // this is a handler for incoming messages. It makes sure messages are
 // delivered in order and shuts down when we get the last one.
@@ -36,7 +36,7 @@ void server_test(o2_msg_data_ptr msg, const char *types,
     assert(argv[0]->i32 == msg_count);
     msg_count++;
     if (argv[1]->B) {
-        running = FALSE;
+        running = false;
     }
 }
 
@@ -57,7 +57,7 @@ int main(int argc, const char *argv[])
 
     o2_initialize("test");
     o2_service_new("server");
-    o2_method_new("/server/hello", "i", &server_test, NULL, FALSE, TRUE);
+    o2_method_new("/server/hello", "i", &server_test, NULL, false, true);
     
     // we are the master clock
     o2_clock_set(NULL, NULL);
@@ -78,7 +78,7 @@ int main(int argc, const char *argv[])
     }
     assert(got_start);
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
-    int blocked = FALSE;
+    int blocked = false;
     while (msg_count < MAX_MSG_COUNT) {
         if (o2_can_send("client") == O2_SUCCESS) {
             msg_count++;
@@ -93,7 +93,7 @@ int main(int argc, const char *argv[])
                 usleep(2000);
             }
             assert(got_one);
-            blocked = TRUE; // only expected got_one once
+            blocked = true; // only expected got_one once
         }
         o2_poll();
     }

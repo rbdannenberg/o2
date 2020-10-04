@@ -28,7 +28,7 @@
 #endif
 
 int msg_count = 0;
-int running = TRUE;
+bool running = true;
 
 
 // at the end, we get a message to /sender/done
@@ -37,7 +37,7 @@ void sender_done(o2_msg_data_ptr msg, const char *types,
 {
     assert(argc == 0);
     assert(strlen(types) == 0);
-    running = FALSE;
+    running = false;
 }
 
 
@@ -54,7 +54,7 @@ int main(int argc, const char * argv[])
     }
     o2_initialize("test");
     o2_service_new("sender"); // that's us
-    o2_method_new("/sender/done", "", &sender_done, NULL, FALSE, TRUE);
+    o2_method_new("/sender/done", "", &sender_done, NULL, false, true);
     
     while (o2_status("server") < O2_LOCAL) {
         o2_poll();
@@ -70,7 +70,7 @@ int main(int argc, const char * argv[])
     
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     while (o2_can_send("server") == O2_SUCCESS) {
-        o2_send_cmd("!server/test", 0, "iB", msg_count, FALSE);
+        o2_send_cmd("!server/test", 0, "iB", msg_count, false);
         msg_count++;
         o2_poll();
     }
@@ -88,7 +88,7 @@ int main(int argc, const char * argv[])
 
     // send until blocks again
     while (o2_can_send("server") == O2_SUCCESS) {
-        o2_send_cmd("!server/test", 0, "iB", msg_count, FALSE);
+        o2_send_cmd("!server/test", 0, "iB", msg_count, false);
         msg_count++;
         o2_poll();
     }
@@ -97,7 +97,7 @@ int main(int argc, const char * argv[])
     // send 2 * msg_count more messages to make sure blocking works
     int n = 2 * msg_count;
     for (int i = 0; i < n; i++) {
-        o2_send_cmd("!server/test", 0, "iB", msg_count, FALSE);
+        o2_send_cmd("!server/test", 0, "iB", msg_count, false);
         msg_count++;
         o2_poll();
         if (msg_count % 2000 == 0) {
@@ -107,7 +107,7 @@ int main(int argc, const char * argv[])
     printf("Sent %d more messages to make sure blocking works\n", n);
 
     // send last message
-    o2_send_cmd("!server/test", 0, "iB", msg_count, TRUE);
+    o2_send_cmd("!server/test", 0, "iB", msg_count, true);
     printf("Sent %d messages total.\n", msg_count);
 
     // now, the problem is we could have 1000's of buffered

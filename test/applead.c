@@ -1,12 +1,12 @@
-//  appmaster.c - change ensemble test/demo
+//  applead.c - change ensemble test/demo
 //
-//  This program works with appslave.c. Synopsis:
-//    connect to appslave as ensemble test1, 
+//  This program works with appfollow.c. Synopsis:
+//    connect to appfollow as ensemble test1, 
 //    establish clock sync,
-//    receive "hello" message from slave,
+//    receive "hello" message from follow,
 //    shut down and reinitialize as ensemble test2,
 //    establish clock sync,
-//    receive "hello" message from slave,
+//    receive "hello" message from follow,
 //    shut down
 
 
@@ -29,42 +29,42 @@ o2_time cs_time = 1000000.0;
 // this is a handler that polls for current status
 // it runs about every 1s
 //
-void appmaster(o2_msg_data_ptr msg, const char *types,
+void applead(o2_msg_data_ptr msg, const char *types,
                o2_arg_ptr *argv, int argc, void *user_data)
 {
-    int ss = o2_status("server");
-    int cs = o2_status("client");
-    printf("appmaster: local time %g global time %g "
+    o2_status_t ss = o2_status("server");
+    o2_status_t cs = o2_status("client");
+    printf("applead: local time %g global time %g "
            "server status %d client status %d\n",
            o2_local_time(), o2_time_get(), ss, cs);
     // record when the client synchronizes
     if (cs == O2_REMOTE) {
         if (o2_time_get() < cs_time && hello_count > 0) {
             cs_time = o2_time_get();
-            printf("appmaster sync time %g\n", cs_time);
+            printf("applead sync time %g\n", cs_time);
         }
     }
     // stop 10s later
     if (o2_time_get() > cs_time + 10) {
-        o2_stop_flag = TRUE;
-        printf("appmaster set stop flag TRUE at %g\n", o2_time_get());
+        o2_stop_flag = true;
+        printf("applead set stop flag true at %g\n", o2_time_get());
     }
-    o2_send("!server/appmaster", o2_time_get() + 1, "");
+    o2_send("!server/applead", o2_time_get() + 1, "");
 }
 
 
-// this is a handler to get a "hello" message from slave
+// this is a handler to get a "hello" message from appfollow
 //
 void apphello(o2_msg_data_ptr msg, const char *types,
               o2_arg_ptr *argv, int argc, void *user_data)
 {
-    printf("appmaster got hello message\n");
+    printf("applead got hello message\n");
     hello_count++;
 }
 
 
-int rtt_sent = FALSE;
-char client_ip_port[32];
+int rtt_sent = false;
+char client_ip_port[O2_MAX_PROCNAME_LEN];
 
 void service_info(o2_msg_data_ptr msg, const char *types,
                   o2_arg_ptr *argv, int argc, void *user_data)
@@ -72,23 +72,25 @@ void service_info(o2_msg_data_ptr msg, const char *types,
     const char *service_name = argv[0]->s;
     int new_status = argv[1]->i32;
     const char *ip_port = argv[2]->s;
-    printf("service_info: service %s status %d ip_port %s\n",
-           service_name, new_status, ip_port);
+    const char *properties = argv[3]->s;
+    printf("service_info: service %s status %d ip_port %s properties \"%s\"\n",
+           service_name, new_status, ip_port, properties);
     if (streql(service_name, "client") && (new_status == O2_REMOTE)) {
         // client has clock sync
         if (!rtt_sent) {
-            char address[32];
+            char address[O2_MAX_PROCNAME_LEN];
             strcpy(client_ip_port, ip_port); // save it for rtt_reply check
-            sprintf(address, "%s%s%s", "!", ip_port, "/cs/rt");
-            o2_send_cmd(address, 0.0, "s", "!server/rtt");
+            snprintf(address, O2_MAX_PROCNAME_LEN, "%s%s%s",
+                     "!", ip_port, "/cs/rt");
+            o2_send_cmd(address, 0.0, "s", "!server/rtt/put");
             printf("Sent message to %s\n", address);
-            rtt_sent = TRUE;
+            rtt_sent = true;
         }
     }
 }
 
 
-int rtt_received = FALSE;
+int rtt_received = false;
 
 void rtt_reply(o2_msg_data_ptr msg, const char *types,
                o2_arg_ptr *argv, int argc, void *user_data)
@@ -102,56 +104,56 @@ void rtt_reply(o2_msg_data_ptr msg, const char *types,
     assert(streql(service_name, client_ip_port));
     assert(mean >= 0 && mean < 1);
     assert(minimum >= 0 && minimum < 1);
-    rtt_received = TRUE;
+    rtt_received = true;
 }
 
 
 int main(int argc, const char * argv[])
 {
-    printf("Usage: appmaster [debugflags] "
+    printf("Usage: applead [debugflags] "
            "(see o2.h for flags, use a for all)\n");
     if (argc == 2) {
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);
     }
     if (argc > 2) {
-        printf("WARNING: appmaster ignoring extra command line argments\n");
+        printf("WARNING: applead ignoring extra command line argments\n");
     }
 
     o2_initialize("test1");
     o2_service_new("server");
-    o2_method_new("/server/appmaster", "", &appmaster, NULL, FALSE, FALSE);
-    o2_method_new("/server/hello", "", &apphello, NULL, FALSE, FALSE);
-    o2_method_new("/_o2/si", "sis", &service_info, NULL, FALSE, TRUE);
-    o2_method_new("/server/rtt/get-reply", "sff", &rtt_reply, NULL, FALSE, TRUE);
-    // we are the master clock
+    o2_method_new("/server/applead", "", &applead, NULL, false, false);
+    o2_method_new("/server/hello", "", &apphello, NULL, false, false);
+    o2_method_new("/_o2/si", "siss", &service_info, NULL, false, true);
+    o2_method_new("/server/rtt/put", "sff", &rtt_reply, NULL, false, true);
+    // we are the reference clock
     o2_clock_set(NULL, NULL);
-    o2_send("!server/appmaster", 0.0, ""); // start polling
+    o2_send("!server/applead", 0.0, ""); // start polling
     o2_run(100);
     o2_finish();
 
-    printf("---------------- appmaster changing app test1 to app test2 ------------\n");
+    printf("---------------- applead changing app test1 to app test2 ------------\n");
 
     hello_count = 0;
     cs_time = 1000000.0;
-    o2_stop_flag = FALSE;
+    o2_stop_flag = false;
     o2_initialize("test2");
     o2_service_new("server");
-    o2_method_new("/server/appmaster", "", &appmaster, NULL, FALSE, FALSE);
-    o2_method_new("/server/hello", "", &apphello, NULL, FALSE, FALSE);
-    o2_method_new("/_o2/si", "sis", &service_info, NULL, FALSE, TRUE);
-    o2_method_new("/server/rtt/get-reply", "sff", &rtt_reply, NULL, FALSE, TRUE);
-    // we are the master clock
+    o2_method_new("/server/applead", "", &applead, NULL, false, false);
+    o2_method_new("/server/hello", "", &apphello, NULL, false, false);
+    o2_method_new("/_o2/si", "siss", &service_info, NULL, false, true);
+    o2_method_new("/server/rtt/put", "sff", &rtt_reply, NULL, false, true);
+    // we are the reference clock
     o2_clock_set(NULL, NULL);
-    o2_send("!server/appmaster", 0.0, ""); // start polling
+    o2_send("!server/applead", 0.0, ""); // start polling
     o2_run(100);
     o2_finish();
     
     sleep(1);
     if (rtt_received) {
-        printf("APPMASTER DONE\n");
+        printf("APPLEAD DONE\n");
     } else {
-        printf("APPMASTER FAILED (no rtt message)\n");
+        printf("APPLEAD FAILED (no rtt message)\n");
     }
     return 0;
 }

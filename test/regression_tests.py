@@ -130,11 +130,11 @@ def runAllTests():
     if not runDouble("statusclient", "CLIENT DONE",
                      "statusserver", "SERVER DONE"): return
     if not runDouble("infotest2", "INFOTEST2 DONE",
-                     "clockslave", "CLOCKSLAVE DONE"): return
-    if not runDouble("clockmaster", "CLOCKMASTER DONE",
-                     "clockslave", "CLOCKSLAVE DONE"): return
-    if not runDouble("appmaster", "APPMASTER DONE",
-                     "appslave", "APPSLAVE DONE"): return
+                     "clockmirror", "CLOCKMIRROR DONE"): return
+    if not runDouble("clockref", "CLOCKREF DONE",
+                     "clockmirror", "CLOCKMIRROR DONE"): return
+    if not runDouble("applead", "APPLEAD DONE",
+                     "appfollow", "APPFOLLOW DONE"): return
     if not runDouble("o2client", "CLIENT DONE",
                      "o2server", "SERVER DONE"): return
     if not runDouble("nonblocksend", "CLIENT DONE",
@@ -158,9 +158,9 @@ def runAllTests():
 # In CMake, set BUILD_TESTS_WITH_LIBLO to create the binaries
 
     if os.path.isfile(BIN + '/' + "lo_oscrecv" + EXE):
-        if not runDouble("oscsendtest Mu", "OSCSEND DONE",
+        if not runDouble("oscsendtest @u", "OSCSEND DONE",
                          "lo_oscrecv u", "OSCRECV DONE"): return
-        if not runDouble("oscsendtest M", "OSCSEND DONE",
+        if not runDouble("oscsendtest @", "OSCSEND DONE",
                          "lo_oscrecv", "OSCRECV DONE"): return
 
     if os.path.isfile(BIN + '/' + "lo_oscsend" + EXE):

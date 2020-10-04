@@ -33,7 +33,7 @@
 #define snprintf _snprintf
 #endif
 
-int got_the_message = FALSE;
+bool got_the_message = false;
 
 o2_blob_ptr a_blob;
 uint32_t a_midi_msg;
@@ -73,7 +73,7 @@ void service_ai(o2_msg_data_ptr data, const char *types,
     assert(arg == o2_got_end_array);
 
     assert(*types == 0);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 // 2. sending typestring [] (an array with no integers)
@@ -98,7 +98,7 @@ void service_a(o2_msg_data_ptr data, const char *types,
     assert(arg == o2_got_end_array);
 
     assert(*types == 0);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -138,7 +138,7 @@ void service_aii(o2_msg_data_ptr data, const char *types,
     assert(arg == o2_got_end_array);
 
     assert(*types == 0);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -189,7 +189,7 @@ void check_val(char actual_type)
             assert(arg->m == a_midi_msg);
             break;
         default:
-            assert(FALSE);
+            assert(false);
     }
     return;
 }
@@ -290,7 +290,7 @@ void service_xixdx(o2_msg_data_ptr data, const char *types,
     zcheck(*types++);
 
     assert(*types == 0);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -317,7 +317,7 @@ void service_2arrays(o2_msg_data_ptr data, const char *types,
     dcheck(*types++, 1234.567);
 
     assert(*types == 0);
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -333,7 +333,7 @@ void service_bigarray(o2_msg_data_ptr data, const char *types,
     }
     zcheck(*types++);
     assert(*types == 0); // got all of typestring
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -363,7 +363,7 @@ void service_vi(o2_msg_data_ptr data, const char *types,
         assert(arg->v.vi[i] == 1234 + i);
     }
     assert(*types == 0); // got all of typestring
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 // 8. sending typestring vf (with length 0 to 100)
@@ -395,7 +395,7 @@ void service_vf(o2_msg_data_ptr data, const char *types,
         assert(arg->v.vf[i] == correct);
     }
     assert(*types == 0); // got all of typestring
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -427,7 +427,7 @@ void service_vh(o2_msg_data_ptr data, const char *types,
         assert(arg->v.vh[i] == correct);
     }
     assert(*types == 0); // got all of typestring
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -459,7 +459,7 @@ void service_vd(o2_msg_data_ptr data, const char *types,
         assert(arg->v.vd[i] == correct);
     }
     assert(*types == 0); // got all of typestring
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -507,7 +507,7 @@ void service_ifvxif(o2_msg_data_ptr data, const char *types,
                 break;
             }
             default:
-                assert(FALSE);
+                assert(false);
                 break;
         }
     }
@@ -515,7 +515,7 @@ void service_ifvxif(o2_msg_data_ptr data, const char *types,
     icheck(*types++, 4567);
     fcheck(*types++, 567.89F);
     assert(*types == 0); // got all of typestring
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -565,7 +565,7 @@ void service_vivd(o2_msg_data_ptr data, const char *types,
         assert(arg->v.vd[i] == 1234.567 + i);
     }
     assert(*types == 0); // got all of typestring
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -603,7 +603,7 @@ void service_coerce(o2_msg_data_ptr data, const char *types,
             case 'h': assert(arg->v.vh[i] == (int64_t) expected); break;
             case 'f': assert(arg->v.vf[i] == (float) expected); break;
             case 'd': assert(arg->v.vd[i] == expected); break;
-            default: assert(FALSE);
+            default: assert(false);
         }
         assert(*types++ == xtype);
     }
@@ -615,7 +615,7 @@ void service_coerce(o2_msg_data_ptr data, const char *types,
     assert(arg2 == o2_got_end_array);
     icheck(*types++, 6789);
     assert(*types == 0); // got all of typestring
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -653,7 +653,7 @@ void service_coerce2(o2_msg_data_ptr data, const char *types,
                 break;
             }
             default:
-                assert(FALSE);
+                assert(false);
                 break;
         }
 
@@ -663,7 +663,7 @@ void service_coerce2(o2_msg_data_ptr data, const char *types,
             case 'f': assert(arg->f == (float) expected); break;
             case 'd': case 't':
                 assert(arg->d == expected); break;
-            default: assert(FALSE);
+            default: assert(false);
         }
     }
 #ifndef NDEBUG
@@ -674,7 +674,7 @@ void service_coerce2(o2_msg_data_ptr data, const char *types,
     icheck(*types++, 6789);
     fcheck(*types++, 567.89F);
     assert(*types == 0); // got all of typestring
-    got_the_message = TRUE;
+    got_the_message = true;
 }
 
 
@@ -685,7 +685,7 @@ void send_the_message()
         o2_poll();
     }
     assert(got_the_message);
-    got_the_message = FALSE;
+    got_the_message = false;
 }
 
 
@@ -712,7 +712,7 @@ void add_x_parameter()
             o2_add_char('$');
             break;
         case O2_BOOL:
-            o2_add_bool(TRUE);
+            o2_add_bool(true);
             break;
         case O2_TRUE:
             o2_add_true();
@@ -739,7 +739,7 @@ void add_x_parameter()
             o2_add_midi(a_midi_msg);
             break;
         default:
-            assert(FALSE);
+            assert(false);
     }
     return;
 }
@@ -757,10 +757,10 @@ int main(int argc, const char * argv[])
     o2_initialize("test");    
     o2_service_new("one");
 
-    o2_method_new("/one/service_ai", "[i]", &service_ai, NULL, FALSE, FALSE);
-    o2_method_new("/one/service_a", "[]", &service_a, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_ai", "[i]", &service_ai, NULL, false, false);
+    o2_method_new("/one/service_a", "[]", &service_a, NULL, false, false);
     o2_method_new("/one/service_aii", "[ii]", &service_aii,
-                  NULL, FALSE, FALSE);
+                  NULL, false, false);
     // [xixdx] where x is one of: hfcBbtsSmTFIN
     char *xtypes = "ihfdcBbtsSmTFIN";
     for (char *xtp = xtypes; *xtp; xtp++) {
@@ -770,33 +770,33 @@ int main(int argc, const char * argv[])
         char address[32];
         snprintf(address, 32, "/one/service_%ci%cd%c", xtype, xtype, xtype);
         o2_method_new(address, type_string, &service_xixdx,
-                      NULL, FALSE, FALSE);
+                      NULL, false, false);
     }
-    o2_method_new("/one/service_2arrays", "i[ih][fdt]d", &service_2arrays, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_2arrays", "i[ih][fdt]d", &service_2arrays, NULL, false, false);
     // use NULL for type string to disable type-string checking
-    o2_method_new("/one/service_bigarray", NULL, &service_bigarray, NULL, FALSE, FALSE);
-    o2_method_new("/one/service_vi", NULL, &service_vi, NULL, FALSE, FALSE);
-    o2_method_new("/one/service_vf", NULL, &service_vf, NULL, FALSE, FALSE);
-    o2_method_new("/one/service_vh", NULL, &service_vh, NULL, FALSE, FALSE);
-    o2_method_new("/one/service_vd", NULL, &service_vd, NULL, FALSE, FALSE);
+    o2_method_new("/one/service_bigarray", NULL, &service_bigarray, NULL, false, false);
+    o2_method_new("/one/service_vi", NULL, &service_vi, NULL, false, false);
+    o2_method_new("/one/service_vf", NULL, &service_vf, NULL, false, false);
+    o2_method_new("/one/service_vh", NULL, &service_vh, NULL, false, false);
+    o2_method_new("/one/service_vd", NULL, &service_vd, NULL, false, false);
     o2_method_new("/one/service_ifvxif", NULL,
-                  &service_ifvxif, NULL, FALSE, FALSE);
-    o2_method_new("/one/service_vivd", NULL, &service_vivd, NULL, FALSE, FALSE);
-    o2_method_new("/one/service_coerce", NULL, &service_coerce, NULL, FALSE, FALSE);
-    o2_method_new("/one/service_coerce2", NULL, &service_coerce2, NULL, FALSE, FALSE);
+                  &service_ifvxif, NULL, false, false);
+    o2_method_new("/one/service_vivd", NULL, &service_vivd, NULL, false, false);
+    o2_method_new("/one/service_coerce", NULL, &service_coerce, NULL, false, false);
+    o2_method_new("/one/service_coerce2", NULL, &service_coerce2, NULL, false, false);
     
     o2_send_start();
     o2_add_start_array();
     o2_add_int32(3456);
     o2_add_end_array();
-    o2_send_finish(0, "/one/service_ai", TRUE);
+    o2_send_finish(0, "/one/service_ai", true);
     send_the_message();
     printf("DONE sending [3456]\n");
 
     o2_send_start();
     o2_add_start_array();
     o2_add_end_array();
-    o2_send_finish(0, "/one/service_a", TRUE);
+    o2_send_finish(0, "/one/service_a", true);
     send_the_message();
     printf("DONE sending []\n");
 
@@ -805,7 +805,7 @@ int main(int argc, const char * argv[])
     o2_add_int32(123);
     o2_add_int32(234);
     o2_add_end_array();
-    o2_send_finish(0, "/one/service_aii", TRUE);
+    o2_send_finish(0, "/one/service_aii", true);
     send_the_message();
     printf("DONE sending [123, 234]\n");
 
@@ -822,7 +822,7 @@ int main(int argc, const char * argv[])
         o2_add_end_array();
         char address[32];
         snprintf(address, 32, "/one/service_%ci%cd%c", xtype, xtype, xtype);
-        o2_send_finish(0, address, TRUE);
+        o2_send_finish(0, address, true);
         send_the_message();
     }
     printf("DONE sending [xixdx] messages\n");
@@ -840,7 +840,7 @@ int main(int argc, const char * argv[])
     o2_add_time(2345.678);
     o2_add_end_array();
     o2_add_double(1234.567);
-    o2_send_finish(0, "/one/service_2arrays", TRUE);
+    o2_send_finish(0, "/one/service_2arrays", true);
     send_the_message();
     printf("DONE sending 456,[456,12345][1234.56,1234.567,2345.678],1234.567\n");
 
@@ -853,7 +853,7 @@ int main(int argc, const char * argv[])
             o2_add_double(123.456 + j);
         }
         o2_add_end_array();
-        o2_send_finish(0, "/one/service_bigarray", TRUE);
+        o2_send_finish(0, "/one/service_bigarray", true);
         send_the_message();
     }
     printf("DONE sending [ddd...], size 0 through 100\n");
@@ -867,7 +867,7 @@ int main(int argc, const char * argv[])
         arg_count = i;
         o2_send_start();
         o2_add_vector('i', i, ivec);
-        o2_send_finish(0, "/one/service_vi", TRUE);
+        o2_send_finish(0, "/one/service_vi", true);
         send_the_message();
     }
     printf("DONE sending vi, size 0 through 100\n");
@@ -882,7 +882,7 @@ int main(int argc, const char * argv[])
         arg_count = i;
         o2_send_start();
         o2_add_vector('f', i, fvec);
-        o2_send_finish(0, "/one/service_vf", TRUE);
+        o2_send_finish(0, "/one/service_vf", true);
         send_the_message();
     }
     printf("DONE sending vf, size 0 through 100\n");
@@ -897,7 +897,7 @@ int main(int argc, const char * argv[])
         arg_count = i;
         o2_send_start();
         o2_add_vector('h', i, hvec);
-        o2_send_finish(0, "/one/service_vh", TRUE);
+        o2_send_finish(0, "/one/service_vh", true);
         send_the_message();
     }
     printf("DONE sending vh, size 0 through 100\n");
@@ -912,7 +912,7 @@ int main(int argc, const char * argv[])
         arg_count = i;
         o2_send_start();
         o2_add_vector('d', i, dvec);
-        o2_send_finish(0, "/one/service_vd", TRUE);
+        o2_send_finish(0, "/one/service_vd", true);
         send_the_message();
     }
     printf("DONE sending vd, size 0 through 100\n");
@@ -931,11 +931,11 @@ int main(int argc, const char * argv[])
                 case 'h': o2_add_vector('h', i, hvec); break;
                 case 'f': o2_add_vector('f', i, fvec); break;
                 case 'd': o2_add_vector('d', i, dvec); break;
-                default: assert(FALSE);
+                default: assert(false);
             }
             o2_add_int32(4567);
             o2_add_float(567.89F);
-            o2_send_finish(0, "/one/service_ifvxif", TRUE);
+            o2_send_finish(0, "/one/service_ifvxif", true);
             send_the_message();
         }
     }
@@ -947,7 +947,7 @@ int main(int argc, const char * argv[])
         arg_count = i;
         o2_add_vector('i', i, ivec);
         o2_add_vector('d', i, dvec);
-        o2_send_finish(0, "/one/service_vivd", TRUE);
+        o2_send_finish(0, "/one/service_vivd", true);
         send_the_message();
     }
     printf("DONE sending vivd, size 0 through 100\n");
@@ -969,12 +969,12 @@ int main(int argc, const char * argv[])
                         case 'h': o2_add_int64(543 + j); break;
                         case 'f': o2_add_float(543.21F + j); break;
                         case 'd': o2_add_double(543.21 + j); break;
-                        default: assert(FALSE);
+                        default: assert(false);
                     }
                 }
                 o2_add_end_array();
                 o2_add_int32(6789);
-                o2_send_finish(0, "/one/service_coerce", TRUE);
+                o2_send_finish(0, "/one/service_coerce", true);
                 send_the_message();
             }
         }
@@ -997,11 +997,11 @@ int main(int argc, const char * argv[])
                     case 'h': o2_add_vector('h', i, hvec); break;
                     case 'f': o2_add_vector('f', i, fvec); break;
                     case 'd': o2_add_vector('d', i, dvec); break;
-                    default: assert(FALSE);
+                    default: assert(false);
                 }
                 o2_add_int32(6789);
                 o2_add_float(567.89F);
-                o2_send_finish(0, "/one/service_coerce2", TRUE);
+                o2_send_finish(0, "/one/service_coerce2", true);
                 send_the_message();
             }
         }

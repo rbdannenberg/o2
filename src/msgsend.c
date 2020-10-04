@@ -4,10 +4,13 @@
 //
 
 // delivery is recursive due to bundles. Here's an overview of the structure:
-//
-// o2_send() builds message from arguments and calls o2_message_send_sched()
+// 
+// o2_send() builds message from arguments, transfers ownership to
+//         o2_ctx->msgs and calls o2_message_send_sched() which transfers
+//         ownership somewhere else (including the freelist).
 //         (Defined in msgsend.c)
-// o2_send_finish() finishes building message and calls o2_message_send_sched()
+// o2_send_finish() finishes building message, transfers ownership to
+//         o2_ctx->msgs and calls o2_message_send_sched()
 //         (Defined in message.c)
 // o2_message_send_sched(o2_message_ptr msg, int schedulable)
 //         (Defined in msgsend.c)
@@ -15,34 +18,65 @@
 //         If remote, calls o2_send_remote()
 //         If local and future and schedulable, calls o2_schedule()
 //         Otherwise, calls o2_send_local() for local delivery
-//         Caller gives msg to callee. msg is freed eventually.
-// o2_send_remote(o2_msg_data_ptr msg, int tcp_flag, fds_info_ptr info)
+//         When called, msg owned by o2_ctx->msgs. The msg is removed
+//         from o2_ctx->msgs and either handed off or freed.
+// o2_send_remote(proc_info_ptr proc, int block)
 //         Byte-swaps msg data to network order,
-//         Sends msg_data to remote service by TCP or UDP
-// o2_schedule(o2_sched_ptr sched, o2_message_ptr msg)
-//         (Defined in o2_sched.c)
-//         msg could be local or for delivery to an OSC server
-//         Caller gives msg to callee. msg is freed eventually.
-//         Calls o2_message_send_sched(msg, FALSE) to send message
-//         (FALSE prevents a locally scheduled message you are trying
-//         to dispatch from being considered for scheduling using the
-//         o2_gtsched, which may not be sync'ed yet.)
-// o2_send_local()
+//         Sends msg_data to remote service by TCP or UDP. Ownership is
+//         transferred from o2_ctx->msgs to TCP or UDP, which may
+//         queue msg for later delivery, otherwise they free the msg.
+// o2_schedule(o2_sched_ptr sched)
+//         (Defined in sched.c)
+//         Schedule message if time is in the future, or directly call
+//         o2_msg_deliver() if it is time to send the message. Three
+//         cases are: (1) Scheduled message ownership is transferred
+//         from o2_ctx->msgs to the scheduling queue, (2) Undeliverable
+//         message is freed, (3) Immediate delivery uses o2_msg_deliver
+//         which frees the message.
+// sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
+//         (Defined in sched.c)
+//         Dispatches messages by transferring ownership from queue to
+//         o2_ctx->msgs and calling o2_message_send_sched(). This is
+//         called rather than o2_send_local() in case this is a timed
+//         OSC message.
+// o2_send_local(node_ptr service, services_entry_ptr ss)
 //         (Defined in msgsend.c)
 //         Either sends a message locally or queues it to avoid
 //         reentrant message delivery. Calls o2_msg_deliver() directly,
 //         or o2_msg_deliver() is called by o2_deliver_pending().
-// o2_msg_deliver(o2_msg_data_ptr msg, int tcp_flag,
-//                o2_node_ptr service)
+//         Initially, message is owned by o2_ctx->msgs. Upon return,
+//         msg is either freed or transferred to a queue of some kind.
+// o2_send_osc(osc_info_ptr service,  services_entry_ptr ss)
+//         (Defined in o2osc.c)
+//         takes ownership from o2_ctx->msgs or frees the message
+// o2_msg_deliver(int tcp_flag, o2_node_ptr service)
+//         (Defined in msgsend.c)
 //         delivers a message or bundle locally. Calls
-//         o2_embedded_msgs_deliver() if this is a bundle.
-//         Otherwise, uses find_and_call_handlers_rec().
+//         o2_embedded_msgs_deliver() if this is a bundle. Otherwise,
+//         uses find_handlers_rec(). Initially, message ownership on
+//         o2_ctx->msgs. Upon return, the message is freed. This
+//         function also calls send_message_to_tap() for each tapper
+//         of the service.
+// send_message_to_tap(service_tap_ptr tap)
+//         (Defined in msgsend.c)
+//         Copies message content, changing the address to that of
+//         the tapper. Calls either o2_send_remote() or o2_send_local().
+//         (Can't simply call o2_message_send_sched() because tap
+//         messages must be sent to a specific process even if some
+//         other process offers the service and has a higher IP:PORT
+//         address (priority). The copied message is transferred to
+//         o2_ctx->msgs (which is why we need this to be a list and
+//         not just remember a single message). Either o2_send_local()
+//         or o2_send_remote() take ownership from o2_ctx->msgs.
 // o2_embedded_msgs_deliver(o2_msg_data_ptr msg, int tcp_flag)
 //         Deliver or schedule messages in a bundle (recursively).
 //         Calls o2_message_send_sched() to deliver each embedded
-//         message, which is copied into an o2_message.
+//         message, which is copied into an o2_message and transferred
+//         to o2_ctx->msgs.
 // o2_find_handlers_rec()
-//         does lookup of path locally and calls handler
+//         does lookup of path locally and calls handler. msg is just the
+//         data part and the full message is held somewhere in the call
+//         stack.
 //
 // Message parsing and forming o2_argv with message parameters is not
 // reentrant since there is a global buffer used to store coerced
@@ -53,6 +87,7 @@
 
 
 #include "ctype.h"
+#include "o2.h"
 #include "o2internal.h"
 #include "services.h"
 #include "msgsend.h"
@@ -61,6 +96,7 @@
 #include "o2osc.h"
 //#include "discovery.h"
 #include "bridge.h"
+#include "sched.h"
 
 #include <errno.h>
 
@@ -75,18 +111,82 @@ typedef struct pending {
     o2_message_ptr tail;
 } pending, *pending_ptr;
 
+// When a message is pulled from pending to be delivered, it is saved
+// here in case the user calls exit() before the message can be freed.
+// exit() will call o2_finish() which will free the message. This is
+// not actually a memory leak since the message will have come from a
+// chunk that will be freed in any case, but this will remove the
+// *appearance* of a leak so we can focus on actual problems (if any).
+o2_message_ptr o2_active_message = NULL;
+
+void o2_drop_msg_data(const char *warn, o2_msg_data_ptr data)
+{
+    char fullmsg[100];
+    if (streql(data->address, "!_o2/si")) {
+        // status info messages are internally generated and we do not
+        // warn if there is no user-provided handler
+        return;
+    }
+    snprintf(fullmsg, 100, "%s%s", "dropping message because ", warn);
+    (*o2_ctx->warning)(fullmsg, data);
+}
+
+void o2_drop_message(const char *warn, o2_message_ptr msg)
+{
+    o2_drop_msg_data(warn, &msg->data);
+}
+
+
 #define PENDING_EMPTY {NULL, NULL}
 static pending pending_anywhere = PENDING_EMPTY;
 static pending pending_local = PENDING_EMPTY;
 
+// push a message onto the o2_ctx->msgs list
+//
+void o2_prepare_to_deliver(o2_message_ptr msg)
+{
+    msg->next = o2_ctx->msgs;
+    o2_ctx->msgs = msg;
+}
+
+
+o2_message_ptr o2_current_message(void)
+{
+    return o2_ctx->msgs;
+}
+
+
+// free the current message from o2_ctx->msgs
+// 
+void o2_complete_delivery(void)
+{
+    O2_FREE(o2_postpone_delivery());
+}
+
+
+// remove the current message from o2_ctx->msgs and return
+// it so we can hand it off to another owner
+// 
+o2_message_ptr o2_postpone_delivery(void)
+{
+    assert(o2_ctx->msgs);
+    o2_message_ptr msg = o2_ctx->msgs;
+    o2_ctx->msgs = msg->next;
+    msg->next = NULL; // debugging aid, remove needless pointer
+    return msg;
+}
+
+
 // o2_send_local delivers a message immediately and locally to a service,
 // but it is safe to call because it is reentrant by deferring delivery
-// if needed. Ownership of msg is transferred to this function.
-void o2_send_local(o2_message_ptr msg,
-                   o2_node_ptr service, services_entry_ptr ss)
+// if needed. Ownership of msg is initially with o2_ctx. Ownership is
+// transferred from o2_ctx before returning to caller.
+void o2_send_local(o2_node_ptr service, services_entry_ptr ss)
 {
     if (o2_do_not_reenter) {
-        pending_ptr p = ((msg->data.flags | O2_TAP_FLAG) ? &pending_local : &pending_anywhere);
+        o2_message_ptr msg = o2_postpone_delivery();
+        pending_ptr p = ((msg->data.flags | O2_TAP_FLAG) ? &pending_local :
+                                                           &pending_anywhere);
         if (p->tail) {
             p->tail->next = msg;
             p->tail = msg;
@@ -95,7 +195,7 @@ void o2_send_local(o2_message_ptr msg,
         }
     } else {
         o2_do_not_reenter++;
-        o2_msg_deliver(msg, service, ss);
+        o2_msg_deliver(service, ss);
         o2_do_not_reenter--;
     }
 }
@@ -108,25 +208,49 @@ static o2_message_ptr pending_dequeue(pending_ptr p)
     } else {
         p->head = p->head->next;
     }
+#ifndef O2_NO_DEBUG
+    extern void *o2_mem_watch;
+    if (msg == o2_mem_watch) {
+        printf("pending_dequeue has dequeued %p == o2_mem_watch\n", msg);
+    }
+#endif
+    o2_prepare_to_deliver(msg);
     return msg;
 }
 
 void o2_deliver_pending()
 {
     while (pending_anywhere.head) {
-        o2_message_ptr msg = pending_dequeue(&pending_anywhere);
-        o2_message_send_sched(msg, TRUE);
+        pending_dequeue(&pending_anywhere);
+        o2_message_send_sched(true);
     }
     while (pending_local.head) {
         o2_message_ptr msg = pending_dequeue(&pending_local);
         services_entry_ptr services = *o2_services_from_msg(msg);
-        if (!services) goto give_up;
-        o2_node_ptr service = *o2_proc_service_find(o2_context->proc, services);
-        if (!service) goto give_up;
-        o2_msg_deliver(msg, service, services);
-    give_up:
-        O2_FREE(msg);
+        service_provider_ptr spp;
+        if (services &&
+            (spp = o2_proc_service_find(o2_ctx->proc, services))) {
+            o2_msg_deliver(spp->service, services);
+        } else {
+            o2_complete_delivery(); // remove msg and free it
+        }
     }
+}
+
+void o2_free_pending_msgs()
+{
+    while (o2_ctx->msgs) {
+        o2_complete_delivery();
+    }
+    while (pending_anywhere.head) {
+        pending_dequeue(&pending_anywhere);
+        o2_complete_delivery();
+    }
+    while (pending_local.head) {
+        pending_dequeue(&pending_local);
+        o2_complete_delivery();
+    }
+
 }
 
 
@@ -154,9 +278,8 @@ void o2_call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg,
         ((handler->types_len != types_len) || // first check if counts are equal
          !(handler->coerce_flag ||  // need coercion or exact match
            (streql(handler->type_string, types))))) {
-        // printf("!!! %s: call_handler skipping %s due to type mismatch\n",
-        //        o2_debug_prefix, msg->address);
-        return; // type mismatch
+        o2_drop_msg_data("of type mismatch", msg);
+        return;
     }
 
     if (handler->parse_args) {
@@ -168,23 +291,25 @@ void o2_call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg,
         while (*typ) {
             o2_arg_ptr next = o2_get_next(*typ++);
             if (!next) {
-                return; // type mismatch, do not deliver the message
+                o2_drop_msg_data("of type coercion failure", msg);
+                return;
             }
         }
         if (handler->type_string) {
             types = handler->type_string; // so that handler gets coerced types
         }
-        assert(o2_context->arg_data.allocated >= o2_context->arg_data.length);
-        assert(o2_context->argv_data.allocated >= o2_context->argv_data.length);
+        assert(o2_ctx->arg_data.allocated >= o2_ctx->arg_data.length);
+        assert(o2_ctx->argv_data.allocated >= o2_ctx->argv_data.length);
     } else {
-        o2_context->argv = NULL;
-        o2_context->argc = 0;
+        o2_ctx->argv = NULL;
+        o2_ctx->argc = 0;
     }
-    (*(handler->handler))(msg, types, o2_context->argv, o2_context->argc, handler->user_data);
+    (*(handler->handler))(msg, types, o2_ctx->argv, o2_ctx->argc,
+                          handler->user_data);
 }
 
 
-int o2_embedded_msgs_deliver(o2_msg_data_ptr msg)
+o2_err_t o2_embedded_msgs_deliver(o2_msg_data_ptr msg)
 {
     char *end_of_msg = PTR(msg) + msg->length;
     o2_msg_data_ptr embedded = (o2_msg_data_ptr)
@@ -192,12 +317,12 @@ int o2_embedded_msgs_deliver(o2_msg_data_ptr msg)
     while (PTR(embedded) < end_of_msg) {
         // need to copy each embedded message before sending
         int len = embedded->length;
-        o2_message_ptr message = o2_alloc_message(len);
-        memcpy((char *) &(message->data), (char *) embedded, len);
+        o2_message_ptr message = o2_message_new(len);
+        memcpy((char *) &message->data, (char *) embedded, len);
         message->next = NULL;
         message->data.length = len;
         message->data.flags |= O2_TCP_FLAG;
-        o2_message_send_sched(message, TRUE);
+        o2_message_send(message);
         embedded = (o2_msg_data_ptr)
                 (PTR(embedded) + len + sizeof(int32_t));
     }
@@ -205,8 +330,9 @@ int o2_embedded_msgs_deliver(o2_msg_data_ptr msg)
 }
 
 
-void send_message_to_tap(o2_message_ptr msg, service_tap_ptr tap)
+void send_message_to_tap(service_tap_ptr tap)
 {
+    o2_message_ptr msg = o2_ctx->msgs; // we do not own or free this message
     // construct a new message to send to tapper by replacing service name
     // how big is the existing service name?
     // I think coerce to char * will remove bounds checking, which might
@@ -215,18 +341,19 @@ void send_message_to_tap(o2_message_ptr msg, service_tap_ptr tap)
     // Skip first character which might be a slash; we want the slash after the
     // service name.
     char *slash = strchr((char *) (msg->data.address) + 1, '/');
-    if (!slash) {
-        return;  // this is not a valid address, stop now
+    int curlen; // length of "/servicename" without EOS
+    if (slash) {
+        curlen = (int) (slash - msg->data.address);
+    } else {
+        curlen = strlen((char *) (msg->data.address));
     }
-    int curlen = (int) (slash - msg->data.address);
-
     // how much space will tapper take?
     int newlen = (int) strlen(tap->tapper) + 1; // add 1 for initial '/' or '!'
 
-    // how long is current address?
+    // how long is current address, not including eos?
     int curaddrlen = (int) strlen((char *) (msg->data.address));
 
-    // how long is new address?
+    // how long is new address, not including eos?
     int newaddrlen = curaddrlen + (newlen - curlen);
 
     // what is the difference in space needed for address (and message)?
@@ -236,11 +363,11 @@ void send_message_to_tap(o2_message_ptr msg, service_tap_ptr tap)
     int extra = newaddrall - curaddrall;
 
     // allocate a new message
-    o2_message_ptr newmsg = o2_alloc_message(msg->data.length + extra);
+    o2_message_ptr newmsg = o2_message_new(msg->data.length + extra);
     newmsg->data.length = msg->data.length + extra;
     newmsg->data.timestamp = msg->data.timestamp;
     // fill end of address with zeros before creating address string
-    int32_t *end = (int32_t *) (newmsg->data.address + ROUNDUP_TO_32BIT(newaddrlen));
+    int32_t *end = (int32_t *) (newmsg->data.address + newaddrall);
     end[-1] = 0;
     // first character is either / or ! copied from original message
     newmsg->data.address[0] = msg->data.address[0];
@@ -249,22 +376,26 @@ void send_message_to_tap(o2_message_ptr msg, service_tap_ptr tap)
     memcpy((char *) (newmsg->data.address + newlen), msg->data.address + curlen,
            curaddrlen - curlen);
     // copy the rest of the message
+    int len = ((char *) &msg->data) + msg->data.length -
+                                      &msg->data.address[curaddrall];
     memcpy((char *) (newmsg->data.address + newaddrall),
-           msg->data.address + curaddrall, msg->data.length - curaddrall);
-    msg->data.flags = O2_TCP_FLAG | O2_TAP_FLAG;
+           msg->data.address + curaddrall, len);
+    newmsg->data.flags = O2_TCP_FLAG | O2_TAP_FLAG;
+    o2_prepare_to_deliver(newmsg); // transfer ownership to o2_ctx->msgs
     // must send message to tap->proc
-    if (PROC_IS_REMOTE(tap->proc)) {
-        o2_send_remote(newmsg, tap->proc);
+    if (IS_REMOTE_PROC(tap->proc)) {
+        o2_send_remote(tap->proc, true);
     } else {
         services_entry_ptr services = *((services_entry_ptr *)
-                o2_lookup(&o2_context->path_tree, tap->tapper));
+                o2_lookup(&o2_ctx->path_tree, tap->tapper));
         if (services) {
-            o2_node_ptr service = *o2_proc_service_find(o2_context->proc, services);
-            if (service) { // newmsg ownership transfers to o2_send_local()
-                return o2_send_local(newmsg, service, services);
+            service_provider_ptr spp = o2_proc_service_find(o2_ctx->proc,
+                                                            services);
+            if (spp && spp->service) {
+                // newmsg ownership transfers to o2_send_local():
+                return o2_send_local(spp->service, services);
             }
         }
-        O2_FREE(newmsg);
     }
 }
 
@@ -272,23 +403,25 @@ void send_message_to_tap(o2_message_ptr msg, service_tap_ptr tap)
 // deliver msg locally and immediately. If service is not null,
 //    assume it is correct, saving the cost of looking it up
 //    ownership of msg is transferred to this function
-void o2_msg_deliver(o2_message_ptr msg,
-                    o2_node_ptr service, services_entry_ptr ss)
+void o2_msg_deliver(o2_node_ptr service, services_entry_ptr ss)
 {
-    if (IS_BUNDLE(&(msg->data))) {
-        o2_embedded_msgs_deliver(&(msg->data));
-        O2_FREE(msg);
-        return;
+    bool delivered = false;
+    // STEP 0: If message is a bundle, send each embedded message separately
+    o2_message_ptr msg = o2_ctx->msgs;
+#ifndef O2_NO_BUNDLES
+    if (IS_BUNDLE(&msg->data)) {
+        o2_embedded_msgs_deliver(&msg->data);
+        goto done;
     }
-
+#endif
+    // STEP 1: Check for a service to handle the message
     char *address = msg->data.address;
     if (!service) {
-        service = o2_msg_service(&(msg->data), &ss);
-        if (!service) return; // service must have been removed
+        service = o2_msg_service(&msg->data, &ss);
+        if (!service) goto done; // service must have been removed
     }
-
-    // we are going to deliver a non-bundle message, so we'll need
-    // to find the type string...
+    
+    // STEP 2: Isolate the type string, which is after the address
     char *types = address;
     while (types[3]) types += 4; // find end of address string
     // types[3] is the zero marking the end of the address,
@@ -296,135 +429,243 @@ void o2_msg_deliver(o2_message_ptr msg,
     // types + 5 is the first type char
     types += 5; // now types points to first type char
 
-    // if you o2_add_message("/service", ...) then the service entry is a
-    // pattern handler used for ALL messages to the service
-    if (service->tag == NODE_HANDLER) {
-        o2_call_handler((handler_entry_ptr) service, &(msg->data), types);
-    } else if ((address[0]) == '!') { // do full path lookup
-        address[0] = '/'; // must start with '/' to get consistent hash value
-        o2_node_ptr handler = *o2_lookup(&o2_context->full_path_table, address);
-        address[0] = '!'; // restore address for no particular reason
-        if (handler && handler->tag == NODE_HANDLER) {
-            o2_call_handler((handler_entry_ptr) handler, &(msg->data), types);
-        }
-    } else if (service->tag == NODE_HASH) {
-        char name[NAME_BUF_LEN];
-        address = strchr(address + 1, '/'); // search for end of service name
-        if (!address) {
-            // address is "/service", but "/service" is not a NODE_HANDLER
-            ;
-        } else {
-            o2_find_handlers_rec(address + 1, name, (o2_node_ptr) service,
-                                 &msg->data, types);
-        }
-    } // else the assumption that the service is local fails, drop the message
+    O2_DBl(printf("%s o2_msg_deliver msg %p addr %s\n", o2_debug_prefix,
+                  msg, address));
 
-    // if there are tappers, send the message to them as well
-    // (can't tap a tap msg)
-    if (!(msg->data.flags & O2_TAP_FLAG)) {
-        for (int i = 0; i < ss->taps.length; i++) {
-            send_message_to_tap(msg, GET_TAP_PTR(ss->taps, i));
+    // STEP 3: If service is a Handler, call the handler directly
+    if (service->tag == NODE_HANDLER) {
+        o2_call_handler((handler_entry_ptr) service, &msg->data, types);
+        delivered = true; // either delivered or warning issued
+
+    // STEP 4: If path begins with '!', or O2_NO_PATTERNS, do a full path lookup
+    } else if (service->tag == NODE_HASH
+#ifndef O2_NO_PATTERNS
+               && (address[0] == '!')
+#endif
+              ) {
+        o2_node_ptr handler;
+        char tmp_addr[O2_MAX_PROCNAME_LEN]; // temporary address if service is our IP:PORT
+        char *handler_address;
+        // '!' allows for direct lookup, but if the service name is
+        // IP:PORT, a straightforward lookup will not find the handler
+        // because the the key uses /_o2/....  Since the service->tag
+        // is NODE_HASH, this service name, if it starts with a digit,
+        // must be the local IP:PORT because any other IP:PORT would
+        // have a tag of PROC or MQTT.
+        if (isdigit(address[1])) {
+            // build an address with /_o2/ for lookup. The maximum address
+            // length is small because all /_o2/ nodes are built-in and short:
+            *((int32_t *) tmp_addr) = *(int32_t *) "/_o2"; // copy "/_o2"
+            char *slash_ptr = strchr(address + 4, '/');
+            if (!slash_ptr) goto done; // not deliverable because "/_o2" does
+                                       // not have a handler
+            strncpy(tmp_addr + 4, slash_ptr, O2_MAX_PROCNAME_LEN - 5);
+            tmp_addr[O2_MAX_PROCNAME_LEN - 1] = 0; // make sure address is terminated
+            handler_address = tmp_addr;
+        } else {
+            address[0] = '/'; // must start with '/' to get consistent hash
+            handler_address = address; // use the message address normally
+        }
+        handler = *o2_lookup(&o2_ctx->full_path_table, handler_address);
+        address[0] = '!'; // restore address (if changed) [maybe not needed]
+        if (handler && handler->tag == NODE_HANDLER) {
+            // Even though we might have done a lookup on /_o2/..., the message
+            // passed to the handler will have the original address, which might
+            // be something like /128.2.65.100:4321/...
+            o2_call_handler((handler_entry_ptr) handler,
+                            &msg->data, types);
+            delivered = true; // either delivered or warning issued
         }
     }
-    O2_FREE(msg);
+#ifndef O2_NO_PATTERNS
+    // STEP 5: Use path tree to find handler
+    else if (service->tag == NODE_HASH) {
+        char name[NAME_BUF_LEN];
+        address = strchr(address + 1, '/'); // search for end of service name
+        if (address) {
+            delivered = o2_find_handlers_rec(address + 1, name,
+                                (o2_node_ptr) service, &msg->data, types);
+        } else { // address is "/service", but "/service" is not a NODE_HANDLER
+            o2_drop_message("there is no handler for this address", msg);
+        }
+    }
+#endif
+    else { // the assumption that the service is local fails
+        o2_drop_message("service is not local", msg);
+        delivered = true;
+    }
+
+    // STEP 6: if there are tappers, send the message to them as well
+    //         (can't tap a tap msg)
+    if (!(msg->data.flags & O2_TAP_FLAG)) {
+        for (int i = 0; i < ss->taps.length; i++) {
+            send_message_to_tap(GET_TAP_PTR(ss->taps, i));
+        }
+    }
+
+    // STEP 7: remove the message from the stack and free it
+  done:
+    if (!delivered) {
+        o2_drop_message("no handler was found", msg);
+    }
+    o2_complete_delivery();
 }
 
 
 // This function is invoked by macros o2_send and o2_send_cmd.
 // It expects arguments to end with O2_MARKER_A and O2_MARKER_B
-int o2_send_marker(const char *path, double time, int tcp_flag, const char *typestring, ...)
+o2_err_t o2_send_marker(const char *path, double time, int tcp_flag,
+                          const char *typestring, ...)
 {
     va_list ap;
     va_start(ap, typestring);
 
     o2_message_ptr msg;
-    int rslt = o2_message_build(&msg, time, NULL, path, typestring, tcp_flag,
-                                ap);
+    o2_err_t rslt = o2_message_build(&msg, time, NULL, path,
+                                       typestring, tcp_flag, ap);
+    if (rslt != O2_SUCCESS) {
+        return rslt; // could not allocate a message!
+    }
 #ifndef O2_NO_DEBUG
     if (o2_debug & // either non-system (s) or system (S) mask
         (msg->data.address[1] != '_' && !isdigit(msg->data.address[1]) ?
          O2_DBs_FLAG : O2_DBS_FLAG)) {
-        printf("O2: sending%s ", (tcp_flag ? " cmd" : ""));
-        o2_msg_data_print(&(msg->data));
+        printf("%s sending%s (%p) ", o2_debug_prefix,
+               (tcp_flag ? " cmd" : ""), msg);
+        o2_msg_data_print(&msg->data);
         printf("\n");
     }
 #endif
-    if (rslt != O2_SUCCESS) {
-        return rslt; // could not allocate a message!
-    }
-    return o2_message_send_sched(msg, TRUE);
+    return o2_message_send(msg);
 }
 
 // This is the externally visible message send function.
-//
-int o2_message_send(o2_message_ptr msg)
+// 
+// Ownership of message is transferred to o2 system.
+o2_err_t o2_message_send(o2_message_ptr msg)
 {
-    return o2_message_send_sched(msg, TRUE);
+    o2_prepare_to_deliver(msg); // transfer msg to o2_ctx->msgs
+    return o2_message_send_sched(true);
 }
 
 // Internal message send function.
-// schedulable is normally TRUE meaning we can schedule messages
+// schedulable is normally true meaning we can schedule messages
 // according to their timestamps. If this message was dispatched
-// by o2_ltsched, schedulable will be FALSE and we should ignore
+// by o2_ltsched, schedulable will be false and we should ignore
 // the timestamp, which has already been observed by o2_ltsched.
 //
-// msg is freed by this function
+// Before returning, msg is transferred from o2_ctx->msgs.
 //
-int o2_message_send_sched(o2_message_ptr msg, int schedulable)
+o2_err_t o2_message_send_sched(int schedulable)
 {
+    o2_message_ptr msg = o2_ctx->msgs; // get the "active" message
     // Find the remote service, note that we skip over the leading '/':
     services_entry_ptr services;
     o2_node_ptr service = o2_msg_service(&msg->data, &services);
     if (!service) {
-        O2_FREE(msg);
-        return O2_FAIL;
-    } else if (PROC_IS_REMOTE(service)) { // remote delivery, UDP or TCP
-        return o2_send_remote(msg, TO_PROC_INFO(service));
-    } else if (service->tag == NODE_BRIDGE_SERVICE) {
-        bridge_entry_ptr info = (bridge_entry_ptr) service;
-        (*(info->bridge_send))(&msg->data, info);
-        O2_FREE(msg);
-    } else if (ISA_OSC(service)) {
+        o2_complete_delivery(); // remove from o2_ctx->msgs and freej
+        o2_drop_message("service was not found", msg);
+        return O2_NO_SERVICE;
+    } else if (IS_REMOTE_PROC(service)) { // remote delivery, UDP or TCP
+        o2_err_t rslt = o2_send_remote(TO_PROC_INFO(service), true);
+        if (rslt != O2_SUCCESS) {
+            o2_drop_message("service was not found", msg);
+        }
+        return rslt;
+#ifndef O2_NO_BRIDGES
+    } else if (ISA_BRIDGE(service)) {
+        bridge_inst_ptr inst = (bridge_inst_ptr) service;
+        if (!schedulable || inst->tag == BRIDGE_SYNCED ||
+            msg->data.timestamp == 0.0 ||
+            msg->data.timestamp <= o2_gtsched.last_time) {
+            // bridge_send must take ownership or free the message
+            return (*(inst->proto->bridge_send))(inst);
+        } else {
+            return o2_schedule(&o2_gtsched); // delivery on time
+        }
+#endif
+#ifndef O2_NO_OSC
+   } else if (ISA_OSC(service)) {
         // this is a bit complicated: send immediately if it is a bundle
         // or is not scheduled in the future. Otherwise use O2 scheduling.
-        if (!schedulable || IS_BUNDLE(&msg->data) ||
-             msg->data.timestamp == 0.0 ||
-             msg->data.timestamp <= o2_gtsched.last_time) {
-            o2_send_osc((osc_info_ptr) service, msg, services);
-            O2_FREE(msg);
+        if (!schedulable ||
+#ifndef O2_NO_BUNDLES
+                IS_BUNDLE(&msg->data) ||
+#endif
+                msg->data.timestamp == 0.0 ||
+                msg->data.timestamp <= o2_gtsched.last_time) {
+            // o2_send_osc must take ownership or free the message
+            return o2_send_osc((osc_info_ptr) service, services);
         } else {
-            return o2_schedule(&o2_gtsched, msg); // delivery on time
+            return o2_schedule(&o2_gtsched); // delivery on time
         }
+#endif
     } else if (schedulable && msg->data.timestamp > 0.0 &&
                msg->data.timestamp > o2_gtsched.last_time) { // local delivery
-        return o2_schedule(&o2_gtsched, msg); // local delivery later
-    } else {
-        o2_send_local(msg, service, services);
-    }
+        return o2_schedule(&o2_gtsched); // local delivery later
+    } // else
+    o2_send_local(service, services);
     return O2_SUCCESS;
 }
 
 
 // send a message via TCP or UDP to proc, frees the message
-int o2_send_remote(o2_message_ptr msg, proc_info_ptr proc)
+o2_err_t o2_send_remote(proc_info_ptr proc, int block)
 {
     if (proc == NULL) {
-        return O2_FAIL;
+        o2_complete_delivery(); // remove from o2_ctx->msgs and free
+        return O2_NO_SERVICE;
     }
+    o2_message_ptr msg = o2_postpone_delivery(); // own the "active" message
+#ifndef O2_NO_DEBUG
+#ifndef O2_NO_MQTT
+    if (IS_MQTT_PROC(proc)) {
+        O2_DBsS(o2_dbg_msg("sending via mqtt", msg, &msg->data,
+                           "to", proc->name));
+    } else
+#endif
+    if (msg->data.flags & O2_TCP_FLAG) {
+        O2_DBsS(
+            o2_msg_data_ptr mdp = &msg->data;
+            int sysmsg = mdp->address[1] == '_' || isdigit(mdp->address[1]);
+            if (proc->net_info->out_message && !block) { // will have to queue
+                O2_DBS(if (sysmsg) o2_dbg_msg("queueing TCP", msg, mdp,
+                                              "to", proc->name));
+                O2_DBs(if (!sysmsg) o2_dbg_msg("queueing TCP", msg, mdp,
+                                               "to", proc->name));
+            } else {
+                O2_DBS(if (sysmsg) o2_dbg_msg("sending TCP", msg, mdp,
+                                              "to", proc->name));
+                O2_DBs(if (!sysmsg) o2_dbg_msg("sending TCP", msg, mdp,
+                                               "to", proc->name));
+            });
+    } else { // send via UDP
+        O2_DBs(if (msg->data.address[1] != '_' &&
+                   !isdigit(msg->data.address[1])) o2_dbg_msg("sending UDP",
+                                       msg, &msg->data, "to", proc->name));
+        O2_DBS(if (msg->data.address[1] == '_' ||
+                   isdigit(msg->data.address[1]))  o2_dbg_msg("sending UDP",
+                                       msg, &msg->data, "to", proc->name));
+    }
+#endif
+    int tcp_flag = msg->data.flags & O2_TCP_FLAG; // before byte swap
 #if IS_LITTLE_ENDIAN
-    o2_msg_swap_endian(&(msg->data), TRUE);
+    o2_msg_swap_endian(&msg->data, true);
 #endif
     // send the message to remote process
-    if (msg->data.flags & O2_TCP_FLAG) {
-        return o2n_send_tcp(proc->net_info, TRUE, (o2n_message_ptr) msg);
+#ifndef O2_NO_MQTT
+    if (IS_MQTT_PROC(proc)) {
+        o2_mqtt_send(proc, msg);
+    } else
+#endif
+    if (tcp_flag) {
+        return o2n_send_tcp(proc->net_info, block, (o2n_message_ptr) msg);
     } else { // send via UDP
-        O2_DBs(if (msg->data.address[1] != '_' && !isdigit(msg->data.address[1]))
-                   o2_dbg_msg("sending UDP", &(msg->data), "to", proc->name));
-        O2_DBS(if (msg->data.address[1] == '_' || isdigit(msg->data.address[1]))
-                   o2_dbg_msg("sending UDP", &(msg->data), "to", proc->name));
-        int rslt = o2n_send_udp(&proc->udp_address, (o2n_message_ptr) msg);
-        if (rslt) {
-            O2_DBn(printf("o2_send_remote error, port %d\n", ntohs(proc->udp_address.port)));
+        o2_err_t rslt = o2n_send_udp(&proc->udp_address,
+                                       (o2n_message_ptr) msg);
+        if (rslt != O2_SUCCESS) {
+            O2_DBn(printf("o2_send_remote error, port %d\n",
+                          o2n_address_get_port(&proc->udp_address)));
             return O2_FAIL;
         }
     }

@@ -37,7 +37,7 @@ o2_message_ptr make_message(o2_time time, char *address, int i, char *s)
     o2_add_int32(i);
     o2_add_string(s);
     // add the message to the bundle
-    return o2_message_finish(time, address, FALSE);
+    return o2_message_finish(time, address, false);
 }
 
 
@@ -45,10 +45,10 @@ o2_message_ptr bundle2(o2_time time, o2_message_ptr m1, o2_message_ptr m2)
 {
     o2_send_start();
     o2_add_message(m1);
-    o2_message_free(m1);
+    O2_FREE(m1);
     o2_add_message(m2);
-    o2_message_free(m2);
-    return o2_service_message_finish(time, "oscsend", "", FALSE);
+    O2_FREE(m2);
+    return o2_service_message_finish(time, "oscsend", "", false);
 }
 
 
@@ -84,8 +84,8 @@ int main(int argc, const char * argv[])
 {
     printf("Usage: oscbndlrecv flags (see o2.h for flags, "
            "use a for all, also u for UDP, M for master)\n");
-    int tcpflag = TRUE;
-    int master = FALSE;
+    int tcpflag = true;
+    int master = false;
     if (argc == 2) {
         o2_debug_flags(argv[1]);
         tcpflag = (strchr(argv[1], 'u') == NULL);
@@ -119,7 +119,18 @@ int main(int argc, const char * argv[])
     o2_time now = o2_time_get();
     
     printf("Sending simple message\n");
-    o2_send("/oscsend/test", 0.0, NULL);
+    // note: You can send messages with o2_send() or os_send_cmd() -- the
+    // actual choice of UDP or TCP is controlled by whether the OSC is
+    // a UDP server or a TCP server. HOWEVER, if OSC is using TCP and you
+    // call o2_send(), O2 is free to drop the message if there is a previous
+    // message waiting to be sent or if the TCP connection is not yet
+    // accepted by the server. On the other hand, if OSC is using UDP and
+    // you call o2_send_cmd(), it will behave just like calling o2_send()
+    // if the O2 message forwarding is from this local process. So in
+    // general, it's best to have a direct connection to the OSC server
+    // (don't forward messages through another process without a good
+    // reason), and use o2_send_cmd().
+    o2_send_cmd("/oscsend/test", 0.0, NULL);
 
     printf("Sending messages\n");
     for (int i = 9; i >= 5; i--) {
@@ -139,11 +150,13 @@ int main(int argc, const char * argv[])
         // add the messages to the bundle
         o2_send_start();
         o2_add_message(msg1);
-        o2_message_free(msg1);
+        O2_FREE(msg1);
         o2_add_message(msg2);
-        o2_message_free(msg2);
+        O2_FREE(msg2);
         o2_message_ptr msg = o2_service_message_finish(now + 2 + i * 0.1,
-                                                       "oscsend", "", FALSE);
+                                                       "oscsend", "", true);
+        printf("Sending bundle with %d \"...2.%d\" and %d \"...2.%d\"\n",
+               1000 + i, i, 2000 + i, i);
         // send it
         o2_message_send(msg);
     }
@@ -153,7 +166,9 @@ int main(int argc, const char * argv[])
     //    [@3.0 /first [@0 /msg1 /msg2]] -- should deliver all at 3.0
     //    [@3.1 /first [@3.2 /msg1 /msg2]] -- should dliever msg1, msg2 at 3.2
 
+    printf("send_nested(now, 3.0, 0.0, 3000);\n");
     send_nested(now, 3.0, 0.0, 3000);
+    printf("send_nested(now, 3.1, 3.2, 4000);\n");
     send_nested(now, 3.1, 3.2, 4000);
 
     printf("after sending\n");

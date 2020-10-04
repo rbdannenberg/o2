@@ -29,7 +29,7 @@
 
 int last_udp = -2;
 int last_tcp = -1;
-int running = TRUE;
+bool running = true;
 double last_tcp_time = 1000000;
 double max_tcp_interval = 0;
 int tcp_late_count = 0;
@@ -48,7 +48,7 @@ void server_tcp(o2_msg_data_ptr msg, const char *types,
     assert(argc == 1);
     int i = argv[0]->i32;
     if (i == -1) {
-        running = FALSE;
+        running = false;
     } else {
         last_tcp += 2;
         assert(last_tcp == i);
@@ -109,8 +109,8 @@ int main(int argc, const char *argv[])
 
     o2_initialize("test");
     o2_service_new("server");
-    o2_method_new("/server/tcp", "i", &server_tcp, NULL, FALSE, TRUE);
-    o2_method_new("/server/udp", "i", &server_udp, NULL, FALSE, TRUE);
+    o2_method_new("/server/tcp", "i", &server_tcp, NULL, false, true);
+    o2_method_new("/server/udp", "i", &server_udp, NULL, false, true);
 
     
     // we are the master clock

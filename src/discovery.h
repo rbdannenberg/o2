@@ -7,6 +7,12 @@
 #ifndef DISCOVERY_H
 #define DISCOVERY_H
 
+#define O2_DY_INFO 50
+#define O2_DY_HUB 51
+#define O2_DY_REPLY 52
+#define O2_DY_CALLBACK 53
+#define O2_DY_CONNECT 54
+
 // we need to successfully allocate one port from the list. This number is
 // how many ports to search.
 #define PORT_MAX  16
@@ -16,7 +22,7 @@ extern o2_message_ptr o2_discovery_msg;
 extern SOCKET o2_discovery_socket;
 extern int o2_port_map[16];
 
-extern char o2_hub_addr[32]; // ip:port of hub if any, otherwise empty string
+extern char o2_hub_addr[O2_MAX_PROCNAME_LEN]; // ip:port of hub if any, otherwise empty string
                         // non-empty turns off broadcasting
 
 
@@ -25,9 +31,9 @@ extern char o2_hub_addr[32]; // ip:port of hub if any, otherwise empty string
  *
  *  @return O2_SUCCESS (0) if succeed, O2_FAIL (-1) if not.
  */
-int o2_discovery_initialize(void);
+o2_err_t o2_discovery_initialize(void);
 
-int o2_discovery_finish(void);
+o2_err_t o2_discovery_finish(void);
 
 /**
  *  Discover function will send the discover messages and deal with all the discover
@@ -41,8 +47,6 @@ void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
                                o2_arg_ptr *argv, int argc, void *user_data);
 
 void o2_send_discovery_at(o2_time when);
-
-// int o2_send_initialize(o2n_info_ptr process, int32_t hub_flag);
 
 int o2_send_services(proc_info_ptr proc);
 
@@ -59,12 +63,11 @@ void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
 void o2_services_handler(o2_msg_data_ptr msg, const char *types,
                          o2_arg_ptr *argv, int argc, void *user_data);
 
-int o2_make_tcp_connection(const char *ip, int tcp_port, o2n_info_ptr *info, int hub_flag);
+o2_err_t o2_discovered_a_remote_process(const char *ip, int tcp,
+                                          int udp, int dy);
 
-int o2_discovery_by_tcp(const char *ipaddress, int port, char *name,
-                        int be_server, int32_t hub_flag);
-
-int o2_discovered_a_remote_process(const char *ip, int tcp, int udp, int dy);
+o2_message_ptr o2_make_dy_msg(proc_info_ptr proc, int tcp_flag,
+                              int dy_flag);
 
 
 #endif /* DISCOVERY_H */

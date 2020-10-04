@@ -15,14 +15,14 @@
 #endif
 
 
-int max_msg_count = 50000;
+int max_msg_count = 1000;
 
 char **server_addresses;
 int n_addrs = 20;
-int use_tcp = FALSE;
+int use_tcp = false;
 
 int msg_count = 0;
-int running = TRUE;
+bool running = true;
 
 void client_test(o2_msg_data_ptr data, const char *types,
                  o2_arg_ptr *argv, int argc, void *user_data)
@@ -35,7 +35,7 @@ void client_test(o2_msg_data_ptr data, const char *types,
     // server will shut down when it gets data == -1
     if (msg_count >= max_msg_count) {
         i = -1;
-        running = FALSE;
+        running = false;
     }
     if (use_tcp) o2_send_cmd(server_addresses[msg_count % n_addrs], 0, "i", i);
     else o2_send(server_addresses[msg_count % n_addrs], 0, "i", i);
@@ -54,12 +54,13 @@ int main(int argc, const char *argv[])
     printf("Usage: o2client [maxmsgs] [debugflags] [n_addrs]\n"
            "    see o2.h for flags, use a for all, - for none\n"
            "    n_addrs is number of addresses to use, default 20\n"
+           "    n_addrs must match the number used by o2server\n"
            "    end maxmsgs with t, e.g. 10000t, to test with TCP\n");
     if (argc >= 2) {
         max_msg_count = atoi(argv[1]);
         printf("max_msg_count set to %d\n", max_msg_count);
         if (strchr(argv[1], 't' )) {
-            use_tcp = TRUE;
+            use_tcp = true;
             printf("Using TCP\n");
         }
     }
@@ -78,19 +79,20 @@ int main(int argc, const char *argv[])
     }
 
     o2_initialize("test");
+    o2lite_initialize(); // enable o2lite - this test is used with o2litedisc
     o2_service_new("client");
     
     for (int i = 0; i < n_addrs; i++) {
         char path[100];
         sprintf(path, "/client/benchmark/%d", i);
-        o2_method_new(path, "i", &client_test, NULL, FALSE, TRUE);
+        o2_method_new(path, "i", &client_test, NULL, false, true);
     }
     
-    server_addresses = (char **) malloc(sizeof(char **) * n_addrs);
+    server_addresses = O2_MALLOCNT(n_addrs, char *);
     for (int i = 0; i < n_addrs; i++) {
         char path[100];
         sprintf(path, "!server/benchmark/%d", i);
-        server_addresses[i] = (char *) (O2_MALLOC(strlen(path)));
+        server_addresses[i] = O2_MALLOCNT(strlen(path) + 1, char);
         strcpy(server_addresses[i], path);
     }
 
@@ -113,9 +115,20 @@ int main(int argc, const char *argv[])
     
     while (running) {
         o2_poll();
-        //usleep(2000); // 2ms // as fast as possible
+        usleep(2000); // 2ms // as fast as possible
     }
 
+    // run some more to make sure messages get sent
+    now = o2_time_get();
+    while (o2_time_get() < now + 0.1) {
+        o2_poll();
+        usleep(2000);
+    }
+    
+    for (int i = 0; i < n_addrs; i++) {
+        O2_FREE(server_addresses[i]);
+    }
+    O2_FREE(server_addresses);
     o2_finish();
     printf("CLIENT DONE\n");
     return 0;
