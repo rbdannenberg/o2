@@ -106,6 +106,8 @@ typedef struct o2n_address {
     struct sockaddr_in sa; // address includes port number in network order
 } o2n_address, *o2n_address_ptr;
 
+#define o2n_address_get_in_addr(a) (&(a)->sa.sin_addr)
+
 int o2n_address_get_port(o2n_address_ptr address);
 void o2n_address_set_port(o2n_address_ptr address, int port);
 

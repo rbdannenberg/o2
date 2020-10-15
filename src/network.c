@@ -575,7 +575,7 @@ void o2n_free_deleted_sockets()
 // create a TCP connection to a server
 //
 o2n_info_ptr o2n_connect(const char *ip, int tcp_port,
-                void * application)
+                         void * application)
 {
     o2n_info_ptr info = o2n_tcp_socket_new(NET_TCP_CONNECTING, 0, application);
     if (!info) {

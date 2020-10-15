@@ -18,10 +18,28 @@ for design details */
 dyn_array o2_mqtt_procs;
 // xxx.xxx.xxx.xxx:yyy.yyy.yyy.yyy:ppppp
 char o2_full_name[40] = "";
+o2n_address mqtt_address;
+char mqtt_broker_ip[24]; // standard "dot" format IP address for broker
 
-
-o2_err_t o2_mqtt_enable(const char *broker)
+o2_err_t o2_mqtt_enable(const char *broker, int port_num)
 {
+    if (!broker) broker = "mqtt.eclipse.org";
+    if (port_num == 0) port_num = 1883; // default for MQTT
+    // look up the server to get the IP address. That way, we can get the
+    // blocking call out of the way when the process starts up, and we
+    // can return an error synchronously if the server cannot be found.
+    // We cannot actually connect until we know our public IP address,
+    // which we are getting from a stun server asynchronously since UDP
+    // could could result in several retries and should be non-blocking.
+    o2_err_t err = o2n_address_init(&mqtt_address, broker, 1883, true);
+    if (err) {
+        return err;
+    }
+    if (!inet_ntop(AF_INET, (void *) o2n_address_get_in_addr(&mqtt_address),
+                   mqtt_broker_ip, sizeof mqtt_broker_ip)) {
+        perror("converting mqtt ip to string");
+        return O2_FAIL;
+    }
     printf("o2_mqtt_enable %s\n", broker);
     DA_INIT(o2_mqtt_procs, proc_info_ptr, 0);
     // when we get it, o2_mqtt_initialize will be called
@@ -31,10 +49,12 @@ o2_err_t o2_mqtt_enable(const char *broker)
 
 void o2_mqtt_initialize(const char *public_ip)
 {
+    // make MQTT broker connection
+    o2m_initialize(mqtt_broker_ip, o2n_address_get_port(&mqtt_address));
+
+
     snprintf(o2_full_name, 40, "%s:%s", (const char *) public_ip,
              o2_ctx->proc->name);
-    // make MQTT broker connection
-    o2m_initialize(NULL, 0); // default broker
 }
 
 

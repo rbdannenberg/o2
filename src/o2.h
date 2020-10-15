@@ -1573,7 +1573,7 @@ int o2_roundtrip(double *mean, double *min);
  *
  * See #o2_clock_set for details.
  */
-typedef o2_time (*o2_time_callback)(void *rock);
+typedef o2_time(*o2_time_callback)(void *rock);
 
 
 /**

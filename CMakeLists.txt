@@ -367,10 +367,18 @@ add_executable(o2litehost test/o2litehost.c)
 target_include_directories(o2litehost PRIVATE ${CMAKE_SOURCE_DIR}/src)         
 target_link_libraries(o2litehost ${LIBRARIES})  
 
-add_executable(stuniptest test/stuniptest.c)
+add_executable(stuniptest test/stuniptest.c) 
 target_include_directories(stuniptest PRIVATE ${CMAKE_SOURCE_DIR}/src)         
 target_link_libraries(stuniptest ${LIBRARIES})  
-    
+
+add_executable(mqttclient test/mqttclient.c) 
+target_include_directories(mqttclient PRIVATE ${CMAKE_SOURCE_DIR}/src)         
+target_link_libraries(mqttclient ${LIBRARIES})  
+
+add_executable(mqttserver test/mqttserver.c) 
+target_include_directories(mqttserver PRIVATE ${CMAKE_SOURCE_DIR}/src)         
+target_link_libraries(mqttserver ${LIBRARIES})  
+
 endif(TESTS_BUILD)  
  
 if(UNIX)

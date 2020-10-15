@@ -106,14 +106,12 @@ static o2n_message_ptr mqtt_finish_msg(int command)
 }
 
 
-o2_err_t o2m_initialize(const char *server, int port)
+o2_err_t o2m_initialize(const char *server, int port_num)
 {
     DA_INIT(mqtt_input, uint8_t, 32);
-    if (!server) server = "mqtt.eclipse.org";
-    if (port == 0) port = 1883;
     o2m_mqtt_client.tag = MQTT_CLIENT;
     packet_id = 0;
-    mqtt_info = o2n_tcp_server_new(port, &o2m_mqtt_client);
+    mqtt_info = o2n_connect(server, port_num, (void *) &o2m_mqtt_client);
     mqtt_info->raw_flag = true;
     o2_send_start();
     mqtt_append_string("MQTT");

@@ -27,8 +27,8 @@ typedef const char *o2string; // string padded to 4-byte boundary
 #include "o2.h"
 #include "debug.h"
 #include "dynarray.h"
-#include "network.h" // to get o2n_info_ptr declaration
 #include "hashnode.h"
+#include "network.h"
 #include "processes.h"
 #include "stun.h"
 #include "mqtt.h"
