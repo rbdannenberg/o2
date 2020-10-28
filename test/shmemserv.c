@@ -15,8 +15,6 @@ This test:
 #ifdef WIN32
 #include "usleep.h" // special windows implementation of sleep/usleep
 #else
-#include <libkern/OSAtomic.h>
-#include <libkern/OSAtomicQueue.h>
 #include <unistd.h>
 #endif
 

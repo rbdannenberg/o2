@@ -18,8 +18,6 @@
 #include <math.h>
 #include <assert.h>
 
-typedef int o2_queue_head;
-
 // hash keys are processed in 32-bit chunks so we declare a special
 // string type. These are used in messages as well.
 typedef const char *o2string; // string padded to 4-byte boundary

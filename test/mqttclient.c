@@ -53,7 +53,7 @@ int main(int argc, const char *argv[])
     }
 
     o2_initialize("test");
-    o2_mqtt_enable(NULL);
+    o2_mqtt_enable(NULL, 0);
     o2_service_new("client");
     o2_method_new("/client/client", "i", &client_recv_reply, NULL, false, true);
     

@@ -21,10 +21,13 @@ dyn_array o2_mqtt_procs;
 // xxx.xxx.xxx.xxx:yyy.yyy.yyy.yyy:ppppp
 char o2_full_name[40] = "";
 o2n_address mqtt_address;
-char mqtt_broker_ip[24]; // standard "dot" format IP address for broker
+char mqtt_broker_ip[24] = ""; // standard "dot" format IP address for broker
 
 o2_err_t o2_mqtt_enable(const char *broker, int port_num)
 {
+    if (!o2_ensemble_name) {
+        return O2_NOT_INITIALIZED;
+    }
     if (!broker) broker = "mqtt.eclipse.org";
     if (port_num == 0) port_num = 1883; // default for MQTT
     // look up the server to get the IP address. That way, we can get the
@@ -42,7 +45,7 @@ o2_err_t o2_mqtt_enable(const char *broker, int port_num)
         perror("converting mqtt ip to string");
         return O2_FAIL;
     }
-    printf("o2_mqtt_enable %s\n", broker);
+    printf("o2_mqtt_enable %s with IP %s\n", broker, mqtt_broker_ip);
     DA_INIT(o2_mqtt_procs, proc_info_ptr, 0);
     // when we get it, o2_mqtt_initialize will be called
     return o2_get_public_ip();
@@ -53,8 +56,6 @@ void o2_mqtt_initialize(const char *public_ip)
 {
     // make MQTT broker connection
     o2m_initialize(mqtt_broker_ip, o2n_address_get_port(&mqtt_address));
-
-
     snprintf(o2_full_name, 40, "%s:%s", (const char *) public_ip,
              o2_ctx->proc->name);
 }
@@ -66,7 +67,7 @@ void o2_mqtt_send(proc_info_ptr proc, o2_message_ptr msg)
     o2_message_print(msg);
     const char *topic = proc->name;
     int payload_len = msg->data.length;
-    const char *payload = (const char *) &msg->data.flags;
+    const uint8_t *payload = (const uint8_t *) &msg->data.flags;
     o2_mqtt_publish(topic, payload, payload_len, 0);
 }
 
@@ -152,7 +153,7 @@ void o2m_deliver_mqtt_msg(const char *topic, int topic_len,
     if (strncmp(o2_full_name, topic, topic_len) == 0) {
         // match, so send the message.
         o2_message_ptr msg = o2_message_new(payload_len);
-        memcpy(&msg->data.flags, payload, payload_len);
+        memcpy(&msg->data.flags, (char *) payload, payload_len);
         o2_prepare_to_deliver(msg);
         o2_message_send_sched(true);
     }

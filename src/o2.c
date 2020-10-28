@@ -604,8 +604,6 @@ functions.
 #include <signal.h>
 #include <ctype.h>
 #include <unistd.h>
-#include <libkern/OSAtomic.h>
-#include <libkern/OSAtomicQueue.h>
 
 #include "o2internal.h"
 #include "o2mem.h"

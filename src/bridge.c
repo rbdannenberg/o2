@@ -72,7 +72,8 @@ void o2_bridges_finish(void)
     while (bridges.length > 0) {
         o2_bridge_remove(DA_GET(bridges, bridge_protocol_ptr, 0)->protocol);
     }
-    printf("freeing bridges @ %p, allocated %d\n", bridges, bridges.allocated);
+    printf("freeing bridges @ %p, allocated %d\n",
+           bridges.array, bridges.allocated);
     DA_FINISH(bridges);
 }
 

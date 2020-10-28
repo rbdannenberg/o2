@@ -301,7 +301,6 @@ static void clock_status_change(o2_node_ptr proc, const char *name,
                                                || proc->tag == MQTT_SYNCED
 #endif
                                               ) && spp->service == proc) {
-                proc_info_ptr pi = TO_PROC_INFO(proc);
                 O2_DBk(printf("%s clock_status_change sends /si \"%s\" "
                         "%s(%d) proc \"%s\" properties \"%s\"\n",
                         o2_debug_prefix, services->key,

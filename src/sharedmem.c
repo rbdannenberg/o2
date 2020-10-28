@@ -164,8 +164,7 @@ void *shared_memory_thread(void *ignore) // the thread entry point
 
 #ifndef O2_NO_SHAREDMEM
 #include "o2internal.h"
-#include <libkern/OSAtomic.h>
-#include <libkern/OSAtomicQueue.h>
+#include "atomic.h"
 #include "services.h"
 #include "message.h"
 #include "msgsend.h"
@@ -176,12 +175,13 @@ void *shared_memory_thread(void *ignore) // the thread entry point
 
 #define O2SM_BRIDGE(i) DA_GET(o2sm_bridges, bridge_inst_ptr, i)
 
-#define OUTGOING(o2sm) ((OSQueueHead *) (((int64_t) &(o2sm)->outgoing) & ~0xF))
+#define OUTGOING(o2sm) ((o2_queue_head_ptr) \
+        (((intptr_t) &(o2sm)->outgoing) & ~0xF))
 
 bridge_protocol_ptr o2sm_bridge = NULL;
 static dyn_array o2sm_bridges;
 
-static OSQueueHead o2sm_incoming;
+static o2_queue_head o2sm_incoming;
 
 // o2sm_inst is allocated once and stored on the bridge_inst that is
 // referenced by the o2sm_bridges dynamic array. It is also
@@ -197,7 +197,7 @@ typedef struct o2sm_inst {
     // the outgoing address with ~0xF to force 16-btye alignment. This
     // might locate it 8-bytes lower, so we insert 8 bytes of padding to
     // make sure the shifted address is allocated and usable.
-    OSQueueHead outgoing;
+    o2_queue_head outgoing;
     int bridged_process_index;
 } o2sm_inst, *o2sm_inst_ptr;
 
@@ -227,13 +227,10 @@ bridge_inst_ptr o2_shmem_inst_new()
 
 // retrieve all messages from head atomically. Then reverse the list.
 //
-static o2_message_ptr get_messages_reversed(OSQueueHead *head)
+static o2_message_ptr get_messages_reversed(o2_queue_head_ptr head)
 {
     // store a zero if nothing has changed
-    o2_message_ptr all = (o2_message_ptr) (head->opaque1);
-    while (!OSAtomicCompareAndSwapPtrBarrier(all, NULL, &head->opaque1)) {
-        all = (o2_message_ptr) (head->opaque1);
-    }
+    o2_message_ptr all = (o2_message_ptr) o2_queue_grab(head);
     
     o2_message_ptr msgs = NULL;
     o2_message_ptr next = NULL;
@@ -271,20 +268,20 @@ o2_err_t shmem_bridge_send(bridge_inst_ptr inst)
         inst = o2_ctx->binst;
     }
     o2_message_ptr msg = o2_postpone_delivery();
-    // we have a message to send to the service via shared memory -- find
+    // we have a message to send to shmmthe service via shared memory -- find
     // queue and add the message there atomically
     o2sm_inst_ptr o2sm = (o2sm_inst_ptr) inst->info;
-    OSAtomicEnqueue(OUTGOING(o2sm), (char *) msg, 0);
+    o2_queue_push(OUTGOING(o2sm), (o2_obj_ptr) msg);
     return O2_SUCCESS;
 }
 
 
 static void free_outgoing(o2sm_inst_ptr o2sm)
 {
-    o2_message_ptr *qh = (o2_message_ptr *) &OUTGOING(o2sm)->opaque1;
-    while (*qh) {
-        o2_message_ptr msg = *qh;
-        *qh = msg->next;
+    o2_message_ptr outgoing = (o2_message_ptr) o2_queue_pop(OUTGOING(o2sm));
+    while (outgoing) {
+        o2_message_ptr msg = outgoing;
+        outgoing = msg->next;
         O2_FREE(msg);
     }
 }
@@ -640,7 +637,7 @@ static void append_to_schedule(o2_message_ptr msg)
 
 o2_err_t o2sm_message_send(o2_message_ptr msg)
 {
-    OSAtomicEnqueue(&o2sm_incoming, (char *) msg, 0);
+    o2_queue_push(&o2sm_incoming, (o2_obj_ptr) msg);
     return O2_SUCCESS;
 }
 
@@ -767,6 +764,7 @@ void o2sm_initialize(o2_ctx_ptr ctx, bridge_inst_ptr inst)
     // first call to O2_MALLOC by the shared memory thread. If
     // o2_memory() was used called with mallocp = false, the thread
     // will fail to allocate any memory, so mallocp must be true (default).
+    o2_queue_init(&o2sm_incoming);
     ctx->chunk = NULL;
     ctx->chunk_remaining = 0;
     o2_ctx_init(ctx);
