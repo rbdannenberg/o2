@@ -15,8 +15,6 @@ for design details */
 extern dyn_array o2_mqtt_procs;
 extern char o2_full_name[40];
 
-o2_err_t o2_mqtt_enable(const char *broker, int port_num);
-
 void o2_mqtt_initialize(const char *public_ip);
 
 void o2_mqtt_send(proc_info_ptr proc, o2_message_ptr msg);

@@ -24,16 +24,6 @@ extern "C" {
 
 
 void o2_mem_init(char *first_chunk, int64_t size);
-/*
-#ifdef __APPLE__
-#define o2_queue_head OSQueueHead
-#define QUEUE_INIT(q) (q).opaque1 = 0; (q).opaque2 = 0;
-#define QUEUE_GET_MSGS(q) ((o2_message_ptr) (q).opaque1)
-#define QUEUE_GET_MSGS_LOC(q) (&(q).opaque1)
-#else
-#error non-apple implementation needed
-#endif
-*/
 
 #ifdef __cplusplus
 }

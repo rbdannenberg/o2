@@ -108,6 +108,10 @@ static o2n_message_ptr mqtt_finish_msg(int command)
 
 o2_err_t o2m_initialize(const char *server, int port_num)
 {
+    if (!*server) {
+        return O2_BAD_ARGS; // possibly someone called o2_get_public_ip(),
+        // but o2_mqtt_enable() was not called to set the mqtt broker.
+    }
     DA_INIT(mqtt_input, uint8_t, 32);
     o2m_mqtt_client.tag = MQTT_CLIENT;
     packet_id = 0;

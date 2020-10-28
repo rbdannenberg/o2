@@ -219,8 +219,8 @@ o2_node_ptr o2_service_find(const char *service_name,
         // map local IP:PORT string to "_o2": Note that we could save a hash
         // lookup by doing this test first, but I think this is pretty rare:
         // only system messages from remote processes will use !IP:PORT/
-        if (isdigit(service_name[0]) &&
-            streql(service_name, o2_ctx->proc->name)
+        if ((isdigit(service_name[0]) &&
+             streql(service_name, o2_ctx->proc->name))
 #ifndef O2_NO_MQTT
             || streql(service_name, o2_full_name)
 #endif

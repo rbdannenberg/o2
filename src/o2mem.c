@@ -38,9 +38,8 @@
  */
 
 #include "o2internal.h"
-#include <libkern/OSAtomic.h>
-#include <libkern/OSAtomicQueue.h>
 #include "o2mem.h"
+#include "atomic.h"
 
 #define O2MEM_ALIGN_LOG2 3
 #define LOG2_MAX_LINEAR_BYTES 9 // up to (512 - 8) byte chunks
@@ -111,16 +110,11 @@ typedef struct chunk_struct {
 #define O2MEM_CHUNK_SIZE (1 << 13) // 13 is much bigger than 9
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
-// Given a pointer memory block, return the length
-#define BLOCK_SIZE(ptr) (((int64_t *)(ptr))[-1])
-
 static bool need_o2mem_init = true;
 static bool using_o2mem = true;
 static bool malloc_ok = true;
-static char *initial_chunk = NULL;
-static int64_t initial_chunk_size = 0;
 static int total_allocated = 0;
-static OSQueueHead allocated_chunk_list = OS_ATOMIC_QUEUE_INIT;
+static o2_queue_head allocated_chunk_list;
 
 static void *o2_malloc(size_t size);
 static void o2_free(void *);
@@ -131,12 +125,12 @@ void ((*o2_free_ptr)(void *)) = &o2_free;
 // array of freelists for sizes from 0 to MAX_LINEAR_BYTES-8 by 8
 // this takes 512 / 8 * 16 = 1024 bytes
 // sizes are usable sizes not counting preamble or postlude space:
-static OSQueueHead linear_free[MAX_LINEAR_BYTES / O2MEM_ALIGN];
+static o2_queue_head linear_free[MAX_LINEAR_BYTES / O2MEM_ALIGN];
 
 // array of freelists with log2(size) from 0 to LOG2_MAX_EXPONENTIAL_BYTES
 // this takes (25 - 9) * 16 = 256 bytes
-static OSQueueHead exponential_free[LOG2_MAX_EXPONENTIAL_BYTES -
-                                    LOG2_MAX_LINEAR_BYTES];
+static o2_queue_head exponential_free[LOG2_MAX_EXPONENTIAL_BYTES -
+                                      LOG2_MAX_LINEAR_BYTES];
 
 #ifndef O2_NO_DEBUG
 int o2mem_get_seqno(const void *ptr);
@@ -155,8 +149,9 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
 
 void o2_dbg_free(const void *obj, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_FREE %d bytes in %s:%d : #%d@%p\n",
-                  o2_debug_prefix, ((int64_t *) obj)[-1], file, line, o2mem_get_seqno(obj), obj));
+    O2_DBm(printf("%s O2_FREE %ld bytes in %s:%d : #%d@%p\n",
+                  o2_debug_prefix, O2_OBJ_SIZE((o2_obj_ptr) obj),
+                  file, line, o2mem_get_seqno(obj), obj));
     // bug in C. free should take a const void * but it doesn't
     (*o2_free_ptr)((void *) obj);
 }
@@ -289,7 +284,7 @@ int o2mem_get_seqno(void *ptr)
 //
 bool o2_mem_check_all(int report_leaks)
 {
-    chunk_ptr chunk = (chunk_ptr) OSAtomicDequeue(&allocated_chunk_list, 0);
+    chunk_ptr chunk = (chunk_ptr) o2_queue_pop(&allocated_chunk_list);
     int leak_found = false;
     while (chunk) { // walk the chunk list and see if everything is freed
         // within each chunk, blocks are allocated sequentially
@@ -298,7 +293,7 @@ bool o2_mem_check_all(int report_leaks)
             leak_found |= o2_block_check(preamble->payload, !report_leaks, true);
             preamble = (preamble_ptr) (PREAMBLE_TO_POSTLUDE(preamble) + 1);
         }
-        chunk = (chunk_ptr) OSAtomicDequeue(&allocated_chunk_list, 0);
+        chunk = (chunk_ptr) o2_queue_pop(&allocated_chunk_list);
     }
     return leak_found;
 }
@@ -318,8 +313,6 @@ int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)),
         o2_malloc_ptr = malloc;
         o2_free_ptr = free;
     } else if (!malloc && !free) {
-        initial_chunk = first_chunk;
-        initial_chunk_size = size;
         o2_mem_init(first_chunk, size);
         malloc_ok = mallocp;
     }        
@@ -332,8 +325,14 @@ void o2_mem_init(char *chunk, int64_t size)
     if (!need_o2mem_init || !using_o2mem) {
         return;
     }
-    memset((void *) linear_free, 0, sizeof linear_free);
-    memset((void *) exponential_free, 0, sizeof exponential_free);
+    for (int i = 0; i < MAX_LINEAR_BYTES / O2MEM_ALIGN; i++) {
+        o2_queue_init(&linear_free[i]);
+    }
+    for (int i = 0; i < LOG2_MAX_EXPONENTIAL_BYTES -
+                        LOG2_MAX_LINEAR_BYTES; i++) {
+        o2_queue_init(&exponential_free[i]);
+    }
+    o2_queue_init(&allocated_chunk_list);
     need_o2mem_init = false;
     o2_ctx->chunk = chunk;
     o2_ctx->chunk_remaining = size;
@@ -346,16 +345,17 @@ void o2_mem_finish()
     if (using_o2mem) {
 #if O2MEM_DEBUG
         // this is expensive, but so is shutting down, so why not...
+        // o2_mem_check_all has the side effect of emptying allocated_chunk_list
         printf("**** o2_mem_finish checking for memory leaks...\n");
         printf("**** o2_mem_finish detected %sleaks.\n",
                o2_mem_check_all(true) ? "" : "NO ");
-#endif
-        chunk_ptr chunk = (chunk_ptr) OSAtomicDequeue(&allocated_chunk_list, 0);
+#else
+        chunk_ptr chunk = (chunk_ptr) o2_queue_pop(&allocated_chunk_list);
         while (chunk) {
             free(chunk);
-            chunk = (chunk_ptr) OSAtomicDequeue(&allocated_chunk_list, 0);
+            chunk = (chunk_ptr) o2_queue_pop(&allocated_chunk_list);
         }
-
+#endif
         need_o2mem_init = true;
         o2_mem_init(NULL, 0); // remove free lists
         need_o2mem_init = true;
@@ -374,7 +374,7 @@ static int power_of_2_block_size(size_t size)
 
 
 // returns a pointer to the sublist for a given size.
-static OSQueueHead *head_ptr_for_size(size_t *size)
+static o2_queue_head_ptr head_ptr_for_size(size_t *size)
 {
     *size = O2MEM_ALIGNUP(*size);
     size_t index = *size >> O2MEM_ALIGN_LOG2;
@@ -408,7 +408,7 @@ void *o2_malloc(size_t size)
     char *result; // allocate by malloc, find on freelist, or carve off chunk
     // find what really gets allocated. Large blocks especially 
     // are rounded up to a power of two.
-    OSQueueHead *p = head_ptr_for_size(&size);
+    o2_queue_head_ptr p = head_ptr_for_size(&size);
     // knowing the actual size allocated (or to allocate), we can compute
     // the "real size" including the preamble and postlude and payload
     size_t realsize = SIZE_TO_REALSIZE(size);
@@ -425,7 +425,7 @@ void *o2_malloc(size_t size)
         return NULL;
     }
 
-    result = (char *) OSAtomicDequeue(p, 0);
+    result = o2_queue_pop(p)->data;
     // invariant: result points to block of size realsize at an offset of
     // 8 (or 16 if O2MEM_DEBUG) bytes.
     if (result) {
@@ -464,7 +464,7 @@ void *o2_malloc(size_t size)
             chunk_ptr chunk2 = (chunk_ptr) malloc(realsize + sizeof(char *) +
                                                   need_debug_space);
             // add chunk2 to list
-            OSAtomicEnqueue(&allocated_chunk_list, chunk2, 0);
+            o2_queue_push(&allocated_chunk_list, (o2_obj_ptr) chunk2);
             // skip over chunk list pointer
             preamble = &chunk2->first;
             goto gotnew;
@@ -479,7 +479,7 @@ void *o2_malloc(size_t size)
             return NULL; // can't allocate a chunk
         }
         // add allocated chunk to the list
-        OSAtomicEnqueue(&allocated_chunk_list, o2_ctx->chunk, 0);
+        o2_queue_push(&allocated_chunk_list, (o2_obj_ptr) o2_ctx->chunk);
         o2_ctx->chunk += sizeof(char *); // skip over chunk list pointer
         o2_ctx->chunk_remaining = O2MEM_CHUNK_SIZE - sizeof(char *);
     }
@@ -517,7 +517,7 @@ void *o2_malloc(size_t size)
     }
     postlude->end_sentinal = 0xBADCAFE8DEADBEEF;
     if (result == o2_mem_watch) {
-        fprintf(stderr, "o2_mem_watch %p allocated at seqno %ld\n",
+        fprintf(stderr, "o2_mem_watch %p allocated at seqno %ld\n",
                 result, o2_mem_seqno);
     }
 #endif
@@ -556,7 +556,7 @@ void o2_free(void *ptr)
     postlude->end_sentinal = 0x5ea1ed5caff01d;
 #endif
     // head_ptr_for_size can round up size
-    OSQueueHead *head_ptr = head_ptr_for_size(&preamble->size);
+    o2_queue_head_ptr head_ptr = head_ptr_for_size(&preamble->size);
     if (!head_ptr) {
         if (malloc_ok) {
             ptr -= offsetof(preamble_t, payload);
@@ -567,7 +567,7 @@ void o2_free(void *ptr)
         return;
     }
     total_allocated -= realsize;
-    OSAtomicEnqueue(head_ptr, (char *) ptr, 0);
+    o2_queue_push(head_ptr, (o2_obj_ptr) ptr);
 }
 
 

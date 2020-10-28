@@ -84,6 +84,7 @@ endif(UNIX)
 # o2
  
 set(O2_SRC  
+  src/atomic.c src/atomic.h
   src/bridge.c src/bridge.h 
   src/clock.c src/clock.h 
   src/debug.c src/debug.h 

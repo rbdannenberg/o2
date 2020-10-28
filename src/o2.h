@@ -2577,6 +2577,16 @@ o2_err_t o2_bridge_remove(const char *protocol_name);
 
 /** @} */ // end of a bridgeapi group
 
+#ifndef O2_NO_MQTT
+/** \defgroup mqttapi MQTT Bridge API
+ * @{
+ */
+
+o2_err_t o2_mqtt_enable(const char *broker, int port_num);
+
+/** @} */ // end of a mqttapi group
+#endif
+
 // note: shared mem process support depends on bridge support
 #ifndef O2_NO_SHAREDMEM
 o2_err_t o2_shmem_initialize();
