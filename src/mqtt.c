@@ -14,6 +14,8 @@ for design details */
 #include "mqtt.h"
 #include "discovery.h"
 #include "message.h"
+#include "services.h"
+#include "msgsend.h"
 
 dyn_array o2_mqtt_procs;
 // xxx.xxx.xxx.xxx:yyy.yyy.yyy.yyy:ppppp

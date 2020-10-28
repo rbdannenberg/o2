@@ -191,7 +191,7 @@ void o2_mqtt_received(o2n_info_ptr info)
     // see if we have a whole message yet
     if ((first & 0xF0) == MQTT_PUBLISH) {
         int posn;
-        uint8_t *inbuff = (uint8_t) mqtt_input.array;
+        uint8_t *inbuff = (uint8_t *) mqtt_input.array;
         len = mqtt_int_len(inbuff, mqtt_input.length, &posn);
         if (len < 0 || posn + len < mqtt_input.length) {
             return; // need more bytes to make a complete message

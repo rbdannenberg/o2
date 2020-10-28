@@ -60,6 +60,7 @@
 #include "msgsend.h"
 #include "o2osc.h"
 #include "bridge.h"
+#include "mqttcomm.h"
 
 // returns the address of the byte AFTER the message
 #define MSG_END(msg) (PTR(&(msg)->flags) + (msg)->length)

@@ -83,7 +83,7 @@ const char *o2_tag_to_string(int tag)
     if (tag >= BRIDGE_NOCLOCK && tag <= BRIDGE_SYNCED)
         return bridge_tags[tag - BRIDGE_NOCLOCK];
 #endif
-#ifndef O2_NO_MQTT:
+#ifndef O2_NO_MQTT
     if (tag == STUN_CLIENT) return "STUN_CLIENT";
     if (tag == MQTT_CLIENT) return "MQTT_CLIENT";
     if (tag == MQTT_NOCLOCK) return "MQTT_NOCLOCK";
