@@ -19,6 +19,12 @@
 //                 [/xyz/msg1 1011 "an arbitrary string at 3.1"],
 //                 [/abcdefg/msg2 2011 "another arbitrary string at 3.1"]]
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -31,7 +37,7 @@
 #endif
 
 
-o2_message_ptr make_message(o2_time time, char *address, int i, char *s)
+o2_message_ptr make_message(o2_time time, const char *address, int i, char *s)
 {
     o2_send_start();
     o2_add_int32(i);
@@ -55,6 +61,7 @@ o2_message_ptr bundle2(o2_time time, o2_message_ptr m1, o2_message_ptr m2)
 void send_nested(o2_time now, o2_time touter, o2_time tinner, int base)
 {
     char s[128];
+
     // make first message
     sprintf(s, "first string at %g", touter);
     o2_message_ptr out1 = make_message(now + touter, "/oscsend/first",

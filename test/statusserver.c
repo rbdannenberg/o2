@@ -5,6 +5,12 @@
 // to exit, then checks that the status of the service
 // reverts to "does not exist".
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"

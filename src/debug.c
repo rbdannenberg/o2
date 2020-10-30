@@ -11,7 +11,7 @@
 #include "message.h"
 
 #ifndef O2_NO_DEBUG
-char *o2_debug_prefix = "O2:";
+const char *o2_debug_prefix = "O2:";
 int o2_debug = 0;
 
 void o2_debug_flags(const char *flags)

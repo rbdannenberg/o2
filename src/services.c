@@ -238,8 +238,8 @@ o2_node_ptr o2_service_find(const char *service_name,
 }
 
 
-int o2_services_insert_tap(services_entry_ptr ss, o2string tapper,
-                           proc_info_ptr proc)
+o2_err_t o2_services_insert_tap(services_entry_ptr ss, o2string tapper,
+                                proc_info_ptr proc)
 {
     service_tap_ptr tap = DA_EXPAND(ss->taps, service_tap);
     tap->tapper =tapper;
@@ -334,8 +334,8 @@ static void pick_service_provider(dyn_array_ptr list)
  *         next node in the address.
  * (no more cases because we moved others to o2_service_remove)
  */
-int o2_service_provider_replace(const char *service_name,
-          o2_node_ptr *node_ptr, o2_node_ptr new_service)
+o2_err_t o2_service_provider_replace(const char *service_name,
+               o2_node_ptr *node_ptr, o2_node_ptr new_service)
 {
     assert(new_service);
     // clean up the old service node
@@ -409,8 +409,8 @@ static void remove_empty_services_entry(services_entry_ptr ss)
  *
  * CASE 5: service is a bridge service, proc is the o2_ctx-proc
  */
-int o2_service_remove(const char *service_name, proc_info_ptr proc,
-                      services_entry_ptr ss, int index)
+o2_err_t o2_service_remove(const char *service_name, proc_info_ptr proc,
+                           services_entry_ptr ss, int index)
 {
     if (!ss) {
         ss = *o2_services_find(service_name);
@@ -533,10 +533,10 @@ int o2_service_remove(const char *service_name, proc_info_ptr proc,
 // to proc.
 // returns O2_SUCCESS if at least one tap was removed, o.w. O2_FAIL
 //
-int o2_tap_remove_from(services_entry_ptr ss, proc_info_ptr proc,
-                       const char *tapper)
+o2_err_t o2_tap_remove_from(services_entry_ptr ss, proc_info_ptr proc,
+                            const char *tapper)
 {
-    int result = O2_FAIL;
+    o2_err_t result = O2_FAIL;
     for (int i = 0; i < ss->taps.length; i++) {
         service_tap_ptr tap = GET_TAP_PTR(ss->taps, i);
         if (tap->proc == proc && (!tapper || streql(tap->tapper, tapper))) {

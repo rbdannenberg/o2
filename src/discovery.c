@@ -11,7 +11,7 @@
 #include "msgsend.h"
 #include "clock.h"
 #include "discovery.h"
-#include "sched.h"
+#include "o2sched.h"
 #include "bridge.h"
 
 // These parameters hit all 16 ports in 3.88s, then all 16 again by 30s,
@@ -193,7 +193,7 @@ static void o2_broadcast_message(int port)
 // If we are the client, o2_send_services()
 //
 void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
-                          o2_arg_ptr *argv, int argc, void *user_data)
+                          o2_arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2_discovery_handler gets", NULL, msg, NULL, NULL));
     o2_arg_ptr ens_arg, ip_arg, tcp_arg, udp_arg, dy_arg;
@@ -324,14 +324,14 @@ o2_err_t o2_discovered_a_remote_process(const char *ip, int tcp,
             o2_proc_info_free(proc);
         }
     }
-    int err = O2_SUCCESS;
+    o2_err_t err = O2_SUCCESS;
     if (reply_msg) {
         o2_prepare_to_deliver(reply_msg);
         err = o2_send_remote(proc, false);
     }
-    err = err || o2_send_clocksync_proc(proc) ||
-          o2_send_services(proc) ||
-          o2n_address_init(&proc->udp_address, ip, udp, false);
+    if (!err) err = o2_send_clocksync_proc(proc);
+    if (!err) err = o2_send_services(proc);
+    if (!err) err = o2n_address_init(&proc->udp_address, ip, udp, false);
     O2_DBd(printf("%s UDP port %d for remote proc %s set to %d avail as %d\n",
                   o2_debug_prefix, udp, ip,
                   ntohs(proc->udp_address.sa.sin_port),
@@ -351,7 +351,7 @@ o2_err_t o2_discovered_a_remote_process(const char *ip, int tcp,
 // the first service is the process itself, which contains important
 // properties information
 //
-int o2_send_services(proc_info_ptr proc)
+o2_err_t o2_send_services(proc_info_ptr proc)
 {
     o2_send_start();
     o2_add_string(o2_ctx->proc->name);
@@ -454,7 +454,7 @@ static void hub_has_new_client(proc_info_ptr nc)
 // /_o2/hub handler: makes this the hub of the sender
 //
 void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
-                    o2_arg_ptr *argv, int argc, void *user_data)
+                    o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(o2n_message_source);
     if (IS_REMOTE_PROC((o2_node_ptr) (o2n_message_source->application))) {
@@ -478,10 +478,10 @@ void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
 //      to/from services
 //
 void o2_services_handler(o2_msg_data_ptr msg, const char *types,
-                         o2_arg_ptr *argv, int argc, void *user_data)
+                         o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(msg);
-    o2_arg_ptr arg = o2_get_next('s');
+    o2_arg_ptr arg = o2_get_next(O2_STRING);
     if (!arg) return;
     char *name = arg->s;
     // note that name is padded with zeros to 32-bit boundary
@@ -552,7 +552,7 @@ void o2_send_discovery_at(o2_time when)
 //    o2_ctx->info_ip (as a string), udp port (int), tcp port (int)
 //
 void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
-                               o2_arg_ptr *argv, int argc, void *user_data)
+                    o2_arg_ptr *argv, int argc, const void *user_data)
 {
     if (o2_hub_addr[0]) {
         return; // end discovery broadcasts after o2_hub()

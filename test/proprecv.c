@@ -29,6 +29,12 @@
 //        get and check full properties string
 
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -81,7 +87,7 @@ const char *status_to_string(int status)
 
 
 void service_two(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "i") == 0);
     sync_value = argv[0]->i;
@@ -126,7 +132,7 @@ void lookup()
 int si_msg_count = 0;
 
 void service_info_handler(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                          o2_arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
     int status = argv[1]->i32;
@@ -143,7 +149,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
         printf("**** service_info_handler says %s has died. ****\n",
                service_name);
     } else if (streql(service_name, "two")) {
-        char *correct = "";
+        const char *correct = "";
         if (last_sync == 0) correct = "attr2:value2;";
         else if (last_sync == 2) correct = "attr0:twovalue1two;attr2:value2;";
         else if (last_sync == 4) correct = "attr0:newvalue2;attr2:value2;";
@@ -187,7 +193,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
         }
         return;
     } else if (streql(service_name, "one")) {
-        char *correct = "";
+        const char *correct = "";
         if (last_sync == 0 || last_sync == 1) correct = "attr1:value1;";
         else if (last_sync == 2) correct =
                                      "attr0:onevalue1one;attr1:value1;";

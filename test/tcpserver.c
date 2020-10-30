@@ -4,6 +4,12 @@
 //  that sends a message back and forth between a client and server.
 //
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -29,7 +35,7 @@ bool running = true;
 // back to one of the client addresses
 //
 void server_test(o2_msg_data_ptr msg, const char *types,
-                o2_arg ** argv, int argc, void *user_data)
+                o2_arg ** argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     msg_count++;

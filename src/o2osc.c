@@ -123,7 +123,6 @@ Destruction of servers:
 #include "o2internal.h"
 #include "services.h"
 #include "message.h"
-//#include "o2_sched.h"
 #include "msgsend.h"
 #include "o2osc.h"
 
@@ -287,7 +286,7 @@ o2_err_t o2_osc_delegate(const char *service_name, const char *ip,
     }
     osc_info_ptr osc = new_osc_info(service_name, port_num, NULL,
                                tcp_flag ? OSC_TCP_CLIENT : OSC_UDP_CLIENT);
-    int rslt;
+    o2_err_t rslt;
     if (tcp_flag) {
         osc->net_info = o2n_connect(ip, port_num, (void *) osc);
         rslt = osc->net_info ? O2_SUCCESS : O2_FAIL;
@@ -472,7 +471,7 @@ static o2_err_t msg_data_to_osc_data(osc_info_ptr osc, o2_msg_data_ptr msg,
 #endif
         // Copy address, eliminating service name prefix, include slash
         int service_len = (int) strlen(osc->service_name) + 1;
-        o2_add_string_or_symbol('s', msg->address + service_len);
+        o2_add_string_or_symbol(O2_STRING, msg->address + service_len);
         // Get the address of the rest of the message:
         char *types_ptr = msg->address + 4;
         while (types_ptr[-1]) types_ptr += 4;

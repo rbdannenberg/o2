@@ -34,13 +34,13 @@ const char *status_to_string(int status)
 
 
 void service_one(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     printf("Service one received a message\n");
 }
 
 void service_two(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     printf("Service two received a message\n");
 }
@@ -49,13 +49,13 @@ void service_two(o2_msg_data_ptr data, const char *types,
 
 #define FIRST_COUNT 3
 int si_msg_count = 0;
-char *expected_si_service_first[] = {"one", "two", "_cs"};
+const char *expected_si_service_first[] = {"one", "two", "_cs"};
 int expected_si_status_first[] = {
         O2_LOCAL_NOTIME, O2_LOCAL_NOTIME, O2_LOCAL};
-char *expected_si_service_later[] = {"_o2", "one", "two"};
+const char *expected_si_service_later[] = {"_o2", "one", "two"};
 
 void service_info_handler(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
     int status = argv[1]->i32;
@@ -93,7 +93,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
 
     // the first 3 /_o2/si messages are listed in expected_si_service_first
     if (si_msg_count < FIRST_COUNT) {
-        char *expected_service = expected_si_service_first[si_msg_count];
+        const char *expected_service = expected_si_service_first[si_msg_count];
         if (!streql(expected_service, service_name) ||
             !streql(process, "_o2") ||
             status != expected_si_status_first[si_msg_count]) {
@@ -114,7 +114,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
         int found_it = 0;
         int i;
         for (i = 0; i < 3; i++) {
-            char *expected_service = expected_si_service_later[i];
+            const char *expected_service = expected_si_service_later[i];
             if (streql(expected_service, service_name) &&
                 status == O2_LOCAL &&
                 streql(process, "_o2")) {

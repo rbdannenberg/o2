@@ -38,8 +38,8 @@ bool got_the_message = false;
 o2_blob_ptr a_blob;
 uint32_t a_midi_msg;
 
-char xtype = 0; // used to tell handler what type(s) to expect when
-char ytype = 0; // used to tell handler what type(s) to coerce to
+o2_type xtype = O2_NIL; // used to tell handler what type(s) to expect when
+o2_type ytype = O2_NIL; // used to tell handler what type(s) to coerce to
 // a handler is used to accept multiple message types
 
 int arg_count = 0; // used to tell handler how many is correct
@@ -47,29 +47,29 @@ int arg_count = 0; // used to tell handler how many is correct
 // 1. sending typestring [i] (an array with one integer)
 // 
 void service_ai(o2_msg_data_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+                o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
 
-    assert(*types++ == '[');
+    assert(*types++ == O2_ARRAY_START);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed by assert()
 #endif
-    o2_get_next('[');
+    o2_get_next(O2_ARRAY_START);
     assert(arg == o2_got_start_array);
 
-    assert(*types++ == 'i');
+    assert(*types++ == O2_INT32);
 #ifndef NDEBUG
     arg = // only needed by assert()
 #endif
-    o2_get_next('i');
+    o2_get_next(O2_INT32);
     assert(arg->i == 3456);
 
-    assert(*types++ == ']');
+    assert(*types++ == O2_ARRAY_END);
 #ifndef NDEBUG
     arg = // only needed by assert()
 #endif
-    o2_get_next(']');
+    o2_get_next(O2_ARRAY_END);
     assert(arg == o2_got_end_array);
 
     assert(*types == 0);
@@ -79,22 +79,22 @@ void service_ai(o2_msg_data_ptr data, const char *types,
 // 2. sending typestring [] (an array with no integers)
 // 
 void service_a(o2_msg_data_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+               o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
 
-    assert(*types++ == '[');
+    assert(*types++ == O2_ARRAY_START);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed by assert()
 #endif
-    o2_get_next('[');
+    o2_get_next(O2_ARRAY_START);
     assert(arg == o2_got_start_array);
 
-    assert(*types++ == ']');
+    assert(*types++ == O2_ARRAY_END);
 #ifndef NDEBUG
     arg = // only needed by assert()
 #endif
-    o2_get_next(']');
+    o2_get_next(O2_ARRAY_END);
     assert(arg == o2_got_end_array);
 
     assert(*types == 0);
@@ -105,36 +105,36 @@ void service_a(o2_msg_data_ptr data, const char *types,
 // 3. sending typestring [ii] (an array with 2 integers)
 // 
 void service_aii(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
 
-    assert(*types++ == '[');
+    assert(*types++ == O2_ARRAY_START);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed by assert()
 #endif
-    o2_get_next('[');
+    o2_get_next(O2_ARRAY_START);
     assert(arg == o2_got_start_array);
 
-    assert(*types++ == 'i');
+    assert(*types++ == O2_INT32);
 #ifndef NDEBUG
     arg = // only needed by assert()
 #endif
-    o2_get_next('i');
+    o2_get_next(O2_INT32);
     assert(arg->i == 123);
 
-    assert(*types++ == 'i');
+    assert(*types++ == O2_INT32);
 #ifndef NDEBUG
     arg = // only needed by assert()
 #endif
-    o2_get_next('i');
+    o2_get_next(O2_INT32);
     assert(arg->i == 234);
 
-    assert(*types++ == ']');
+    assert(*types++ == O2_ARRAY_END);
 #ifndef NDEBUG
     arg = // only needed by assert()
 #endif
-    o2_get_next(']');
+    o2_get_next(O2_ARRAY_END);
     assert(arg == o2_got_end_array);
 
     assert(*types == 0);
@@ -196,76 +196,76 @@ void check_val(char actual_type)
 
 void icheck(char typ, int val)
 {
-    assert(typ == 'i');
+    assert(typ == O2_INT32);
 #ifndef NDEBUG
     o2_arg_ptr arg =  // only needed for assert()
 #endif
-    o2_get_next('i');
+    o2_get_next(O2_INT32);
     assert(arg && arg->i == val);
 }
 
 
 void hcheck(char typ, int64_t val)
 {
-    assert(typ == 'h');
+    assert(typ == O2_INT64);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed for assert()
 #endif
-    o2_get_next('h');
+    o2_get_next(O2_INT64);
     assert(arg && arg->h == val);
 }
 
 
 void dcheck(char typ, double val)
 {
-    assert(typ == 'd');
+    assert(typ == O2_DOUBLE);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed for assert()
 #endif
-    o2_get_next('d');
+    o2_get_next(O2_DOUBLE);
     assert(arg && arg->d == val);
 }
 
 
 void tcheck(char typ, double val)
 {
-    assert(typ == 't');
+    assert(typ == O2_TIME);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed for assert()
 #endif
-    o2_get_next('t');
+    o2_get_next(O2_TIME);
     assert(arg && arg->t == val);
 }
 
 
 void fcheck(char typ, float val)
 {
-    assert(typ == 'f');
+    assert(typ == O2_FLOAT);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed for assert()
 #endif
-    o2_get_next('f');
+    o2_get_next(O2_FLOAT);
     assert(arg && arg->f == val);
 }
 
 
 void acheck(char typ)
 {
-    assert(typ == '[');
+    assert(typ == O2_ARRAY_START);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed for assert()
 #endif
-    o2_get_next('[');
+    o2_get_next(O2_ARRAY_START);
     assert(arg && arg == o2_got_start_array);
 }
 
 void zcheck(char typ)
 {
-    assert(typ == ']');
+    assert(typ == O2_ARRAY_END);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed for assert()
 #endif
-    o2_get_next(']');
+    o2_get_next(O2_ARRAY_END);
     assert(arg && arg == o2_got_end_array);
 }
 
@@ -277,7 +277,7 @@ void zcheck(char typ)
 //    char xtype; provides the value of x
 // 
 void service_xixdx(o2_msg_data_ptr data, const char *types,
-                   o2_arg_ptr *argv, int argc, void *user_data)
+                   o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
 
@@ -297,7 +297,7 @@ void service_xixdx(o2_msg_data_ptr data, const char *types,
 // 5. sending typestring i[ih][fdt]d to test multiple arrays
 //
 void service_2arrays(o2_msg_data_ptr data, const char *types,
-                     o2_arg_ptr *argv, int argc, void *user_data)
+                     o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
 
@@ -324,7 +324,7 @@ void service_2arrays(o2_msg_data_ptr data, const char *types,
 // 6. sending typestring [ddddd...] where there are 1 to 100 d's
 //
 void service_bigarray(o2_msg_data_ptr data, const char *types,
-                      o2_arg_ptr *argv, int argc, void *user_data)
+                      o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
     acheck(*types++);
@@ -340,24 +340,24 @@ void service_bigarray(o2_msg_data_ptr data, const char *types,
 // 7. sending typestring vi (with length 0 to 100)
 //
 void service_vi(o2_msg_data_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+                o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(*types++ == 'v');
+    assert(*types++ == O2_VECTOR);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed for assert()
 #endif
-    o2_get_next('v');
+    o2_get_next(O2_VECTOR);
     assert(arg);
-    assert(*types++ == 'i');
+    assert(*types++ == O2_INT32);
 #ifndef NDEBUG
     o2_arg_ptr arg2 = // only needed for assert()
 #endif
-    o2_get_next('i');
+    o2_get_next(O2_INT32);
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
-    assert(arg->v.typ == 'i');
+    assert(arg->v.typ == O2_INT32);
     for (int i = 0; i < arg_count; i++) {
         assert(arg->v.vi);
         assert(arg->v.vi[i] == 1234 + i);
@@ -369,24 +369,24 @@ void service_vi(o2_msg_data_ptr data, const char *types,
 // 8. sending typestring vf (with length 0 to 100)
 //
 void service_vf(o2_msg_data_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+                o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(*types++ == 'v');
+    assert(*types++ == O2_VECTOR);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed by assert()
 #endif
-    o2_get_next('v');
+    o2_get_next(O2_VECTOR);
     assert(arg);
-    assert(*types++ == 'f');
+    assert(*types++ == O2_FLOAT);
 #ifndef NDEBUG
     o2_arg_ptr arg2 = // only needed by assert()
 #endif
-    o2_get_next('f');
+    o2_get_next(O2_FLOAT);
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
-    assert(arg->v.typ == 'f');
+    assert(arg->v.typ == O2_FLOAT);
     for (int i = 0; i < arg_count; i++) {
 #ifndef NDEBUG
         float correct = 123.456F + i; // only used by asserts
@@ -401,24 +401,24 @@ void service_vf(o2_msg_data_ptr data, const char *types,
 
 // 9. sending typestring vh (with length 0 to 100)
 void service_vh(o2_msg_data_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+                o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(*types++ == 'v');
+    assert(*types++ == O2_VECTOR);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed by assert()
 #endif
-    o2_get_next('v');
+    o2_get_next(O2_VECTOR);
     assert(arg);
-    assert(*types++ == 'h');
+    assert(*types++ == O2_INT64);
 #ifndef NDEBUG
     o2_arg_ptr arg2 = // only needed by assert()
 #endif
-    o2_get_next('h');
+    o2_get_next(O2_INT64);
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
-    assert(arg->v.typ == 'h');
+    assert(arg->v.typ == O2_INT64);
     for (int i = 0; i < arg_count; i++) {
 #ifndef NDEBUG
         int64_t correct = 123456 + i; // only used by asserts
@@ -433,24 +433,24 @@ void service_vh(o2_msg_data_ptr data, const char *types,
 
 // 10. sending typestring vd (with length 0 to 100)
 void service_vd(o2_msg_data_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+                o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(*types++ == 'v');
+    assert(*types++ == O2_VECTOR);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed by assert()
 #endif
-    o2_get_next('v');
+    o2_get_next(O2_VECTOR);
     assert(arg);
-    assert(*types++ == 'd');
+    assert(*types++ == O2_DOUBLE);
 #ifndef NDEBUG
     o2_arg_ptr arg2 = // only needed by assert()
 #endif
-    o2_get_next('d');
+    o2_get_next(O2_DOUBLE);
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
-    assert(arg->v.typ == 'd');
+    assert(arg->v.typ == O2_DOUBLE);
     for (int i = 0; i < arg_count; i++) {
 #ifndef NDEBUG
         double correct = 1234.567 + i;
@@ -466,17 +466,17 @@ void service_vd(o2_msg_data_ptr data, const char *types,
 // 12. sending typestring ifv?if (with vector length 0 to 100)
 //     (this last test is an extra check for embedded vectors)
 void service_ifvxif(o2_msg_data_ptr data, const char *types,
-                    o2_arg_ptr *argv, int argc, void *user_data)
+                    o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
     icheck(*types++, 2345);
     fcheck(*types++, 345.67F);
     
-    assert(*types++ == 'v');
+    assert(*types++ == O2_VECTOR);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed by assert()
 #endif
-    o2_get_next('v');
+    o2_get_next(O2_VECTOR);
     assert(arg);
     assert(*types++ == xtype);
 #ifndef NDEBUG
@@ -490,19 +490,19 @@ void service_ifvxif(o2_msg_data_ptr data, const char *types,
     for (int i = 0; i < arg_count; i++) {
         assert(arg->v.vd);
         switch (xtype) {
-            case 'i': {
+            case O2_INT32: {
                 assert(arg->v.vi[i] == 1234 + i);
                 break;
             }
-            case 'h': {    
+            case O2_INT64: {    
                 assert(arg->v.vh[i] == 123456 + i);
                 break;
             }
-            case 'f': {
+            case O2_FLOAT: {
                 assert(arg->v.vf[i] == 123.456F + i);
                 break;
             }
-            case 'd': {    
+            case O2_DOUBLE: {    
                 assert(arg->v.vd[i] == 1234.567 + i);
                 break;
             }
@@ -523,43 +523,43 @@ void service_ifvxif(o2_msg_data_ptr data, const char *types,
 //     (another test to look for bugs in allocation, receiving multiple
 //      vectors in one message)
 void service_vivd(o2_msg_data_ptr data, const char *types,
-                  o2_arg_ptr *argv, int argc, void *user_data)
+                  o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(*types++ == 'v');
+    assert(*types++ == O2_VECTOR);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed by assert()
 #endif
-    o2_get_next('v');
+    o2_get_next(O2_VECTOR);
     assert(arg);
-    assert(*types++ == 'i');
+    assert(*types++ == O2_INT32);
 #ifndef NDEBUG
     o2_arg_ptr arg2 = // only needed by assert()
 #endif
-    o2_get_next('i');
+    o2_get_next(O2_INT32);
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
-    assert(arg->v.typ == 'i');
+    assert(arg->v.typ == O2_INT32);
     for (int i = 0; i < arg_count; i++) {
         assert(arg->v.vi);
         assert(arg->v.vi[i] == 1234 + i);
     }
-    assert(*types++ == 'v');
+    assert(*types++ == O2_VECTOR);
 #ifndef NDEBUG
     arg = // only needed by assert()
 #endif
-    o2_get_next('v');
+    o2_get_next(O2_VECTOR);
     assert(arg);
-    assert(*types++ == 'd');
+    assert(*types++ == O2_DOUBLE);
 #ifndef NDEBUG
     arg2 = // only needed by assert()
 #endif
-    o2_get_next('d');
+    o2_get_next(O2_DOUBLE);
     assert(arg2);
     assert(arg2 == arg);
     assert(arg->v.len == arg_count);
-    assert(arg->v.typ == 'd');
+    assert(arg->v.typ == O2_DOUBLE);
     for (int i = 0; i < arg_count; i++) {
         assert(arg->v.vi);
         assert(arg->v.vd[i] == 1234.567 + i);
@@ -572,15 +572,15 @@ void service_vivd(o2_msg_data_ptr data, const char *types,
 // 14. sending i[xxxx...]i where x is in ihfdt and there are 0 to 100
 //     of them AND the data is received as a vector using coercion
 void service_coerce(o2_msg_data_ptr data, const char *types,
-                    o2_arg_ptr *argv, int argc, void *user_data)
+                    o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
     icheck(*types++, 5678);
 #ifndef NDEBUG
     o2_arg_ptr arg = // only needed by assert()
 #endif
-    o2_get_next('v');
-    assert(*types++ == '[');
+    o2_get_next(O2_VECTOR);
+    assert(*types++ == O2_ARRAY_START);
 #ifndef NDEBUG
     o2_arg_ptr arg2 = // only needed by assert()
 #endif
@@ -593,25 +593,25 @@ void service_coerce(o2_msg_data_ptr data, const char *types,
         assert(arg->v.vi);
         double expected;
         switch (xtype) {
-            case 'i': expected = 543 + i; break;
-            case 'h': expected = 543 + i; break;
-            case 'f': expected = (float) (543.21 + i); break;
-            case 'd': expected = 543.21 + i; break;
+            case O2_INT32: expected = 543 + i; break;
+            case O2_INT64: expected = 543 + i; break;
+            case O2_FLOAT: expected = (float) (543.21 + i); break;
+            case O2_DOUBLE: expected = 543.21 + i; break;
         }
         switch (ytype) {
-            case 'i': assert(arg->v.vi[i] == (int32_t) expected); break;
-            case 'h': assert(arg->v.vh[i] == (int64_t) expected); break;
-            case 'f': assert(arg->v.vf[i] == (float) expected); break;
-            case 'd': assert(arg->v.vd[i] == expected); break;
+            case O2_INT32: assert(arg->v.vi[i] == (int32_t) expected); break;
+            case O2_INT64: assert(arg->v.vh[i] == (int64_t) expected); break;
+            case O2_FLOAT: assert(arg->v.vf[i] == (float) expected); break;
+            case O2_DOUBLE: assert(arg->v.vd[i] == expected); break;
             default: assert(false);
         }
         assert(*types++ == xtype);
     }
-    assert(*types++ == ']');
+    assert(*types++ == O2_ARRAY_END);
 #ifndef NDEBUG
     arg2 = // only needed by assert()
 #endif
-    o2_get_next(']');
+    o2_get_next(O2_ARRAY_END);
     assert(arg2 == o2_got_end_array);
     icheck(*types++, 6789);
     assert(*types == 0); // got all of typestring
@@ -622,33 +622,33 @@ void service_coerce(o2_msg_data_ptr data, const char *types,
 // 15. sending ivxi where x is in ihfdt and there are 0 to 100
 //     of them AND the data is received as an array using coercion
 void service_coerce2(o2_msg_data_ptr data, const char *types,
-                    o2_arg_ptr *argv, int argc, void *user_data)
+                    o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
     icheck(*types++, 5678);
     fcheck(*types++, 567.89F);
-    assert(*types++ == 'v');
+    assert(*types++ == O2_VECTOR);
     assert(*types++ == xtype);
-    o2_arg_ptr arg = o2_get_next('[');
+    o2_arg_ptr arg = o2_get_next(O2_ARRAY_START);
     assert(arg);
     for (int i = 0; i < arg_count; i++) {
         arg = o2_get_next(ytype);
         assert(arg);
         double expected;
         switch (xtype) {
-            case 'i': {
+            case O2_INT32: {
                 expected = 1234 + i;
                 break;
             }
-            case 'h': {
+            case O2_INT64: {
                 expected = 123456 + i;
                 break;
             }
-            case 'f': {
+            case O2_FLOAT: {
                 expected = 123.456F + i;
                 break;
             }
-            case 'd': {
+            case O2_DOUBLE: {
                 expected = 1234.567 + i;
                 break;
             }
@@ -658,10 +658,10 @@ void service_coerce2(o2_msg_data_ptr data, const char *types,
         }
 
         switch (ytype) {
-            case 'i': assert(arg->i == (int32_t) expected); break;
-            case 'h': assert(arg->h == (int64_t) expected); break;
-            case 'f': assert(arg->f == (float) expected); break;
-            case 'd': case 't':
+            case O2_INT32: assert(arg->i == (int32_t) expected); break;
+            case O2_INT64: assert(arg->h == (int64_t) expected); break;
+            case O2_FLOAT: assert(arg->f == (float) expected); break;
+            case O2_DOUBLE: case O2_TIME:
                 assert(arg->d == expected); break;
             default: assert(false);
         }
@@ -669,7 +669,7 @@ void service_coerce2(o2_msg_data_ptr data, const char *types,
 #ifndef NDEBUG
     arg = // only needed by assert()
 #endif
-    o2_get_next(']');
+    o2_get_next(O2_ARRAY_END);
     assert(arg == o2_got_end_array);
     icheck(*types++, 6789);
     fcheck(*types++, 567.89F);
@@ -748,7 +748,7 @@ void add_x_parameter()
 
 int main(int argc, const char * argv[])
 {
-    a_blob = malloc(20);
+    a_blob = (o2_blob_ptr) malloc(20);
     a_blob->size = 15;
     memcpy(a_blob->data, "This is a blob", 15);
 
@@ -762,9 +762,9 @@ int main(int argc, const char * argv[])
     o2_method_new("/one/service_aii", "[ii]", &service_aii,
                   NULL, false, false);
     // [xixdx] where x is one of: hfcBbtsSmTFIN
-    char *xtypes = "ihfdcBbtsSmTFIN";
-    for (char *xtp = xtypes; *xtp; xtp++) {
-        xtype = *xtp;
+    const char *xtypes = "ihfdcBbtsSmTFIN";
+    for (const char *xtp = xtypes; *xtp; xtp++) {
+        xtype = (o2_type) *xtp;
         char type_string[32];
         snprintf(type_string, 32, "[%ci%cd%c]", xtype, xtype, xtype);
         char address[32];
@@ -810,8 +810,8 @@ int main(int argc, const char * argv[])
     printf("DONE sending [123, 234]\n");
 
     // 4. sending typestring [xixdx] where x is one of: hfcBbtsSmTFIN
-    for (char *xtp = xtypes; *xtp; xtp++) {
-        xtype = *xtp;
+    for (const char *xtp = xtypes; *xtp; xtp++) {
+        xtype = (o2_type) *xtp;
         o2_send_start();
         o2_add_start_array();
         add_x_parameter();
@@ -866,7 +866,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < 101; i++) {
         arg_count = i;
         o2_send_start();
-        o2_add_vector('i', i, ivec);
+        o2_add_vector(O2_INT32, i, ivec);
         o2_send_finish(0, "/one/service_vi", true);
         send_the_message();
     }
@@ -881,7 +881,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < 101; i++) {
         arg_count = i;
         o2_send_start();
-        o2_add_vector('f', i, fvec);
+        o2_add_vector(O2_FLOAT, i, fvec);
         o2_send_finish(0, "/one/service_vf", true);
         send_the_message();
     }
@@ -896,7 +896,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < 101; i++) {
         arg_count = i;
         o2_send_start();
-        o2_add_vector('h', i, hvec);
+        o2_add_vector(O2_INT64, i, hvec);
         o2_send_finish(0, "/one/service_vh", true);
         send_the_message();
     }
@@ -911,7 +911,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < 101; i++) {
         arg_count = i;
         o2_send_start();
-        o2_add_vector('d', i, dvec);
+        o2_add_vector(O2_DOUBLE, i, dvec);
         o2_send_finish(0, "/one/service_vd", true);
         send_the_message();
     }
@@ -919,18 +919,18 @@ int main(int argc, const char * argv[])
 
 
     // 12. sending typestring ifvxif (with length 0 to 100)
-    for (char *xtp = "ihfd"; *xtp; xtp++) {
-        xtype = *xtp;
+    for (const char *xtp = "ihfd"; *xtp; xtp++) {
+        xtype = (o2_type) *xtp;
         for (int i = 0; i < 101; i++) {
             o2_send_start();
             o2_add_int32(2345);
             o2_add_float(345.67F);
             arg_count = i;
             switch (xtype) {
-                case 'i': o2_add_vector('i', i, ivec); break;
-                case 'h': o2_add_vector('h', i, hvec); break;
-                case 'f': o2_add_vector('f', i, fvec); break;
-                case 'd': o2_add_vector('d', i, dvec); break;
+                case O2_INT32: o2_add_vector(O2_INT32, i, ivec); break;
+                case O2_INT64: o2_add_vector(O2_INT64, i, hvec); break;
+                case O2_FLOAT: o2_add_vector(O2_FLOAT, i, fvec); break;
+                case O2_DOUBLE: o2_add_vector(O2_DOUBLE, i, dvec); break;
                 default: assert(false);
             }
             o2_add_int32(4567);
@@ -945,8 +945,8 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < 101; i++) {
         o2_send_start();
         arg_count = i;
-        o2_add_vector('i', i, ivec);
-        o2_add_vector('d', i, dvec);
+        o2_add_vector(O2_INT32, i, ivec);
+        o2_add_vector(O2_DOUBLE, i, dvec);
         o2_send_finish(0, "/one/service_vivd", true);
         send_the_message();
     }
@@ -954,10 +954,10 @@ int main(int argc, const char * argv[])
 
     // 14. sending i[xxxx...]i where x is in ihfdt and there are 0 to 100
     //     of them AND the data is received as a vector using coercion
-    for (char *xtp = "ihfd"; *xtp; xtp++) {
-        xtype = *xtp;
-        for (char *ytp = "ihfd"; *ytp; ytp++) {
-            ytype = *ytp;
+    for (const char *xtp = "ihfd"; *xtp; xtp++) {
+        xtype = (o2_type) *xtp;
+        for (const char *ytp = "ihfd"; *ytp; ytp++) {
+            ytype = (o2_type) *ytp;
             for (int i = 0; i < 101; i++) {
                 o2_send_start();
                 o2_add_int32(5678);
@@ -965,10 +965,10 @@ int main(int argc, const char * argv[])
                 o2_add_start_array();
                 for (int j = 0; j < i; j++) {
                     switch (xtype) {
-                        case 'i': o2_add_int32(543 + j); break;
-                        case 'h': o2_add_int64(543 + j); break;
-                        case 'f': o2_add_float(543.21F + j); break;
-                        case 'd': o2_add_double(543.21 + j); break;
+                        case O2_INT32: o2_add_int32(543 + j); break;
+                        case O2_INT64: o2_add_int64(543 + j); break;
+                        case O2_FLOAT: o2_add_float(543.21F + j); break;
+                        case O2_DOUBLE: o2_add_double(543.21 + j); break;
                         default: assert(false);
                     }
                 }
@@ -983,20 +983,20 @@ int main(int argc, const char * argv[])
 
     // 15. sending ivxi where x is in ihfd and there are 0 to 100
     //     of them AND the data is received as an array using coercion
-    for (char *x = "ihfd"; *x; x++) {
-        xtype = *x;
-        for (char *y = "ihfdt"; *y; y++) {
-            ytype = *y;
+    for (const char *x = "ihfd"; *x; x++) {
+        xtype = (o2_type) *x;
+        for (const char *y = "ihfdt"; *y; y++) {
+            ytype = (o2_type) *y;
             for (int i = 0; i < 101; i++) {
                 o2_send_start();
                 o2_add_int32(5678);
                 o2_add_float(567.89F);
                 arg_count = i;
                 switch (xtype) {
-                    case 'i': o2_add_vector('i', i, ivec); break;
-                    case 'h': o2_add_vector('h', i, hvec); break;
-                    case 'f': o2_add_vector('f', i, fvec); break;
-                    case 'd': o2_add_vector('d', i, dvec); break;
+                    case O2_INT32: o2_add_vector(O2_INT32, i, ivec); break;
+                    case O2_INT64: o2_add_vector(O2_INT64, i, hvec); break;
+                    case O2_FLOAT: o2_add_vector(O2_FLOAT, i, fvec); break;
+                    case O2_DOUBLE: o2_add_vector(O2_DOUBLE, i, dvec); break;
                     default: assert(false);
                 }
                 o2_add_int32(6789);

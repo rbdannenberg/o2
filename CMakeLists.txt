@@ -102,7 +102,7 @@ set(O2_SRC
   src/pathtree.c src/pathtree.h
   src/processes.c src/processes.h
   src/properties.c src/properties.h
-  src/sched.c src/sched.h
+  src/o2sched.c src/o2sched.h
   src/services.c src/services.h 
   src/sharedmem.c src/sharedmem.h
   src/o2mem.c src/o2mem.h 
@@ -137,7 +137,7 @@ endif(BUILD_WITH_O2LITE_CLOCKSYNC)
 # BUILD CONFIGURATION #
 #######################
 
-set(LIBRARIES o2_static ${EXTRA_LIBS} CACHE INTERNAL "") 
+set(LIBRARIES o2_static atomic ${EXTRA_LIBS} CACHE INTERNAL "") 
 set(O2LITE_LIBS o2lite_static ${EXTRA_LIBS} CACHE INTERNAL "")
 
 if(TESTS_BUILD)
@@ -205,7 +205,7 @@ endif(BUILD_WITH_BRIDGE_SUPPORT)
 if(BUILD_WITH_SHAREDMEM_SUPPORT)  
   add_executable(shmemserv test/shmemserv.c)     
   target_include_directories(shmemserv PRIVATE ${CMAKE_SOURCE_DIR}/src)     
-  target_link_libraries(shmemserv ${LIBRARIES})  
+  target_link_libraries(shmemserv ${LIBRARIES} ${PTHREAD})  
 endif(BUILD_WITH_SHAREDMEM_SUPPORT)  
  
 add_executable(o2client test/o2client.c)  
@@ -303,14 +303,16 @@ target_link_libraries(o2utserver ${LIBRARIES})
 add_executable(rawtcpserver test/rawtcpserver.c)   
 target_link_libraries(rawtcpserver ${LIBRARIES}) 
 
-add_executable(rawtcpclient test/rawtcpclient.c)   
-target_link_libraries(rawtcpclient ${LIBRARIES}) 
+if(APPLE)
+  add_executable(rawtcpclient test/rawtcpclient.c)   
+  target_link_libraries(rawtcpclient ${LIBRARIES}) 
 
-add_executable(rawudpserver test/rawudpserver.c)   
-target_link_libraries(rawudpserver ${LIBRARIES}) 
+  add_executable(rawudpserver test/rawudpserver.c)   
+  target_link_libraries(rawudpserver ${LIBRARIES}) 
 
-add_executable(rawudpclient test/rawudpclient.c)   
-target_link_libraries(rawudpclient ${LIBRARIES}) 
+  add_executable(rawudpclient test/rawudpclient.c)   
+  target_link_libraries(rawudpclient ${LIBRARIES}) 
+endif(APPLE)
 
 add_executable(proptest test/proptest.c)    
 target_include_directories(proptest PRIVATE ${CMAKE_SOURCE_DIR}/src)     
@@ -389,10 +391,10 @@ if(UNIX)
                       ${COREMIDI_LIB} ${CORESERVICES_LIB})
   else(APPLE)
     # linux
-    set(CMAKE_C_FLAGS "-std=gnu99")
-    set(PTHREAD_LIB pthread)
+    set(CMAKE_C_FLAGS "-std=c11 -mcx16")
+    set(PTHREAD pthread CACHE INTERNAL "")
     # EXTRA_LO_LIBS is libraries needed by Liblo applications
-    set(EXTRA_LO_LIBS asound ${PTHREAD_LIB} m)
+    set(EXTRA_LO_LIBS asound ${PTHREAD} m CACHE INTERNAL "")
   endif(APPLE)
   if(TESTS_MIDI_EXAMPLE)
     # Use PortMidi Library

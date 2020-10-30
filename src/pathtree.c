@@ -17,8 +17,8 @@ thread_local o2_ctx_ptr o2_ctx = NULL;
 #ifndef O2_NO_PATTERNS
 static bool o2_pattern_match(const char *str, const char *p);
 #endif
-static int remove_method_from_tree(char *remaining, char *name,
-                                   hash_node_ptr node);
+static o2_err_t remove_method_from_tree(char *remaining, char *name,
+                                        hash_node_ptr node);
 
 
 // enumerate is used to visit all entries in a hash table
@@ -143,9 +143,21 @@ bool o2_find_handlers_rec(char *remaining, char *name,
 //
 // path is "owned" by caller (so it is copied here)
 //
-int o2_method_new_internal(const char *path, const char *typespec,
-                  o2_method_handler h, void *user_data, bool coerce, bool parse)
+o2_err_t o2_method_new_internal(const char *path, const char *typespec,
+                                o2_method_handler h, const void *user_data,
+                                bool coerce, bool parse)
 {
+    // some variables that might not even be used are declared here
+    // to avoid compiler warnings related to jumping over initializations
+    // (this seems to be a GNU C++ compiler problem)
+    handler_entry_ptr full_path_handler; 
+    hash_node_ptr hnode;
+    o2string types_copy;
+    handler_entry_ptr handler;
+    o2_node_ptr node;
+    service_provider_ptr spp;
+    int types_len;
+    
     // o2_heapify result is declared as const, but if we don't share it, there's
     // no reason we can't write into it, so this is a safe cast to (char *):
     char *key = (char *) o2_heapify(path);
@@ -163,28 +175,28 @@ int o2_method_new_internal(const char *path, const char *typespec,
     // services now is the existing services_entry node if it exists.
     // slash points to end of the service name in the path.
 
-    int ret = O2_NO_SERVICE;
+    o2_err_t ret = O2_NO_SERVICE;
     if (!services) goto free_key_return; // cleanup and return because it is
                        // an error to add a method to a non-existent service
     // find the service offered by this process (o2_ctx->proc) --
     // the method should be attached to our local offering of the service
-    service_provider_ptr spp = o2_proc_service_find(o2_ctx->proc, services);
+    spp = o2_proc_service_find(o2_ctx->proc, services);
     // if we have no service local, this fails with O2_NO_SERVICE
     if (!spp) {
         O2_FREE(key);
         return O2_NO_SERVICE;
     }
-    o2_node_ptr node = spp->service;
+    node = spp->service;
     assert(node);    // we must have a local offering of the service
 
-    handler_entry_ptr handler = O2_MALLOCT(handler_entry);
+    handler = O2_MALLOCT(handler_entry);
     handler->tag = NODE_HANDLER;
     handler->key = NULL; // gets set below with the final node of the address
     handler->handler = h;
     handler->user_data = user_data;
     handler->full_path = key;
-    o2string types_copy = NULL;
-    int types_len = 0;
+    types_copy = NULL;
+    types_len = 0;
     if (typespec) {
         types_copy = o2_heapify(typespec);
         if (!types_copy) goto error_return_2;
@@ -221,7 +233,7 @@ int o2_method_new_internal(const char *path, const char *typespec,
 
     // cases 3 and 4: path has nodes. If service is a NODE_HANDLER, 
     //   replace with NODE_HASH
-    hash_node_ptr hnode = (hash_node_ptr) node;
+    hnode = (hash_node_ptr) node;
     if (hnode->tag == NODE_HANDLER) {
         // change global handler to a null node
 #ifdef O2_NO_PATTERNS
@@ -262,7 +274,7 @@ int o2_method_new_internal(const char *path, const char *typespec,
         goto error_return_3;
     }
     // make an entry for the full path table
-    handler_entry_ptr full_path_handler = O2_MALLOCT(handler_entry);
+    full_path_handler = O2_MALLOCT(handler_entry);
     memcpy(full_path_handler, handler, sizeof *handler); // copy info
     full_path_handler->key = key; // this key has already been copied
     full_path_handler->full_path = NULL; // only tree nodes have full_path

@@ -20,6 +20,12 @@ This test:
 - close the bridge
 */
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include <stdio.h>
 #include <assert.h>
 #include "o2internal.h"
@@ -116,8 +122,8 @@ int main(int argc, const char * argv[])
     assert(err == O2_SUCCESS);
 
     // view the service status
-    o2_status_t stat = o2_status("bridge");
-    printf("Status of bridge is %s\n", o2_status_to_string(stat));
+    int stat = o2_status("bridge");
+    printf("Status of bridge is %s\n", o2_status_to_string((o2_status_t) stat));
     assert(stat == O2_BRIDGE_NOTIME);
     // send to the service
     o2_send("/bridge/test", 0, "i", 23); // no clock, no sync
@@ -127,7 +133,7 @@ int main(int argc, const char * argv[])
     // send a timed message to the service
     o2_clock_set(NULL, NULL);
     stat = o2_status("bridge");
-    printf("Status of bridge is %s\n", o2_status_to_string(stat));
+    printf("Status of bridge is %s\n", o2_status_to_string((o2_status_t) stat));
     assert(stat == O2_BRIDGE_NOTIME);
     o2_send("/bridge/test", 0, "i", 34); // clock, no sync
     assert(message_int == 34);
@@ -149,7 +155,7 @@ int main(int argc, const char * argv[])
     // change the bridge status to BRIDGE_SYNCED
     br_inst->tag = BRIDGE_SYNCED;
     stat = o2_status("bridge");
-    printf("Status of bridge is %s\n", o2_status_to_string(stat));
+    printf("Status of bridge is %s\n", o2_status_to_string((o2_status_t) stat));
     assert(stat == O2_BRIDGE);
 
     // send an untimed message

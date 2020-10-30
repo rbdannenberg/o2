@@ -6,9 +6,13 @@
 // Oct 2020
 
 #include "stdlib.h"
+#ifdef __GNUC__
+#endif
+#include "stdint.h"
 #include "atomic.h"
 
-#define O2_QUEUE_HEAD_INIT {0, NULL}
+
+#define O2_QUEUE_INIT {0, NULL}
 
 
 /*
@@ -57,17 +61,17 @@ lstack_size(lstack_t *lstack)
 }
 */
 
-void o2_queue_init(o2_queue_head_ptr head)
+void o2_queue_init(o2_queue_ptr head)
 {
-    o2_queue_head_na init = O2_QUEUE_HEAD_INIT;
+    o2_queue_na init = O2_QUEUE_INIT;
     atomic_init(head, init);
 }
 
 
-o2_obj_ptr o2_queue_pop(o2_queue_head_ptr head)
+o2_obj_ptr o2_queue_pop(o2_queue_ptr head)
 {
-    o2_queue_head_na next_head;
-    o2_queue_head_na orig_head = atomic_load(head);
+    o2_queue_na next_head;
+    o2_queue_na orig_head = atomic_load(head);
     do {
         if (orig_head.first == NULL)
             return NULL;  // empty stack
@@ -78,10 +82,10 @@ o2_obj_ptr o2_queue_pop(o2_queue_head_ptr head)
 }
 
 
-void o2_queue_push(o2_queue_head_ptr head, o2_obj_ptr elem)
+void o2_queue_push(o2_queue_ptr head, o2_obj_ptr elem)
 {
-    o2_queue_head_na next_head;
-    o2_queue_head_na orig_head = atomic_load(head);
+    o2_queue_na next_head;
+    o2_queue_na orig_head = atomic_load(head);
     do {
         elem->next = orig_head.first;
         next_head.aba = orig_head.aba + 1;
@@ -118,10 +122,10 @@ lstack_pop(lstack_t *lstack)
 
 // remove list from src atomically and return it
 //
-o2_obj_ptr o2_queue_grab(o2_queue_head_ptr src)
+o2_obj_ptr o2_queue_grab(o2_queue_ptr src)
 {
-    o2_queue_head_na orig_src = atomic_load(src);
-    o2_queue_head_na next_src;
+    o2_queue_na orig_src = atomic_load(src);
+    o2_queue_na next_src;
     do {
         if (orig_src.first == NULL) {
             return NULL;

@@ -73,7 +73,7 @@ typedef struct handler_entry { // "subclass" of o2_node
     o2string key; // key is "owned" by this handler_entry struct
     o2_node_ptr next;
     o2_method_handler handler;
-    void *user_data;
+    const void *user_data;
     char *full_path; // this is the key for this entry in the
     // o2_ctx->full_path_table; it is a copy of the key in the
     // path_tree table entry, so you should never free this pointer
@@ -112,13 +112,13 @@ int o2_strsize(const char *s);
 
 void o2_string_pad(char *dst, const char *src);
 
-int o2_add_entry_at(hash_node_ptr node, o2_node_ptr *loc,
-                    o2_node_ptr entry);
+o2_err_t o2_add_entry_at(hash_node_ptr node, o2_node_ptr *loc,
+                         o2_node_ptr entry);
 
 /**
  * add an entry to a hash table
  */
-int o2_node_add(hash_node_ptr node, o2_node_ptr entry);
+o2_err_t o2_node_add(hash_node_ptr node, o2_node_ptr entry);
 
 /**
  * free a NODE_HASH, NODE_HANDLER, or NODE_SERVICES
@@ -136,8 +136,8 @@ o2_err_t o2_embedded_msgs_deliver(o2_msg_data_ptr msg);
 
 int o2_remove_hash_entry_by_name(hash_node_ptr node, o2string key);
 
-int o2_hash_entry_remove(hash_node_ptr node, o2_node_ptr *child,
-                             int resize);
+o2_err_t o2_hash_entry_remove(hash_node_ptr node, o2_node_ptr *child,
+                              int resize);
 
 void o2_hash_node_finish(hash_node_ptr node);
 

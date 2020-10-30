@@ -115,15 +115,18 @@ extern char o2n_local_ip[24];
 extern bool o2n_found_network; // true if we have an IP address, which implies a
 // network connection; if false, we only talk to 127.0.0.1 (localhost)
 
-typedef int (*o2n_recv_callout_type)(o2n_info_ptr info);
-typedef int (*o2n_accept_callout_type)(o2n_info_ptr info, o2n_info_ptr conn);
-typedef int (*o2n_connected_callout_type)(o2n_info_ptr info);
-typedef int (*o2n_close_callout_type)(o2n_info_ptr info);
+typedef o2_err_t (*o2n_recv_callout_type)(o2n_info_ptr info);
+typedef o2_err_t (*o2n_accept_callout_type)(o2n_info_ptr info,
+                                            o2n_info_ptr conn);
+typedef o2_err_t (*o2n_connected_callout_type)(o2n_info_ptr info);
+typedef o2_err_t (*o2n_close_callout_type)(o2n_info_ptr info);
 extern o2n_info_ptr o2n_message_source; ///< socket info for current message
 
 // initialize this module
-int o2n_initialize(o2n_recv_callout_type recv, o2n_accept_callout_type acc,
-              o2n_connected_callout_type conn, o2n_close_callout_type clos);
+o2_err_t o2n_initialize(o2n_recv_callout_type recv,
+                        o2n_accept_callout_type acc,
+                        o2n_connected_callout_type conn,
+                        o2n_close_callout_type clos);
 
 o2n_message_ptr o2n_message_new(int size);
 
@@ -132,7 +135,7 @@ const char *o2n_get_local_process_name(int port);
 
 
 o2_err_t o2n_address_init(o2n_address_ptr remote_addr_ptr, const char *ip,
-                     int port_num, bool tcp_flag);
+                          int port_num, bool tcp_flag);
 
 void o2n_close_socket(o2n_info_ptr info);
 
@@ -149,7 +152,7 @@ void o2n_finish(void);
 void o2n_free_deleted_sockets(void);
 
 // poll for messages
-int o2n_recv(void);
+o2_err_t o2n_recv(void);
 
 o2n_info_ptr o2n_get_info(int i);
 

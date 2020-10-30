@@ -22,6 +22,12 @@
 //   wait 1 second
 //   shut everything down
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -70,7 +76,7 @@ int main(int argc, const char * argv[])
     }
     printf("*** Clock sync obtained @ %g\n", o2_time_get());
 
-    int err = o2_osc_delegate("oscsend", "localhost", 8100, tcpflag);
+    o2_err_t err = o2_osc_delegate("oscsend", "localhost", 8100, tcpflag);
     assert(err == O2_SUCCESS);
     
     // send 12 messages, 1 every 0.5s, and stop

@@ -14,6 +14,12 @@
 // 7 Send a message to /dropclient/bye
 // Wait a bit and exit. (dropclient should wait and exit after bye message).
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -56,7 +62,7 @@ static void drop_warning(const char *warn, o2_msg_data_ptr msg)
 // this is a handler for incoming messages
 //
 void hi(o2_msg_data_ptr msg, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     msg_count++;

@@ -3,6 +3,11 @@
 //  see mqttserver.c for details
 
 
+// needed for usleep
+#ifdef __GNUC__
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
 #include "o2.h"
 #include "stdio.h"
 #include "assert.h"
@@ -20,7 +25,7 @@ int msg_count = 0;
 bool running = true;
 
 void client_recv_reply(o2_msg_data_ptr data, const char *types,
-                       o2_arg_ptr *argv, int argc, void *user_data)
+                       o2_arg_ptr *argv, int argc, const void *user_data)
 {
     msg_count++;
     int i = argv[0]->i32;

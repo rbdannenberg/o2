@@ -7,6 +7,12 @@
 //  messages are sent, we should get MAX_MSG_COUNT back from client.
 //
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -36,7 +42,7 @@ bool got_max = false;
 // back to one of the client addresses
 //
 void server_test(o2_msg_data_ptr msg, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     assert(strcmp(types, "i") == 0);

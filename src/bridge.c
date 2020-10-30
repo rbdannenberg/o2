@@ -23,7 +23,7 @@ bridge_protocol_ptr o2_bridge_new(const char *name, bridge_fn bridge_poll,
                                   bridge_fn bridge_finish)
 {
     if (!o2_ensemble_name) {
-        return O2_NOT_INITIALIZED;
+        return NULL;
     }
     bridge_protocol_ptr protocol = O2_MALLOCT(bridge_protocol);
     strncpy(protocol->protocol, name, 8);
@@ -140,7 +140,7 @@ o2_err_t o2_bridge_remove(const char *protocol_name)
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
-    int result = O2_SUCCESS;
+    o2_err_t result = O2_SUCCESS;
     // find and remove from bridges (linear search)
     bridge_protocol_ptr protocol;
     int i = o2_bridge_find_protocol(protocol_name, &protocol);
@@ -262,7 +262,7 @@ o2_err_t o2lite_inst_finish(bridge_inst_ptr inst)
 // o2lite_dy_handler - generic bridge discovery handler for !_o2/o2lite/dy
 //   message parameters are ensemble, udp_port
 void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
-                       o2_arg_ptr *argv, int argc, void *user_data)
+                       o2_arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2lite_dy_handler gets", NULL, msgdata, NULL, NULL));
     // get the arguments: ensemble name, protocol name,
@@ -305,9 +305,9 @@ static int make_o2lite_bridge_inst(const char *ip, int udp)
     o2lite = O2_CALLOCT(o2lite_inst);
     o2lite->net_info = o2n_message_source;
     o2n_address_init(&o2lite->udp_address, ip, udp, false);
-    o2n_message_source->application = o2_bridge_inst_new(o2lite_bridge, o2lite);
-    DA_SET(o2lite_bridges, bridge_inst_ptr, i,
-           o2n_message_source->application);
+    bridge_inst_ptr bi = o2_bridge_inst_new(o2lite_bridge, o2lite);
+    o2n_message_source->application = (void *) bi;
+    DA_SET(o2lite_bridges, bridge_inst_ptr, i, bi);
     return i;
 }
 
@@ -317,7 +317,7 @@ static int make_o2lite_bridge_inst(const char *ip, int udp)
 //   parameters are ip address and udp port for bridged process
 //
 void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
-                        o2_arg_ptr *argv, int argc, void *user_data)
+                        o2_arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2lite_con_handler gets", NULL, msgdata, NULL, NULL));
     // get the arguments: ensemble name, protocol name,
@@ -357,7 +357,7 @@ void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
 // exists-flag, service-flag, and tapper-or-properties string.
 //
 void o2lite_sv_handler(o2_msg_data_ptr msgdata, const char *types,
-                        o2_arg_ptr *argv, int argc, void *user_data)
+                        o2_arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2lite_sv_handler gets", NULL, msgdata, NULL, NULL));
     // get the arguments: ensemble name, protocol name,
@@ -406,7 +406,7 @@ void o2lite_sv_handler(o2_msg_data_ptr msgdata, const char *types,
 // an o2lite client. Parameters are: id, sequence-number, reply-to
 //
 void o2lite_csget_handler(o2_msg_data_ptr msgdata, const char *types,
-                          o2_arg_ptr *argv, int argc, void *user_data)
+                          o2_arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBk(o2_dbg_msg("o2lite_csget_handler gets", NULL, msgdata, NULL, NULL));
     // get the arguments: ensemble name, protocol name,
@@ -447,7 +447,7 @@ void o2lite_csget_handler(o2_msg_data_ptr msgdata, const char *types,
 // o2lite client has clock sync. Parameters are: id
 //
 void o2lite_cscs_handler(o2_msg_data_ptr msgdata, const char *types,
-                         o2_arg_ptr *argv, int argc, void *user_data)
+                         o2_arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2lite_cscs_handler gets", NULL, msgdata, NULL, NULL));
     bridge_inst_ptr inst = TO_BRIDGE_INST(o2n_message_source->application);
@@ -479,11 +479,15 @@ void o2lite_cscs_handler(o2_msg_data_ptr msgdata, const char *types,
 }
 
 
-o2_err_t o2lite_finish()
+// callback function. Parameter is ignored.
+o2_err_t o2lite_finish(bridge_inst_ptr bi)
 {
     // first free all o2lite_inst using o2lite_bridges to find them
     for (int i = 0; i < o2lite_bridges.length; i++) {
-        bridge_inst_ptr bi = O2LITE_BRIDGE(i);
+        // bi is already declared and unused as a parameter, so it is
+        // ok to use it here (hopefully the compiler will not complain
+        // about parameter being a dead variable)
+        bi = O2LITE_BRIDGE(i);
         if (!bi) {
             continue;  // connections may be closed already
         }

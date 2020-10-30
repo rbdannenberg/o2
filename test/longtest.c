@@ -18,15 +18,15 @@ int arg_count = 0;
 
 // receive arg_count floats
 void service_f(o2_msg_data_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+               o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
-        assert(*types ==  'f');
+        assert(*types ==  O2_FLOAT);
 #ifndef NDEBUG
         o2_arg_ptr arg = // only needed for assert()
 #endif
-        o2_get_next('f');
+        o2_get_next(O2_FLOAT);
         assert(arg);
         assert(arg->f == i + 123);
         types++;
@@ -38,15 +38,15 @@ void service_f(o2_msg_data_ptr data, const char *types,
 
 // receive arg_count doubles
 void service_d(o2_msg_data_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+               o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
-        assert(*types ==  'd');
+        assert(*types ==  O2_DOUBLE);
 #ifndef NDEBUG
         o2_arg_ptr arg = // only needed for assert()
 #endif
-        o2_get_next('d');
+        o2_get_next(O2_DOUBLE);
         assert(arg);
         assert(arg->d == i + 1234);
         types++;
@@ -58,7 +58,7 @@ void service_d(o2_msg_data_ptr data, const char *types,
 
 // receive arg_count floats, coerced to ints, with parsing
 void service_fc(o2_msg_data_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+                o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == arg_count);
     o2_extract_start(data);
@@ -79,7 +79,7 @@ void service_fc(o2_msg_data_ptr data, const char *types,
 
 // receive arg_count doubles, coerced to ints, with parsing
 void service_dc(o2_msg_data_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+                o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == arg_count);
     o2_extract_start(data);
@@ -118,7 +118,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < N; i++) {
         sprintf(address, "/one/f%d", i);
         for (int j = 0; j < i; j++) {
-            types[j] = 'f';
+            types[j] = O2_FLOAT;
         }
         types[i] = 0;
         o2_method_new(address, types, &service_f, NULL, false, false);
@@ -136,7 +136,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < N; i++) {
         sprintf(address, "/one/d%d", i);
         for (int j = 0; j < i; j++) {
-            types[j] = 'd';
+            types[j] = O2_DOUBLE;
         }
         types[i] = 0;
         o2_method_new(address, types, &service_d, NULL, false, false);

@@ -12,6 +12,12 @@ This test:
 - respond to messages from o2litehost's client services
 */
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #ifdef WIN32
 #include "usleep.h" // special windows implementation of sleep/usleep
 #else

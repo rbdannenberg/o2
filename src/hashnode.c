@@ -20,7 +20,7 @@
 #define MAX_SERVICE_NUM  1024
 
 
-static int resize_table(hash_node_ptr node, int new_locs);
+static o2_err_t resize_table(hash_node_ptr node, int new_locs);
 
 
 int o2_strsize(const char *s)
@@ -44,7 +44,7 @@ static int initialize_hashtable(dyn_array_ptr table, int locations)
 // o2_node_add inserts an entry into the hash table. If the table becomes
 // too full, a new larger table is created.
 //
-int o2_node_add(hash_node_ptr hnode, o2_node_ptr entry)
+o2_err_t o2_node_add(hash_node_ptr hnode, o2_node_ptr entry)
 {
     o2_node_ptr *ptr = o2_lookup(hnode, entry->key);
     if (*ptr) { // if we found it, this is a replacement
@@ -55,7 +55,7 @@ int o2_node_add(hash_node_ptr hnode, o2_node_ptr entry)
 }
 
 
-static int resize_table(hash_node_ptr node, int new_locs)
+static o2_err_t resize_table(hash_node_ptr node, int new_locs)
 {
     dyn_array old = node->children; // copy whole dynamic array
     if (initialize_hashtable(&node->children, new_locs))
@@ -280,7 +280,8 @@ o2_node_ptr *o2_lookup(hash_node_ptr node, o2string key)
 // we do not want to resize the table. The resize parameter must
 // be true to enable resizing.
 //
-int o2_hash_entry_remove(hash_node_ptr node, o2_node_ptr *child, int resize)
+o2_err_t o2_hash_entry_remove(hash_node_ptr node, o2_node_ptr *child,
+                              int resize)
 {
     node->num_children--;
     o2_node_ptr entry = *child;
@@ -337,8 +338,8 @@ hash_node_ptr o2_tree_insert_node(hash_node_ptr node, o2string key)
 // determine a pointer to the new entry. This pointer is
 // passed in loc.
 //
-int o2_add_entry_at(hash_node_ptr node, o2_node_ptr *loc,
-                    o2_node_ptr entry)
+o2_err_t o2_add_entry_at(hash_node_ptr node, o2_node_ptr *loc,
+                         o2_node_ptr entry)
 {
     node->num_children++;
     entry->next = *loc;

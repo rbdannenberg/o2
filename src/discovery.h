@@ -44,24 +44,24 @@ o2_err_t o2_discovery_finish(void);
  *
  */
 void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
-                               o2_arg_ptr *argv, int argc, void *user_data);
+                    o2_arg_ptr *argv, int argc, const void *user_data);
 
 void o2_send_discovery_at(o2_time when);
 
-int o2_send_services(proc_info_ptr proc);
+o2_err_t o2_send_services(proc_info_ptr proc);
 
 void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
-                          o2_arg_ptr *argv, int argc, void *user_data);
+               o2_arg_ptr *argv, int argc, const void *user_data);
 
 void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
-                               o2_arg_ptr *argv, int argc, void *user_data);
+                    o2_arg_ptr *argv, int argc, const void *user_data);
 
 
 void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
-                    o2_arg_ptr *argv, int argc, void *user_data);
+         o2_arg_ptr *argv, int argc, const void *user_data);
 
 void o2_services_handler(o2_msg_data_ptr msg, const char *types,
-                         o2_arg_ptr *argv, int argc, void *user_data);
+              o2_arg_ptr *argv, int argc, const void *user_data);
 
 o2_err_t o2_discovered_a_remote_process(const char *ip, int tcp,
                                           int udp, int dy);

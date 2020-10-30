@@ -21,6 +21,7 @@ typedef struct stun_client_info {
 
 o2_err_t o2_get_public_ip();
 
-void o2_stun_query();
+void o2_stun_query(o2_msg_data_ptr msgdata, const char *types,
+                   o2_arg_ptr *argv, int argc, const void *user_data);
 
 void o2_stun_reply_handler(void *info);

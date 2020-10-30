@@ -29,6 +29,12 @@ The test should work as follows:
 For development, this test should work without MQTT on a single machine.
 */
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "assert.h"
@@ -49,7 +55,7 @@ bool running = true;
 // back to one of the client addresses
 //
 void server_fn(o2_msg_data_ptr msg, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+               o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     msg_count++;
@@ -61,7 +67,7 @@ void server_fn(o2_msg_data_ptr msg, const char *types,
 
 
 void server_done_fn(o2_msg_data_ptr msg, const char *types,
-                    o2_arg_ptr *argv, int argc, void *user_data)
+                    o2_arg_ptr *argv, int argc, const void *user_data)
 {
     printf("server received \"goodbye\" message.\n");
     running = false;

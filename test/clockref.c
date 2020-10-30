@@ -4,6 +4,12 @@
 //  synchronization and status updates.
 //
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -29,10 +35,10 @@ o2_time cs_time = 1000000.0;
 // it runs about every 1s
 //
 void clockref(o2_msg_data_ptr msg, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
-    o2_status_t ss = o2_status("server");
-    o2_status_t cs = o2_status("client");
+    int ss = o2_status("server");
+    int cs = o2_status("client");
     printf("clockref: local time %g global time %g "
            "server status %d client status %d\n",
            o2_local_time(), o2_time_get(), ss, cs);
@@ -56,7 +62,7 @@ bool rtt_sent = false;
 char client_ip_port[O2_MAX_PROCNAME_LEN];
 
 void service_info(o2_msg_data_ptr msg, const char *types,
-                  o2_arg_ptr *argv, int argc, void *user_data)
+                  o2_arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
     int new_status = argv[1]->i32;
@@ -82,7 +88,7 @@ void service_info(o2_msg_data_ptr msg, const char *types,
 bool rtt_received = false;
 
 void rtt_reply(o2_msg_data_ptr msg, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+               o2_arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
     float mean = argv[1]->f;

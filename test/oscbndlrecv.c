@@ -2,6 +2,12 @@
 //
 //  this test is designed to run with oscsendtest.c
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -49,7 +55,7 @@
 int ints[] = {1005, 2005, 1006, 2006, 1007, 2007, 1008, 2008, 1009, 2009,
               3001, 3002, 3003, 4001, 4002, 4003, 999};
 
-char *strings[] = {
+const char *strings[] = {
     "an arbitrary string at 2.5",
     "another arbitrary string at 2.5",
     "an arbitrary string at 2.6",
@@ -84,7 +90,8 @@ int approximate(o2_time x, o2_time y)
 }
 
 
-void meta_handler(char *name, o2_arg_ptr *argv, int argc, o2_msg_data_ptr msg)
+void meta_handler(const char *name, o2_arg_ptr *argv, int argc,
+                  o2_msg_data_ptr msg)
 {
     if (msg_count == 0) { // assume first message is delivered at the right time
         start_time = o2_time_get() - 2.5; // timestamp was "now + 2.5"
@@ -103,7 +110,7 @@ void meta_handler(char *name, o2_arg_ptr *argv, int argc, o2_msg_data_ptr msg)
 }
 
 #define ARGS o2_msg_data_ptr msg, const char *types, \
-             o2_arg_ptr *argv, int argc, void *user_data
+             o2_arg_ptr *argv, int argc, const void *user_data
 void first_handler(ARGS) { meta_handler("first_handler", argv, argc, msg); }
 void msg1_handler (ARGS) { meta_handler("msg1_handler",  argv, argc, msg); }
 void msg2_handler (ARGS) { meta_handler("msg2_handler",  argv, argc, msg); }

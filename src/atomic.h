@@ -22,19 +22,19 @@ typedef struct o2_obj {
 #define O2_OBJ_SIZE(obj) ((long) (((int64_t *) ((obj)->data))[-1]))
 
 
-typedef struct o2_queue_head_na {
+typedef struct o2_queue_na {
     uintptr_t aba;
     o2_obj_ptr first;
-} o2_queue_head_na;
+} o2_queue_na;
 
-typedef _Atomic o2_queue_head_na o2_queue_head;
-typedef _Atomic o2_queue_head_na *o2_queue_head_ptr;
+typedef _Atomic(o2_queue_na) o2_queue;
+typedef _Atomic o2_queue_na *o2_queue_ptr;
 
 
-void o2_queue_init(o2_queue_head_ptr head);
+void o2_queue_init(o2_queue_ptr head);
 
-o2_obj_ptr o2_queue_pop(o2_queue_head_ptr head);
+o2_obj_ptr o2_queue_pop(o2_queue_ptr head);
 
-void o2_queue_push(o2_queue_head_ptr head, o2_obj_ptr elem);
+void o2_queue_push(o2_queue_ptr head, o2_obj_ptr elem);
 
-o2_obj_ptr o2_queue_grab(o2_queue_head_ptr src);
+o2_obj_ptr o2_queue_grab(o2_queue_ptr src);

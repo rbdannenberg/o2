@@ -76,11 +76,11 @@ void o2_message_list_free(o2_message_ptr msg);
  *
  * @return O2_SUCCESS unless the message is malformed
  */
-int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order);
+o2_err_t o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order);
 
-int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
-                     const char *service_name,
-                     const char *path, const char *typestring,
-                     int tcp_flag, va_list ap);
+o2_err_t o2_message_build(o2_message_ptr *msg, o2_time timestamp,
+                          const char *service_name,
+                          const char *path, const char *typestring,
+                          int tcp_flag, va_list ap);
 
 #endif /* message_h */

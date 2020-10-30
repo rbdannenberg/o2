@@ -10,6 +10,12 @@
 //  between UDP messages.
 //  For TCP, measure longest time interval between messages.
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -43,7 +49,7 @@ double max_udp_interval = 0;
 // back to one of the client addresses
 //
 void server_tcp(o2_msg_data_ptr msg, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+                o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     int i = argv[0]->i32;
@@ -62,7 +68,7 @@ void server_tcp(o2_msg_data_ptr msg, const char *types,
 
 
 void server_udp(o2_msg_data_ptr msg, const char *types,
-                o2_arg_ptr *argv, int argc, void *user_data)
+                o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     int i = argv[0]->i32;

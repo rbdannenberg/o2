@@ -10,6 +10,9 @@
 // Roger B. Dannenberg
 // Jul-Aug 2020
 
+#ifdef __GNUC__
+#define _POSIX_C_SOURCE 200112L
+#endif
 #include "o2lite.h"
 #include <string.h>
 
@@ -60,7 +63,6 @@ static long start_time;
 #include <sys/select.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include "CoreAudio/HostTime.h"
 #include <stdlib.h>
 
 typedef int SOCKET;  // In O2, we'll use SOCKET to denote the type of a socket
@@ -69,12 +71,14 @@ typedef int SOCKET;  // In O2, we'll use SOCKET to denote the type of a socket
 #define TERMINATING_SOCKET_ERROR (errno != EAGAIN && errno != EINTR)
 #define closesocket close
 
-
+/**** a few things are not common to both APPLE and LINUX *******/
 #ifdef __APPLE__
+#include "CoreAudio/HostTime.h"
 static uint64_t start_time;
 #elif __linux__
 static long start_time;
 #endif
+
 /*********************************ESP32********************************/
 #elif ESP32
 #include "Printable.h"

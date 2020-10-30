@@ -12,6 +12,12 @@ This test:
 - respond to messages from o2litehost's client services
 */
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #ifdef WIN32
 #include "usleep.h" // special windows implementation of sleep/usleep
 #else
@@ -19,12 +25,9 @@ This test:
 #endif
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <assert.h>
+#include <pthread.h>
 #include "o2internal.h"
 #include "sharedmem.h"
-#include <string.h>
-#include <pthread.h>
 
 #define streql(a, b) (strcmp(a, b) == 0)
 
@@ -102,7 +105,7 @@ int main(int argc, const char * argv[])
 // back to one of the client addresses
 //
 void server_test(o2_msg_data_ptr msg, const char *types, 
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     o2_extract_start(msg);
@@ -134,7 +137,7 @@ bool sift_called = false;
 
 // handles types "ist"
 void sift_han(o2_msg_data_ptr msg, const char *types,
-              o2_arg_ptr *argv, int argc, void *user_data)
+              o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_arg_ptr as, ai, af, at;
     o2_extract_start(msg);

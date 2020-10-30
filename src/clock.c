@@ -7,7 +7,7 @@
 #include "services.h"
 #include "message.h"
 #include "clock.h"
-#include "sched.h"
+#include "o2sched.h"
 #include "msgsend.h"
 #include "pathtree.h"
 #include "mqtt.h"
@@ -57,7 +57,8 @@ static long start_time;
 #endif
 
 static void announce_synchronized(void);
-static void clock_status_change(o2_node_ptr info, const char *name, int status);
+static void clock_status_change(o2_node_ptr info, const char *name,
+                                o2_status_t status);
 static void compute_osc_time_offset(o2_time now);
 
 // call this with the local and reference time when clock sync is obtained
@@ -95,7 +96,7 @@ static void o2_clock_synchronized(o2_time local_time, o2_time ref_time)
 //    the clock rate to 1.0 because we should be synchronized
 //
 static void catch_up_handler(o2_msg_data_ptr msg, const char *types,
-                      o2_arg_ptr *argv, int argc, void *user_data)
+                      o2_arg_ptr *argv, int argc, const void *user_data)
 {
     int rate_id = argv[0]->i32;
     if (rate_id != clock_rate_id) return; // this task is cancelled
@@ -161,7 +162,7 @@ static void set_clock(double local_time, double new_ref)
 }
 
 
-int o2_send_clocksync_proc(proc_info_ptr proc)
+o2_err_t o2_send_clocksync_proc(proc_info_ptr proc)
 {
     if (!o2_clock_is_synchronized)
         return O2_SUCCESS;
@@ -318,7 +319,7 @@ static void clock_status_change(o2_node_ptr proc, const char *name,
 // handle messages to /_o2/cs/cs that announce when clock sync is obtained
 //
 void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
-                            o2_arg_ptr *argv, int argc, void *user_data)
+                            o2_arg_ptr *argv, int argc, const void *user_data)
 {
     // guard against a bridged process sending !_o2/cs/cs:
     if (ISA_BRIDGE((bridge_inst_ptr)
@@ -362,7 +363,7 @@ static double min_rtt = 0;
 
 
 void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
-                            o2_arg_ptr *argv, int argc, void *user_data)
+             o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(msg);
     o2_arg_ptr reply_to_arg = o2_get_next(O2_STRING);
@@ -373,7 +374,7 @@ void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
 
 
 static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
-                                  o2_arg_ptr *argv, int argc, void *user_data)
+                       o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_arg_ptr arg;
     o2_extract_start(msg);
@@ -456,7 +457,7 @@ int o2_roundtrip(double *mean, double *min)
 //   then every 0.5s for 5s, then every 10s
 //
 void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
-                          o2_arg_ptr *argv, int argc, void *user_data)
+                          o2_arg_ptr *argv, int argc, const void *user_data)
 {
     // this function gets called periodically to drive the clock sync
     // protocol, but if the process calls o2_clock_set(), then we
@@ -468,7 +469,7 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
         return; // no clock sync; we're the reference
     }
     clock_sync_send_time = o2_local_time();
-    o2_status_t status = o2_status("_cs");
+    int status = o2_status("_cs");
     if (!found_clock_service) {
         found_clock_service = (status >= 0);
         if (found_clock_service) {
@@ -579,12 +580,12 @@ void o2_clock_finish()
 //   return the reference clock time. Arguments are serial_no and reply_to.
 //   send serial_no and current time to reply_to
 static void cs_ping_handler(o2_msg_data_ptr msg, const char *types,
-                     o2_arg_ptr *argv, int argc, void *user_data)
+                     o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_arg_ptr serial_no_arg, reply_to_arg;
     o2_extract_start(msg);
-    if (!(serial_no_arg = o2_get_next('i')) ||
-        !(reply_to_arg = o2_get_next('s'))) {
+    if (!(serial_no_arg = o2_get_next(O2_INT32)) ||
+        !(reply_to_arg = o2_get_next(O2_STRING))) {
         return;
     }
     int serial_no = serial_no_arg->i32;

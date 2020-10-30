@@ -16,10 +16,10 @@
 o2_time cs_time = 1000000.0;
 
 void appfollow(o2_msg_data_ptr msg, const char *types,
-                o2_arg ** argv, int argc, void *user_data)
+                o2_arg ** argv, int argc, const void *user_data)
 {
-    o2_status_t ss = o2_status("server");
-    o2_status_t cs = o2_status("client");
+    int ss = o2_status("server");
+    int cs = o2_status("client");
     double mean_rtt, min_rtt;
     o2_roundtrip(&mean_rtt, &min_rtt);
     printf("appfollow: local time %g global time %g "

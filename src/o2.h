@@ -793,7 +793,8 @@ void o2_msg_data_print(o2_msg_data_ptr msg);
  *             to the method creation call.
  */
 typedef void (*o2_method_handler)(const o2_msg_data_ptr msg, const char *types,
-                                  o2_arg_ptr *argv, int argc, void *user_data);
+                                  o2_arg_ptr *argv, int argc,
+                                  const void *user_data);
 
 
 /**
@@ -1325,7 +1326,7 @@ int o2_service_free(const char *service_name);
  * i.e. to install a handler for just the service.
  */
 o2_err_t o2_method_new(const char *path, const char *typespec,
-                  o2_method_handler h, void *user_data,
+                  o2_method_handler h, const void *user_data,
                   bool coerce, bool parse);
 
 /**
@@ -1486,7 +1487,7 @@ int o2_run(int rate);
  * service name, (2) the new status, and (3) the ip:port string of
  * the process that offers (or offered) the service.
  */
-o2_status_t o2_status(const char *service);
+int o2_status(const char *service);
 
 
 /**
@@ -1895,7 +1896,7 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  * you must not dereference this pointer. (NULL indicates failure as
  * with other type codes. One rationale for calling #o2_get_next
  * even when there is nothing to "get" is that you can call
- * o2_get_next('B') to retrieve 'T', 'F', or 'B' types as an int32_t
+ * o2_get_next(O2_BOOL) to retrieve 'T', 'F', or 'B' types as an int32_t
  * which is 0 or 1. The 'I' and 'N' types are never coerced.
  *
  * Normally, you should not free the message because
@@ -1906,12 +1907,14 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  * Arrays denoted by [...] in the type string are handled in a somewhat
  * special way:
  *
- * If an array is expected, call o2_get_next('['). The return value will be
+ * If an array is expected, call o2_get_next(O2_ARRAY_START). 
+ * The return value will be
  * o2_got_start_array on success, or NULL if there is no array. The actual
  * value in the message may be an array or a vector. If it is a vector, the
  * elements of the vector will be coerced to the types requested in 
  * successive calls to #o2_get_next. After retrieving array elements, call
- * o2_get_next(']'). The return value should be o2_got_end_array. NULL is
+ * o2_get_next(O2_ARRAY_END). The return value should be o2_got_end_array.
+ * NULL is
  * returned if there is an error. For example, suppose you call #o2_get_next
  * with characters from the type string "[id]" and the actual parameter is
  * a vector integers ("vi") of length 2. The return values from #o2_get_next
@@ -1928,7 +1931,8 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  * are distinct from NULL, which indicates a type incompatibility.
  *
  * Note also that vector elements cannot be retrieved directly without
- * calling o2_get_next('v') or o2_get_next('['). For example, if the actual
+ * calling o2_get_next(O2_VECTOR) or o2_get_next(O2_ARRAY_START). 
+ * For example, if the actual
  * argument is a two-element integer vector ("vi"), a call to 
  * o2_get_next(O2_INT32) will fail unless it is preceded by 
  * o2_get_next(O2_VECTOR) or o2_get_next(O2_ARRAY_START).

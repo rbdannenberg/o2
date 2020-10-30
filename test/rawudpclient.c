@@ -1,4 +1,6 @@
 /* rawudpclient.c -- performance test for "pure" udp
+ *
+ * not ported to linux or Windows yet
  */
 
 #ifdef WIN32
@@ -10,6 +12,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "CoreAudio/HostTime.h"
 #endif
 
 #include <stdio.h>
@@ -22,7 +25,6 @@
 #include <netinet/tcp.h>
 
 #include "sys/time.h"
-#include "CoreAudio/HostTime.h"
 
 #ifndef TRUE
 #define TRUE 1

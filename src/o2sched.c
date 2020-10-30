@@ -49,7 +49,7 @@
 #include "o2internal.h"
 #include "message.h"
 #include "services.h"
-#include "sched.h"
+#include "o2sched.h"
 #include "clock.h"
 #include "msgsend.h"
 

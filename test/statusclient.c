@@ -3,6 +3,12 @@
 //  see statusserver.c for details
 
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -20,7 +26,7 @@ bool running = true;
 
 
 void stop_handler(o2_msg_data_ptr data, const char *types,
-                  o2_arg_ptr *argv, int argc, void *user_data)
+                  o2_arg_ptr *argv, int argc, const void *user_data)
 {
     printf("client received stop message. Bye.\n");
     running = false;

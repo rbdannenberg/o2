@@ -3,6 +3,12 @@
 //  this test is designed to run with oscsendtest.c
 
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "stdio.h"
 #include "o2.h"
 #include "string.h"
@@ -28,7 +34,7 @@ int approx(double x) { return (x > -0.03) && (x < 0.03); }
 
 
 void osc_i_handler(o2_msg_data_ptr data, const char *types,
-                   o2_arg_ptr *argv, int argc, void *user_data)
+                   o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argv);
     assert(argc == 1);

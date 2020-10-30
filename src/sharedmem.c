@@ -175,13 +175,15 @@ void *shared_memory_thread(void *ignore) // the thread entry point
 
 #define O2SM_BRIDGE(i) DA_GET(o2sm_bridges, bridge_inst_ptr, i)
 
-#define OUTGOING(o2sm) ((o2_queue_head_ptr) \
+// we do 16-byte alignment explicitly because I don't think the compiler
+// can do it since our structures are allocated on 8-byte boundaries
+#define OUTGOING(o2sm) ((o2_queue_ptr) \
         (((intptr_t) &(o2sm)->outgoing) & ~0xF))
 
 bridge_protocol_ptr o2sm_bridge = NULL;
 static dyn_array o2sm_bridges;
 
-static o2_queue_head o2sm_incoming;
+static o2_queue o2sm_incoming;
 
 // o2sm_inst is allocated once and stored on the bridge_inst that is
 // referenced by the o2sm_bridges dynamic array. It is also
@@ -197,7 +199,7 @@ typedef struct o2sm_inst {
     // the outgoing address with ~0xF to force 16-btye alignment. This
     // might locate it 8-bytes lower, so we insert 8 bytes of padding to
     // make sure the shifted address is allocated and usable.
-    o2_queue_head outgoing;
+    o2_queue outgoing;
     int bridged_process_index;
 } o2sm_inst, *o2sm_inst_ptr;
 
@@ -227,7 +229,7 @@ bridge_inst_ptr o2_shmem_inst_new()
 
 // retrieve all messages from head atomically. Then reverse the list.
 //
-static o2_message_ptr get_messages_reversed(o2_queue_head_ptr head)
+static o2_message_ptr get_messages_reversed(o2_queue_ptr head)
 {
     // store a zero if nothing has changed
     o2_message_ptr all = (o2_message_ptr) o2_queue_grab(head);
@@ -348,8 +350,12 @@ o2_err_t o2_shmem_finish(bridge_inst_ptr inst)
 // derived from id.
 //
 void o2sm_sv_handler(o2_msg_data_ptr msgdata, const char *types,
-                        o2_arg_ptr *argv, int argc, void *user_data)
+                        o2_arg_ptr *argv, int argc, const void *user_data)
 {
+    o2_err_t err = O2_SUCCESS;
+    bridge_inst_ptr inst;
+    o2sm_inst_ptr o2sm;
+
     O2_DBd(o2_dbg_msg("o2sm_sv_handler gets", NULL, msgdata, NULL, NULL));
     // get the arguments: shared mem bridge id, service name, 
     //     add-or-remove flag, is-service-or-tap flag, property string
@@ -364,12 +370,11 @@ void o2sm_sv_handler(o2_msg_data_ptr msgdata, const char *types,
     if (id < 0 || id >= o2sm_bridges.length) {
         goto bad_id;
     }
-    bridge_inst_ptr inst = O2SM_BRIDGE(id);
-    o2sm_inst_ptr o2sm = (o2sm_inst_ptr) (inst->info);
+    inst = O2SM_BRIDGE(id);
+    o2sm = (o2sm_inst_ptr) (inst->info);        
     if (!o2sm) {
         goto bad_id;
     }
-    o2_err_t err = O2_SUCCESS;
     if (add) { // add a new service or tap
         if (is_service) {
             // copy the bridge inst and share o2sm info:
@@ -409,15 +414,18 @@ void o2sm_sv_handler(o2_msg_data_ptr msgdata, const char *types,
 
 
 void o2sm_fin_handler(o2_msg_data_ptr msgdata, const char *types,
-                      o2_arg_ptr *argv, int argc, void *user_data)
+                      o2_arg_ptr *argv, int argc, const void *user_data)
 {
+    bridge_inst_ptr inst;
+    o2sm_inst_ptr o2sm;
+    
     O2_DBd(o2_dbg_msg("o2sm_fin_handler gets", NULL, msgdata, NULL, NULL));
     int id = argv[0]->i32;
     if (id < 0 || id >= o2sm_bridges.length) {
         goto bad_id;
     }
-    bridge_inst_ptr inst = O2SM_BRIDGE(id);
-    o2sm_inst_ptr o2sm = (o2sm_inst_ptr) (inst->info);
+    inst = O2SM_BRIDGE(id);
+    o2sm = (o2sm_inst_ptr) (inst->info);
     if (!o2sm) {
         goto bad_id;
     }
@@ -764,7 +772,6 @@ void o2sm_initialize(o2_ctx_ptr ctx, bridge_inst_ptr inst)
     // first call to O2_MALLOC by the shared memory thread. If
     // o2_memory() was used called with mallocp = false, the thread
     // will fail to allocate any memory, so mallocp must be true (default).
-    o2_queue_init(&o2sm_incoming);
     ctx->chunk = NULL;
     ctx->chunk_remaining = 0;
     o2_ctx_init(ctx);

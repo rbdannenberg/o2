@@ -130,7 +130,7 @@ void o2_msg_data_print(o2_msg_data_ptr msg)
                 int len = *((int32_t *) data_next);
                 data_next += sizeof(int32_t);
                 printf(" <");
-                o2_type vtype = *types++;
+                o2_type vtype = (o2_type) (*types++);
                 for (i = 0; i < len; i++) {
                     if (i > 0) printf(" ");
                     if (vtype == O2_INT32) {

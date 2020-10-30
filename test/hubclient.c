@@ -3,6 +3,12 @@
 //  see hubserver.c for details
 
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -39,7 +45,7 @@ long elapsed_time()
 int server_hi_count = 0;
 
 void server_hi(o2_msg_data_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+               o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(streql(argv[0]->s, "hi"));
     server_hi_count++;
@@ -49,7 +55,7 @@ char server_ip[O2_MAX_PROCNAME_LEN];
 int server_port = -1;
 
 void server_ipport(o2_msg_data_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+               o2_arg_ptr *argv, int argc, const void *user_data)
 {
     strcpy(server_ip, argv[0]->s);
     server_port = argv[1]->i32;

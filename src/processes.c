@@ -185,7 +185,7 @@ void o2_show_sockets()
 o2_err_t o2_net_info_remove(o2n_info_ptr info)
 {
     O2_DBo(printf("%s starting o2_net_info_remove(info = %p (%s))\n", \
-                  o2_debug_prefix, info, o2_tag_to_string(info)); \
+                  o2_debug_prefix, info, o2_tag_to_string(info->net_tag)); \
            o2_show_sockets());
     proc_info_ptr proc = (proc_info_ptr) info->application;
     if (!proc) {
@@ -235,7 +235,7 @@ o2_err_t o2_net_info_remove(o2n_info_ptr info)
 
 // callback indicates that an accept() has completed
 //
-int o2_net_accepted(o2n_info_ptr info, o2n_info_ptr conn)
+o2_err_t o2_net_accepted(o2n_info_ptr info, o2n_info_ptr conn)
 {
     proc_info_ptr server = (proc_info_ptr) (info->application);
     if (!server) {       // not sure this is possible, but there might

@@ -29,6 +29,12 @@
 // t+6.0s, both client and server shut down.
 // FINISH
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -65,7 +71,7 @@ long elapsed_time()
 int client_hi_count = 0;
 
 void client_hi(o2_msg_data_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+               o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(streql(argv[0]->s, "hi"));
     client_hi_count++;
@@ -75,7 +81,7 @@ char client_ip[O2_MAX_PROCNAME_LEN];
 int client_port = -1;
 
 void client_ipport(o2_msg_data_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, void *user_data)
+               o2_arg_ptr *argv, int argc, const void *user_data)
 {
     strcpy(client_ip, argv[0]->s);
     client_port = argv[1]->i32;

@@ -3,6 +3,10 @@
 // Roger B. Dannenberg, 2020
 //
 
+// to define addrinfo, need to set this macro:
+#ifdef __GNUC__
+#define _POSIX_C_SOURCE 200112L
+#endif
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -96,7 +100,7 @@ o2n_info_ptr o2n_get_info(int i)
 
 
 o2_err_t o2n_address_init(o2n_address_ptr remote_addr_ptr, const char *ip,
-                     int port_num, bool tcp_flag)
+                          int port_num, bool tcp_flag)
 {
     o2_err_t rslt = O2_SUCCESS;
     char port[24]; // can't overrun even with 64-bit int
@@ -414,10 +418,12 @@ const char *o2n_get_local_process_name(int port)
 // initialize this module
 // - create UDP broadcast socket
 // - create UDP send socket
-int o2n_initialize(o2n_recv_callout_type recv, o2n_accept_callout_type acc,
-              o2n_connected_callout_type conn, o2n_close_callout_type clos)
+o2_err_t o2n_initialize(o2n_recv_callout_type recv,
+                        o2n_accept_callout_type acc,
+                        o2n_connected_callout_type conn,
+                        o2n_close_callout_type clos)
 {
-    int err;
+    o2_err_t err;
 #ifdef WIN32
     // Initialize (in Windows)
     WSADATA wsaData;

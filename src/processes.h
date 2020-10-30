@@ -60,7 +60,7 @@ const char *o2_node_to_ipport(o2_node_ptr node);
 
 o2_status_t o2_status_from_proc(o2_node_ptr entry, const char **process);
 
-int o2_net_accepted(o2n_info_ptr info, o2n_info_ptr conn);
+o2_err_t o2_net_accepted(o2n_info_ptr info, o2n_info_ptr conn);
 
 o2_err_t o2_net_connected(o2n_info_ptr info);
 

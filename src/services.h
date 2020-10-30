@@ -71,19 +71,19 @@ o2_err_t o2_service_provider_new(o2string key, const char *properties,
  */
 o2_node_ptr o2_service_find(const char *name, services_entry_ptr *services);
 
-int o2_services_insert_tap(services_entry_ptr ss, o2string tapper,
-                           proc_info_ptr proc);
+o2_err_t o2_services_insert_tap(services_entry_ptr ss, o2string tapper,
+                                proc_info_ptr proc);
 
-int o2_service_provider_replace(const char *service_name,
-          o2_node_ptr *node_ptr, o2_node_ptr new_service);
+o2_err_t o2_service_provider_replace(const char *service_name,
+               o2_node_ptr *node_ptr, o2_node_ptr new_service);
 
-int o2_service_remove(const char *service_name, proc_info_ptr proc,
-                      services_entry_ptr ss, int index);
+o2_err_t o2_service_remove(const char *service_name, proc_info_ptr proc,
+                           services_entry_ptr ss, int index);
 
 int o2_remove_services_by(proc_info_ptr proc);
 
-int o2_tap_remove_from(services_entry_ptr ss, proc_info_ptr proc,
-                       const char *tapper);
+o2_err_t o2_tap_remove_from(services_entry_ptr ss, proc_info_ptr proc,
+                            const char *tapper);
 
 int o2_remove_taps_by(proc_info_ptr proc);
 

@@ -11,11 +11,11 @@ int expected = 0;
 
 
 void handler(o2_msg_data_ptr data, const char *types,
-             o2_arg_ptr *argv, int argc, void *user_data)
+             o2_arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
     assert(strcmp(types, "i") == 0);
-    o2_arg_ptr arg = o2_get_next('i');
+    o2_arg_ptr arg = o2_get_next(O2_INT32);
     printf("%s: types=%s int32=%d\n", (const char *) user_data, types, arg->i);
     assert(arg->i == expected);
     message_count++;

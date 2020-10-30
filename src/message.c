@@ -190,7 +190,7 @@ int o2_send_start()
     is_bundle = false;
     is_normal = false;
 #endif
-    add_type(',');
+    add_type((o2_type) ',');
     return O2_SUCCESS;
 }
 
@@ -280,7 +280,7 @@ int o2_add_blob_data(uint32_t size, void *data)
     is_normal = true;
 #endif
     o2_message_check_length(size + 8); // add 8 for length and padding
-    o2_add_int32_or_char('b', size);
+    o2_add_int32_or_char(O2_BLOB, size);
     char *dst = o2_ctx->msg_data.array + o2_ctx->msg_data.length;
     char *last = dst + size;
     size_t ilast = (((size_t) last + 3)) & ~3;
@@ -319,7 +319,7 @@ int o2_add_vector(o2_type element_type, int32_t length, void *data)
     length *= size; // length is now the vector length in bytes
     // the message contains the number of bytes in the vector data
     o2_message_check_length(sizeof(int32_t) + length);
-    o2_add_int32_or_char('v', length);
+    o2_add_int32_or_char(O2_VECTOR, length);
     add_type(element_type);
     char *dst = o2_ctx->msg_data.array + o2_ctx->msg_data.length;
     memcpy(dst, data, length);
@@ -693,7 +693,7 @@ ssize_t o2_validate_bundle(void *data, ssize_t size)
     if (end > end_of_msg) return O2_INVALID_MSG;
 
 /* convert endianness of a message */
-int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
+o2_err_t o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
 {
     char *types = O2_MSGDATA_TYPES(msg);
     int types_len = (int) strlen(types);
@@ -786,7 +786,7 @@ int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
                 if (end > end_of_msg) return O2_INVALID_MSG;
                 // swap each vector element
                 len /= 4; // assuming 32-bit elements
-                o2_type vtype = *types++;
+                o2_type vtype = (o2_type) (*types++);
                 if (vtype == O2_DOUBLE || vtype == O2_INT64) {
                     len /= 2; // half as many elements if they are 64-bits
                 }
@@ -815,9 +815,9 @@ int o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
 }
 
 
-int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
-                     const char *service_name, const char *path,
-                     const char *typestring, int tcp_flag, va_list ap)
+o2_err_t o2_message_build(o2_message_ptr *msg, o2_time timestamp,
+                          const char *service_name, const char *path,
+                          const char *typestring, int tcp_flag, va_list ap)
 {
     o2_send_start();
     
@@ -882,7 +882,7 @@ int o2_message_build(o2_message_ptr *msg, o2_time timestamp,
             case O2_FALSE:
             case O2_NIL:
             case O2_INFINITUM:
-                add_type(typestring[-1]);
+                add_type((o2_type) typestring[-1]);
                 break;
                 
                 // fall through to unknown type
@@ -1237,7 +1237,7 @@ o2_arg_ptr o2_get_next(o2_type to_type)
         }
         mx_array_to_vector_pending = false;
     } else {
-        o2_type type_code = *mx_type_next++;
+        o2_type type_code = (o2_type) (*mx_type_next++);
         switch (type_code) {
             case O2_INT32:
                 if (to_type != O2_INT32) {
@@ -1387,7 +1387,7 @@ o2_arg_ptr o2_get_next(o2_type to_type)
 // return O2_FAIL to ask caller to remove info and socket
 // This is a callback from network.c
 //
-int o2_message_deliver(o2n_info_ptr info)
+o2_err_t o2_message_deliver(o2n_info_ptr info)
 {
     o2_message_ptr msg = (o2_message_ptr) (info->in_message);
     if (!info->application) { // no deliverer (not sure this is possible,
@@ -1450,7 +1450,7 @@ int o2_message_deliver(o2n_info_ptr info)
             o2_stun_reply_handler(info->application);
             break;
         case MQTT_CLIENT:
-            o2_mqtt_received(info->application);
+            o2_mqtt_received((o2n_info_ptr) info->application);
             break;
 #endif
         default: // bad tag indicates internal error

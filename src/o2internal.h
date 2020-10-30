@@ -81,7 +81,8 @@ void o2_mem_finish(void); // implemented by o2mem.c, called to free
 #endif   // _MSC_VER
 
 
-#define RETURN_IF_ERROR(expr) { int err = (expr); if (err) return err; }
+#define RETURN_IF_ERROR(expr) { o2_err_t err = (expr); \
+            if (err != O2_SUCCESS) return err; }
 
 // define IS_BIG_ENDIAN, IS_LITTLE_ENDIAN, and swap64(i),
 // swap32(i), and swap16(i)

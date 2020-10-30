@@ -3,6 +3,12 @@
 // Roger B. Dannenberg
 // August 2020
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "stdio.h"
 #include "o2.h"
 #include "o2internal.h"

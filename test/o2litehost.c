@@ -7,6 +7,12 @@
 // run this program with test/o2liteserv, which is based on o2server.c
 
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -29,7 +35,7 @@ int msg_count = 0;
 bool running = true;
 
 void client_test(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     msg_count++;
     // the value we send is arbitrary, but we've already sent

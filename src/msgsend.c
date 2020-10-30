@@ -96,7 +96,7 @@
 #include "o2osc.h"
 //#include "discovery.h"
 #include "bridge.h"
-#include "sched.h"
+#include "o2sched.h"
 
 #include <errno.h>
 
@@ -289,7 +289,7 @@ void o2_call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg,
             typ = types;
         }
         while (*typ) {
-            o2_arg_ptr next = o2_get_next(*typ++);
+            o2_arg_ptr next = o2_get_next((o2_type) (*typ++));
             if (!next) {
                 o2_drop_msg_data("of type coercion failure", msg);
                 return;
@@ -406,6 +406,8 @@ void send_message_to_tap(service_tap_ptr tap)
 void o2_msg_deliver(o2_node_ptr service, services_entry_ptr ss)
 {
     bool delivered = false;
+    char *address;
+    char *types;
     // STEP 0: If message is a bundle, send each embedded message separately
     o2_message_ptr msg = o2_ctx->msgs;
 #ifndef O2_NO_BUNDLES
@@ -415,14 +417,14 @@ void o2_msg_deliver(o2_node_ptr service, services_entry_ptr ss)
     }
 #endif
     // STEP 1: Check for a service to handle the message
-    char *address = msg->data.address;
+    address = msg->data.address;
     if (!service) {
         service = o2_msg_service(&msg->data, &ss);
         if (!service) goto done; // service must have been removed
     }
     
     // STEP 2: Isolate the type string, which is after the address
-    char *types = address;
+    types = address;
     while (types[3]) types += 4; // find end of address string
     // types[3] is the zero marking the end of the address,
     // types[4] is the "," that starts the type string, so
@@ -522,7 +524,7 @@ o2_err_t o2_send_marker(const char *path, double time, int tcp_flag,
 
     o2_message_ptr msg;
     o2_err_t rslt = o2_message_build(&msg, time, NULL, path,
-                                       typestring, tcp_flag, ap);
+                                     typestring, tcp_flag, ap);
     if (rslt != O2_SUCCESS) {
         return rslt; // could not allocate a message!
     }

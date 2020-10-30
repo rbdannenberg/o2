@@ -9,7 +9,8 @@
 #include "o2internal.h"
 #include "services.h"
 #include "msgsend.h"
-
+#include "pathtree.h"
+#include "o2sched.h"
 
 static o2n_info_ptr public_ip_info = NULL;
 static o2n_address stun_server_address;
@@ -33,25 +34,8 @@ typedef struct binding_reply {
     
 static bool stun_query_running = false;
 
-o2_err_t o2_get_public_ip()
-{
-    if (stun_query_running || o2_public_ip[0]) {
-        return O2_ALREADY_RUNNING; // started already
-    }
-    stun_client_ptr client = O2_MALLOCT(stun_client_info);
-    client->tag = STUN_CLIENT;
-    public_ip_info = o2n_udp_server_new(&port, client);
-    o2n_address_init(&stun_server_address, "stun.l.google.com", 19302, false);
-    // schedule stun_query until we get a reply
-    o2_method_new_internal("/_o2/ipq", "", &o2_stun_query, NULL, false, false);
-    o2_stun_query(NULL, NULL, NULL, 0, NULL);
-    stun_query_running = true;
-    return O2_SUCCESS;
-}
-    
-
 void o2_stun_query(o2_msg_data_ptr msgdata, const char *types,
-                   o2_arg_ptr *argv, int argc, void *user_data)
+                   o2_arg_ptr *argv, int argc, const void *user_data)
 {
     if (o2_public_ip[0]) return;
     o2_message_ptr msg = (o2_message_ptr) O2_MALLOC(80);
@@ -72,6 +56,23 @@ void o2_stun_query(o2_msg_data_ptr msgdata, const char *types,
     o2_schedule(&o2_ltsched);
 }
 
+
+o2_err_t o2_get_public_ip()
+{
+    if (stun_query_running || o2_public_ip[0]) {
+        return O2_ALREADY_RUNNING; // started already
+    }
+    stun_client_ptr client = O2_MALLOCT(stun_client_info);
+    client->tag = STUN_CLIENT;
+    public_ip_info = o2n_udp_server_new(&port, client);
+    o2n_address_init(&stun_server_address, "stun.l.google.com", 19302, false);
+    // schedule stun_query until we get a reply
+    o2_method_new_internal("/_o2/ipq", "", &o2_stun_query, NULL, false, false);
+    o2_stun_query(NULL, NULL, NULL, 0, NULL);
+    stun_query_running = true;
+    return O2_SUCCESS;
+}
+    
 
 void o2_stun_reply_handler(void *info)
 {

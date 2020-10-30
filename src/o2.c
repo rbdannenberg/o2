@@ -600,10 +600,15 @@ functions.
  *  tests that generate error messages
  */
 
+// to define sig_int_handler and usleep, we need these macros:
+#ifdef __GNUC__
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
 #include <stdio.h>
 #include <signal.h>
 #include <ctype.h>
-#include <unistd.h>
+#include "unistd.h"
 
 #include "o2internal.h"
 #include "o2mem.h"
@@ -612,7 +617,7 @@ functions.
 #include "bridge.h"
 #include "message.h"
 #include "msgsend.h"
-#include "sched.h"
+#include "o2sched.h"
 #include "clock.h"
 #include "discovery.h"
 #include "properties.h"
@@ -657,6 +662,7 @@ static void o2_int_handler(int s)
 o2_err_t o2_initialize(const char *ensemble_name)
 {
     o2_err_t err;
+    o2_time almost_immediately;
     // this is a bit tricky: o2_mem_init depends upon o2_ctx, but
     // o2_ctx_init() calls on O2_MALLOC. The next line is enough to
     // allow o2_mem_init() to run, and we call o2_ctx_init() for
@@ -714,7 +720,7 @@ o2_err_t o2_initialize(const char *ensemble_name)
     // a few things can be disabled after o2_initialize() and before
     // o2_poll()ing starts, so pick a time in the future and schedule them
     // They will then test to see if they should actually run or not.
-    o2_time almost_immediately = o2_local_time() + 0.01;
+    almost_immediately = o2_local_time() + 0.01;
     // clock sync messages startup, disabled by o2_clock_set()
     o2_clock_ping_at(almost_immediately);
 
@@ -873,7 +879,8 @@ void o2_message_warnings(
 
 
 o2_err_t o2_method_new(const char *path, const char *typespec,
-                  o2_method_handler h, void *user_data, bool coerce, bool parse)
+                       o2_method_handler h, const void *user_data,
+                       bool coerce, bool parse)
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
@@ -893,7 +900,7 @@ o2_err_t o2_tap(const char *tappee, const char *tapper)
     }
     char padded_tappee[NAME_BUF_LEN];
     o2_string_pad(padded_tappee, tappee);
-    int err = o2_tap_new(padded_tappee, o2_ctx->proc, tapper);
+    o2_err_t err = o2_tap_new(padded_tappee, o2_ctx->proc, tapper);
     if (err == O2_SUCCESS) {
         o2_notify_others(padded_tappee, true, tapper, NULL);
     }
@@ -908,7 +915,7 @@ o2_err_t o2_untap(const char *tappee, const char *tapper)
     }
     char padded_tappee[NAME_BUF_LEN];
     o2_string_pad(padded_tappee, tappee);
-    int err = o2_tap_remove(padded_tappee, o2_ctx->proc, tapper);
+    o2_err_t err = o2_tap_remove(padded_tappee, o2_ctx->proc, tapper);
     if (err == O2_SUCCESS) {
         o2_notify_others(padded_tappee, false, tapper, NULL);
     }
@@ -969,7 +976,7 @@ int o2_run(int rate)
 }
 
 
-o2_status_t o2_status(const char *service)
+int o2_status(const char *service)
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
@@ -1036,7 +1043,7 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 
 
 static char o2_error_msg[100];
-static char *error_strings[] = {
+static const char *error_strings[] = {
     "O2_SUCCESS",
     "O2_FAIL",
     "O2_SERVICE_EXISTS",
@@ -1061,7 +1068,7 @@ static char *error_strings[] = {
 };
     
 
-const char *o2_error_to_string(int i)
+const char *o2_error_to_string(o2_err_t i)
 {
     if (i < 1 && i >= O2_SEND_FAIL) {
         sprintf(o2_error_msg, "O2 error %s", error_strings[-i]);

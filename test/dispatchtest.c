@@ -13,7 +13,7 @@ int s = 0;
 int w = 1;
 
 void service_one(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     char p[100];
     sprintf(p, "/two/benchmark/%d", s % N_ADDRS);
@@ -27,7 +27,7 @@ void service_one(o2_msg_data_ptr data, const char *types,
 }
 
 void service_two(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     char p[100];
     sprintf(p, "/one/benchmark/%d", w % N_ADDRS);

@@ -14,7 +14,7 @@ int expected = 0;  // expected encodes the expected order of invoking services
 // e.g. 2121 means (right to left) service1, service2, service1, service2
 
 void service_one(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     assert(argv[0]->i == 1234);
@@ -24,7 +24,7 @@ void service_one(o2_msg_data_ptr data, const char *types,
 }
 
 void service_two(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     assert(argv[0]->i == 2345);

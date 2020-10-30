@@ -1,4 +1,6 @@
 /* rawtcpclient.c -- performance test for "pure" tcp
+ *
+ * This currently only runs on macOS
  */
 
 #ifdef WIN32
@@ -22,7 +24,9 @@
 #include <netinet/tcp.h>
 
 #include "sys/time.h"
+#ifdef __APPLE__
 #include "CoreAudio/HostTime.h"
+#endif
 
 #ifndef TRUE
 #define TRUE 1

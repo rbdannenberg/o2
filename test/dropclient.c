@@ -2,6 +2,12 @@
 //
 //  This program works with dropserver.c See that for test description.
 
+#ifdef __GNUC__
+// define usleep:
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -41,7 +47,7 @@ static void drop_warning(const char *warn, o2_msg_data_ptr msg)
 // this is a handler for incoming messages
 //
 void bye(o2_msg_data_ptr msg, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+         o2_arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     msg_count++;
