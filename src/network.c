@@ -4,9 +4,8 @@
 //
 
 // to define addrinfo, need to set this macro:
-#ifdef __GNUC__
-#define _POSIX_C_SOURCE 200112L
-#endif
+
+#include "o2usleep.h"
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -88,6 +87,49 @@ static o2n_connected_callout_type o2n_connected_callout;
 static o2n_close_callout_type o2n_close_callout;
 
 static bool o2n_socket_delete_flag = false;
+
+// macOS does not always free ports, so to aid in debugging orphaned ports,
+// define CLOSE_SOCKET_DEBUG 1 and get a list of sockets that are opened
+// and closed
+//
+#define CLOSE_SOCKET_DEBUG 1
+#if CLOSE_SOCKET_DEBUG
+SOCKET o2_socket(int domain, int type, int protocol, const char *who)
+{
+    SOCKET sock = socket(domain, type, protocol);
+    if (sock >= 0) {
+        long s = (long) sock; // whatever the type is, get it and print it
+        printf("**** opened socket %ld for %s\n", s, who);
+    }
+    return sock;
+}
+
+SOCKET o2_accept(SOCKET socket, struct sockaddr *restrict address,
+                 socklen_t *restrict address_len, const char *who)
+{
+    SOCKET sock = accept(socket, address, address_len);
+    if (sock >= 0) {
+        long s = (long) sock; // whatever the type is, get it and print it
+        printf("**** accepted socket %ld for %s\n", s, who);
+    }
+    return sock;
+}
+
+void o2_closesocket(SOCKET sock, const char *who)
+{
+    long s = (long) sock; // whatever the type is, get it and print it
+    printf("**** closing socket %ld for %s\n", s, who);
+    int err = closesocket(sock);
+    if (err < 0) {
+        perror("o2_closesocket");
+    }
+}
+#else
+#define o2_socket(dom, type, prot, who) socket(dom, type, prot)
+#define o2_accept(sock, addr, len, who) accept(sock, addr, len)
+n
+#define o2_closesocket(sock, who) closesocket(sock)
+#endif
 
 
 o2n_info_ptr o2n_get_info(int i)
@@ -229,7 +271,8 @@ ssize_t o2n_send_broadcast(int port, o2n_message_ptr msg)
 //
 o2_err_t o2n_udp_send_socket_new(SOCKET *sock)
 {
-    if ((*sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    if ((*sock = o2_socket(AF_INET, SOCK_DGRAM, 0,
+                           "o2n_udp_send_socket_new")) < 0) {
         perror("allocating udp send socket");
         return O2_FAIL;
     }
@@ -299,6 +342,14 @@ static o2n_info_ptr socket_info_new(SOCKET sock, int net_tag)
     pfd->fd = sock;
     pfd->events = POLLIN;
     pfd->revents = 0;
+#if CLOSE_SOCKET_DEBUG
+    printf("**socket_info_new:\n");
+    for (int i = 0; i < o2n_fds.length; i++) {
+        pfd = GET_O2N_FDS(i);
+        long s = (long) pfd->fd;
+        printf("    %d: %ld\n", i, s);
+    }
+#endif
     return info;
 }
 
@@ -315,7 +366,7 @@ static o2n_info_ptr socket_cleanup(const char *error, o2n_info_ptr info,
                                    SOCKET sock)
 {
     perror("bind and listen");
-    closesocket(sock);
+    o2_closesocket(sock, "socket_cleanup");
     o2n_fds_info.length--;   // restore socket arrays
     o2n_fds.length--;
     O2_FREE(info);
@@ -346,14 +397,14 @@ o2n_info_ptr o2n_tcp_server_new(int port, void *application)
 // 
 o2n_info_ptr o2n_udp_server_new(int *port, void *application)
 {
-    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
+    SOCKET sock = o2_socket(AF_INET, SOCK_DGRAM, 0, "o2n_udp_server_new");
     if (sock == INVALID_SOCKET) {
         return NULL;
     }
     // Bind the socket
     int err;
     if ((err = bind_recv_socket(sock, port, false))) {
-        closesocket(sock);
+        o2_closesocket(sock, "bind failed in o2n_udp_server_new");
         return NULL;
     }
     o2n_info_ptr info = socket_info_new(sock, NET_UDP_SERVER);
@@ -475,11 +526,11 @@ void o2n_finish()
     DA_FINISH(o2n_fds_info);
     DA_FINISH(o2n_fds);
     if (o2n_udp_send_sock != INVALID_SOCKET) {
-        closesocket(o2n_udp_send_sock);
+        o2_closesocket(o2n_udp_send_sock, "o2n_finish (o2n_udp_send_sock)");
         o2n_udp_send_sock = INVALID_SOCKET;
     }
     if (o2n_broadcast_sock != INVALID_SOCKET) {
-        closesocket(o2n_broadcast_sock);
+        o2_closesocket(o2n_broadcast_sock, "o2n_finish (o2n_broadcast_sock)");
         o2n_broadcast_sock = INVALID_SOCKET;
     }
 #ifdef WIN32
@@ -500,7 +551,7 @@ o2n_message_ptr o2n_message_new(int size)
 
 o2n_info_ptr o2n_tcp_socket_new(int net_tag, int port, void *application)
 {
-    SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+    SOCKET sock = o2_socket(AF_INET, SOCK_STREAM, 0, "o2n_tcp_socket_new");
     if (sock == INVALID_SOCKET) {
         printf("tcp socket creation error");
         return NULL;
@@ -775,7 +826,7 @@ void o2n_close_socket(o2n_info_ptr info)
         #ifdef SHUT_WR
             shutdown(sock, SHUT_WR);
         #endif
-        closesocket(sock);
+        o2_closesocket(sock, "o2n_close_socket");
         pfd->fd = INVALID_SOCKET;
         info->net_tag = NET_INFO_CLOSED;
     }
@@ -1028,7 +1079,7 @@ static int read_event_handler(SOCKET sock, o2n_info_ptr info)
         // fall through and send message
     } else if (info->net_tag == NET_TCP_SERVER) {
         // note that this handler does not call read_whole_message()
-        SOCKET connection = accept(sock, NULL, NULL);
+        SOCKET connection = o2_accept(sock, NULL, NULL, "read_event_handler");
         if (connection == INVALID_SOCKET) {
             O2_DBG(printf("%s tcp_accept_handler failed to accept\n",
                           o2_debug_prefix));

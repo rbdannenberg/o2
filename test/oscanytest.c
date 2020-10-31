@@ -3,22 +3,11 @@
 //  this test is designed to run with oscsendtest.c
 
 
-#ifdef __GNUC__
-// define usleep:
-#define _XOPEN_SOURCE 500
-#define _POSIX_C_SOURCE 200112L
-#endif
-
+#include "o2usleep.h"
 #include "stdio.h"
 #include "o2.h"
 #include "string.h"
 #include "assert.h"
-
-#ifdef WIN32
-#include "usleep.h"
-#else
-#include <unistd.h>
-#endif
 
 int message_count = 0;
 o2_time timed_start = 0;

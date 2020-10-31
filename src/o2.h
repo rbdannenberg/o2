@@ -669,7 +669,7 @@ typedef enum {
  * The o2_arg_ptr can then be dereferenced to obtain a value of the
  * expected type. For example, you could write
  * \code{.c}
- *     double d = o2_get_next()->d;
+ *     double d = o2_get_next(O2_DOUBLE)->d;
  * \endcode
  * to extract a parameter of type double. (This assumes that the message
  * is properly formed and the type string indicates that this parameter is
@@ -1881,8 +1881,7 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  * When types T (True), F (False), I (Infinitum), or N (Nil) are in 
  * the message, there is an entry in the argument vector; however, 
  * there is no data associated with these types (other than the type
- * itself), so the pointers point to zero bytes and therefore should
- * not be used.
+ * itself), so the pointers should not be used except to test for non-NULL.
  *
  * In all other cases, the argument vector contains data
  * corresponding to the data item in the message. This may be a pointer

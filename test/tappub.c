@@ -28,24 +28,12 @@
 //
 //  Shut down cleanly.
 
-#ifdef __GNUC__
-// define usleep:
-#define _XOPEN_SOURCE 500
-#define _POSIX_C_SOURCE 200112L
-#endif
-
+#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
 #include "assert.h"
 #define streql(a, b) (strcmp(a, b) == 0)
-
-#ifdef WIN32
-#include "usleep.h" // special windows implementation of sleep/usleep
-#else
-#include <unistd.h>
-#endif
-
 
 // To put some weight on fast address lookup, we create n_addrs
 // different addresses to use.

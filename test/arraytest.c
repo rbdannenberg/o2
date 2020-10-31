@@ -597,6 +597,8 @@ void service_coerce(o2_msg_data_ptr data, const char *types,
             case O2_INT64: expected = 543 + i; break;
             case O2_FLOAT: expected = (float) (543.21 + i); break;
             case O2_DOUBLE: expected = 543.21 + i; break;
+            default: assert(false);
+                
         }
         switch (ytype) {
             case O2_INT32: assert(arg->v.vi[i] == (int32_t) expected); break;

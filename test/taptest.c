@@ -407,7 +407,7 @@ void service_many(o2_msg_data_ptr data, const char *types,
     assert(arg);
     arg = o2_get_next(O2_FALSE);
     assert(arg);
-    arg = o2_get_next(O2_INT32);
+    arg = o2_get_next(O2_INFINITUM);
     assert(arg);
     arg = o2_get_next(O2_NIL);
     assert(arg);
@@ -911,7 +911,7 @@ void service_manytap(o2_msg_data_ptr data, const char *types,
     assert(arg);
     arg = o2_get_next(O2_FALSE);
     assert(arg);
-    arg = o2_get_next(O2_INT32);
+    arg = o2_get_next(O2_INFINITUM);
     assert(arg);
     arg = o2_get_next(O2_NIL);
     assert(arg);

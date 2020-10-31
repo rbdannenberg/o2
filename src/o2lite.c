@@ -10,9 +10,7 @@
 // Roger B. Dannenberg
 // Jul-Aug 2020
 
-#ifdef __GNUC__
-#define _POSIX_C_SOURCE 200112L
-#endif
+#include "o2usleep.h"
 #include "o2lite.h"
 #include <string.h>
 

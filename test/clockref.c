@@ -4,23 +4,13 @@
 //  synchronization and status updates.
 //
 
-#ifdef __GNUC__
-// define usleep:
-#define _XOPEN_SOURCE 500
-#define _POSIX_C_SOURCE 200112L
-#endif
 
+#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
 #include "assert.h"
 #include "ctype.h"
-
-#ifdef WIN32
-#include "usleep.h" // special windows implementation of sleep/usleep
-#else
-#include <unistd.h>
-#endif
 
 #define streql(a, b) (strcmp(a, b) == 0)
 #define MAX(x, y) ((x) > (y) ? (x) : (y))

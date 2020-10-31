@@ -1,7 +1,7 @@
 # regression_tests.py -- a rewrite of regression_tests.sh for Windows
-#    using Python 3 (and hopefully compatible with Python 2.7 on OS X)
+#    using Python 3
 #
-# Roger Dannenberg   Jan 2017
+# Roger Dannenberg   Jan 2017, 2020
 #
 # Run this in the o2/tests directory where it is found
 #
@@ -14,6 +14,7 @@ import platform
 import subprocess
 import shlex
 import threading
+from checkports import checkports
 
 allOK = True
 
@@ -53,9 +54,8 @@ class RunInBackground(threading.Thread):
                                    shell=False, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         (self.output, self.errout) = process.communicate()
-        if os.name == 'nt':
-            self.output = self.output.decode("utf-8").replace('\r\n', '\n')
-            self.errout = self.errout.decode("utf-8").replace('\r\n', '\n')
+        self.output = self.output.decode("utf-8").replace('\r\n', '\n')
+        self.errout = self.errout.decode("utf-8").replace('\r\n', '\n')
         
 
 # runTest testname - runs testname, saving output in output.txt,
@@ -71,12 +71,12 @@ def runTest(command):
                                shell=False, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
     (stdout, stderr) = process.communicate()
-    if os.name == 'nt':
-        stdout = stdout.decode("utf-8").replace('\r\n', '\n')
-        stderr = stderr.decode("utf-8").replace('\r\n', '\n')
+    stdout = stdout.decode("utf-8").replace('\r\n', '\n')
+    stderr = stderr.decode("utf-8").replace('\r\n', '\n')
     if findLineInString("DONE", stdout):
         print("PASS")
-        return True
+        allOK = checkports(False, False)
+        return allOK
     else:
         print("FAIL")
         print("**** Failing output:")
@@ -99,7 +99,8 @@ def runDouble(prog1, out1, prog2, out2):
     if findLineInString(out1, p1.output):
         if findLineInString(out2, p2.output):
             print("PASS")
-            return True
+            allOK = checkports(False, False)
+            return allOK
     print("FAIL")
     print("**** Failing output from " + prog1)
     print(p1.output)
@@ -116,16 +117,26 @@ def runDouble(prog1, out1, prog2, out2):
 
 
 def runAllTests():
+    print("Initial discovery port status ...")
+    checkports(True, True)
+    extensions = input("Run pattern match and bundle tests? [y,n]: ")
+    extensions = "y" in extensions.lower()
     print("Running regression tests for O2 ...")
+
     if not runTest("dispatchtest"): return
     if not runTest("typestest"): return
     if not runTest("taptest"): return
     if not runTest("coercetest"): return
     if not runTest("longtest"): return
     if not runTest("arraytest"): return
-    if not runTest("bundletest"): return
+    if not runTest("bridgeapi"): return
+    if not runTest("o2litemsg"): return
+    if extensions:
+        if not runTest("bundletest"): return
+        if not runTest("patterntest"): return
     if not runTest("infotest1"): return
     if not runTest("proptest"): return
+    if not runTest("stuniptest"): return
 
     if not runDouble("statusclient", "CLIENT DONE",
                      "statusserver", "SERVER DONE"): return
@@ -149,10 +160,25 @@ def runAllTests():
                      "oscrecvtest", "OSCRECV DONE"): return
     if not runDouble("tcpclient", "CLIENT DONE",
                      "tcpserver", "SERVER DONE"): return
-    if not runDouble("oscbndlsend u", "OSCSEND DONE",
-                     "oscbndlrecv u", "OSCRECV DONE"): return
-    if not runDouble("oscbndlsend", "OSCSEND DONE",
-                     "oscbndlrecv", "OSCRECV DONE"): return
+    if not runDouble("hubclient", "HUBCLIENT DONE",
+                     "hubserver", "HUBSERVER DONE"): return
+    if not runDouble("propsend", "DONE",
+                     "proprecv", "DONE"): return
+    if not runDouble("tappub", "SERVER DONE",
+                     "tapsub", "CLIENT DONE"): return
+    if not runDouble("dropclient", "DROPCLIENT DONE",
+                     "dropserver", "DROPSERVER DONE"): return
+    if not runDouble("o2litehost 500t", "CLIENT DONE",
+                     "o2liteserv t", "SERVER DONE"): return
+    if not runDouble("o2litehost 500", "CLIENT DONE",
+                     "o2liteserv u", "SERVER DONE"): return
+    if not runDouble("o2client 1000t", "CLIENT DONE",
+                     "shmemserv u", "SERVER DONE"): return
+    if extensions:
+        if not runDouble("oscbndlsend u", "OSCSEND DONE",
+                         "oscbndlrecv u", "OSCRECV DONE"): return
+        if not runDouble("oscbndlsend", "OSCSEND DONE",
+                         "oscbndlrecv", "OSCRECV DONE"): return
 
 # tests for compatibility with liblo are run only if the binaries were built
 # In CMake, set BUILD_TESTS_WITH_LIBLO to create the binaries
@@ -183,9 +209,12 @@ def runAllTests():
 
 
 runAllTests()
-if allOK:
+if not checkports(False, False):
+    print("ERROR: A port was not freed by some process.\n")
+elif allOK:
     print("****    All O2 regression tests PASSED.")
-else:
+
+if not allOK:
     print("ERROR: Exiting regression tests because a test failed.")
     print("       See above for output from the failing test(s).")
     print("\nNOTE:  If firewall pop-ups requested access to the network,")

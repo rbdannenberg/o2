@@ -72,9 +72,9 @@ endif(WIN32)
 if(UNIX)
   if(APPLE)
     set(FRAMEWORK_PATH ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks) 
-    set(EXTRA_LIBS "${FRAMEWORK_PATH}/CoreAudio.framework") 
+    set(EXTRA_LIBS "${FRAMEWORK_PATH}/CoreAudio.framework")
   else(APPLE) # must be Linux
-    # set(EXTRA_LIBS "-lm") # needed by liblo
+    # set(EXTRA_LIBS "m atomic") # needed by liblo
   endif(APPLE)
 endif(UNIX)
 
@@ -103,6 +103,7 @@ set(O2_SRC
   src/processes.c src/processes.h
   src/properties.c src/properties.h
   src/o2sched.c src/o2sched.h
+  src/o2usleep.c src/o2usleep.h
   src/services.c src/services.h 
   src/sharedmem.c src/sharedmem.h
   src/o2mem.c src/o2mem.h 
@@ -137,7 +138,7 @@ endif(BUILD_WITH_O2LITE_CLOCKSYNC)
 # BUILD CONFIGURATION #
 #######################
 
-set(LIBRARIES o2_static atomic ${EXTRA_LIBS} CACHE INTERNAL "") 
+set(LIBRARIES o2_static ${EXTRA_LIBS} CACHE INTERNAL "") 
 set(O2LITE_LIBS o2lite_static ${EXTRA_LIBS} CACHE INTERNAL "")
 
 if(TESTS_BUILD)

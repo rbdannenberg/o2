@@ -601,10 +601,7 @@ functions.
  */
 
 // to define sig_int_handler and usleep, we need these macros:
-#ifdef __GNUC__
-#define _XOPEN_SOURCE 500
-#define _POSIX_C_SOURCE 200112L
-#endif
+#include "o2usleep.h"
 #include <stdio.h>
 #include <signal.h>
 #include <ctype.h>
@@ -958,10 +955,6 @@ o2_err_t o2_poll()
 
 
 bool o2_stop_flag = false;
-
-#ifdef WIN32
-#define usleep(x) Sleep((x)/1000)
-#endif
 
 int o2_run(int rate)
 {
