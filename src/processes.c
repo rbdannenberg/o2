@@ -9,6 +9,7 @@
 #include "msgsend.h"
 #include "o2osc.h"
 #include "bridge.h"
+#include "discovery.h"
 
 
 /*
@@ -363,11 +364,14 @@ proc_info_ptr o2_create_tcp_proc(int tag, const char *ip, int port)
 // assumes o2n_initialize() was called
 o2_err_t o2_processes_initialize()
 {
-    o2_ctx->proc = o2_create_tcp_proc(PROC_TCP_SERVER, NULL, 0);
+    o2_ctx->proc = o2_create_tcp_proc(PROC_TCP_SERVER, NULL,
+                                      o2_discovery_server->port);
     if (!o2_ctx->proc) {
         o2n_finish();
         return O2_FAIL;
     }
+    o2_discovery_server->application = o2_ctx->proc;
+
     // note that there might not be a network connection here. We can
     // still use O2 locally without an IP address.
     o2_ctx->proc->name = o2_heapify(o2n_get_local_process_name(

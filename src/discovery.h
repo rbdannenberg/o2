@@ -21,6 +21,7 @@ extern o2_message_ptr o2_discovery_msg;
 
 extern SOCKET o2_discovery_socket;
 extern int o2_port_map[16];
+extern o2n_info_ptr o2_discovery_server;
 
 extern char o2_hub_addr[O2_MAX_PROCNAME_LEN]; // ip:port of hub if any, otherwise empty string
                         // non-empty turns off broadcasting

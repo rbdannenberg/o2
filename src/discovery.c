@@ -33,7 +33,7 @@
 static int disc_msg_count = 0;
 static double disc_period = INITIAL_DISCOVERY_PERIOD;
 static int next_disc_index = 0; // index to o2_port_map, port to send to
-static int udp_recv_port = -1; // port we grabbed
+static int my_port = -1; // port we grabbed, for UDP and TCP
 static o2_time max_disc_period = DEFAULT_DISCOVERY_PERIOD;
 static int disc_port_index = -1;
 
@@ -45,8 +45,8 @@ static int disc_port_index = -1;
 int o2_port_map[PORT_MAX] = { 64541, 60238, 57143, 55764, 56975, 62711,
                               57571, 53472, 51779, 63714, 53304, 61696,
                               50665, 49404, 64828, 54859 };
-
-
+// picked from o2_port_map when discovery is initialized.
+o2n_info_ptr o2_discovery_server = NULL;
 
 static void hub_has_new_client(proc_info_ptr nc);
 
@@ -85,23 +85,23 @@ o2_err_t o2_discovery_initialize()
     // Try to find an available port number from the discover port map.
     // If there are no available port number, print the error & return O2_FAIL.
     for (disc_port_index = 0; disc_port_index < PORT_MAX; disc_port_index++) {
-        udp_recv_port = o2_port_map[disc_port_index];
-        o2n_info_ptr server = o2n_udp_server_new(&udp_recv_port, o2_ctx->proc);
-        if (server) {
+        my_port = o2_port_map[disc_port_index];
+        o2_discovery_server = o2n_udp_server_new(&my_port, NULL);
+        if (o2_discovery_server) {
             break;
         }
     }
     if (disc_port_index >= PORT_MAX) {
-        udp_recv_port = -1; // no port to receive discovery messages
+        my_port = -1; // no port to receive discovery messages
         disc_port_index = -1;
         fprintf(stderr, "Unable to allocate a discovery port.\n");
         return O2_NO_PORT;
     } else {   // use the discovery message receive port as
-               // the general UDP receive port
-        o2n_address_set_port(&o2_ctx->proc->udp_address, udp_recv_port);
+               // the general UDP receive and TCP server port
+        
     }
     O2_DBdo(printf("%s **** discovery port %ld (%d already taken).\n",
-                   o2_debug_prefix, (long) udp_recv_port, disc_port_index));
+                   o2_debug_prefix, (long) my_port, disc_port_index));
 
     // do not run immediately so that user has a chance to call o2_hub() first,
     // which will disable discovery. This is not really time-dependent because
@@ -176,10 +176,10 @@ static void o2_broadcast_message(int port)
     }
     // assume that broadcast messages are not received on the local machine
     // so we have to send separately to localhost using the same port;
-    // since we own udp_recv_port, there is no need to send in that case
+    // since we own o2_discovery_port, there is no need to send in that case
     // because any broadcast message is a discovery message and we don't
     // need to discover ourselves.
-    if (port != udp_recv_port) {
+    if (port != my_port) {
         o2n_send_udp_local(port, (o2n_message_ptr) m);
     } else {
         O2_FREE(m);

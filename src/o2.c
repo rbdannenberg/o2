@@ -693,9 +693,6 @@ o2_err_t o2_initialize(const char *ensemble_name)
                               o2_net_connected, o2_net_info_remove))) {
         goto cleanup;
     }
-    if ((err = o2_processes_initialize())) {
-        goto cleanup;
-    }
     // o2_service_new2(o2_ctx->proc->name);
     o2_service_new2("_o2\000\000");
     o2_method_new_internal("/_o2/dy", "ssiii", &o2_discovery_handler,
@@ -712,8 +709,13 @@ o2_err_t o2_initialize(const char *ensemble_name)
     o2_sched_initialize();
 
     // Initialize discovery, which depends on clock and scheduler
-    if ((err = o2_discovery_initialize())) goto cleanup;
-    
+    if ((err = o2_discovery_initialize())) {
+        goto cleanup;
+    }
+    if ((err = o2_processes_initialize())) {
+        goto cleanup;
+    }
+
     // a few things can be disabled after o2_initialize() and before
     // o2_poll()ing starts, so pick a time in the future and schedule them
     // They will then test to see if they should actually run or not.
