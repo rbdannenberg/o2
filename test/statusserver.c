@@ -59,12 +59,20 @@ int main(int argc, const char * argv[])
     printf("My address is %s:%d\n", address, tcp_port);
 
     // wait for client service to be discovered
-    while (o2_status("client") < O2_LOCAL) {
+    while (o2_status("client") < O2_REMOTE_NOTIME) {
         o2_poll();
         usleep(2000); // 2ms
     }
     
     printf("We discovered the client at time %g.\n", o2_time_get());
+
+    // wait for client service to be discovered
+    while (o2_status("client") < O2_REMOTE) {
+        o2_poll();
+        usleep(2000); // 2ms
+    }
+    
+    printf("We got clock sync at time %g.\n", o2_time_get());
     
     // delay 1 second
     double now = o2_time_get();

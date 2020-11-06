@@ -36,15 +36,6 @@
 #else
 const char *o2_tag_to_string(int tag);
 
-// note that the parameter is of type o2_status_t while o2_status returns
-// int. Therefore o2_status_to_string(o2_status("service")) is an
-// invalid conversion from int to o2_status_t. This is because o2_status()
-// can also return an o2_err_t (a negative value). You can pass an error
-// value to o2_status_to_string() and it will return "O2_FAIL" (rather
-// than a specific error description). Normally, you will retrieve an int
-// from o2_status() and call o2_status_to_string((o2_status_t) stat).
-const char *o2_status_to_string(o2_status_t status);
-
 extern int o2_debug;
 extern const char *o2_debug_prefix;
 void o2_dbg_msg(const char *src, o2_message_ptr msg, o2_msg_data_ptr data,

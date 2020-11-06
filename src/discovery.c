@@ -88,6 +88,10 @@ o2_err_t o2_discovery_initialize()
         my_port = o2_port_map[disc_port_index];
         o2_discovery_server = o2n_udp_server_new(&my_port, NULL);
         if (o2_discovery_server) {
+        udp_recv_port = o2_port_map[disc_port_index];
+        o2n_info_ptr server = o2n_udp_server_new(&udp_recv_port, false,
+                                                 o2_ctx->proc);
+        if (server) {
             break;
         }
     }
@@ -274,7 +278,7 @@ o2_err_t o2_discovered_a_remote_process(const char *ip, int tcp,
                 o2_proc_info_free(proc); // error recovery: don't leak memory
             } else {
                 // this connection will be closed by receiving client
-                O2_DBd(printf("%s ** discovery sending CALLBACK to %s\n",
+                O2_DBd(printf("%s ** discovery sending O2_DY_CALLBACK to %s\n",
                               o2_debug_prefix, name));
             }
             return O2_SUCCESS;
@@ -283,15 +287,18 @@ o2_err_t o2_discovered_a_remote_process(const char *ip, int tcp,
         // else we are the client
         proc->tag = PROC_NOCLOCK;
         proc->name = o2_heapify(name);
+        int dy_flag = (streql(name, o2_hub_addr) ? O2_DY_HUB : O2_DY_CONNECT);
         o2_service_provider_new(name, NULL, (o2_node_ptr) proc, proc);
-        O2_DBG(printf("%s ** discovery sending CONNECT to server %s\n",
+        O2_DBG(printf("%s ** discovery sending O2_DY_CONNECT to server %s\n",
                       o2_debug_prefix, name));
-        reply_msg = o2_make_dy_msg(o2_ctx->proc, true, O2_DY_CONNECT);
-    } else {
+        reply_msg = o2_make_dy_msg(o2_ctx->proc, true, dy_flag);
+    } else { // dy is not O2_DY_INFO, must be O2_DY_CALLBACK or O2_DY_CONNECT
+             //    or O2_DY_REPLY or O2_DY_HUB
         proc = TO_PROC_INFO(remote->application);
         proc->name = o2_heapify(name);
         o2_service_provider_new(proc->name, NULL, (o2_node_ptr) proc, proc);
         if (dy == O2_DY_HUB) { // this is the hub, this is the server side
+            printf("######## This is the hub server side #######\n");
             // send a /dy to remote with O2_DY_REPLY
             O2_DBd(printf("%s ** discovery got HUB sending REPLY to hub %s\n",
                           o2_debug_prefix, name));
@@ -302,6 +309,7 @@ o2_err_t o2_discovered_a_remote_process(const char *ip, int tcp,
                 o2n_close_socket(remote);
                 return O2_FAIL;
             }
+            printf("####### This is the hub client side #######\n");
             proc->uses_hub = O2_HUB_REMOTE;
             o2_send_start();
             reply_msg = o2_message_finish(0.0, "!_o2/hub", true);
@@ -459,6 +467,7 @@ void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
     assert(o2n_message_source);
     if (IS_REMOTE_PROC((o2_node_ptr) (o2n_message_source->application))) {
         o2_ctx->proc->uses_hub = O2_I_AM_HUB;
+        printf("####### I am the hub #########\n");
         hub_has_new_client(TO_PROC_INFO((o2_node_ptr)
                                         (o2n_message_source->application)));
     }

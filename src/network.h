@@ -173,7 +173,11 @@ o2_err_t o2n_broadcast_socket_new(SOCKET *sock);
 // create a socket for sending UDP messages
 o2_err_t o2n_udp_send_socket_new(SOCKET *sock);
 
-o2n_info_ptr o2n_udp_server_new(int *port, void *application);
+// create a UDP server port. Set reuse to true unless this is a discovery
+//     port. We want discovery ports to be unique and not shared. Other
+//     ports might be stuck in TIME_WAIT state, and setting reuse = true
+//     might allow the process to reopen a recently used port.
+o2n_info_ptr o2n_udp_server_new(int *port, bool reuse, void *application);
 
 o2n_info_ptr o2n_tcp_server_new(int port, void *application);
 

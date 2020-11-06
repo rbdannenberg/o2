@@ -191,7 +191,7 @@ o2_err_t o2_osc_port_new(const char *service_name, int port, int tcp_flag)
     if (tcp_flag) {
         osc->net_info = o2n_tcp_server_new(port, (void *) osc);
     } else {
-        osc->net_info = o2n_udp_server_new(&port, (void *) osc);
+        osc->net_info = o2n_udp_server_new(&port, true, (void *) osc);
     }
     if (!osc->net_info) { // failure, remove osc
         O2_FREE(osc->service_name);

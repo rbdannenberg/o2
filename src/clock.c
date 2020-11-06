@@ -373,6 +373,8 @@ void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
 }
 
 
+// handler for cs/put, which is a reply to cs/get:
+//
 static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
                        o2_arg_ptr *argv, int argc, const void *user_data)
 {
@@ -483,8 +485,6 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
                         &cs_ping_reply_handler, NULL, false, false);
                 o2_method_new_internal("/_o2/cs/rt", "s", &o2_clockrt_handler,
                         NULL, false, false);
-                // Warning: Don't "optimize" to !%s/cs because we only get
-                // IP:PORT translated to _o2 when the first character is '/'
                 char path[48];
                 snprintf(path, 32, "!%s/cs/put", o2_ctx->proc->name);
                 clock_sync_reply_to = o2_heapify(path);

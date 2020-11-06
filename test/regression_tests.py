@@ -14,7 +14,17 @@ import platform
 import subprocess
 import shlex
 import threading
+from threading import Timer
 from checkports import checkports
+import time
+
+TIMEOUT_SEC = 250
+# I saw a failure of oscbndlsend+oscbndlrecv because port 8100 could
+# not be bound, but I could then run by hand, so I am guessing that
+# maybe it was used in a previous test and linux would not reuse it
+# so quickly. So now, we wait betwen tests to see if it helps.
+# 5s was not enough, but 30s seems to work. Trying 20s now.
+STALL_SEC = 20  # time after run to make sure ports are free
 
 allOK = True
 
@@ -53,7 +63,12 @@ class RunInBackground(threading.Thread):
         process = subprocess.Popen(args,
                                    shell=False, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
-        (self.output, self.errout) = process.communicate()
+        timer = Timer(TIMEOUT_SEC, process.kill)
+        try:
+            timer.start()
+            (self.output, self.errout) = process.communicate()
+        finally:
+            timer.cancel()
         self.output = self.output.decode("utf-8").replace('\r\n', '\n')
         self.errout = self.errout.decode("utf-8").replace('\r\n', '\n')
         
@@ -62,23 +77,29 @@ class RunInBackground(threading.Thread):
 #    searches output.txt for single full line containing "DONE",
 #    returns status=0 if DONE was found (indicating success), or
 #    else status=-1 (indicating failure).
-def runTest(command):
+def runTest(command, stall=False):
     global allOK
-    print(command.rjust(30) + ": ", end='')
+    if stall: dostall()
+    print(command.rjust(30) + ": ", end='', flush=True)
     args = shlex.split(command)
     args[0] = BIN + '/' + args[0] + EXE
     process = subprocess.Popen(args,
                                shell=False, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
-    (stdout, stderr) = process.communicate()
+    timer = Timer(TIMEOUT_SEC, process.kill)
+    try:
+        timer.start()
+        (stdout, stderr) = process.communicate()
+    finally:
+        timer.cancel()
     stdout = stdout.decode("utf-8").replace('\r\n', '\n')
     stderr = stderr.decode("utf-8").replace('\r\n', '\n')
     if findLineInString("DONE", stdout):
-        print("PASS")
-        allOK = checkports(False, False)
+        allOK, countmsg = checkports(False, False)
+        print("PASS", countmsg)
         return allOK
     else:
-        print("FAIL")
+        print("FAIL", countmsg)
         print("**** Failing output:")
         print(stdout)
         print("**** Failing error output:")
@@ -87,9 +108,16 @@ def runTest(command):
         return False
 
 
-def runDouble(prog1, out1, prog2, out2):
+def dostall():
+    print("stall to recover ports".rjust(30) + ":", end='', flush=True)
+    time.sleep(STALL_SEC)
+    print(" DONE")
+
+
+def runDouble(prog1, out1, prog2, out2, stall=False):
     global allOK
-    print((prog1 + '+' + prog2).rjust(30) + ": ", end='')
+    if stall: dostall()
+    print((prog1 + '+' + prog2).rjust(30) + ": ", end='', flush=True)
     p1 = RunInBackground(prog1)
     p1.start()
     p2 = RunInBackground(prog2)
@@ -98,8 +126,8 @@ def runDouble(prog1, out1, prog2, out2):
     p2.join()
     if findLineInString(out1, p1.output):
         if findLineInString(out2, p2.output):
-            print("PASS")
-            allOK = checkports(False, False)
+            allOK, countmsg = checkports(False, False)
+            print("PASS", countmsg)
             return allOK
     print("FAIL")
     print("**** Failing output from " + prog1)
@@ -161,7 +189,7 @@ def runAllTests():
     if not runDouble("tcpclient", "CLIENT DONE",
                      "tcpserver", "SERVER DONE"): return
     if not runDouble("hubclient", "HUBCLIENT DONE",
-                     "hubserver", "HUBSERVER DONE"): return
+                     "hubserver", "HUBSERVER DONE", True): return
     if not runDouble("propsend", "DONE",
                      "proprecv", "DONE"): return
     if not runDouble("tappub", "SERVER DONE",
@@ -176,9 +204,9 @@ def runAllTests():
                      "shmemserv u", "SERVER DONE"): return
     if extensions:
         if not runDouble("oscbndlsend u", "OSCSEND DONE",
-                         "oscbndlrecv u", "OSCRECV DONE"): return
+                         "oscbndlrecv u", "OSCRECV DONE", True): return
         if not runDouble("oscbndlsend", "OSCSEND DONE",
-                         "oscbndlrecv", "OSCRECV DONE"): return
+                         "oscbndlrecv", "OSCRECV DONE", True): return
 
 # tests for compatibility with liblo are run only if the binaries were built
 # In CMake, set BUILD_TESTS_WITH_LIBLO to create the binaries
@@ -202,15 +230,17 @@ def runAllTests():
                          "oscbndlrecv", "OSCRECV DONE"): return
 
     if os.path.isfile(BIN + '/' + "lo_bndlrecv" + EXE):
-        if not runDouble ("oscbndlsend Mu", "OSCSEND DONE",
-                          "lo_bndlrecv u", "OSCRECV DONE"): return
-        if not runDouble ("oscbndlsend M", "OSCSEND DONE",
-                          "lo_bndlrecv", "OSCRECV DONE"): return
+        if not runDouble("oscbndlsend Mu", "OSCSEND DONE",
+                         "lo_bndlrecv u", "OSCRECV DONE"): return
+        if not runDouble("oscbndlsend M", "OSCSEND DONE",
+                         "lo_bndlrecv", "OSCRECV DONE"): return
 
 
 runAllTests()
-if not checkports(False, False):
-    print("ERROR: A port was not freed by some process.\n")
+dostall()
+ports_ok = countmsg = checkports(False, False)
+if not ports_ok:
+    print("ERROR: A port was not freed by some process. " + countmsg + "\n")
 elif allOK:
     print("****    All O2 regression tests PASSED.")
 

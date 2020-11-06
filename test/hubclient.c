@@ -6,9 +6,18 @@
 #include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
+#include "stdlib.h"
 #include "string.h"
 #include "assert.h"
 #include <sys/time.h>
+
+#define RETRY 1
+#define LOW 2
+#define HIGH 3
+#define EITHER 4
+
+const char *test_to_string[] = {"nil", "RETRY", "LOW", "HIGH", "EITHER"};
+
 
 long long current_timestamp() {
     struct timeval te; 
@@ -31,27 +40,53 @@ long elapsed_time()
 
 #define streql(a, b) (strcmp(a, b) == 0)
 
-int server_hi_count = 0;
-
-void server_hi(o2_msg_data_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, const void *user_data)
-{
-    assert(streql(argv[0]->s, "hi"));
-    server_hi_count++;
-}
 
 char server_ip[O2_MAX_PROCNAME_LEN];
 int server_port = -1;
 
-void server_ipport(o2_msg_data_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, const void *user_data)
+// split an IP:port string into separate IP and port values
+//
+void parse(const char *ip_port, char *ip, int *port)
 {
-    strcpy(server_ip, argv[0]->s);
-    server_port = argv[1]->i32;
-    printf("# server_ipport handler got %s %d at %ld\n",
-           server_ip, server_port, elapsed_time());
+    // compare port numbers
+    strcpy(ip, ip_port);
+    char *loc = strchr(ip, ':');
+    assert(loc);
+    *port = atoi(loc + 1);
+    *loc = 0;
 }
 
+
+void client_info_handler(o2_msg_data_ptr data, const char *types,
+               o2_arg_ptr *argv, int argc, const void *user_data)
+{
+    const char *service_name = argv[0]->s;
+    int status = argv[1]->i32;
+    const char *status_string = o2_status_to_string(status);
+    const char *process = argv[2]->s;
+    const char *properties = argv[3]->s;
+    printf("# client_info_handler called: %s at %s status %s properties %s\n", 
+           service_name, process, status_string, properties);
+    if (!properties || properties[0]) {
+        printf("FAILURE -- expected empty string for properties\n");
+        assert(false);
+    }
+    // our purpose is to detect the server and its IP and port
+    if (streql(service_name, "server")) {
+        parse(process, (char *) server_ip, &server_port);
+        assert(server_ip[0] != 0);
+    }
+}
+    
+
+int server_hi_count = 0;
+
+void server_says_hi(o2_msg_data_ptr data, const char *types,
+                    o2_arg_ptr *argv, int argc, const void *user_data)
+{
+    printf("#   -> server_says_hi got %s\n", argv[0]->s);
+    server_hi_count++;
+}
 
 void delay_for(double delay)
 {
@@ -64,19 +99,178 @@ void delay_for(double delay)
 }
 
 
-void startup(const char *msg)
+void step(int n, const char *msg)
 {
+    printf("\n# STEP %d: %s at %ld.\n", n, msg, elapsed_time());
+}
+
+
+void substep(const char *msg)
+{
+    printf("#   -> %s at %ld.\n", msg, elapsed_time());
+}
+
+
+// This is STEP n, described by msg. Start O2 and enable discovery if
+// disc_flag.
+//
+void startup(int n, const char *msg)
+{
+    step(n, msg);
     o2_initialize("test");
     o2_service_new("client");
-    o2_method_new("/client/server_hi", "s", &server_hi, NULL, false, true);
-    o2_method_new("/client/ipport", "si", &server_ipport,
-                  NULL, false, true);
-    printf("# Started O2: %s at %ld\n", msg, elapsed_time());
+    o2_method_new("/client/hi", "s", &server_says_hi, NULL, false, true);
+    o2_method_new("/_o2/si", "siss", &client_info_handler, NULL, false, true);
+    o2_clock_set(NULL, NULL);  // always be the master
+    substep("O2 is started, waiting for client status");
+}    
+
+
+void wait_for_server(void)
+{
+    // ordinary discovery for server to discover this client at time t-0.5.
+    int count = 0;
+    while (o2_status("server") < O2_REMOTE) {
+        o2_poll();
+        usleep(2000); // 2ms
+        if (count++ % 1000 == 0) {
+            substep("still waiting for server");
+        }
+    }
+    assert(server_ip[0]);
+    printf("#   -> server_ip %s server_port %d\n", server_ip, server_port);
+}    
+
+
+bool my_ipport_is_greater(void)
+{
+    // compare port numbers
+    char my_ip[32];
+    const char *ip;
+    int my_port;
+    o2_get_address(&ip, &my_port);
+    strcpy(my_ip, ip); // copy O2 ip to our variable
+    printf("#   -> my_ip %s my_port %d\n", my_ip, my_port);
+    printf("#   -> server_ip %s server_port %d\n", server_ip, server_port);
+    assert(*server_ip && streql(server_ip, my_ip));
+    assert(server_port >= 0 && server_port != my_port);
+    return my_port > server_port;
+}
+
+
+int step_11_to_13(bool good, int hi_low)
+{
+    const char *hi_or_not = (good ? "hi" : "retry");
+    if (!good) {
+        printf("##########################################################\n");
+    }
+    step(11, good ? "sending hi to server" : "sending retry to server");
+    o2_send_cmd("!server/hi", 0, "s", hi_or_not);
+    step(12, "waiting to get hi");
+    int count = 0;
+    while (o2_status("server") < O2_REMOTE || server_hi_count < 1) {
+        o2_poll();
+        usleep(2000); // 2ms
+        count++;
+        if (count % 1000 == 0) {
+            substep("waiting for server service");
+        }
+    }
+    printf("#   -> got hi at %ld\n", elapsed_time());
+    delay_for(0.5);
+
+    o2_finish();
+    step(13, "shutting down");
+    return good ? hi_low : RETRY;
+}
+
+
+int test_self_as_hub(int order)
+{
+    server_ip[0] = 0;
+    startup(4, "test self as hub");
+    printf("#   -> order is %s\n", test_to_string[order]);
+    step(5, "wait for server");
+    wait_for_server();
+    delay_for(0.5);
+    step(6, "caling o2_hub(NULL)");
+    o2_hub(NULL, 0);
+    delay_for(0.5);
+    substep("6B: server should shut down now");
+    delay_for(0.5);
+    step(7, "make sure server is shut down");
+    assert(o2_status("server") == O2_FAIL);
+    delay_for(0.5);
+    step(8, "server expected to reinitialize and call o2_hub()");
+    step(9, "wait for server");
+    wait_for_server();
+    bool client_greater = my_ipport_is_greater();
+    substep(client_greater ? "hubserver (them) needs to connect to hub (us)" :
+                             "hub (us) needs to connect to hubserver (them)");
+    step(10, "got server, compute LOW/HIGH");
+    // compare IP:port's
+    int actual = 0;
+    if (client_greater) {
+        actual = HIGH;
+    } else {
+        actual = LOW;
+    }
+    bool good = (order == EITHER || (order == actual));
+    printf("#   -> requested order is %s actual is %s\n",
+           test_to_string[order], test_to_string[actual]);
+    return step_11_to_13(good, actual);
+}
+
+
+int test_other_as_hub(int order)
+{
+    server_ip[0] = 0;
+    startup(4, "test other as hub");
+    printf("#   -> order is %s\n", test_to_string[order]);
+    step(5, "wait for server");
+    wait_for_server();
+    delay_for(0.5);
+    step(6, "server stops discovery");
+    delay_for(0.5); // flush in flight discovery messages
+    substep("6B: shut down client");
+    o2_finish();
+    delay_for(0.5);
+    step(7, "server should test that we are shut down now");
+    delay_for(0.5);
+    startup(8, "reinitialize and call o2_hub()");
+    bool client_greater = my_ipport_is_greater();
+    substep(client_greater ? "hub (them) needs to connect to hubclient (us)" :
+                             "hubclient (us) needs to connect to hub (them)");
+    o2_hub(server_ip, server_port);
+    // compare IP:port's
+    int actual = 0;
+    if (client_greater) {
+        actual = HIGH;
+    } else {
+        actual = LOW;
+    }
+    bool good = (order == EITHER || (order == actual));
+    char server_ip_copy[32];
+    int server_port_copy = server_port;
+    strcpy(server_ip_copy, server_ip);
+    server_ip[0] = 0; // clear server_ip so we can detect getting it again
+    server_port = 0;
+    o2_err_t err = o2_hub(server_ip_copy, server_port_copy);
+    assert(err == O2_SUCCESS);
+    step(9, "wait for server");
+    wait_for_server();
+    // see if we discovered what we expected
+    step(10, "check that we discovered expected server IP:port");
+    printf("#   -> hub says server is %s:%d\n", server_ip, server_port);
+    assert(streql(server_ip, server_ip_copy));
+    assert(server_port == server_port_copy);
+    return step_11_to_13(good, actual);
 }
 
 
 int main(int argc, const char *argv[])
 {
+    srand(100);
     printf("Usage: hubclient [debugflags]\n"
            "    see o2.h for flags, use a for all, - for none\n");
     if (argc >= 2) {
@@ -87,137 +281,40 @@ int main(int argc, const char *argv[])
         printf("WARNING: hubclient ignoring extra command line argments\n");
     }
     server_ip[0] = 0;
-    startup("START 1: synchronize start");
-    // Use ordinary discovery for client to discover this server at time t-0.5.
-    printf("# waiting to find server\n");
-    while (o2_status("server") < O2_REMOTE) {
-        o2_poll();
-        usleep(2000); // 2ms
-    }
+    startup(0, "first time to sync up, discover server");
+    wait_for_server();
     start_timer();
-    for (int i = 0; i < 10; i++) printf("******\n");
-    printf("# We discovered the server at %ld\n", elapsed_time());
+    printf("\n********************** T0 *************************\n\n");
+    step(1, "discovered the server");
     delay_for(0.5);
-    // at t, client shuts down and delays 1.0s
-    printf("# Shutting down at %ld\n", elapsed_time());
+    step(2, "shut down");
     o2_finish();
-    printf("# shut down complete at %ld\n", elapsed_time());
-    usleep(1000000); //1000ms
-    // t+0.5s, server shuts down and restarts
-    // t+1.0s, client starts after server. Server sends IP:port to client.
-    startup("START 2: client starts after server");
-    server_port = -1;
-    printf("# waiting to find server and ipport at %ld\n", elapsed_time());
-    int count = 0;
-    while (o2_status("server") < O2_REMOTE || server_port < 0) {
-        o2_poll();
-        usleep(2000); // 2ms
-        count++;
-        if (count % 1000 == 0) {
-            printf("    server status %d server_port %d at %ld\n",
-                   o2_status("server"), server_port, elapsed_time());
+    int rslt = test_other_as_hub(EITHER);
+    printf("#   -> test_other_as_hub returned %s\n", test_to_string[rslt]);
+    step(14, "check for expected LOW/HIGH result");
+    assert(rslt == LOW || rslt == HIGH);
+    while (true) {
+        step(15, "pick who will be hub");
+        int r = rand() & 1;
+        printf("#   -> rand() gives %d, %s to be hub\n", r,
+               r ? "server" : "client");
+        step(16, "run a hub test");
+        int rslt2 = 0;
+        if (r) {
+            rslt2 = test_other_as_hub(rslt == LOW ? HIGH : LOW);
+        } else {
+            rslt2 = test_self_as_hub(rslt);
         }
+        step(17, "check result as expected");
+        printf("#   -> rslt2 is %s\n", test_to_string[rslt2]);
+        if (rslt2 != RETRY) {
+            break;
+        }
+        printf("######################## RETRY ##########################\n");
     }
-    printf("# got server, ipport: %s %d at %ld\n",
-           server_ip, server_port, elapsed_time());
-    delay_for(0.5);
-    // t+1.5s, client shuts down; server calls o2_hub(NULL) to stop discovery.
+    printf("######################## FINISH ##########################\n");
+    step(18, "finish");
     o2_finish();
-    printf("# shut down complete at %ld\n", elapsed_time());
-    usleep(500000); //500ms
-    // t+2.0s, server checks that client is gone.
-    usleep(500000); //500ms
-    // t+2.5s, client reinitializes and uses o2_hub() to connect to server.
-    //     (hub is server which was first to start)
-    startup("START 3: client reinitializes to use o2_hub()");
-    server_hi_count = 0;
-    assert(*server_ip);
-    assert(server_port >= 0);
-    o2_hub(server_ip, server_port);
-    count = 0;
-    while (o2_status("server") < O2_REMOTE) {
-        o2_poll();
-        usleep(2000); // 2ms
-        count++;
-        if (count % 1000 == 0) {
-            printf("    waiting for server service at %ld\n",
-                    elapsed_time());
-        }
-    }
-    // Server looks for message from client.
-    printf("# sending !server/client_hi at %ld", elapsed_time());
-    o2_send_cmd("!server/client_hi", 0, "s", "hi");
-    // Server replies to client.
-    printf("# waiting to find server and get hi at %ld\n", elapsed_time());
-    count = 0;
-    while (o2_status("server") < O2_REMOTE || server_hi_count < 1) {
-        o2_poll();
-        usleep(2000); // 2ms
-        count++;
-        if (count % 1000 == 0) {
-            printf("    waiting for server service at %ld\n",
-                    elapsed_time());
-        }
-    }
-    printf("# got server, hi at %ld\n", elapsed_time());
-    // Now we want to try making the hub the 2nd
-    //     process to start. That would be the client, but the client
-    //     has already used o2_hub() to contact the server, so start over:
-    delay_for(0.5);
-    // t+3.0s, server shuts down, client shuts down.
-    o2_finish();
-    printf("# shut down complete at %ld\n", elapsed_time());
-    usleep(500000); //500ms
-    // t+3.5s, server restarts
-    usleep(500000); //500ms
-    // t+4.0s, client restarts after server. Client sends IP:port to server.
-    startup("restarting after server");
-    printf("# waiting to find server at %ld\n", elapsed_time());
-    count = 0;
-    while (o2_status("server") < O2_REMOTE) {
-        o2_poll();
-        usleep(2000); // 2ms
-        count++;
-        if (count % 1000 == 0) {
-            printf("    waiting for server service at %ld\n",
-                    elapsed_time());
-        }
-    }
-    printf("# got server at %ld\n", elapsed_time());
-    const char *ipaddress;
-    int port;
-    o2_get_address(&ipaddress, &port);
-    printf("# sending !server/ipport at %ld\n", elapsed_time());
-    o2_send_cmd("!server/ipport", 0, "si", ipaddress, port);
-    delay_for(0.5);
-    // t+4.5s, server shuts down;
-    delay_for(0.5);
-    // t+5.0s client calls o2_hub(NULL) to stop discovery.
-    o2_hub(NULL, 0);
-    // t+5.0s, client checks that server is gone.
-    assert(o2_status("server") == O2_FAIL);
-    server_hi_count = 0;
-    delay_for(0.5);
-    // t+5.5s, server reinitializes and uses o2_hub() to connect to client.
-    //             (hub is client which was second to start)
-    // Client looks for message from server. Sends reply.
-    printf("# waiting to find server and get hi at %ld\n", elapsed_time());
-    count = 0;
-    while (o2_status("server") < O2_REMOTE || server_hi_count < 1) {
-        o2_poll();
-        usleep(2000); // 2ms
-        count++;
-        if (count % 1000 == 0) {
-            printf("    waiting for server service at %ld\n",
-                    elapsed_time());
-        }
-    }
-    printf("# sending !server/ hi at %ld\n", elapsed_time());
-    o2_send_cmd("!server/client_hi", 0, "s", "hi");
-    // t+6.0s, both client and server shut down.
-    delay_for(0.5);
-    o2_finish();
-    printf("HUBCLIENT DONE\n    at %ld\n", elapsed_time());
+    printf("HUBCLIENT DONE\n at %ld\n", elapsed_time());
     return 0;
-    // FINISH
 }

@@ -8,7 +8,7 @@
 #include "string.h"
 #include "assert.h"
 
-int MAX_MSG_COUNT = 50000;
+int MAX_MSG_COUNT = 100000;
 
 int msg_count = 0;
 bool running = true;

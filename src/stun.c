@@ -64,7 +64,7 @@ o2_err_t o2_get_public_ip()
     }
     stun_client_ptr client = O2_MALLOCT(stun_client_info);
     client->tag = STUN_CLIENT;
-    public_ip_info = o2n_udp_server_new(&port, client);
+    public_ip_info = o2n_udp_server_new(&port, true, client);
     o2n_address_init(&stun_server_address, "stun.l.google.com", 19302, false);
     // schedule stun_query until we get a reply
     o2_method_new_internal("/_o2/ipq", "", &o2_stun_query, NULL, false, false);

@@ -92,7 +92,7 @@ static bool o2n_socket_delete_flag = false;
 // define CLOSE_SOCKET_DEBUG 1 and get a list of sockets that are opened
 // and closed
 //
-#define CLOSE_SOCKET_DEBUG 1
+#define CLOSE_SOCKET_DEBUG 0
 #if CLOSE_SOCKET_DEBUG
 SOCKET o2_socket(int domain, int type, int protocol, const char *who)
 {
@@ -127,7 +127,6 @@ void o2_closesocket(SOCKET sock, const char *who)
 #else
 #define o2_socket(dom, type, prot, who) socket(dom, type, prot)
 #define o2_accept(sock, addr, len, who) accept(sock, addr, len)
-n
 #define o2_closesocket(sock, who) closesocket(sock)
 #endif
 
@@ -295,17 +294,23 @@ void o2_disable_sigpipe(SOCKET sock)
 }
 
 
-static int bind_recv_socket(SOCKET sock, int *port, int tcp_recv_flag)
+static int bind_recv_socket(SOCKET sock, int *port, int tcp_recv_flag,
+                            bool reuse)
 {
     memset(PTR(&o2_serv_addr), 0, sizeof o2_serv_addr);
     o2_serv_addr.sin_family = AF_INET;
     o2_serv_addr.sin_addr.s_addr = htonl(INADDR_ANY); // local IP address
     o2_serv_addr.sin_port = htons(*port);
     unsigned int yes = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
-                   PTR(&yes), sizeof yes) < 0) {
-        perror("setsockopt(SO_REUSEADDR)");
-        return O2_FAIL;
+    if (reuse) {
+        // this code will allow two processes to open the same port on linux;
+        // then, if they try to communicate, they'll send to themselves. So,
+        // for discovery ports and server ports, set reuse to false.
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+                           PTR(&yes), sizeof yes) < 0) {
+            perror("setsockopt(SO_REUSEADDR)");
+            return O2_FAIL;
+        }
     }
     if (bind(sock, (struct sockaddr *) &o2_serv_addr, sizeof o2_serv_addr)) {
         if (tcp_recv_flag) perror("Bind receive socket");
@@ -382,7 +387,7 @@ o2n_info_ptr o2n_tcp_server_new(int port, void *application)
     }
     int sock = DA_LAST(o2n_fds, struct pollfd).fd;
     // bind server port
-    if (bind_recv_socket(sock, &info->port, true) != O2_SUCCESS ||
+    if (bind_recv_socket(sock, &info->port, true, true) != O2_SUCCESS ||
         listen(sock, 10) != 0) {
         return socket_cleanup("bind and listen", info, sock);
     }
@@ -395,7 +400,7 @@ o2n_info_ptr o2n_tcp_server_new(int port, void *application)
 // creates a server listening to port, or can also be a client
 // where you send messages to socket and expect a UDP reply to port
 // 
-o2n_info_ptr o2n_udp_server_new(int *port, void *application)
+o2n_info_ptr o2n_udp_server_new(int *port, bool reuse, void *application)
 {
     SOCKET sock = o2_socket(AF_INET, SOCK_DGRAM, 0, "o2n_udp_server_new");
     if (sock == INVALID_SOCKET) {
@@ -403,7 +408,7 @@ o2n_info_ptr o2n_udp_server_new(int *port, void *application)
     }
     // Bind the socket
     int err;
-    if ((err = bind_recv_socket(sock, port, false))) {
+    if ((err = bind_recv_socket(sock, port, false, reuse))) {
         o2_closesocket(sock, "bind failed in o2n_udp_server_new");
         return NULL;
     }
@@ -1075,6 +1080,9 @@ static int read_event_handler(SOCKET sock, o2n_info_ptr info)
             info->in_message = NULL;
             return O2_FAIL;
         }
+#if CLOSE_SOCKET_DEBUG
+        printf("***UDP received %d bytes at %g.\n", n, o2_local_time());
+#endif
         info->in_message->length = n;
         // fall through and send message
     } else if (info->net_tag == NET_TCP_SERVER) {
