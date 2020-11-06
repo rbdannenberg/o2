@@ -1490,6 +1490,26 @@ int o2_run(int rate);
 int o2_status(const char *service);
 
 
+#ifndef O2_NO_DEBUG
+/**
+ * \brief retrieve text version of an o2_status_t
+ *
+ * @param status a status code
+ * 
+ * @return human-readable string representation of status
+ *
+ * note that the parameter is of type #o2_status_t while #o2_status returns
+ * int. Therefore #o2_status_to_string(#o2_status("service")) is an
+ * invalid conversion from int to #o2_status_t. This is because #o2_status
+ * can also return an #o2_err_t (a negative value). You can pass an error
+ * value to #o2_status_to_string and it will return "O2_FAIL" (rather
+ * than a specific error description). Normally, you will retrieve an int
+ * from #o2_status and call #o2_status_to_string((#o2_status_t) stat).
+ */
+const char *o2_status_to_string(o2_status_t status);
+#endif
+
+
 /**
  * \brief Test if send_cmd will block.
  *

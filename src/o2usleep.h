@@ -10,7 +10,8 @@
 #ifdef WIN32
 void usleep(long usec);
 #else
-#  if defined(__LINUX__) && defined(__GNUC__)
+#  if defined(__linux__) && defined(__GNUC__)
+#    define _XOPEN_SOURCE 500
 #    define _POSIX_C_SOURCE 200112L
 #  endif
 #  include <unistd.h>

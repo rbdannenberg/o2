@@ -26,21 +26,24 @@ def countports(verbose):
         print("->", free_count, "ports are free now")
     return free_count
 
+
 def checkports(start, verbose):
     expected_count = None
     if not start:
         with open("port_count.dat", "r") as inf:
             expected_count = int(inf.readline())
     free_count = countports(verbose)
+    countmsg = "(" + str(free_count) + " ports)"
     if expected_count and expected_count != free_count:
-        print("ERROR: Expected", expected_count, \
-              "free ports, but found", free_count)
-        return False
-    else:
+        if verbose:
+            print("ERROR: Expected", expected_count, \
+                  "free ports, but found", free_count)
+        return False, countmsg
+    elif verbose:
         print("OK: found expected", free_count, "ports")
     with open("port_count.dat", "w") as outf:
         outf.write(str(free_count) + "\n")
-        return True
+        return True, countmsg
 
 
 def main():

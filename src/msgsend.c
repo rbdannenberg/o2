@@ -663,6 +663,7 @@ o2_err_t o2_send_remote(proc_info_ptr proc, int block)
     if (tcp_flag) {
         return o2n_send_tcp(proc->net_info, block, (o2n_message_ptr) msg);
     } else { // send via UDP
+        printf("    dest port %d\n", ntohs(proc->udp_address.sa.sin_port));
         o2_err_t rslt = o2n_send_udp(&proc->udp_address,
                                        (o2n_message_ptr) msg);
         if (rslt != O2_SUCCESS) {

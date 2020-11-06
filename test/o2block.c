@@ -13,10 +13,10 @@
 #include "string.h"
 #include "assert.h"
 
-// To put some weight on fast address lookup, we create n_addrs
-// different addresses to use.
-//
-#define MAX_MSG_COUNT 50000
+// This number must be big enough to cause TCP to block. 50000 is big
+// enough for macOS, but Ubuntu linux required 100000, which means it
+// buffered between 3 and 6MB (!)
+#define MAX_MSG_COUNT 100000
 
 int msg_count = 0;
 bool running = true;
