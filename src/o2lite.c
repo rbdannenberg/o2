@@ -902,7 +902,7 @@ static o2l_time disc_period = 0.1;
 static o2l_time time_for_discovery_send = 0;
 int next_disc_index = -1;
 
-void o2l_broadcast(int port)
+int o2l_broadcast(int port)
 {
     broadcast_to_addr.sin_port = o2lswap16(port);
     if (sendto(broadcast_sock, outbuf + sizeof out_msg->length,
@@ -910,7 +910,9 @@ void o2l_broadcast(int port)
                (struct sockaddr *) &broadcast_to_addr,
                sizeof broadcast_to_addr) < 0) {
         perror("Error attempting to broadcast discovery message");
+        return O2L_FAIL;
     }
+    return O2L_SUCCESS;
 }
 
 static void make_dy()
@@ -928,9 +930,13 @@ static void discovery_send()
     next_disc_index = (next_disc_index + 1) % PORT_MAX;
     make_dy();
     int port = o2_port_map[next_disc_index];
-    O2LDB printf("o2lite: broadcast !_o2/o2lite/dy to port %d at %g\n", 
-		 port, o2l_local_now);
-    o2l_broadcast(port);
+    if (port) {
+        if (!o2l_broadcast(port)) {
+            O2LDB printf("o2lite: broadcast !_o2/o2lite/dy to port %d at %g\n",
+                         port, o2l_local_now);
+            o2_port_map[next_disc_index] = 0; // disable port after failure
+        }
+    }
     time_for_discovery_send = o2l_local_now + disc_period;
     disc_period *= RATE_DECAY;
     if (disc_period > 4.0) {

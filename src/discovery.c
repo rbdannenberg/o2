@@ -43,9 +43,11 @@ static int disc_port_index = -1;
 //   This range is used for private, or customized services or temporary
 //   purposes and for automatic allocation of ephemeral ports.
 // These ports were randomly generated from that range.
-int o2_port_map[PORT_MAX] = { 64541, 60238, 57143, 55764, 56975, 62711,
+static int o2_port_map[PORT_MAX] = { 64541, 60238, 57143, 55764, 56975, 62711,
                               57571, 53472, 51779, 63714, 53304, 61696,
                               50665, 49404, 64828, 54859 };
+static int o2_local_remote[PORT_MAX] = {3, 3, 3, 3, 3, 3, 3, 3,
+                                        3, 3, 3, 3, 3, 3, 3, 3};
 // picked from o2_port_map when discovery is initialized.
 o2n_info_ptr o2_discovery_server = NULL;
 
@@ -103,7 +105,10 @@ o2_err_t o2_discovery_initialize()
     }
     O2_DBdo(printf("%s **** discovery port %ld (%d already taken).\n",
                    o2_debug_prefix, (long) my_port, disc_port_index));
-
+    
+    // do not send local discovery msg to this port
+    o2_local_remote[disc_port_index] &= ~1;
+    
     // do not run immediately so that user has a chance to call o2_hub() first,
     // which will disable discovery. This is not really time-dependent because
     // no logical time will pass until o2_poll() is called.
@@ -169,34 +174,42 @@ o2_message_ptr o2_make_dy_msg(proc_info_ptr proc, int tcp_flag,
  * Broadcast discovery message (!o2/dy) to a discovery port.
  *
  * @param port  the destination port number
+ * @param local_remote send local (1), send remote (2) or send both (3)
  *
  * Receiver will get message and call o2_discovery_handler()
  */
-static void o2_broadcast_message(int port)
+static o2_err_t o2_broadcast_message(int port, int local_remote)
 {
+    if (local_remote == 0) {  // no sending is enabled
+        return O2_SUCCESS;
+    }
     // set up the address and port
     o2_message_ptr m = o2_make_dy_msg(o2_ctx->proc, false, O2_DY_INFO);
     // m is in network order
     if (!m) {
-        return;
+        return O2_FAIL;
     }
     
-    // broadcast the message
-    if (o2n_found_network) {
+    // broadcast the message remotely if remote flag is set
+    if (o2n_found_network && (local_remote & 2)) {
         O2_DBd(printf("%s broadcasting discovery msg to port %d\n",
                       o2_debug_prefix, port));
-        o2n_send_broadcast(port, (o2n_message_ptr) m);
+        if (o2n_send_broadcast(port, (o2n_message_ptr) m) < 0) {
+            O2_FREE(m);
+            return O2_SEND_FAIL; // skips local send, but that's OK because
+            // next time, remote flag will be cleared and we'll do local send.
+        }
     }
     // assume that broadcast messages are not received on the local machine
     // so we have to send separately to localhost using the same port;
-    // since we own o2_discovery_port, there is no need to send in that case
-    // because any broadcast message is a discovery message and we don't
-    // need to discover ourselves.
-    if (port != my_port) {
-        o2n_send_udp_local(port, (o2n_message_ptr) m);
+    // If the port is our own o2_discovery_port, local flag will be 0,
+    // and we skip the local send (no sense sending to ourselves).
+    if (local_remote & 1) {
+        o2n_send_udp_local(port, (o2n_message_ptr) m); // frees m
     } else {
         O2_FREE(m);
     }
+    return O2_SUCCESS;
 }
 
 
@@ -584,7 +597,14 @@ void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
     if (disc_msg_count >= 2 * PORT_MAX || !o2lite_bridge) {
         next_disc_index = next_disc_index % (disc_port_index + 1);
     }
-    o2_broadcast_message(o2_port_map[next_disc_index]);
+    int local_remote = o2_local_remote[next_disc_index];
+    if (local_remote) {
+        o2_err_t err = o2_broadcast_message(o2_port_map[next_disc_index],
+                                            local_remote);
+        if (err == O2_SEND_FAIL) { // broadcast failed, so disable it
+            o2_local_remote[next_disc_index] &= ~2;
+        }
+    }
     disc_msg_count++;
     o2_time next_time = o2_local_time() + disc_period;
     // back off rate by 10% until we're sending every max_disc_period (4s):
