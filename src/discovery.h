@@ -33,6 +33,7 @@ extern char o2_hub_addr[O2_MAX_PROCNAME_LEN]; // ip:port of hub if any, otherwis
  *  @return O2_SUCCESS (0) if succeed, O2_FAIL (-1) if not.
  */
 o2_err_t o2_discovery_initialize(void);
+void o2_discovery_initialize2();
 
 o2_err_t o2_discovery_finish(void);
 
@@ -64,8 +65,7 @@ void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
 void o2_services_handler(o2_msg_data_ptr msg, const char *types,
               o2_arg_ptr *argv, int argc, const void *user_data);
 
-o2_err_t o2_discovered_a_remote_process(const char *ip, int tcp,
-                                          int udp, int dy);
+o2_err_t o2_discovered_a_remote_process(const char *ip, int port, int dy);
 
 o2_message_ptr o2_make_dy_msg(proc_info_ptr proc, int tcp_flag,
                               int dy_flag);

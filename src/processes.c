@@ -371,6 +371,7 @@ o2_err_t o2_processes_initialize()
         return O2_FAIL;
     }
     o2_discovery_server->application = o2_ctx->proc;
+    o2n_address_set_port(&o2_ctx->proc->udp_address, o2_discovery_server->port);
 
     // note that there might not be a network connection here. We can
     // still use O2 locally without an IP address.

@@ -12,6 +12,7 @@ void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
              o2_arg_ptr *argv, int argc, const void *user_data);
 
 void o2_clock_initialize(void);
+void o2_clock_initialize2(void);
 
 void o2_clock_finish(void); // used when shutting down O2
 

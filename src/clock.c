@@ -527,6 +527,8 @@ void o2_clock_ping_at(o2_time when)
 
 static bool clock_initialized = false;
 
+// This initialization is needed by o2_discovery_initialize()
+//
 void o2_clock_initialize()
 {
     if (clock_initialized) {
@@ -556,6 +558,15 @@ void o2_clock_initialize()
     found_clock_service = false;
     ping_reply_count = 0;
     time_offset = 0;
+}
+
+// This initialization depends on o2_processes_initialize() which
+// depends upon o2_discovery_initialize() which depends upon
+// o2_clock_initialize(), so it has to be separated from o2_clock_initialize()
+void o2_clock_initialize2()
+{
+    o2_method_new_internal("/_o2/cs/cs", "s", &o2_clocksynced_handler,
+                           NULL, false, true);
     o2_method_new_internal("/_o2/ps", "", &o2_ping_send_handler,
                            NULL, false, true);
     o2_method_new_internal("/_o2/cu", "i", &catch_up_handler,

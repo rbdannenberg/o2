@@ -169,7 +169,7 @@ the IP address and port number are used to construct a string, e.g.
 
 \subsection Internal Messages
 
-`/_o2/dy "ssiii"` *ensemble_name* *local_ip* *tcp_port* *udp_port* *dy* -
+`/_o2/dy "ssii"` *ensemble_name* *local_ip* *tcp_port* *dy* -
 this message is normally sent to the discovery port, but it can also be sent
 as a result of calling #o2_hub and providing an O2 process address.
 Processes must exchange discovery messages to be connected. The *dy* 

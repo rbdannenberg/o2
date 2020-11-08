@@ -194,7 +194,7 @@ o2_err_t o2n_send_udp_via_socket(SOCKET socket, o2n_address_ptr ua,
                          sizeof ua->sa);
     O2_FREE(msg);
     if (err < 0) {
-        printf("error sending udp to port %d", ntohs(ua->sa.sin_port));
+        printf("error sending udp to port %d ", ntohs(ua->sa.sin_port));
         perror("o2n_send_udp_via_socket");
         return O2_FAIL;
     }
@@ -205,7 +205,7 @@ o2_err_t o2n_send_udp_via_socket(SOCKET socket, o2n_address_ptr ua,
 o2_err_t o2n_send_udp_via_info(o2n_info_ptr info, o2n_address_ptr ua,
                                o2n_message_ptr msg)
 {
-    return o2n_send_udp_via_socket( GET_O2N_FDS(info->fds_index)->fd, ua, msg);
+    return o2n_send_udp_via_socket(GET_O2N_FDS(info->fds_index)->fd, ua, msg);
 }
 
 

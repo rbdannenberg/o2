@@ -985,13 +985,12 @@ static void o2l_dy_handler(o2l_msg_ptr msg, const char *types,
     }
     const char *ens = o2l_get_string();
     const char *ip = o2l_get_string();
-    int tcp = o2l_get_int32();
-    int udp = o2l_get_int32();
+    int port = o2l_get_int32();
     if (parse_error || !streql(ens, o2l_ensemble)) {
         return; // error parsing message
     }
-    address_init(&udp_server_sa, ip, udp, false);
-    network_connect(ip, tcp);
+    address_init(&udp_server_sa, ip, port, false);
+    network_connect(ip, port);
 }
 
 
@@ -1015,7 +1014,7 @@ static void o2l_discovery_initialize(const char *ensemble)
 {
     time_for_discovery_send = o2l_local_time();
     o2l_ensemble = ensemble;
-    o2l_method_new("!_o2/dy", "ssiii", true, &o2l_dy_handler, NULL);
+    o2l_method_new("!_o2/dy", "ssii", true, &o2l_dy_handler, NULL);
 }
 
 

@@ -15,7 +15,9 @@ def countports(verbose):
         try:
             result = sock.bind((UDP_IP, port))
             if verbose:
-                print(count, port, result)
+                print(count, port)
+            if result:
+                print("Bind returned", result)
             sock.close()
             free_count += 1
         except socket.error:
@@ -39,7 +41,7 @@ def checkports(start, verbose):
             print("ERROR: Expected", expected_count, \
                   "free ports, but found", free_count)
         return False, countmsg
-    elif verbose:
+    elif verbose and not start:
         print("OK: found expected", free_count, "ports")
     with open("port_count.dat", "w") as outf:
         outf.write(str(free_count) + "\n")
@@ -47,8 +49,14 @@ def checkports(start, verbose):
 
 
 def main():
-    start = len(sys.argv) > 1 and sys.argv[1] == "start"
-    verbose = len(sys.argv) > 2 and sys.argv[2] == "v"
+    verbose = False
+    if len(sys.argv) > 1:
+        start = sys.argv[1] == "start"
+        if len(sys.argv) > 2 and sys.argv[2] == "v":
+            verbose = True
+    else:
+        verbose = True
+        start = True
     if len(sys.argv) > 1 and "h" in sys.argv[1]:
         print("Usage: python checkports [<start> [<verbose>]]")
         print("   where <start> is start to set port_count.dat or no")

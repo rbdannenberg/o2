@@ -1,4 +1,4 @@
-// statusserver.c - O2 status/discovery test, client side
+// statusserver.c - O2 status/discovery test, server side
 //
 // This program works with statusclient.c. It checks for 
 // discovery of statusclient's service, sends it a message

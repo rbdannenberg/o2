@@ -125,7 +125,7 @@ void o2_mqtt_disc_handler(char *payload)
         o2_node_ptr *entry_ptr = o2_lookup(&o2_ctx->path_tree, name);
         // otherwise send a discovery message to speed up discovery
         if (!*entry_ptr) { // process is already discovered
-            o2_discovered_a_remote_process(intern_ip, atoi(port_num), 0,
+            o2_discovered_a_remote_process(intern_ip, atoi(port_num),
                                            O2_DY_INFO);
         }
     } else { // set up an MQTT_NOCLOCK proc_info for the process

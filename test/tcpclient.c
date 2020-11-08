@@ -12,7 +12,8 @@
 
 #define N_ADDRS 20
 
-int max_msg_count = 50000;
+// this was 50000, not sure why -- very slow with 2ms polling
+int max_msg_count = 1000; 
 
 char *server_addresses[N_ADDRS];
 int msg_count = 0;

@@ -72,8 +72,6 @@ void o2_bridges_finish(void)
     while (bridges.length > 0) {
         o2_bridge_remove(DA_GET(bridges, bridge_protocol_ptr, 0)->protocol);
     }
-    printf("freeing bridges @ %p, allocated %d\n",
-           bridges.array, bridges.allocated);
     DA_FINISH(bridges);
 }
 
@@ -260,7 +258,7 @@ o2_err_t o2lite_inst_finish(bridge_inst_ptr inst)
 
 
 // o2lite_dy_handler - generic bridge discovery handler for !_o2/o2lite/dy
-//   message parameters are ensemble, udp_port
+//   message parameters are ensemble, port
 void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
                        o2_arg_ptr *argv, int argc, const void *user_data)
 {
@@ -276,13 +274,13 @@ void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
     // assumes o2lite is initialized, but it must be
     // because the handler is installed
     const char *ip = argv[1]->s;
-    int udp_port = argv[2]->i32;
+    int port = argv[2]->i32;
     
     // send !_o2/dy back to bridged process:
     o2n_address address;
-    o2_err_t err = o2n_address_init(&address, ip, udp_port, false);
+    o2_err_t err = o2n_address_init(&address, ip, port, false);
     O2_DBd(if (err) printf("%s o2lite_dy_handler: ip %s, udp %d, err %s\n", \
-                    o2_debug_prefix, ip, udp_port, o2_error_to_string(err)));
+                    o2_debug_prefix, ip, port, o2_error_to_string(err)));
     o2_send_start();
     o2_message_ptr msg = o2_make_dy_msg(o2_ctx->proc, false, O2_DY_INFO);
     o2n_send_udp(&address, (o2n_message_ptr) msg); // send and free the message
@@ -314,7 +312,7 @@ static int make_o2lite_bridge_inst(const char *ip, int udp)
 
 // o2lite_con_handler - handler for !_o2/o2lite/con; called immediately
 //   after o2lite bridged process makes a TCP connection, message
-//   parameters are ip address and udp port for bridged process
+//   parameters are ip address and port number for bridged process
 //
 void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
                         o2_arg_ptr *argv, int argc, const void *user_data)
@@ -326,12 +324,12 @@ void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
     // assumes o2lite is initialized, but it must be
     // because the handler is installed
     const char *ip = argv[0]->s;
-    int udp_port = argv[1]->i32;
+    int port = argv[1]->i32;
     // find the o2_info that received this message: this represents
     // the accepted TCP port. It points to a proc_info. Free it.
     O2_FREE(o2n_message_source->application);
     // replace with a bridge_inst
-    int id = make_o2lite_bridge_inst(ip, udp_port);
+    int id = make_o2lite_bridge_inst(ip, port);
     // reply with id
     o2_send_start();
     o2_add_int32(id);

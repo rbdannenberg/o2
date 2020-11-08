@@ -693,18 +693,7 @@ o2_err_t o2_initialize(const char *ensemble_name)
                               o2_net_connected, o2_net_info_remove))) {
         goto cleanup;
     }
-    // o2_service_new2(o2_ctx->proc->name);
-    o2_service_new2("_o2\000\000");
-    o2_method_new_internal("/_o2/dy", "ssiii", &o2_discovery_handler,
-                           NULL, false, false);
-    o2_method_new_internal("/_o2/hub", "", &o2_hub_handler,
-                           NULL, false, false);
-    o2_method_new_internal("/_o2/sv", NULL, &o2_services_handler,
-                           NULL, false, false);
-    o2_method_new_internal("/_o2/cs/cs", "s", &o2_clocksynced_handler,
-                           NULL, false, true);
-    o2_method_new_internal("/_o2/ds", NULL, &o2_discovery_send_handler,
-                           NULL, false, false);
+
     o2_clock_initialize();
     o2_sched_initialize();
 
@@ -715,6 +704,10 @@ o2_err_t o2_initialize(const char *ensemble_name)
     if ((err = o2_processes_initialize())) {
         goto cleanup;
     }
+    // o2_service_new2(o2_ctx->proc->name);
+    o2_service_new2("_o2\000\000");
+    o2_discovery_initialize2();
+    o2_clock_initialize2(); // install handlers for clock sync
 
     // a few things can be disabled after o2_initialize() and before
     // o2_poll()ing starts, so pick a time in the future and schedule them
@@ -1137,5 +1130,7 @@ o2_err_t o2_finish()
     o2_mem_finish();
     // we assume that o2_ctx is statically allocated, not on heap
     o2_ctx = NULL;
+    printf("o2.c sleep(1) in o2_finish()\n");
+    sleep(1); // does this help macOS free ports?
     return O2_SUCCESS;
 }

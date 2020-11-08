@@ -340,7 +340,6 @@ void o2_mem_init(char *chunk, int64_t size)
 
 void o2_mem_finish()
 {
-    printf("o2_mem_finish called\n");
     if (using_o2mem) {
 #if O2MEM_DEBUG
         // this is expensive, but so is shutting down, so why not...
