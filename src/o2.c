@@ -1130,7 +1130,5 @@ o2_err_t o2_finish()
     o2_mem_finish();
     // we assume that o2_ctx is statically allocated, not on heap
     o2_ctx = NULL;
-    printf("o2.c sleep(1) in o2_finish()\n");
-    sleep(1); // does this help macOS free ports?
     return O2_SUCCESS;
 }
