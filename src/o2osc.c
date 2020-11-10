@@ -416,12 +416,11 @@ o2_err_t o2_deliver_osc(osc_info_ptr info)
 {
     // assume ownership of msg; this is not an o2_message_ptr
     o2n_message_ptr msg = (o2n_message_ptr) o2_postpone_delivery();
-    char *msg_data = msg->data;
+    char *msg_data = msg->payload;
     O2_DBO(
      printf("%s os_deliver_osc got OSC message %s length %d for service %s\n",
      o2_debug_prefix, msg_data, msg->length, info->service_name));
-    o2_message_ptr o2msg = osc_to_o2(msg->length, msg_data,
-                                     info->service_name);
+    o2_message_ptr o2msg = osc_to_o2(msg->length, msg_data, info->service_name);
     O2_FREE(msg);
     if (!o2msg) {
         return O2_FAIL;
@@ -497,28 +496,30 @@ o2_err_t o2_send_osc(osc_info_ptr service, services_entry_ptr ss)
     }
     int32_t osc_len;
     char *osc_msg = o2_msg_data_get(&osc_len);
+    o2n_message_ptr o2n_msg = (o2n_message_ptr) msg; // reuse as o2n message
     // copy the osc message into the msg container to pass to o2n layer
-    assert(msg->data.length >= osc_len); // sanity check, don't overrun message
-    msg->data.length = osc_len;
-    memcpy(&msg->data.flags, osc_msg, osc_len); // dst is just after length
+    assert(o2n_msg->length >= osc_len); // sanity check, don't overrun message
+    o2n_msg->length = osc_len;
+    memcpy(o2n_msg->payload, osc_msg, osc_len);
     O2_DBO(printf("%s o2_send_osc sending OSC message %s length %d as "
-                  "service %s\n", o2_debug_prefix, (char *) (&msg->data.flags),
-                  msg->data.length, service->service_name));
+                  "service %s\n", o2_debug_prefix, o2n_msg->payload,
+                  o2n_msg->length, service->service_name));
     // Now we have an OSC length and message at msg->data. Send it.
     if (service->net_info == NULL) { // must be UDP
-        rslt = o2n_send_udp(&service->udp_address, (o2n_message_ptr) msg);
+        rslt = o2n_send_udp(&service->udp_address, o2n_msg);
     } else if (!msg_tcp_flag && service->net_info->out_message) {
         // this was originally sent as a UDP message to the service, but the
         // OSC connection happens to be TCP. We will drop the message to
         // prevent an unbounded queue of pending messages.
+        // (msg is still an o2_message_ptr alias for o2n_msg):
         o2_drop_message("OSC server's TCP queue is full", msg);
         O2_FREE(msg);
         rslt = O2_FAIL;
     } else { // send by TCP as if this is an O2 message; if the message is
         // marked with O2_TCP_FLAG, we have to block if another message is
         // pending
-        rslt = o2n_send_tcp(service->net_info, true, (o2n_message_ptr) msg);
-        // msg is owned by o2n now
+        rslt = o2n_send_tcp(service->net_info, true, o2n_msg);
+        // msg (and its alias o2n_msg) owned by o2n now
     }
     return rslt;
 }

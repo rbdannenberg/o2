@@ -13,6 +13,7 @@
  *  Common head for both Windows and Unix.
  */
 #include <stdio.h>
+#include <stddef.h>
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>

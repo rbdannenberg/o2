@@ -30,6 +30,7 @@
 #define O2_DBn(x)
 #define O2_DBo(x)
 #define O2_DBO(x)
+#define O2_DBq(x)
 #define O2_DBG(x)
 // special multiple category tests:
 #define O2_DBoO(x)
@@ -56,7 +57,8 @@ void o2_dbg_msg(const char *src, o2_message_ptr msg, o2_msg_data_ptr data,
 #define O2_DBn_FLAGS (O2_DBr_FLAG | O2_DBR_FLAG | O2_DBs_FLAG | O2_DBS_FLAG)
 #define O2_DBo_FLAG 0x1000
 #define O2_DBO_FLAG 0x2000
-#define O2_DBg_FLAG 0x4000
+#define O2_DBq_FLAG 0x4000
+#define O2_DBg_FLAG 0x8000
 // All flags but malloc, schedulers, o2_msg_deliver, enabled by "A"
 #define O2_DBA_FLAGS (0x7FFF-O2_DBm_FLAG-O2_DBl_FLAG-O2_DBt_FLAG-O2_DBT_FLAG)
 // All flags but DBm (malloc/free) and DBl (o2_msg_deliver) enabled by "a"
@@ -81,6 +83,8 @@ void o2_dbg_msg(const char *src, o2_message_ptr msg, o2_msg_data_ptr data,
 #define O2_DBn(x) O2_DB(O2_DBn_FLAGS, x)
 #define O2_DBo(x) O2_DB(O2_DBo_FLAG, x)
 #define O2_DBO(x) O2_DB(O2_DBO_FLAG, x)
+#define O2_DBq(x) O2_DB(O2_DBq_FLAG, x)
+
 // O2_DBg is specifically NOT defined. Instead, 'g' is assumed
 // if ANY debugging is enabled (including O2_DBg_FLAG).
 // Instead of O2_DBg, use O2_DBG which prints if any flag is set.

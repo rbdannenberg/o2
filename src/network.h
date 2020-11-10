@@ -44,23 +44,27 @@ typedef int SOCKET;  // In O2, we'll use SOCKET to denote the type of a socket
 
 // messages are received in containers with a link so messages 
 // may be queued in the application
+//
+// When sending a message, options are "raw": send only length bytes
+// starting at payload, or "default": send length + 4 bytes starting
+// at length, but convert length field to network byte order and then
+// restore the field. For UDP, the length is always assigned to the
+// packet length, so only length bytes of payload are in the packet.
 
 typedef struct o2n_message {
     union {
         struct o2n_message *next; ///< link for application use
         int64_t pad_if_needed;    ///< make sure allocated is 8-byte aligned
     };
-    int32_t length;              ///< length of message in data part
-    ///< the message, be careful that compiler does not assume length == 4
-    char data[4];
+    int32_t length;               ///< length of message in data part
+    char payload[4];              ///< data
 } o2n_message, *o2n_message_ptr;
 
 // macro to make a byte pointer
 #define PTR(addr) ((char *) (addr))
 
 /// how many bytes are used by next and length fields before data
-#define O2N_MESSAGE_EXTRA (((o2n_message_ptr) 0)->data - \
-                            PTR(&((o2n_message_ptr) 0)->next))
+#define O2N_MESSAGE_EXTRA (offsetof(o2n_message, payload))
 
 /// how big should whole o2_message be to leave len bytes for the data part?
 #define O2N_MESSAGE_SIZE_FROM_DATA_SIZE(len) ((len) + O2N_MESSAGE_EXTRA)
@@ -198,7 +202,7 @@ o2n_info_ptr o2n_connect(const char *ip, int tcp_port, void * application);
 //     message, the o2_send() function will call this *with* blocking
 //     when a message is already pending and o2_send is called again.
 //
-o2_err_t o2n_send(o2n_info_ptr info, int block);
+o2_err_t o2n_send(o2n_info_ptr info, bool block);
 
 // Send a message. Named "enqueue" to emphasize that this is asynchronous.
 // Follow this call with o2n_send(info, true) to force a blocking

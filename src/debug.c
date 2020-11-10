@@ -32,6 +32,7 @@ void o2_debug_flags(const char *flags)
     if (strchr(flags, 'n')) o2_debug |= O2_DBn_FLAGS;
     if (strchr(flags, 'o')) o2_debug |= O2_DBo_FLAG;
     if (strchr(flags, 'O')) o2_debug |= O2_DBO_FLAG;
+    if (strchr(flags, 'q')) o2_debug |= O2_DBq_FLAG;
     if (strchr(flags, 'g')) o2_debug |= O2_DBg_FLAG;
     if (strchr(flags, 'a')) o2_debug |= O2_DBa_FLAGS;
     if (strchr(flags, 'A')) o2_debug |= O2_DBA_FLAGS;

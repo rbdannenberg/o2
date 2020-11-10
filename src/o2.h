@@ -271,6 +271,7 @@ characters. Attribute names are alphanumeric.
 ///   - m - trace O2_MALLOC and O2_FREE calls
 ///   - o - trace socket creating and closing
 ///   - O - open sound control messages
+///   - q - show MQTT messages
 ///   - g - print general status info, not much detail
 ///   - n - all network flags (no malloc or scheduling): rRsS
 ///   - a - all debug flags except m (malloc/free)

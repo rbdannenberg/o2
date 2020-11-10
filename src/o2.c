@@ -660,6 +660,18 @@ o2_err_t o2_initialize(const char *ensemble_name)
 {
     o2_err_t err;
     o2_time almost_immediately;
+
+    // if the compiler does not lay out the message structure according
+    // to the actual message bytes, we are in big trouble, so this is a
+    // basic sanity check on the compiler (and we assume the optimizing
+    // compiler will follow suit):
+    assert(offsetof(o2n_message, payload) == offsetof(o2n_message, length) + 4);
+    assert(offsetof(o2_msg_data, flags) == offsetof(o2_msg_data, length) + 4);
+    assert(offsetof(o2_msg_data, timestamp) ==
+           offsetof(o2_msg_data, length) + 8);
+    assert(offsetof(o2_msg_data, address) ==
+           offsetof(o2_msg_data, length) + 16);
+    assert(offsetof(o2n_message, length) == offsetof(o2_message, data));
     // this is a bit tricky: o2_mem_init depends upon o2_ctx, but
     // o2_ctx_init() calls on O2_MALLOC. The next line is enough to
     // allow o2_mem_init() to run, and we call o2_ctx_init() for

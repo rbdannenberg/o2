@@ -684,7 +684,7 @@ o2n_info_ptr o2n_connect(const char *ip, int tcp_port,
 //     message, the o2_send() function will call this *with* blocking
 //     when a message is already pending and o2_send is called again.
 //
-o2_err_t o2n_send(o2n_info_ptr info, int block)
+o2_err_t o2n_send(o2n_info_ptr info, bool block)
 {
     int err;
     int flags = 0;
@@ -736,13 +736,20 @@ o2_err_t o2n_send(o2n_info_ptr info, int block)
         // We want to do this in one send; otherwise, we'll send 2
         // network packets due to the NODELAY socket option.
         int32_t len = msg->length;
-        msg->length = htonl(len);
-        char *from = ((char *) &msg->length) + info->out_msg_sent;
-        int n = len + sizeof len - info->out_msg_sent;
+        int n;
+        char *from;
+        if (info->raw_flag) {
+            from = msg->payload + info->out_msg_sent;
+            n  = len - info->out_msg_sent;
+        } else {  // need to send length field in network byte order:
+            msg->length = htonl(len);
+            from = ((char *) &msg->length) + info->out_msg_sent;
+            n = len + sizeof msg->length - info->out_msg_sent;
+        }
         // send returns ssize_t, but we will never send a big message, so
         // conversion to int will never overflow
         err = (int) send(pfd->fd, from, n, flags);
-        msg->length = len; // restore byte-swapped len
+        msg->length = len; // restore byte-swapped len (noop if info->raw_flag)
 
         if (err < 0) {
             O2_DBo(perror("o2n_send sending a message"));
@@ -769,7 +776,7 @@ o2_err_t o2n_send(o2n_info_ptr info, int block)
             // err >= 0, update how much we have sent
             info->out_msg_sent += err;
             if (err >= n) { // finished sending message
-                assert(info->out_msg_sent == len + sizeof len);
+                assert(info->out_msg_sent == n);
                 info->out_msg_sent = 0;
                 o2n_message_ptr next = msg->next;
                 O2_FREE(msg);
@@ -788,7 +795,7 @@ o2_err_t o2n_send(o2n_info_ptr info, int block)
 
 
 // Send a message. Named "enqueue" to emphasize that this is asynchronous.
-// Follow this call with o2n_send(info, msg, true) to force a blocking
+// Follow this call with o2n_send(info, true) to force a blocking
 // (synchronous) send.
 //
 // msg content must be in network byte order
@@ -992,43 +999,53 @@ static o2_err_t read_whole_message(SOCKET sock, o2n_info_ptr info)
 {
     int n;
     assert(info->in_length_got < 5);
-    /* first read length if it has not been read yet */
-    if (info->in_length_got < 4) {
-        // coerce to int to avoid compiler warning; requested length is
-        // int, so int is ok for n
-        n = (int) recvfrom(sock,
-                           PTR(&info->in_length) + info->in_length_got,
-                           4 - info->in_length_got, 0, NULL, NULL);
-        if (n <= 0) {
+    if (info->raw_flag) {
+        // allow raw messages up to 512 bytes
+        info->in_message = O2N_MESSAGE_ALLOC(512);
+        n = (int) recvfrom(sock, info->in_message->payload, 512, 0, NULL, NULL);
+        if (n < 0) {
             goto error_exit;
         }
-        info->in_length_got += n;
-        assert(info->in_length_got < 5);
+        info->in_message->length = n;
+    } else {
+        /* first read length if it has not been read yet */
         if (info->in_length_got < 4) {
-            return O2_FAIL; // length is not received yet, get more later
+            // coerce to int to avoid compiler warning; requested length is
+            // int, so int is ok for n
+            n = (int) recvfrom(sock,
+                               PTR(&info->in_length) + info->in_length_got,
+                               4 - info->in_length_got, 0, NULL, NULL);
+            if (n <= 0) {
+                goto error_exit;
+            }
+            info->in_length_got += n;
+            assert(info->in_length_got < 5);
+            if (info->in_length_got < 4) {
+                return O2_FAIL; // length is not received yet, get more later
+            }
+            // done receiving length bytes
+            info->in_length = htonl(info->in_length);
+            assert(!info->in_message);
+            info->in_message = o2n_message_new(info->in_length);
+            info->in_msg_got = 0; // just to make sure
         }
-        // done receiving length bytes
-        info->in_length = htonl(info->in_length);
-        assert(!info->in_message);
-        info->in_message = o2n_message_new(info->in_length);
-        info->in_msg_got = 0; // just to make sure
-    }
-    
-    /* read the full message */
-    if (info->in_msg_got < info->in_length) {
-        // coerce to int to avoid compiler warning; ok because in_length is int
-        n = (int) recvfrom(sock,
-                           PTR(&info->in_message->data) + info->in_msg_got,
-                           info->in_length - info->in_msg_got, 0, NULL, NULL);
-        if (n <= 0) {
-            goto error_exit;
-        }
-        info->in_msg_got += n;
+        
+        /* read the full message */
         if (info->in_msg_got < info->in_length) {
-            return O2_FAIL; // message is not complete, get more later
+            // coerce to int to avoid compiler warning; will not overflow
+            n = (int) recvfrom(sock,
+                          info->in_message->payload + info->in_msg_got,
+                          info->in_length - info->in_msg_got, 0, NULL, NULL);
+            if (n <= 0) {
+                goto error_exit;
+            }
+            info->in_msg_got += n;
+            if (info->in_msg_got < info->in_length) {
+                return O2_FAIL; // message is not complete, get more later
+            }
         }
+        info->in_message->length = info->in_length;
     }
-    info->in_message->length = info->in_length;
     return O2_SUCCESS; // we have a full message now
   error_exit:
     if (n == 0) { /* socket was gracefully closed */
@@ -1071,7 +1088,7 @@ static int read_event_handler(SOCKET sock, o2n_info_ptr info)
         if (!info->in_message) return O2_FAIL;
         int n;
         // coerce to int to avoid compiler warning; ok because len is int
-        if ((n = (int) recvfrom(sock, (char *) &info->in_message->data, len,
+        if ((n = (int) recvfrom(sock, (char *) &info->in_message->payload, len,
                                 0, NULL, NULL)) <= 0) {
             // I think udp errors should be ignored. UDP is not reliable
             // anyway. For now, though, let's at least print errors.

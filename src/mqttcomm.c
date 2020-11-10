@@ -96,12 +96,13 @@ static o2n_message_ptr mqtt_finish_msg(int command)
     len = o2_ctx->msg_data.length;
     // (this will allocate some unused bytes for flags and timestamp:)
     int msg_len = len + varlen_len + 1;
-    o2n_message_ptr msg = (o2n_message_ptr) o2_message_new(msg_len);
+    o2n_message_ptr msg = O2N_MESSAGE_ALLOC(msg_len);
+    msg->length = msg_len;
     // move data
-    memcpy(msg->data + varlen_len + 1, o2_ctx->msg_data.array, len);
+    memcpy(msg->payload + varlen_len + 1, o2_ctx->msg_data.array, len);
     // insert new stuff
-    msg->data[0] = command;
-    memcpy(msg->data + 1, varlen, varlen_len);
+    msg->payload[0] = command;
+    memcpy(msg->payload + 1, varlen, varlen_len);
     return msg;
 }
 
