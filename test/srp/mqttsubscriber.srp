@@ -1,0 +1,24 @@
+# subtest.srp -- try to subscribe to mqtt server
+#
+# Roger B. Dannenberg
+# May 2020
+
+require "debug"
+require "mqtt"
+MQTT_DBG = false
+
+
+class Mqtt_subtest (Mqtt):
+    def on_receive(topic, message):
+        display "Mqtt_subtest", topic, message
+
+
+def main()
+    mqtt = Mqtt_subtest()
+    mqtt.subscribe("serpent/test")
+//    mqtt.subscribe("#")
+    while mqtt.poll()
+        time_sleep(0.01)
+
+main()
+exit()

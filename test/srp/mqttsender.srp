@@ -1,0 +1,31 @@
+# sendtest.srp -- try to publish to mqtt server
+#
+# Roger B. Dannenberg
+# May 2020
+
+require "debug"
+require "mqtt"
+MQTT_DBG = false
+
+
+def main()
+    var retain = false
+    if len(command_line_arguments) > 1:
+        if command_line_arguments[1] == "r":
+            retain = t
+        else:
+            display "invalid argument", command_line_arguments
+    else:
+        print "use \"serpent64 sendtest.srp r\" to publish with RETAIN flag"
+    mqtt = Mqtt()
+    for i = 1 to 10:
+        mqtt.publish("serpent/test", str(i), retain)
+        time_sleep(0.2)
+    if not retain: // clear any previously retained message:
+        mqtt.publish("serpent/test", "", true)
+        // note: this will cause an empty message delivery to any subscriber
+    mqtt.disconnect()
+
+
+main()
+exit()
