@@ -21,7 +21,7 @@ void o2_mqtt_send(proc_info_ptr proc, o2_message_ptr msg);
 
 void o2_mqtt_free(proc_info_ptr proc);
 
-void o2_mqtt_disc_handler(char *payload);
+void o2_mqtt_disc_handler(char *payload, int payload_len);
 
 void o2m_deliver_mqtt_msg(const char *topic, int topic_len,
                           uint8_t *payload, int payload_len);

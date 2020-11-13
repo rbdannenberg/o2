@@ -58,6 +58,19 @@ void o2_mqtt_initialize(const char *public_ip)
     o2m_initialize(mqtt_broker_ip, o2n_address_get_port(&mqtt_address));
     snprintf(o2_full_name, 40, "%s:%s", (const char *) public_ip,
              o2_ctx->proc->name);
+    // subscribe to O2-<ensemblename>/disc
+    char topic[O2_MAX_NAME_LEN + 16];
+    topic[0] = 'O'; topic[1] = '2'; topic[2] = '-';
+    assert(strlen(o2_ensemble_name) <= O2_MAX_NAME_LEN); // enforced by o2_initialize
+    strcpy(topic + 3, o2_ensemble_name);
+    strcat(topic + 3, "/disc");
+    o2m_subscribe(topic);  // topic is O2-<ensemblename>/disc
+    // send o2_full_name to O2-<ensemblename>/disc, retain is off.
+    o2_mqtt_publish(topic, (const uint8_t *) o2_full_name,
+                    strlen(o2_full_name), 0);
+    // subscribe to O2-<public ip>:<local ip>:<port>
+    strcpy(topic + 3, o2_full_name);
+    o2m_subscribe(topic);  // topic is O2-<public ip>:<local ip>:<port>
 }
 
 
@@ -90,52 +103,74 @@ void o2_mqtt_free(proc_info_ptr proc)
 }
 
 
+// Similar to strchr(s, ':'), but this function does not assume a terminating
+// end-of-string zero because MQTT strings are not terminated. The end
+// parameter is the address of the next character AFTER s
+static char *find_colon(char *s, const char *end)
+{
+    while (s < end) {
+        if (*s == ':') {
+            return s;
+        }
+        s++;
+    }
+    return NULL;
+}
+
+
 // handler for mqtt discovery message
 // payload should be of the form xxx.xxx.xxx.xxx:yyy.yyy.yyy.yyy:ddddd
 // payload may be altered and restored by this function, hence not const
 //
-void o2_mqtt_disc_handler(char *payload)
+void o2_mqtt_disc_handler(char *payload, int payload_len)
 {
     // need 3 strings: public IP, intern IP, port
+    char *end = payload + payload_len;
     const char *public_ip = payload;
     char *intern_ip = NULL;
     char *port_num = NULL;
-    char *colon_ptr = strchr(payload, ':');
+    char *colon_ptr = find_colon(payload, end);
     if (colon_ptr) {
         *colon_ptr = 0;
         intern_ip = colon_ptr + 1;
-        colon_ptr = strchr(intern_ip, ':');
+        colon_ptr = find_colon(intern_ip, end);
         if (colon_ptr) {
             *colon_ptr = 0;
             port_num = colon_ptr + 1;
         }
     }
-    if (!port_num || !*port_num) {
+    char port_string[8];
+    if (!port_num || port_num >= end || port_num + 7 < end) {
+        // FOR DEBUGGING ONLY: payload IS NOT TERMINATED AND UNSAFE:
         printf("o2_mqtt_disc_handler could not parse payload:\n%s\n",
                payload);
+        return;
+    }
+    // copy port field so it can be zero-terminated:
+    int port_string_len = end - port_num;
+    memcpy(port_string, port_num, port_string_len);
+    port_string[port_string_len] = 0;
+    
+    // create full name for the remote process with zero padding for lookup
+    char name[O2_MAX_PROCNAME_LEN];
+    snprintf(name, O2_MAX_PROCNAME_LEN, "%s:%s%c%c%c%c",
+             intern_ip, port_string, 0, 0, 0, 0);
+
     // we can connect directly if remote is not behind NAT
     // (public_ip == intern_ip) OR if remote and local share public IP
     // (public_ip == o2_public_ip). Either way, remote ID is intern_ip
-    } else if (streql(public_ip, intern_ip) ||
-               streql(public_ip, o2_public_ip)) { // use local area network
-        // maybe we are already connected
-        char name[O2_MAX_PROCNAME_LEN];
-        snprintf(name, O2_MAX_PROCNAME_LEN, "%s:%s%c%c%c%c",
-                 intern_ip, port_num, 0, 0, 0, 0);
+    if (streql(public_ip, intern_ip) || streql(public_ip, o2_public_ip)) {
+        // use local area network, and maybe we are already connected:
         o2_node_ptr *entry_ptr = o2_lookup(&o2_ctx->path_tree, name);
         // otherwise send a discovery message to speed up discovery
         if (!*entry_ptr) { // process is already discovered
-            o2_discovered_a_remote_process(intern_ip, atoi(port_num),
+            o2_discovered_a_remote_process(intern_ip, atoi(port_string),
                                            O2_DY_INFO);
         }
     } else { // set up an MQTT_NOCLOCK proc_info for the process
         proc_info_ptr mqtt = O2_CALLOCT(proc_info);
         mqtt->tag = MQTT_NOCLOCK;
-        intern_ip[-1] = ':';
-        port_num[-1] = ':';
-        // now we have a complete name for the remote process
-        // but we need a padded name
-        mqtt->name = o2_heapify(public_ip);
+        mqtt->name = o2_heapify(name);
         o2_service_provider_new(mqtt->name, NULL, (o2_node_ptr) mqtt, mqtt);
         // add this process name to the list of mqtt processes
         DA_APPEND(o2_mqtt_procs, proc_info_ptr, mqtt);
@@ -146,16 +181,28 @@ void o2_mqtt_disc_handler(char *payload)
 }
 
 
+// Two kinds of incoming MQTT messages: From O2-<ensemble>/disc, we get
+// the full O2 name. From O2-<full_O2_name>, we get whole O2 messages.
+//
 void o2m_deliver_mqtt_msg(const char *topic, int topic_len,
                           uint8_t *payload, int payload_len)
 {
     // see if topic matches public:intern:port string
-    if (strncmp(o2_full_name, topic, topic_len) == 0) {
-        // match, so send the message.
-        o2_message_ptr msg = o2_message_new(payload_len);
-        memcpy(&msg->data.flags, (char *) payload, payload_len);
-        o2_prepare_to_deliver(msg);
-        o2_message_send_sched(true);
+    if (strncmp("O2-", topic, 3) == 0) {
+        if (strncmp(o2_full_name, topic + 3, topic_len - 3) == 0) {
+            // match, so send the message.
+            o2_message_ptr msg = o2_message_new(payload_len);
+            memcpy(O2_MSG_PAYLOAD(msg), payload, payload_len);
+            o2_prepare_to_deliver(msg);
+            o2_message_send_sched(true);
+        } else if (strncmp(o2_ensemble_name, topic + 3, topic_len - 8) == 0 &&
+                   strncmp(topic + topic_len - 5, "/disc", 5) == 0) {
+            // discovered a process through MQTT bridge
+            o2_mqtt_disc_handler((char *) payload, payload_len);
+        }
+    } else {
+        // TODO: DEBUGGING ONLY: FIX THIS
+        printf("Unexpected MQTT message.");
     }
 }
 

@@ -584,7 +584,7 @@ int o2_service_free(const char *service_name)
         return O2_NOT_INITIALIZED;
     }
     if (!service_name || strchr(service_name, '/'))
-        return O2_BAD_SERVICE_NAME;
+        return O2_BAD_NAME;
     return o2_service_remove(service_name, o2_ctx->proc, NULL, -1);
 }
 

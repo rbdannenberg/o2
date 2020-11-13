@@ -282,7 +282,7 @@ o2_err_t o2_osc_delegate(const char *service_name, const char *ip,
     }
     if (!service_name || !isalpha(service_name[0]) ||
         strchr(service_name, '/')) {
-        return O2_BAD_SERVICE_NAME;
+        return O2_BAD_NAME;
     }
     osc_info_ptr osc = new_osc_info(service_name, port_num, NULL,
                                tcp_flag ? OSC_TCP_CLIENT : OSC_UDP_CLIENT);

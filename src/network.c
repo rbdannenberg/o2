@@ -748,6 +748,8 @@ o2_err_t o2n_send(o2n_info_ptr info, bool block)
         }
         // send returns ssize_t, but we will never send a big message, so
         // conversion to int will never overflow
+        printf("o2n_send(): sending msg of length %d: %02x %02x ...\n", n,
+               (uint8_t) from[0], (uint8_t) from[1]);
         err = (int) send(pfd->fd, from, n, flags);
         msg->length = len; // restore byte-swapped len (noop if info->raw_flag)
 
@@ -941,6 +943,8 @@ o2_err_t o2n_recv()
             info = GET_O2N_INFO(i); // find process info
             if (info->net_tag == NET_TCP_CONNECTING) { // connect() completed
                 info->net_tag = NET_TCP_CLIENT;
+                O2_DBo(printf("%s connection completed, socket %ld index %d\n",
+                              o2_debug_prefix, (long) (pfd->fd), i));
                 // tell next layer up that connection is good, e.g. O2 sends
                 // notification that a new process is connected
                 (*o2n_connected_callout)(info);
@@ -1068,6 +1072,7 @@ static o2_err_t read_whole_message(SOCKET sock, o2n_info_ptr info)
 
 static int read_event_handler(SOCKET sock, o2n_info_ptr info)
 {
+    printf("read_event_handler sock %ld\n", (long) sock);
     if (info->net_tag == NET_TCP_CONNECTION ||
         info->net_tag == NET_TCP_CLIENT) {
         int n = read_whole_message(sock, info);

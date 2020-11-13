@@ -14,6 +14,11 @@ class Mqtt_subtest (Mqtt):
 
 
 def main()
+    print "usage: serpent64 mqttsubscriber [v], use v for verbose"
+    var retain = false
+    if len(command_line_arguments) > 1:
+        if find(command_line_arguments[1], "v"):
+            MQTT_DBG = true
     mqtt = Mqtt_subtest()
     mqtt.subscribe("serpent/test")
 //    mqtt.subscribe("#")

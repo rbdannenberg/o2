@@ -681,6 +681,9 @@ o2_err_t o2_initialize(const char *ensemble_name)
     o2_mem_init(NULL, 0);
     if (o2_ensemble_name) return O2_ALREADY_RUNNING;
     if (!ensemble_name) return O2_BAD_NAME;
+    if (strlen(ensemble_name) > O2_MAX_NAME_LEN) {
+        return O2_BAD_NAME;
+    }
     // Initialize the ensemble name.
     o2_ensemble_name = o2_heapify(ensemble_name);
     if (!o2_ensemble_name) {
@@ -854,8 +857,8 @@ o2_err_t o2_service_new(const char *service_name)
         return O2_NOT_INITIALIZED;
     }
     if (!service_name || !isalpha(service_name[0]) ||
-        strchr(service_name, '/')) {
-        return O2_BAD_SERVICE_NAME;
+        strchr(service_name, '/') || strlen(service_name) > O2_MAX_NAME_LEN) {
+        return O2_BAD_NAME;
     }
     char padded_name[NAME_BUF_LEN];
     o2_string_pad(padded_name, service_name);
@@ -891,7 +894,7 @@ o2_err_t o2_method_new(const char *path, const char *typespec,
     }
     if (!path || path[0] == 0 || path[1] == 0 || path[0] != '/' ||
         (!isalpha(path[1]) && !streql(path, "/_o2/si"))) {
-        return O2_BAD_SERVICE_NAME;
+        return O2_BAD_NAME;
     }
     return o2_method_new_internal(path, typespec, h, user_data, coerce, parse);
 }
@@ -982,7 +985,7 @@ int o2_status(const char *service)
         return O2_NOT_INITIALIZED;
     }
     if (!service || !*service || strchr(service, '/') || strchr(service, '!'))
-        return O2_BAD_SERVICE_NAME;
+        return O2_BAD_NAME;
     services_entry_ptr services;
     o2_node_ptr entry = o2_service_find(service, &services);
     return o2_status_from_proc(entry, NULL);
@@ -995,7 +998,7 @@ o2_err_t o2_can_send(const char *service)
         return O2_NOT_INITIALIZED;
     }
     if (!service || !*service || strchr(service, '/') || strchr(service, '!'))
-        return O2_BAD_SERVICE_NAME;
+        return O2_BAD_NAME;
     services_entry_ptr services;
     o2_node_ptr entry = o2_service_find(service, &services);
     if (entry) {

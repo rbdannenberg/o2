@@ -310,8 +310,12 @@ typedef enum {
     /// an error return value for #o2_initialize: O2 is already running.
     O2_ALREADY_RUNNING = -5,
     
-    /// an error return value for #o2_initialize or #o2_service_new:
-    /// invalid name parameter.
+    /// an error return value:
+    /// Invalid ensemble name parameter or ensemble name too long (#o2_initialize)
+    /// A service name was NULL or contained a slash (/) or was too long
+    /// (#o2_service_new). The path was NULL or did not start with a slash
+    /// or the service name did not start with a letter (#o2_method_new). 
+    /// (Exception: #o2_method_new can be called with path "/_o2/si".)
     O2_BAD_NAME = -6,
     
     /// an error return value for #o2_add_vector: invalid element type
@@ -344,23 +348,17 @@ typedef enum {
     /// an error return value: could not write to socket or send datagram
     O2_SEND_FAIL = -15,
     
-    /// an error return value: a service name was NULL or contained a slash (/)
-    //  or the path in #o2_method_new was NULL or did not start with a slash
-    //  or the service name did not start with a letter. (Exception:
-    //  #o2_method_new can be called with path "/_o2/si".)
-    O2_BAD_SERVICE_NAME = -16,
-        
     /// SOCKET_ERROR in select call
-    O2_SOCKET_ERROR = -17,
+    O2_SOCKET_ERROR = -16,
 
     /// an error return value: O2 has not been initialized
-    O2_NOT_INITIALIZED = -18,
+    O2_NOT_INITIALIZED = -17,
     
     /// TCP send would block, holding message locally to send later
-    O2_BLOCKED = -19,
+    O2_BLOCKED = -18,
     
     /// Unable to allocate a discovery port
-    O2_NO_PORT = -20
+    O2_NO_PORT = -19
     
 } o2_err_t;
 
@@ -480,6 +478,9 @@ typedef enum {
 // room for longest string/address of the form:
 //   /_o2/publicIP:localIP:port + padding_to_int32_boundary
 #define O2_MAX_PROCNAME_LEN 48
+
+// limit on ensemble name length
+#define O2_MAX_NAME_LEN 63
 
 extern void *((*o2_malloc_ptr)(size_t size));
 extern void ((*o2_free_ptr)(void *));
@@ -613,6 +614,9 @@ typedef struct o2_message {
     };
     o2_msg_data data;
 } o2_message, *o2_message_ptr;
+
+/// The address of the actual message, not including the length field:
+#define O2_MSG_PAYLOAD(msg) PTR(&(msg)->data.flags)
 
 
 /**

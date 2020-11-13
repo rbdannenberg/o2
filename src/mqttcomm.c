@@ -48,6 +48,23 @@ static int suback_expected = 0;
 static o2_time suback_time = 0;
 
 
+void print_bytes(const char *prefix, char *bytes, int len)
+{
+    printf("%s:", prefix);
+    for (int i = 0; i < len; i++) {
+        printf(" %02x", (uint8_t) bytes[i]);
+    }
+    printf("\n");
+    int spaces = strlen(prefix) + 1;
+    for (int i = 0; i < spaces; i++) printf(" ");
+    for (int i = 0; i < len; i++) {
+        uint8_t b = (uint8_t) bytes[i];
+        printf("  %c", (b >= '!' && b <= '~' ? b : (uint8_t) ' '));
+    }
+    printf("\n");
+}
+
+
 // use o2_ctx->msg_data to build MQTT messages
 // start by calling o2_send_start()
 // add to message with:
@@ -103,6 +120,7 @@ static o2n_message_ptr mqtt_finish_msg(int command)
     // insert new stuff
     msg->payload[0] = command;
     memcpy(msg->payload + 1, varlen, varlen_len);
+    print_bytes("mqtt_finish_msg", msg->payload, msg->length);
     return msg;
 }
 
@@ -148,6 +166,7 @@ o2_err_t o2m_subscribe(const char *topic)
 // m is a message, len is the number of bytes we have so far
 // returns actual length of first message, or -1 if there is
 //    no complete message yet
+// Also, *posn is set to the byte after this length specification
 static int mqtt_int_len(const uint8_t *m, int len, int *posn)
 {
     int multiplier = 1;
@@ -158,7 +177,8 @@ static int mqtt_int_len(const uint8_t *m, int len, int *posn)
         if (*posn > len) {
             return -1;
         }
-        uint8_t byte = m[*posn++];
+        uint8_t byte = m[*posn];
+        *posn = *posn + 1;  // careful: *posn++ doesn't increment *posn
         length = length + (byte & 0x7F) * multiplier;
         multiplier <<= 7;
         done = byte < 128 || multiplier > MQTT_MAX_MULT;
@@ -169,7 +189,7 @@ static int mqtt_int_len(const uint8_t *m, int len, int *posn)
 
 void o2m_received(int n)
 {
-    if (n > mqtt_input.length) {
+    if (n < mqtt_input.length) {
         char *inbuff = mqtt_input.array;
         memmove(inbuff, inbuff + n, mqtt_input.length - n);
     }
@@ -177,7 +197,61 @@ void o2m_received(int n)
 }
 
 
+bool handle_first_mqtt_msg()
+{
+    uint8_t first = mqtt_input.array[0];
+    // see if we have a whole message yet
+    if ((first & 0xF0) == MQTT_PUBLISH) {
+        int posn;
+        uint8_t *inbuff = (uint8_t *) mqtt_input.array;
+        int len = mqtt_int_len(inbuff, mqtt_input.length, &posn);
+        if (len < 0 || posn + len > mqtt_input.length) {
+            goto incomplete; // need more bytes to make a complete message
+        }
+        int topic_len = (inbuff[posn] << 8) + inbuff[posn + 1];
+        posn += 2;
+        o2m_deliver_mqtt_msg((const char *) inbuff + posn, topic_len,
+                             inbuff + posn + topic_len + 2, len - topic_len - 4);
+        // remove this message from mqtt_input
+        posn += len - 2;
+        o2m_received(posn);
+    } else if (first == MQTT_CONNACK) {
+        if (mqtt_input.length < 4) {
+            goto incomplete;
+        }
+        connack_count++;
+        o2m_received(4);
+    } else if (first == MQTT_SUBACK) {
+        if (mqtt_input.length < 5) {
+            goto incomplete;
+        }
+        suback_count++;
+        o2m_received(5);
+    } else if (first == MQTT_PUBACK) {
+        if (mqtt_input.length < 4) {
+            goto incomplete;
+        }
+        puback_count++;
+        o2m_received(4);
+    } else {
+        printf("O2 Warning: could not parse incoming MQTT message\n");
+        mqtt_input.length = 0; // empty input buffer and hope to resync
+    }
+    return true;
+  incomplete:
+    return false;
+}
+
+
 // handle an incoming message from network. application is MQTT_CLIENT.
+// 
+// Append incoming bytes to mqtt_input. Multiple messages can arrive at
+// once, and handle_first_mqtt_msg() looks for only the first message.
+// If a one message is found and handled, the message is removed from 
+// the front of mqtt_input. If true is returned and there are more bytes,
+// repeat the call to handle_first_mqtt_msg() until we have either an
+// incomplete message or nothing at all.
+//
 void o2_mqtt_received(o2n_info_ptr info)
 {
     o2_message_ptr msg = o2_postpone_delivery();
@@ -190,45 +264,13 @@ void o2_mqtt_received(o2n_info_ptr info)
     // append the new bytes to the input buffer
     char *dst = mqtt_input.array + mqtt_input.length;
     memcpy(dst, data, len);
+    mqtt_input.length += len;
     // done with message:
     O2_FREE(msg);
-    uint8_t first = mqtt_input.array[0];
-    // see if we have a whole message yet
-    if ((first & 0xF0) == MQTT_PUBLISH) {
-        int posn;
-        uint8_t *inbuff = (uint8_t *) mqtt_input.array;
-        len = mqtt_int_len(inbuff, mqtt_input.length, &posn);
-        if (len < 0 || posn + len < mqtt_input.length) {
-            return; // need more bytes to make a complete message
-        }
-        int topic_len = (inbuff[posn] << 8) + inbuff[posn + 1];
-        posn += 2;
-        o2m_deliver_mqtt_msg((const char *) inbuff + posn, topic_len,
-                             inbuff + posn + topic_len, len - topic_len);
-        // remove this message from mqtt_input
-        posn += len;
-        o2m_received(posn);
-    } else if (first == MQTT_CONNACK) {
-        if (mqtt_input.length < 4) {
-            return;
-        }
-        connack_count++;
-        o2m_received(4);
-    } else if (first == MQTT_SUBACK) {
-        if (mqtt_input.length < 5) {
-            return;
-        }
-        suback_count++;
-        o2m_received(5);
-    } else if (first == MQTT_PUBACK) {
-        if (mqtt_input.length < 4) {
-            return;
-        }
-        puback_count++;
-        o2m_received(4);
-    } else {
-        printf("O2 Warning: could not parse incoming MQTT message\n");
-        mqtt_input.length = 0; // empty input buffer and hope to resync
+    print_bytes("o2_mqtt_received", mqtt_input.array, mqtt_input.length);
+    bool handled = handle_first_mqtt_msg();
+    while (handled && mqtt_input.length > 0) {
+        handled = handle_first_mqtt_msg();
     }
     // check for expected acks after every message comes in:
     if (connack_count < connack_expected &&
@@ -246,6 +288,7 @@ void o2_mqtt_received(o2n_info_ptr info)
         printf("WARNING: Did not receive expected MQTT PUBACK\n");
         puback_count++; // only warn once per lost ack
     }
+
 }
 
 
@@ -257,8 +300,7 @@ o2_err_t o2_mqtt_publish(const char *topic, const uint8_t *payload,
     mqtt_append_string(topic);
     mqtt_append_int16(packet_id);
     mqtt_append_bytes((void *) payload, payload_len);
-    o2n_message_ptr msg = mqtt_finish_msg(MQTT_PUBLISH |
-                                                            retain);
+    o2n_message_ptr msg = mqtt_finish_msg(MQTT_PUBLISH | retain);
     return o2n_send_tcp(mqtt_info, false, msg);
 }
 
