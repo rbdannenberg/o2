@@ -236,12 +236,13 @@ int main(int argc, const char * argv[])
     lookup(); // confirm we have expected services one and two
     assert(o2_service_type(one) == O2_LOCAL);
 
-    const char *ip;
-    char procname[64];
+    const char *pip;
+    const char *iip;
+    char procname[O2_MAX_PROCNAME_LEN];
     int port;
-    assert(o2_get_address(&ip, &port) == O2_SUCCESS);
-    sprintf(procname, "%s:%d", ip, port);
-    assert(streql(o2_service_process(one), procname));
+    o2_err_t err = o2_get_addresses(&pip, &iip, &port);
+    assert(err == O2_SUCCESS);
+    assert(streql(o2_service_process(one), "_o2"));
     assert(o2_service_tapper(one) == NULL);
     assert(streql(o2_service_properties(one), ""));
     assert(streql(o2_service_properties(two), ""));

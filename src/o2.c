@@ -171,9 +171,126 @@ o2_ctx->fds_info is a parallel dynamic array of pointers to o2n_info
     If the tag is NET_OSC_*, the application pointer is an osc_info_ptr
 
 
+O2 Process Names
+----------------
+A full process name has the form <public_ip>:<internal_ip>:<local_port_num>,
+e.g. 76.54.32.10:192.1.0.17:64541 (The port will always be one of the 16 
+"discovery" ports defined by O2.) This gives a unique name to every
+process (assuming two LANS do not share the same public IP, which is
+possible but unusual).
+
+The public IP is obtained via a STUN server which is an asynchronous 
+query. Before discovery begins, we wait for the public IP. The discovery
+protocol is started by the handler for the STUN reply message.
+
+If no STUN reply is received in 5 tries (which takes 10 seconds), we 
+assume there is no public IP connection and zero is used (0.0.0.0) as
+to signify no Internet connection.
+
+If there is no network at all, the internal ip is 127.0.0.1 (localhost),
+and discovery still works to connect to other processes on the same
+host.
+
+On startup, the public ip is not known, and the local process has no
+name (other than the alias "_o2"). When the public ip is resolved, the
+name is installed as o2_ctx->proc->name.
+
+Initialization
+--------------
+Since we have to wait for a public ip address, initialization takes place
+in multiple phases:
+
+PHASE 1. Started when o2_initialize() is called.
+    - o2_ctx -- the O2 thread context, needed for the heap
+    - o2_mem_init() -- memory allocation, create the heap
+    - o2_clock_initialize() -- start the local clock
+    - o2_sched_initialize() -- start the local scheduler
+    - o2n_initialize() -- initialize network services,
+    - o2_discovery_initialize() -- grab an O2 port so we can fail early
+         when no port is available
+    - start protocol to get public_ip from STUN server
+
+
+PHASE 2. Started when public_ip is obtained (could be a 10s delay if
+there is no Internet connection. Initialization continues with a call
+to o2_init_phase2().
+    - create our local name, process info, TCP server port and UDP port
+    - install system services: /_o2/dy, /_o2/cs/??, etc.
+    - start clock synchronization
+    - set up mqtt connection and subscriptions
+
+PHASE 3. Eventually, we discover other processes and establish clock sync.
+There is not a specific event that marks Phase 3 since the discovery and 
+status of other processes happens asynchronously.
+
+Circular Dependencies or Not
+----------------------------
+
+To create a service, normally, we provide the proc->name for that
+service.  There can be multiple processes (called service providers in
+this context) for a service, and messages are sent to the provider
+with the highest proc->name (according to strcmp). To create the _o2
+service, we need the local proc->name, which depends on the public_ip,
+which depends on running the stun protocol, which depends scheduling
+retries, which requires a handler, which needs to be installed at
+/_o2/ipq, which requires the _o2 service. Thus, we have a circularity.
+
+Furthermore, the proc_info object for the local process is basically a
+network connection, so we cannot create the proc_info without
+initializing the network, but we normally need an associated proc_info
+to create a service.
+
+We can either give the task of getting the public IP address to the O2
+layer and start this after network initialization, or we can break the
+circularity somewhere to allow the network to start using the
+scheduler before the local process's proc_info is available and
+without having a proc->name.
+
+Since network.c is already fairly isolated from higher levels of
+discovery and O2 messages, we avoid making network.c depend upon
+scheduling and O2 functions. Instead, the layers that use network.c
+can either
+    1. set o2n_network_enabled to false in which case the
+       o2n_public_ip is set to "0.0.0.0" to signify "no Internet" and
+       o2n_internal_ip is set to localhost ("127.0.0.1") or 
+    2. the o2n_public_ip can be left as the empty string, signifying 
+       "public IP is unknown" or
+    3. the o2n_public_ip can be changed some time after initialization
+       from empty to the actual public IP address.
+So, it is up to the O2 layer to run the stun protocol and set the
+public IP address.
+
+Another problem exists with discovery. We want to determine early if
+we can bind UDP and TCP sockets to one of 16 pre-determined "O2" 
+ports. If not, initialization should fail "early." Searching for
+ports is also a fairly non-real-time operation, so it is good to 
+get it over with during initialization. The problem is that when
+discovery creates a TCP socket which is represented by a proc_info,
+we would like to have the full public:internal:port name for the
+process, but that depends on the public IP address which becomes
+known only after running the STUN protocol.
+
+Therefore, we run initialization and discovery in two phases as 
+outlined above. Phase 1 determines the O2 port after setting up the
+network, clocks, and scheduling. Phase 2 runs after we have the
+public IP port and full local process name, at which time we can
+begin broadcasting our name to other processes as part of the 
+discovery protocol.
+
+There is a slight problem because we do not want to hold up the
+application while O2 finishes initialization. As long as the
+application does not need the full process name, there should not be a
+problem. The application must also wait for services to be discovered,
+so some amount of asynchrony and synchronization is a given. There are
+some careful internal checks so that generally the local process is
+named by "_o2" instead of the full public:internal:port name. In some
+places, before using the name field of a proc_info structure, we
+compare the proc_info address to o2_ctx->proc (the local process's
+proc_info_ptr). If equal, we use "_o2" instead of proc->name.
+
+
 Sockets
 -------
-
 o2_ctx->fds_info has state to receive messages. Since reads may not
 read the entire message, we collect incoming bytes into in_length for
 the length count, and then in_message for the data. When a message is
@@ -198,7 +315,6 @@ by calling o2_can_send(service).
 
 Discovery
 ---------
-
 Discovery messages are sent to discovery ports or TCP ports. 
 Discovery ports come from a list of unassigned port numbers. Every 
 process opens the first port on the list that is available as a receive 
@@ -225,13 +341,15 @@ the data exchanged through discovery grow to N^3.
 The address for discovery messages is !_o2/dy, and the arguments are:
     hub flag (int32)
     ensemble name (string)
-    local ip (string)
+    public ip (string)
+    internal ip (string)
     tcp (int32)
     upd port (int32)
     sync (T or F)
 
 Once a discovery message is received (usually via UDP), in either
-direction, a TCP connection is established. Since the higher ip:port
+direction, a TCP connection is established. Since the higher
+public:internal:port
 string must be the server to prevent race conditions, the protocol is
 a little more complicated if the server discovers the client. In that
 case, the server makes a TCP connection and sends a discovery message
@@ -239,15 +357,16 @@ to the client. The client (acting temporarily as a server) then closes
 the connection and makes a new connection (now acting as a client) 
 back to the server. The client sends a discovery message again.
 
-When a TCP connection is connected or accepted, the process sends the
-UDP port number and a list of services to !_o2/sv. 
+When a TCP connection is connected or accepted, the process sends
+a list of services to !_o2/sv at the remote process.
 
 Process Creation
 ----------------
 
 o2_discovery_handler() receives !_o2/dy message. There are two cases
 based on whether the local host is the server or client. (The server is
-the host with the greater ip:port string. The client connects to the
+the host with the greater public:internal:port string. The client
+connects to the
 server.) If the server gets a discovery message from the client, it
 can't connect because it's the server, so it merely generates an
 !_o2/dy message to the client to prompt the client to connect. 
@@ -269,7 +388,8 @@ Client receives /dy over TCP, closes the TCP connection.
 Server broadcasts /dy (discovery) to all, including client.
     THEN
 Either way, the client now knows the server and connects to it:
-    Locally, the client creates a service named "ip:port" representing
+    Locally, the client creates a service named "public:internal:port"
+        representing
         the server by pointing to an o2n_info so that if another
         /dy message arrives, the client will not make another connection.
     Client connect()'s to server, creating TCP socket.
@@ -320,7 +440,18 @@ that a process connects to another process's TCP port to start the
 discovery process. This requires at least one IP address and port
 number to be shared by some means outside of O2, but it avoids
 broadcasting, which might be disabled in the local network's
-router. 
+router.
+
+The hub does not have to be on the local area network. In that case,
+ALL processes using the hub must not be behind NAT because the TCP
+connection can be hub-to-client or client-to-hub depending on which
+has the higher name (IP:Port string).
+
+Alternatively, the hub can be on the local area network. In that case,
+all clients using the hub should be on the same LAN.
+
+Because of these two options, the hub must be identified with a full
+name specification, meaning public_ip, internal_ip, and local port number.
 
 First consider what happens when o2_hub() is called. There are two
 cases:
@@ -466,35 +597,31 @@ when the socket connecting to the process is closed.
 
 Taps
 ----
-A tap is similar to a service and a service_tap object
-appears in the taps list for the tappee. The
-service_tap contains the tapper's string name and the 
-process (a o2n_info_ptr) of the tapper. Note that a
-tapper is described by both process and service name, so
-messages are delivered to that process, EVEN IF the service
-is not the active one. For example, if the tap directs message
-copies to "s1" of process P1, message copies will be sent there
-even if a message directly to service "s1" would go to process
-P2 (because "s1" is offered by both P1 and P2, but the IP:port
-name of P2 is greater than that of P1. The main reason for this 
-policy is that it allows taps to be removed when the process dies.
-Without the process specification, it would be ambiguous who the
-tap belongs to.
+A tap is similar to a service and a service_tap object appears in the
+taps list for the tappee. The service_tap contains the tapper's string
+name and the process (a o2n_info_ptr) of the tapper. Note that a
+tapper is described by both process and service name, so messages are
+delivered to that process, EVEN IF the service is not the active
+one. For example, if the tap directs message copies to "s1" of process
+P1, message copies will be sent there even if a message directly to
+service "s1" would go to process P2 (because "s1" is offered by both
+P1 and P2, but the IP:port name of P2 is greater than that of P1. The
+main reason for this policy is that it allows taps to be removed when
+the process dies.  Without the process specification, it would be
+ambiguous who the tap belongs to.
 
 
 Remote Process Name: Allocation, References, Freeing
-----------------------------------------------------
-Each remote process has a name, e.g. "128.2.1.100:55765"
-that can be used as a service name in an O2 address, e.g.
-to announce a new local service to that remote process.
-The name is on the heap and is "owned" by the proc_info
-record associated with the NET_TCP_* socket for remote
-processes. Also, the local process has its name owned by
-context->proc.
+---------------------------------------------------- 
+Each remote process has a name, e.g. "72.100.0.50:128.2.1.100:55765"
+that can be used as a service name in an O2 address, e.g.  to announce
+a new local service to that remote process.  The name is on the heap
+and is "owned" by the proc_info record associated with the NET_TCP_*
+socket for remote processes. Also, the local process has its name
+owned by context->proc.
 
 The process name is *copied* and used as the key for a
-service_entry_ptr to represent the service in the 
-o2_ctx->path_tree.
+service_entry_ptr to represent the service in the o2_ctx->path_tree.
 
 The process name is freed by o2_info_remove().
 
@@ -656,10 +783,19 @@ static void o2_int_handler(int s)
 }
 
 
+o2_err_t o2_network_enable(bool enable)
+{
+    if (o2_ensemble_name) {
+        return O2_ALREADY_RUNNING;
+    }
+    o2n_network_enabled = enable;
+    return O2_SUCCESS;
+}
+
+
 o2_err_t o2_initialize(const char *ensemble_name)
 {
     o2_err_t err;
-    o2_time almost_immediately;
 
     // if the compiler does not lay out the message structure according
     // to the actual message bytes, we are in big trouble, so this is a
@@ -672,6 +808,9 @@ o2_err_t o2_initialize(const char *ensemble_name)
     assert(offsetof(o2_msg_data, address) ==
            offsetof(o2_msg_data, length) + 16);
     assert(offsetof(o2n_message, length) == offsetof(o2_message, data));
+    
+    o2_stun_query_running = false;
+    
     // this is a bit tricky: o2_mem_init depends upon o2_ctx, but
     // o2_ctx_init() calls on O2_MALLOC. The next line is enough to
     // allow o2_mem_init() to run, and we call o2_ctx_init() for
@@ -704,33 +843,26 @@ o2_err_t o2_initialize(const char *ensemble_name)
     // atexit will ignore the return value of o2_finish:
     atexit((void (*)(void)) &o2_finish);
 
+
     if ((err = o2n_initialize(o2_message_deliver, o2_net_accepted,
                               o2_net_connected, o2_net_info_remove))) {
+        goto cleanup;
+    }
+    // Initialize discovery, which depends on clock and scheduler
+    if ((err = o2_discovery_initialize())) {
         goto cleanup;
     }
 
     o2_clock_initialize();
     o2_sched_initialize();
-
-    // Initialize discovery, which depends on clock and scheduler
-    if ((err = o2_discovery_initialize())) {
-        goto cleanup;
-    }
-    if ((err = o2_processes_initialize())) {
-        goto cleanup;
-    }
-    // o2_service_new2(o2_ctx->proc->name);
     o2_service_new2("_o2\000\000");
-    o2_discovery_initialize2();
-    o2_clock_initialize2(); // install handlers for clock sync
-
-    // a few things can be disabled after o2_initialize() and before
-    // o2_poll()ing starts, so pick a time in the future and schedule them
-    // They will then test to see if they should actually run or not.
-    almost_immediately = o2_local_time() + 0.01;
-    // clock sync messages startup, disabled by o2_clock_set()
-    o2_clock_ping_at(almost_immediately);
-
+    
+    if (o2n_public_ip[0]) {  // we already have a (pseudo) public ip
+        assert(streql(o2n_public_ip, "0.0.0.0"));
+        o2_init_phase2();    // continue with Phase 2
+    } else if ((err = o2_get_public_ip())) {
+        goto cleanup;
+    }
     return O2_SUCCESS;
   cleanup:
     o2_finish();
@@ -738,19 +870,38 @@ o2_err_t o2_initialize(const char *ensemble_name)
 }
 
 
-o2_err_t o2_get_address(const char **ipaddress, int *port)
+void o2_init_phase2()
 {
-    if (!o2n_found_network || !o2_ctx || !o2_ctx->proc)
+    o2_processes_initialize();
+    o2_discovery_init_phase2();
+    o2_clock_init_phase2(); // install handlers for clock sync
+
+    // start the discovery and MQTT setup
+    o2_send_discovery_at(o2_local_time());
+#ifndef O2_NO_MQTT
+    if (o2_mqtt_waiting_for_public_ip) {
+        o2_mqtt_initialize();
+    }
+#endif
+}
+
+
+o2_err_t o2_get_addresses(const char **public_ip, const char **internal_ip,
+                        int *port)
+{
+    if (!o2_ctx || !o2_ctx->proc) {
         return O2_FAIL;
-    *ipaddress = (const char *) o2n_local_ip;
+    }
+    *public_ip = (const char *) o2n_public_ip;
+    *internal_ip = (const char *) o2n_internal_ip;
     *port = o2_ctx->proc->net_info->port;
     return O2_SUCCESS;
 }
 
 
-const char *o2_get_ip_port_string()
+const char *o2_get_proc_name()
 {
-    if (!o2n_found_network || !o2_ctx || !o2_ctx->proc)
+    if (!o2_ctx || !o2_ctx->proc)
         return NULL;
     return o2_ctx->proc->name;
 }
@@ -759,6 +910,7 @@ static void send_one_sv_msg(proc_info_ptr proc, const char *service_name,
                    int added, const char *tapper, const char *properties)
 {
     o2_send_start();
+    assert(o2_ctx->proc->name);
     o2_add_string(o2_ctx->proc->name);
     o2_add_string(service_name);
     o2_add_tf(added);
@@ -787,6 +939,9 @@ static void send_one_sv_msg(proc_info_ptr proc, const char *service_name,
 void o2_notify_others(const char *service_name, int added,
                       const char *tapper, const char *properties)
 {
+    if (!o2_ctx->proc->name) {
+        return;  // no notifications until we have a name
+    }
     if (!tapper) tapper = ""; // Make sure we have a strings to send.
     if (!properties) properties = "";
     // when we add or remove a service, we must tell all other
@@ -1068,12 +1223,13 @@ static const char *error_strings[] = {
     "O2_NOT_INITIALIZED",
     "O2_BLOCKED",
     "O2_NO_PORT",
+    "O2_NO_NETWORK"
 };
     
 
 const char *o2_error_to_string(o2_err_t i)
 {
-    if (i < 1 && i >= O2_SEND_FAIL) {
+    if (i < 1 && i >= O2_NO_NETWORK) {
         sprintf(o2_error_msg, "O2 error %s", error_strings[-i]);
     } else {
         sprintf(o2_error_msg, "O2 error, code is %d", i);

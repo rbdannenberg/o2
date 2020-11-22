@@ -63,7 +63,8 @@
 //         the tapper. Calls either o2_send_remote() or o2_send_local().
 //         (Can't simply call o2_message_send_sched() because tap
 //         messages must be sent to a specific process even if some
-//         other process offers the service and has a higher IP:PORT
+//         other process offers the service and has a higher
+//         public:internal:port
 //         address (priority). The copied message is transferred to
 //         o2_ctx->msgs (which is why we need this to be a list and
 //         not just remember a single message). Either o2_send_local()
@@ -446,14 +447,15 @@ void o2_msg_deliver(o2_node_ptr service, services_entry_ptr ss)
 #endif
               ) {
         o2_node_ptr handler;
-        char tmp_addr[O2_MAX_PROCNAME_LEN]; // temporary address if service is our IP:PORT
+        // temporary address if service is our public:internal:port :
+        char tmp_addr[O2_MAX_PROCNAME_LEN];
         char *handler_address;
         // '!' allows for direct lookup, but if the service name is
-        // IP:PORT, a straightforward lookup will not find the handler
-        // because the the key uses /_o2/....  Since the service->tag
+        // public:internal:port, a straightforward lookup will not find the
+        // handler because the the key uses /_o2/....  Since the service->tag
         // is NODE_HASH, this service name, if it starts with a digit,
-        // must be the local IP:PORT because any other IP:PORT would
-        // have a tag of PROC or MQTT.
+        // must be the local public:internal:port because any other
+        // public:internal:port would have a tag of PROC or MQTT.
         if (isdigit(address[1])) {
             // build an address with /_o2/ for lookup. The maximum address
             // length is small because all /_o2/ nodes are built-in and short:

@@ -19,6 +19,19 @@
 #define PROC_LAST_TAG      24 // range of PROC tags
 #endif
 
+#ifndef O2_NO_HUB
+// hub flags are used to tell receiver of /dy message what to do.
+typedef enum hub_type {
+    O2_NOT_HUB = 0,          // sender is normal discovery broadcast
+    O2_BE_MY_HUB = 1,        // receiver is the hub
+    O2_HUB_CALL_ME_BACK = 2, // receiver is the hub, but hub needs to close
+                             //      socket and connect to sender
+    O2_I_AM_HUB = 3,         // sender is the hub (and client), OR if this
+                             //      is an o2n_info.proc.hub
+    O2_HUB_REMOTE = 4        // remote is HUB
+} hub_type;
+#endif
+
 typedef struct proc_info {
     int tag;
     o2n_info_ptr net_info;
@@ -28,10 +41,12 @@ typedef struct proc_info {
     // name is "owned" by this process_info struct and will be deleted
     // when the struct is freed:
     o2string name;
-    // O2_HUB_REMOTE indicates this remote process is our hub
-    // O2_I_AM_HUB means this remote process treats local process as hub
-    // O2_NO_HUB means neither case is true
-    int uses_hub;
+#ifndef O2_NO_HUB
+    // hub_remote indicates this remote process is our hub
+    // i_am_hub means this remote process treats local process as hub
+    // no_hub means neither case is true
+    hub_type uses_hub;
+#endif
     o2n_address udp_address;
 } proc_info, *proc_info_ptr;
 
@@ -56,7 +71,7 @@ void o2_show_sockets(void);
 #endif
 
 
-const char *o2_node_to_ipport(o2_node_ptr node);
+const char *o2_node_to_proc_name(o2_node_ptr node);
 
 o2_status_t o2_status_from_proc(o2_node_ptr entry, const char **process);
 
@@ -70,6 +85,6 @@ void o2_proc_info_show(proc_info_ptr proc);
 
 proc_info_ptr o2_create_tcp_proc(int net_tag, const char *ip, int port);
 
-o2_err_t o2_processes_initialize(void);
+void o2_processes_initialize(void);
 
 void o2_proc_info_free(proc_info_ptr proc);

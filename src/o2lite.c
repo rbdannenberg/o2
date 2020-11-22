@@ -990,13 +990,14 @@ static void o2l_dy_handler(o2l_msg_ptr msg, const char *types,
         return;
     }
     const char *ens = o2l_get_string();
-    const char *ip = o2l_get_string();
+    const char *pip = o2l_get_string();  // assume host is local; ignore public
+    const char *iip = o2l_get_string();  // here is the internal (local) IP
     int port = o2l_get_int32();
     if (parse_error || !streql(ens, o2l_ensemble)) {
         return; // error parsing message
     }
-    address_init(&udp_server_sa, ip, port, false);
-    network_connect(ip, port);
+    address_init(&udp_server_sa, iip, port, false);
+    network_connect(iip, port);
 }
 
 
@@ -1020,7 +1021,7 @@ static void o2l_discovery_initialize(const char *ensemble)
 {
     time_for_discovery_send = o2l_local_time();
     o2l_ensemble = ensemble;
-    o2l_method_new("!_o2/dy", "ssii", true, &o2l_dy_handler, NULL);
+    o2l_method_new("!_o2/dy", "sssii", true, &o2l_dy_handler, NULL);
 }
 
 

@@ -37,7 +37,7 @@ int o2_services_list()
                     GET_SERVICE_PROVIDER(services->services, 0);
             service_info_ptr sip = DA_EXPAND(service_list, service_info);
             sip->name = o2_heapify(entry->key);
-            sip->process = o2_heapify(o2_node_to_ipport(spp->service));
+            sip->process = o2_heapify(o2_node_to_proc_name(spp->service));
             sip->service_type = (ISA_PROC(spp->service) ? O2_REMOTE : O2_LOCAL);
             sip->properties = spp->properties;
             if (sip->properties) { // need to own string if any
@@ -324,9 +324,11 @@ int o2_service_set_property(const char *service, const char *attr,
             // this test allows us to free attr by passing in value == NULL:
             if (value) service_property_add(spp, attr, value);
             o2_notify_others(service, true, NULL, spp->properties);
-            o2_send_cmd("!_o2/si", 0.0, "siss", service, O2_FAIL,
-                        o2_ctx->proc->name,
-                        spp->properties ? spp->properties + 1 : "");
+            if (o2_ctx->proc->name) {  // no notice until we have a name
+                o2_send_cmd("!_o2/si", 0.0, "siss", service, O2_FAIL,
+                            o2_ctx->proc->name,
+                            spp->properties ? spp->properties + 1 : "");
+            }
             return O2_SUCCESS;
         }
     }

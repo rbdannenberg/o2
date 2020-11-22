@@ -143,19 +143,6 @@ o2_err_t o2_tap_new(o2string tappee, proc_info_ptr process,
 o2_err_t o2_tap_remove(o2string tappee, proc_info_ptr process,
                   const char *tapper);
 
-// hub flags are used to tell receiver of /dy message what to do.
-// Four cases:
-//   1. receiver is the hub
-#define O2_BE_MY_HUB 1
-//   2. receiver is the hub, but hub needs to close socket and
-//      connect to sender
-#define O2_HUB_CALL_ME_BACK 2
-//   3. sender is the hub (and client), OR if this is an o2n_info.proc.hub
-#define O2_I_AM_HUB 3
-//   4. sender is normal discovery broadcast
-#define O2_NO_HUB 0
-//   5. remote is HUB
-#define O2_HUB_REMOTE 4
 
 typedef struct {
     // msg_types is used to hold type codes as message args are accumulated
@@ -202,6 +189,8 @@ typedef struct {
 
 
 void o2_ctx_init(o2_ctx_ptr context);
+
+void o2_init_phase2();
 
 
 /* O2 should not be called from multiple threads. One exception

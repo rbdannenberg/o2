@@ -91,7 +91,7 @@ static void o2_clock_synchronized(o2_time local_time, o2_time ref_time)
 #endif
 }
 
-// catch_up_handler -- handler for "/_o2/cu"
+// catch_up_handler -- handler for "/_o2/cs/cu"
 //    called when we are slowing down or speeding up to return
 //    the clock rate to 1.0 because we should be synchronized
 //
@@ -115,7 +115,7 @@ static void will_catch_up_after(double delay)
         return;
     
     o2_prepare_to_deliver(o2_message_finish(local_time_base + delay,
-                                            "!_o2/cu", false));
+                                            "!_o2/cs/cu", false));
     o2_schedule(&o2_ltsched);
 }
 
@@ -167,6 +167,7 @@ o2_err_t o2_send_clocksync_proc(proc_info_ptr proc)
     if (!o2_clock_is_synchronized)
         return O2_SUCCESS;
     if (o2_send_start()) return O2_FAIL;
+    assert(o2_ctx->proc->name);
     o2_add_string(o2_ctx->proc->name);
     o2_prepare_to_deliver(o2_message_finish(0.0, "!_o2/cs/cs", O2_TCP_FLAG));
     o2_send_remote(proc, false);
@@ -260,11 +261,11 @@ static void announce_synchronized()
 // Algorithm: for each service offered by proc,
 //                if the status is O2_LOCAL (implies proc is local) and
 //                   a local service is active and
-//                   the service is not IP:PORT:
-//                    send !_o2/si with service_name, status, local IP:PORT
+//                   the service is not public:internal:port:
+//                    send !_o2/si with service_name, status, local proc name
 //                elif the status is O2_REMOTE and
 //                     the service is offered by proc:
-//                    send !_o2/si with service_name, status, remote IP:PORT
+//                    send !_o2/si with service_name, status, remote proc name
 static void clock_status_change(o2_node_ptr proc, const char *name,
                                 o2_status_t status)
 {
@@ -369,6 +370,7 @@ void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
     o2_arg_ptr reply_to_arg = o2_get_next(O2_STRING);
     if (!reply_to_arg) return;
     char *replyto = reply_to_arg->s;
+    assert(o2_ctx->proc->name);
     o2_send(replyto, 0, "sff", o2_ctx->proc->name, mean_rtt, min_rtt);
 }
 
@@ -453,7 +455,7 @@ int o2_roundtrip(double *mean, double *min)
 }
 
 
-// o2_ping_send_handler -- handler for /_o2/ps (short for "ping send")
+// o2_ping_send_handler -- handler for /_o2/cs/ps (short for "ping send")
 //   wait for clock sync service to be established,
 //   then send ping every 0.1s CLOCK_SYNC_HISTORY_LEN times, 
 //   then every 0.5s for 5s, then every 10s
@@ -485,8 +487,10 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
                         &cs_ping_reply_handler, NULL, false, false);
                 o2_method_new_internal("/_o2/cs/rt", "s", &o2_clockrt_handler,
                         NULL, false, false);
-                char path[48];
-                snprintf(path, 32, "!%s/cs/put", o2_ctx->proc->name);
+                char path[O2_MAX_PROCNAME_LEN + 16];
+                assert(o2_ctx->proc->name);
+                snprintf(path, O2_MAX_PROCNAME_LEN + 16, "!%s/cs/put",
+                         o2_ctx->proc->name);
                 clock_sync_reply_to = o2_heapify(path);
             }
         }
@@ -521,7 +525,7 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
 void o2_clock_ping_at(o2_time when)
 {
     o2_send_start();
-    o2_prepare_to_deliver(o2_message_finish(when, "!_o2/ps", false));
+    o2_prepare_to_deliver(o2_message_finish(when, "!_o2/cs/ps", false));
     o2_schedule(&o2_ltsched);
 }
 
@@ -563,14 +567,16 @@ void o2_clock_initialize()
 // This initialization depends on o2_processes_initialize() which
 // depends upon o2_discovery_initialize() which depends upon
 // o2_clock_initialize(), so it has to be separated from o2_clock_initialize()
-void o2_clock_initialize2()
+void o2_clock_init_phase2()
 {
     o2_method_new_internal("/_o2/cs/cs", "s", &o2_clocksynced_handler,
                            NULL, false, true);
-    o2_method_new_internal("/_o2/ps", "", &o2_ping_send_handler,
+    o2_method_new_internal("/_o2/cs/ps", "", &o2_ping_send_handler,
                            NULL, false, true);
-    o2_method_new_internal("/_o2/cu", "i", &catch_up_handler,
+    o2_method_new_internal("/_o2/cs/cu", "i", &catch_up_handler,
                            NULL, false, true);
+    // start pinging for clock synchronization:
+    o2_ping_send_handler(NULL, NULL, NULL, 0, NULL);
 }
 
 

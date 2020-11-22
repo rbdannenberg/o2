@@ -61,7 +61,7 @@ o2_err_t o2_service_new2(o2string padded_name)
         O2_FREE(node);
         return rslt;
     }
-    // Note that when the local IP:PORT service is created,
+    // Note that when the local public:internal:port service is created,
     // there are no remote connections yet, so o2_notify_others()
     // will not send any messages.
     o2_notify_others(padded_name, true, NULL, NULL);
@@ -85,17 +85,17 @@ o2_err_t o2_service_new2(o2string padded_name)
  *
  * CASE 1: this is a new local service
  *
- * CASE 2: this is the installation of /ip:port for a newly discovered
- *         remote process. service == proc
+ * CASE 2: this is the installation of /public:internal:port for a newly
+ *         discovered remote process. service == proc
  *
  * CASE 3: this is creating a service that delegates to OSC. service is
  *         an osc_info_ptr, process is the local process
  *
- * CASE 4: handling /ip:port/sv: service is a o2n_info_ptr equal to
- *         process. Note that /sv can indicate update to properties
+ * CASE 4: handling /public:internal:port/sv: service is a o2n_info_ptr equal
+ *          to process. Note that /sv can indicate update to properties
  * 
- * CASE 5: this is the installation of /ip:ip:port for a newly discovered
- *         MQTT process. service == proc
+ * CASE 5: this is the installation of /public:internal:port for a newly
+ *         discovered MQTT process. service == proc
  *
  * Algorithm:
  *  - create or lookup service_name
@@ -145,6 +145,13 @@ o2_err_t o2_service_provider_new(o2string service_name,
         return O2_SERVICE_EXISTS;
     } else {
         // Now we know it's safe to add a service and we have a place to put it
+        // Note that the proc name does not need to exist. Proc name is needed
+        // to decide which service is active based on proc names. If there is
+        // no proc name, o2_node_to_proc_name() will return _o2, which cannot
+        // be used in place of an IP address for purposes of picking the active
+        // service provider, BUT if there are any other service providers, it
+        // means that discovery is running, and that can only happen after we
+        // have a full pip:iip:port name.
         active = o2_add_to_service_list(ss, proc->name, service,
                                         (char *) properties);
         O2_DBG(printf("%s ** new service %s is %p (%s) active %d\n",
@@ -158,16 +165,11 @@ o2_err_t o2_service_provider_new(o2string service_name,
         // If this is a new process connection, process_name is NULL
         // and we do not send !_o2/si yet. See o2n_recv() in o2_net.c
         // where protocol completes and !_o2/si is sent.
-        const char *proc_name = proc->name;
-        if (proc_name) {
-            if (proc_name == o2_ctx->proc->name) {
-                proc_name = "_o2"; // local process alias is used
-            }
-            o2_send_cmd("!_o2/si", 0.0, "siss", service_name, status,
-                        proc_name, properties ? properties + 1 : "");
-        }
+        // Also, we always send _o2 to name the local process.
+        const char *proc_name = (proc == o2_ctx->proc ? "_o2" : proc->name);
+        o2_send_cmd("!_o2/si", 0.0, "siss", service_name, status,
+                    proc_name, properties ? properties + 1 : "");
     }
-
     return O2_SUCCESS;
 }
 
@@ -216,15 +218,12 @@ o2_node_ptr o2_service_find(const char *service_name,
 {
     *services = *o2_services_find(service_name);
     if (!*services) {
-        // map local IP:PORT string to "_o2": Note that we could save a hash
+        // map local public:internal:port string to "_o2": Note that we
+        // could save a hash
         // lookup by doing this test first, but I think this is pretty rare:
-        // only system messages from remote processes will use !IP:PORT/
-        if ((isdigit(service_name[0]) &&
-             streql(service_name, o2_ctx->proc->name))
-#ifndef O2_NO_MQTT
-            || streql(service_name, o2_full_name)
-#endif
-            ) {
+        // only system messages from remote processes will use !PIP:IIP:PORT/
+        if (isdigit(service_name[0]) && o2_ctx->proc->name &&
+             streql(service_name, o2_ctx->proc->name)) {
             *services = *o2_services_find("_o2");
         } else {
             return NULL;
@@ -298,10 +297,10 @@ static void pick_service_provider(dyn_array_ptr list)
     int search_start = 1;
     if (top_index >= list->length) return;
     o2_node_ptr top_node = GET_SERVICE(*list, top_index);
-    const char *top_name = o2_node_to_ipport(top_node);
+    const char *top_name = o2_node_to_proc_name(top_node);
     for (int i = search_start; i < list->length; i++) {
         o2_node_ptr node = GET_SERVICE(*list, i);
-        const char *name = o2_node_to_ipport(node);
+        const char *name = o2_node_to_proc_name(node);
         // if location 0 was not a tap, we did not update search_start,
         // so we have to skip over taps to find real services.
         if (strcmp(name, top_name) > 0) {
@@ -399,7 +398,8 @@ static void remove_empty_services_entry(services_entry_ptr ss)
  *     the osc_info_entry's service_name is owned by the services_entry
  *     free the osc_info_entry
  *  
- * CASE 2: /ip:port/sv gets a service removed message. info is remote
+ * CASE 2: /public:internal:port/sv gets a service removed message.
+ *         info is remote
  *
  * CASE 3: NET_TCP_CLIENT or _CONNECTION gets hangup. remove_remote_services
  *         calls this with each service to do the work. We remove the
@@ -488,10 +488,10 @@ o2_err_t o2_service_remove(const char *service_name, proc_info_ptr proc,
     o2_do_not_reenter++; // protect data structures
     // send notification message
     o2_send_cmd("!_o2/si", 0.0, "siss", service_name, O2_FAIL,
-                ISA_PROC(proc) ? proc->name : o2_ctx->proc->name, "");
+                o2_node_to_proc_name((o2_node_ptr) proc), "");
 
     // if we deleted active service, pick a new one
-    if (index == 0) { // move top ip:port provider to top spot
+    if (index == 0) { // move top public:internal:port provider to top spot
         pick_service_provider(svlist);
     }
     // now we probably have a new service, report it:
@@ -501,7 +501,7 @@ o2_err_t o2_service_remove(const char *service_name, proc_info_ptr proc,
         int status = o2_status_from_proc(spp->service, &process_name);
         if (status != O2_FAIL) {
             assert(process_name[0]);
-            // exclude reports of our own IP:PORT service
+            // exclude reports of our own public:internal:port service
 //        if (!isdigit(service_name[0] ||
 //            new_service->tag != PROC_TCP_SERVER)) {
             o2_send_cmd("!_o2/si", 0.0, "siss", service_name, status,
@@ -706,7 +706,7 @@ bool o2_add_to_service_list(services_entry_ptr ss, o2string our_ip_port,
     if (index > 0) { // see if we should go first
         // find the top entry
         service_provider_ptr top_entry = GET_SERVICE_PROVIDER(ss->services, 0);
-        o2string top_ipport = o2_node_to_ipport(top_entry->service);
+        o2string top_ipport = o2_node_to_proc_name(top_entry->service);
         if (strcmp(our_ip_port, top_ipport) > 0) {
             // move top entry from location 0 to end of array at index
             DA_SET(ss->services, service_provider, index, *top_entry);

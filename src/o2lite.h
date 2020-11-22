@@ -189,8 +189,8 @@ void o2l_set_services(const char *services);
  *
  * The final step of the connection protocol is setting #o2l_bridge_id.
  * Since there can be multiple servers for any service in O2, you may
- * want the ability to create a unique service name. O2 uses ip:port
- * names, e.g. "192.168.1.3:61354" as services that denote O2 processes.
+ * want the ability to create a unique service name. O2 uses public:internal:port
+ * names, e.g. "72.100.0.50:192.168.1.3:61354" as services that denote O2 processes.
  * An o2lite process could do the same, but if it is using NAT, it might
  * share an IP address with an O2 process. A safer way is to take the
  * IP:port name of the O2 host and append the bridge id, e.g. something

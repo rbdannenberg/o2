@@ -221,11 +221,7 @@ o2string o2_heapify(const char *path)
 {
     long len = o2_strsize(path);
     char *rslt = O2_MALLOCNT(len, char);
-    // zero fill last 4 bytes
-    int32_t *end_ptr = (int32_t *) O2MEM_BIT32_ALIGN_PTR(rslt + len - 1);
-    *end_ptr = 0;
-    strcpy(rslt, path);
-    assert(*path == 0 || *rslt);
+    strncpy(rslt, path, len); // zero fills
     return rslt;
 }
 

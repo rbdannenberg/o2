@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "o2.h"
 #include "string.h"
+#include <assert.h>
 
 #define N_ADDRS 10
 #define EXPECTED_COUNT 6
@@ -68,28 +69,33 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
         printf("FAILURE -- expected empty string for properties\n");
     }
     // ***** this check is not really relevant anymore because we
-    // ***** do not use the ip:port name (now we use _o2 instead)
+    // ***** do not use the public:internal:port name (now we use _o2 instead)
     // ***** but I left this check here because it is not being
     // ***** tested anywhere else -- why not?
     // here are 2 ways to get the IP:Port name of this process:
     // (1) construct from IP string and Port number
-    const char *my_ip = NULL;
+    const char *my_pip = NULL;
+    const char *my_iip = NULL;
     int my_port = -1;
-    o2_get_address(&my_ip, &my_port);
-    char my_ip_port[O2_MAX_PROCNAME_LEN];
-    if (!my_ip) my_ip = "none";
-    snprintf(my_ip_port, O2_MAX_PROCNAME_LEN, "%s:%d", my_ip, my_port);
+    o2_err_t err = o2_get_addresses(&my_pip, &my_iip, &my_port);
+    assert(err == O2_SUCCESS);
+    char my_proc_name[O2_MAX_PROCNAME_LEN];
+    if (!my_pip) my_pip = "none";
+    if (!my_iip) my_iip = "none";
+    snprintf(my_proc_name, O2_MAX_PROCNAME_LEN, "%s:%s:%d", my_pip, my_iip,
+             my_port);
 
     // (2) get the name from o2_context (now part of O2 API):
-    const char *o2_ip_port = o2_get_ip_port_string();
-
-    // make sure two methods agree; just a sanity check
-    if (!streql(my_ip_port, o2_ip_port)) {
-        printf("FAILURE -- problem with naming IP and Port for process\n");
-        fail_and_exit = true;
-        return;
+    const char *o2_proc_name = o2_get_proc_name();
+    if (o2_proc_name) {  // proc_name is not available at the beginning
+        // make sure two methods agree; just a sanity check
+        if (!streql(my_proc_name, o2_proc_name)) {
+            printf("FAILURE -- problem with naming IP and Port for process\n");
+            fail_and_exit = true;
+            return;
+        }
     }
-    // **** END OF o2_get_ip_port_string() AND o2_get_address() TESTS
+    // **** END OF o2_get_proc_name() AND o2_get_addresses() TESTS
 
     // the first 3 /_o2/si messages are listed in expected_si_service_first
     if (si_msg_count < FIRST_COUNT) {
@@ -139,6 +145,9 @@ int main(int argc, const char * argv[])
         printf("Calling o2_debug_flags(\"%s\")\n", argv[1]);
         o2_debug_flags(argv[1]);
     }
+    o2_network_enable(false);  // eliminate race -- if network enabled,
+    // some services are established after some delay
+
     o2_initialize("test");    
     o2_method_new("/_o2/si", "siss", &service_info_handler, NULL, false, true);
 
