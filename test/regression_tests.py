@@ -111,9 +111,9 @@ def runTest(command, stall=False, quit_on_port_loss=False):
         if ((not IS_OSX) or quit_on_port_loss) and (not portsOK):
             allOK = False # halt the testing
     else:
-        print("FAIL", countmsg)
         allOK = False
     if (not portsOK) or (not allOK):
+        print("FAIL a port was not freed, now we have fewer", countmsg)
         print("**** Failing output:")
         print(stdout)
         print("**** Failing error output:")
@@ -141,7 +141,6 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
     p2.join()
     if stall: dostall()
     portsOK, countmsg = checkports(False, False)
-    allOK = False
     if findLineInString(out1, p1.output):
         if findLineInString(out2, p2.output):
             print("PASS", countmsg)
@@ -152,6 +151,7 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
     else:
         allOK = False
     if (not portsOK) or (not allOK):
+        print("FAIL")
         print("**** Failing output from " + prog1)
         print(p1.output)
         print("**** Failing error output from " + prog1)
