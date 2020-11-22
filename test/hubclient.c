@@ -41,20 +41,9 @@ long elapsed_time()
 #define streql(a, b) (strcmp(a, b) == 0)
 
 
-char server_ip[O2_MAX_PROCNAME_LEN];
+char server_pip[O2_IP_LEN];
+char server_iip[O2_IP_LEN];
 int server_port = -1;
-
-// split an IP:port string into separate IP and port values
-//
-void parse(const char *ip_port, char *ip, int *port)
-{
-    // compare port numbers
-    strcpy(ip, ip_port);
-    char *loc = strchr(ip, ':');
-    assert(loc);
-    *port = atoi(loc + 1);
-    *loc = 0;
-}
 
 
 void client_info_handler(o2_msg_data_ptr data, const char *types,
@@ -71,10 +60,15 @@ void client_info_handler(o2_msg_data_ptr data, const char *types,
         printf("FAILURE -- expected empty string for properties\n");
         assert(false);
     }
+    if (status == O2_FAIL) {
+        return;  // service has been removed
+    }
     // our purpose is to detect the server and its IP and port
     if (streql(service_name, "server")) {
-        parse(process, (char *) server_ip, &server_port);
-        assert(server_ip[0] != 0);
+        o2_parse_name(process, (char *) server_pip, (char *) server_iip,
+                      &server_port);
+        assert(server_iip[0] != 0);
+        assert(server_pip[0] != 0);
     }
 }
     
@@ -121,38 +115,63 @@ void startup(int n, const char *msg)
     o2_service_new("client");
     o2_method_new("/client/hi", "s", &server_says_hi, NULL, false, true);
     o2_method_new("/_o2/si", "siss", &client_info_handler, NULL, false, true);
-    o2_clock_set(NULL, NULL);  // always be the master
-    substep("O2 is started, waiting for client status");
+    substep("O2 is started, waiting for server status");
 }    
 
 
+// wait for discovery of "server" service
+//
 void wait_for_server(void)
 {
-    // ordinary discovery for server to discover this client at time t-0.5.
     int count = 0;
     while (o2_status("server") < O2_REMOTE) {
         o2_poll();
         usleep(2000); // 2ms
         if (count++ % 1000 == 0) {
-            substep("still waiting for server");
+            printf("#   -> still waiting for server, server status is %s at %ld\n",
+                   o2_status_to_string(o2_status("server")), elapsed_time());
         }
     }
-    assert(server_ip[0]);
-    printf("#   -> server_ip %s server_port %d\n", server_ip, server_port);
+    assert(server_pip[0]);
+    assert(server_iip[0]);
+    printf("#   -> server_pip %s server_iip %s server_port %d\n", server_pip,
+           server_iip, server_port);
 }    
 
 
-bool my_ipport_is_greater(void)
+void wait_for_pip(void)
+{
+    const char *pip;
+    const char *iip;
+    int my_port;
+    while (true) {
+        o2_err_t err = o2_get_addresses(&pip, &iip, &my_port);
+        assert(!err);
+        if (pip[0]) return;
+        printf("#  -> waiting for public IP\n");
+        delay_for(0.5);
+    }
+}
+
+
+bool my_ipport_is_greater(const char *server_pip, 
+                          const char *server_iip, int server_port)
 {
     // compare port numbers
-    char my_ip[32];
-    const char *ip;
+    char my_pip[O2_IP_LEN];
+    char my_iip[O2_IP_LEN];
+    const char *pip;
+    const char *iip;
     int my_port;
-    o2_get_address(&ip, &my_port);
-    strcpy(my_ip, ip); // copy O2 ip to our variable
-    printf("#   -> my_ip %s my_port %d\n", my_ip, my_port);
-    printf("#   -> server_ip %s server_port %d\n", server_ip, server_port);
-    assert(*server_ip && streql(server_ip, my_ip));
+    o2_err_t err = o2_get_addresses(&pip, &iip, &my_port);
+    assert(err == O2_SUCCESS);
+    strcpy(my_pip, pip); // copy O2 ip to our variable
+    strcpy(my_iip, iip); // copy O2 ip to our variable
+    printf("#   -> my_pip %s my_iip %s my_port %d\n", my_pip, my_iip, my_port);
+    printf("#   -> server_pip %s server_iip %s server_port %d\n", server_pip,
+           server_iip, server_port);
+    assert(*server_pip && streql(server_pip, my_pip));
+    assert(*server_iip && streql(server_iip, my_iip));
     assert(server_port >= 0 && server_port != my_port);
     return my_port > server_port;
 }
@@ -187,14 +206,15 @@ int step_11_to_13(bool good, int hi_low)
 
 int test_self_as_hub(int order)
 {
-    server_ip[0] = 0;
+    server_pip[0] = 0;
+    server_iip[0] = 0;
     startup(4, "test self as hub");
     printf("#   -> order is %s\n", test_to_string[order]);
     step(5, "wait for server");
     wait_for_server();
     delay_for(0.5);
     step(6, "caling o2_hub(NULL)");
-    o2_hub(NULL, 0);
+    o2_hub(NULL, NULL, 0);
     delay_for(0.5);
     substep("6B: server should shut down now");
     delay_for(0.5);
@@ -204,7 +224,8 @@ int test_self_as_hub(int order)
     step(8, "server expected to reinitialize and call o2_hub()");
     step(9, "wait for server");
     wait_for_server();
-    bool client_greater = my_ipport_is_greater();
+    bool client_greater = my_ipport_is_greater(server_pip, server_iip, 
+                                               server_port);
     substep(client_greater ? "hubserver (them) needs to connect to hub (us)" :
                              "hub (us) needs to connect to hubserver (them)");
     step(10, "got server, compute LOW/HIGH");
@@ -224,7 +245,8 @@ int test_self_as_hub(int order)
 
 int test_other_as_hub(int order)
 {
-    server_ip[0] = 0;
+    server_pip[0] = 0;
+    server_iip[0] = 0;
     startup(4, "test other as hub");
     printf("#   -> order is %s\n", test_to_string[order]);
     step(5, "wait for server");
@@ -236,12 +258,27 @@ int test_other_as_hub(int order)
     o2_finish();
     delay_for(0.5);
     step(7, "server should test that we are shut down now");
+
     delay_for(0.5);
+
+    // clear record of server now before hub has a chance to say "hi"
+    char server_pip_copy[O2_IP_LEN];
+    char server_iip_copy[O2_IP_LEN];
+    int server_port_copy = server_port;
+    strcpy(server_pip_copy, server_pip);
+    strcpy(server_iip_copy, server_iip);
+    server_pip[0] = 0; // clear server_ip so we can detect getting it again
+    server_iip[0] = 0; // clear server_ip so we can detect getting it again
+    server_port = 0;
+    
     startup(8, "reinitialize and call o2_hub()");
-    bool client_greater = my_ipport_is_greater();
+    o2_err_t err = o2_hub(server_pip_copy, server_iip_copy, server_port_copy);
+    assert(err == O2_SUCCESS);
+    wait_for_pip();
+    bool client_greater = my_ipport_is_greater(server_pip_copy, 
+                             server_iip_copy, server_port_copy);
     substep(client_greater ? "hub (them) needs to connect to hubclient (us)" :
                              "hubclient (us) needs to connect to hub (them)");
-    o2_hub(server_ip, server_port);
     // compare IP:port's
     int actual = 0;
     if (client_greater) {
@@ -250,19 +287,15 @@ int test_other_as_hub(int order)
         actual = LOW;
     }
     bool good = (order == EITHER || (order == actual));
-    char server_ip_copy[32];
-    int server_port_copy = server_port;
-    strcpy(server_ip_copy, server_ip);
-    server_ip[0] = 0; // clear server_ip so we can detect getting it again
-    server_port = 0;
-    o2_err_t err = o2_hub(server_ip_copy, server_port_copy);
-    assert(err == O2_SUCCESS);
+    
     step(9, "wait for server");
     wait_for_server();
     // see if we discovered what we expected
     step(10, "check that we discovered expected server IP:port");
-    printf("#   -> hub says server is %s:%d\n", server_ip, server_port);
-    assert(streql(server_ip, server_ip_copy));
+    printf("#   -> hub says server is %s:%s:%d\n", server_pip, server_iip,
+           server_port);
+    assert(streql(server_pip, server_pip_copy));
+    assert(streql(server_iip, server_iip_copy));
     assert(server_port == server_port_copy);
     return step_11_to_13(good, actual);
 }
@@ -280,7 +313,8 @@ int main(int argc, const char *argv[])
     if (argc > 2) {
         printf("WARNING: hubclient ignoring extra command line argments\n");
     }
-    server_ip[0] = 0;
+    server_pip[0] = 0;
+    server_iip[0] = 0;
     startup(0, "first time to sync up, discover server");
     wait_for_server();
     start_timer();

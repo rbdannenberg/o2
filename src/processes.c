@@ -85,8 +85,8 @@ when connection is closed:
                 o2_remove_services_by(proc)
                 o2_remove_taps_by(proc)
                     if a services_entry becomes empty either by removing
-                    services or taps (and it will for the ip:port service), 
-                    remove the services_entry
+                    services or taps (and it will for the
+                    public:internal:port service), remove the services_entry
                 frees proc->name
                 frees proc itself
             closes socket
@@ -152,10 +152,9 @@ void o2_proc_info_free(proc_info_ptr proc)
 }
 
 
-const char *o2_node_to_ipport(o2_node_ptr node)
+const char *o2_node_to_proc_name(o2_node_ptr node)
 {
-    return (ISA_PROC(node) ? TO_PROC_INFO(node)->name :
-                             o2_ctx->proc->name);
+    return (ISA_PROC(node) ? TO_PROC_INFO(node)->name : "_o2");
 }
 
 
@@ -256,7 +255,9 @@ o2_err_t o2_net_accepted(o2n_info_ptr info, o2n_info_ptr conn)
     proc->net_info = conn;
     conn->application = (void *) proc;
     proc->name = NULL; // connected process will send their name
-    proc->uses_hub = O2_NO_HUB; // initially default to no
+#ifndef O2_NO_HUB
+    proc->uses_hub = O2_NOT_HUB; // initially default to no
+#endif
     // port and udp_sa are zero'd initially
     return O2_SUCCESS;
 }
@@ -362,22 +363,19 @@ proc_info_ptr o2_create_tcp_proc(int tag, const char *ip, int port)
 // - create UDP recv socket
 // - create TCP server socket
 // assumes o2n_initialize() was called
-o2_err_t o2_processes_initialize()
+void o2_processes_initialize()
 {
-    o2_ctx->proc = o2_create_tcp_proc(PROC_TCP_SERVER, NULL,
-                                      o2_discovery_server->port);
-    if (!o2_ctx->proc) {
-        o2n_finish();
-        return O2_FAIL;
-    }
-    o2_discovery_server->application = o2_ctx->proc;
-    o2n_address_set_port(&o2_ctx->proc->udp_address, o2_discovery_server->port);
-
-    // note that there might not be a network connection here. We can
-    // still use O2 locally without an IP address.
-    o2_ctx->proc->name = o2_heapify(o2n_get_local_process_name(
-                                    o2_ctx->proc->net_info->port));
+    int port = o2_discovery_udp_server->port;
+    assert(o2_ctx->proc);
+    char name[O2_MAX_PROCNAME_LEN];
+    snprintf(name, O2_MAX_PROCNAME_LEN,
+             "%s:%s:%d", o2n_public_ip, o2n_internal_ip, port);
+    o2_ctx->proc->name = o2_heapify(name);
     O2_DBG(printf("%s Local Process Name is %s\n",
                   o2_debug_prefix, o2_ctx->proc->name));
-    return O2_SUCCESS;
+    o2_discovery_udp_server->application = o2_ctx->proc;
+    o2n_address_set_port(&o2_ctx->proc->udp_address,
+                         o2_discovery_udp_server->port);
 }
+
+

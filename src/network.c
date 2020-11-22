@@ -57,10 +57,13 @@ static dyn_array o2n_fds_info; ///< info about sockets
 #define GET_O2N_FDS(i) DA_GET_ADDR(o2n_fds, struct pollfd, i)
 #define GET_O2N_INFO(i) DA_GET(o2n_fds_info, o2n_info_ptr, i)
 
-char o2n_local_ip[24];
-// we have not been able to connect to network
-// and (so far) we only talk to 127.0.0.1 (localhost)
-bool o2n_found_network = false;
+// this can be turned off before calling o2n_initialize():
+bool o2n_network_enabled = true;
+// this will be turned on if we find an internal IP address, but
+// it stays false if o2n_network_enabled is false:
+bool o2n_network_found = false;
+char o2n_public_ip[O2_IP_LEN] = "";
+char o2n_internal_ip[O2_IP_LEN] = "";
 o2n_info_ptr o2n_message_source; 
 
 
@@ -370,7 +373,7 @@ static void set_nodelay_option(SOCKET sock)
 static o2n_info_ptr socket_cleanup(const char *error, o2n_info_ptr info,
                                    SOCKET sock)
 {
-    perror("bind and listen");
+    perror(error);
     o2_closesocket(sock, "socket_cleanup");
     o2n_fds_info.length--;   // restore socket arrays
     o2n_fds.length--;
@@ -435,41 +438,41 @@ o2_err_t o2n_broadcast_socket_new(SOCKET *sock)
 }
 
 
-const char *o2n_get_local_process_name(int port)
+static void get_internal_ip(void)
 {
     struct ifaddrs *ifap, *ifa;
-    static char name[O2_MAX_PROCNAME_LEN];
-    name[0] = 0;   // initially empty
-    o2n_local_ip[0] = 0;
+    if (o2n_internal_ip[0]) {  // already known
+        return;
+    }
+    assert(!o2n_network_found);  // not yet found
+    assert(o2n_network_enabled); // otherwise, we should not be called
     struct sockaddr_in *sa;
     // look for AF_INET interface. If you find one, copy it
     // to name. If you find one that is not 127.0.0.1, then
     // stop looking.
-        
+    
     if (getifaddrs(&ifap)) {
         perror("getting IP address");
-        return name;
+        return;
     }
     for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr->sa_family == AF_INET) {
             sa = (struct sockaddr_in *) ifa->ifa_addr;
-            if (!inet_ntop(AF_INET, &sa->sin_addr, o2n_local_ip,
-                           sizeof o2n_local_ip)) {
+            if (!inet_ntop(AF_INET, &sa->sin_addr, o2n_internal_ip,
+                           sizeof o2n_internal_ip)) {
                 perror("converting local ip to string");
-                break;
-            }
-            snprintf(name, O2_MAX_PROCNAME_LEN,
-                     "%s:%d", o2n_local_ip, port);
-            if (!streql(o2n_local_ip, "127.0.0.1")) {
-                o2n_found_network = true;
+            } else if (!streql(o2n_internal_ip, "127.0.0.1")) {
+                o2n_network_found = true;
                 break;
             }
         }
     }
     freeifaddrs(ifap);
-    return name;
+    // make sure we got an address:
+    if (!o2n_internal_ip[0]) {
+        strcpy(o2n_internal_ip, "127.0.0.1");  // localhost
+    }
 }
-
 
 // initialize this module
 // - create UDP broadcast socket
@@ -485,17 +488,25 @@ o2_err_t o2n_initialize(o2n_recv_callout_type recv,
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 #endif // WIN32
-
-    // Initialize addr for broadcasting
-    o2n_broadcast_to_addr.sin_family = AF_INET;
-    if (inet_pton(AF_INET, "255.255.255.255",
-                  &o2n_broadcast_to_addr.sin_addr.s_addr) != 1) {
-        return O2_FAIL;
+    o2n_network_found = false;
+    if (o2n_network_enabled) {
+        o2n_internal_ip[0] = 0;  // IP addresses are looked up, initially
+        o2n_public_ip[0] = 0;    // they are unknown
+        get_internal_ip();
+        // Initialize addr for broadcasting
+        o2n_broadcast_to_addr.sin_family = AF_INET;
+        if (inet_pton(AF_INET, "255.255.255.255",
+                      &o2n_broadcast_to_addr.sin_addr.s_addr) != 1) {
+            return O2_FAIL;
+        }
+        // create UDP broadcast socket
+        // note: returning an error will result in o2_initialize calling
+        // o2_finish, which calls o2n_finish, so all is properly shut down
+        RETURN_IF_ERROR(o2n_broadcast_socket_new(&o2n_broadcast_sock));
+    } else {
+        strcpy(o2n_public_ip, "0.0.0.0");
+        strcpy(o2n_internal_ip, "127.0.0.1");
     }
-    // create UDP broadcast socket
-    // note: returning an error will result in o2_initialize calling
-    // o2_finish, which calls o2n_finish, so all is properly shut down
-    RETURN_IF_ERROR(o2n_broadcast_socket_new(&o2n_broadcast_sock));
 
     // Initialize addr for local sending
     local_to_addr.sin_family = AF_INET;
@@ -538,6 +549,7 @@ void o2n_finish()
         o2_closesocket(o2n_broadcast_sock, "o2n_finish (o2n_broadcast_sock)");
         o2n_broadcast_sock = INVALID_SOCKET;
     }
+    o2n_network_found = false;
 #ifdef WIN32
     WSACleanup();    
 #endif
@@ -748,15 +760,12 @@ o2_err_t o2n_send(o2n_info_ptr info, bool block)
         }
         // send returns ssize_t, but we will never send a big message, so
         // conversion to int will never overflow
-        printf("o2n_send(): sending msg of length %d: %02x %02x ...\n", n,
-               (uint8_t) from[0], (uint8_t) from[1]);
         err = (int) send(pfd->fd, from, n, flags);
         msg->length = len; // restore byte-swapped len (noop if info->raw_flag)
 
         if (err < 0) {
             O2_DBo(perror("o2n_send sending a message"));
             if (!block && !TERMINATING_SOCKET_ERROR) {
-                printf("setting POLLOUT on %d\n", info->fds_index);
                 pfd->events |= POLLOUT; // request event when it unblocks
                 return O2_BLOCKED;
             } else if (TERMINATING_SOCKET_ERROR) {
@@ -785,7 +794,6 @@ o2_err_t o2n_send(o2n_info_ptr info, bool block)
                 info->out_message = next;
                 // now, while loop will send the next message if any
             } else if (!block) { // next send call would probably block
-                printf("setting POLLOUT on %d\n", info->fds_index);
                 pfd->events |= POLLOUT; // request event when writable
                 return O2_BLOCKED;
             } // else, we're blocking, so loop and send more data
@@ -1005,6 +1013,9 @@ static o2_err_t read_whole_message(SOCKET sock, o2n_info_ptr info)
     assert(info->in_length_got < 5);
     if (info->raw_flag) {
         // allow raw messages up to 512 bytes
+        printf("info->net_tag %d\n", info->net_tag);
+        assert(info->net_tag == NET_TCP_SERVER ||
+               info->net_tag == NET_TCP_CLIENT);
         info->in_message = O2N_MESSAGE_ALLOC(512);
         n = (int) recvfrom(sock, info->in_message->payload, 512, 0, NULL, NULL);
         if (n < 0) {
@@ -1072,7 +1083,6 @@ static o2_err_t read_whole_message(SOCKET sock, o2n_info_ptr info)
 
 static int read_event_handler(SOCKET sock, o2n_info_ptr info)
 {
-    printf("read_event_handler sock %ld\n", (long) sock);
     if (info->net_tag == NET_TCP_CONNECTION ||
         info->net_tag == NET_TCP_CLIENT) {
         int n = read_whole_message(sock, info);
@@ -1088,6 +1098,17 @@ static int read_event_handler(SOCKET sock, o2n_info_ptr info)
             perror("udp_recv_handler");
             return O2_FAIL;
         }
+#ifndef O2_NO_DEBUG
+        // make sure our info is not associated with some other socket --
+        // sometimes, info->in_message is not NULL, but it should be. How
+        // does it get set? Aliasing?
+        for (int j = 0; j < o2n_fds_info.length; j++) {
+            if (j != info->fds_index && o2n_get_info(j) == info) {
+                printf("ALIAS!!!!!! %d %d\n", j, info->fds_index);
+                assert(false);
+            }
+        }
+#endif
         assert(!info->in_message);
         info->in_message = o2n_message_new(len);
         if (!info->in_message) return O2_FAIL;

@@ -587,20 +587,17 @@ static o2_err_t remove_method_from_tree(char *remaining, char *name,
 // o2_string_pad -- copy src to dst, adding zero padding to word boundary
 //
 // dst MUST point to a buffer of size NAME_BUF_LEN or bigger
+// src should be no longer than O2_MAX_NODE_NAME_LEN to avoid truncation
 //
 void o2_string_pad(char *dst, const char *src)
 {
-    size_t len = strlen(src);
+    size_t len = (strlen(src) + 4) & ~3;
     if (len >= NAME_BUF_LEN) {
-        len = NAME_BUF_LEN - 1;
+        len = NAME_BUF_LEN;
     }
-    // first, fill last 32-bit word with zeros so the final word will be
-    // zero-padded; round up len+1 to get the word after the end-of-string
-    // zero byte
-    int32_t *end = (int32_t *)(dst + ROUNDUP_TO_32BIT(len + 1));
-    end[-1] = 0;
-    // now copy the string; this may overwrite some zero-pad bytes:
+    // now copy the string; this also fills in zero pad bytes
     strncpy(dst, src, len);
+    dst[NAME_BUF_LEN - 1] = 0; // finish padding and/or terminate string
 }
 
 void o2_handler_entry_finish(handler_entry_ptr handler)

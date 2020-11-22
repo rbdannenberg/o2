@@ -266,6 +266,8 @@ void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
     // get the arguments: ensemble name, protocol name,
     // if this is "O2lite" protocol, get ip as string,
     //  tcp port, discovery port.
+    
+    
     if (!streql(argv[0]->s, o2_ensemble_name)) {
         O2_DBd(printf("    Ignored: ensemble name %s is not %s\n", 
                       argv[0]->s, o2_ensemble_name));

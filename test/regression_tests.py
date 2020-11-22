@@ -86,7 +86,6 @@ class RunInBackground(threading.Thread):
 #    else status=-1 (indicating failure).
 def runTest(command, stall=False, quit_on_port_loss=False):
     global allOK
-    if stall: dostall()
     print(command.rjust(30) + ": ", end='', flush=True)
     args = shlex.split(command)
     args[0] = BIN + '/' + args[0] + EXE
@@ -101,6 +100,7 @@ def runTest(command, stall=False, quit_on_port_loss=False):
         timer.cancel()
     stdout = stdout.decode("utf-8").replace('\r\n', '\n')
     stderr = stderr.decode("utf-8").replace('\r\n', '\n')
+    if stall: dostall()
     portsOK, countmsg = checkports(False, False)
     if findLineInString("DONE", stdout):
         print("PASS", countmsg)
@@ -125,14 +125,13 @@ def runTest(command, stall=False, quit_on_port_loss=False):
 
 
 def dostall():
-    print("stall to recover ports".rjust(30) + ":", end='', flush=True)
+    print("stalling...", end="", flush=True)
     time.sleep(STALL_SEC)
-    print(" DONE")
+    print("\b\b\b\b\b\b\b\b\b\b\b", end="")
 
 
 def runDouble(prog1, out1, prog2, out2, stall=False):
     global allOK
-    if stall: dostall()
     print((prog1 + '+' + prog2).rjust(30) + ": ", end='', flush=True)
     p1 = RunInBackground(prog1)
     p1.start()
@@ -140,13 +139,16 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
     p2.start()
     p1.join()
     p2.join()
+    if stall: dostall()
     portsOK, countmsg = checkports(False, False)
     if findLineInString(out1, p1.output):
         if findLineInString(out2, p2.output):
             print("PASS", countmsg)
-            if not IS_OSX and not portsOK:
+            if (not IS_OSX) and (not portsOK):
                 allOK = False # halt the testing
-    elif print_all_output:
+        else:
+            allOK = False
+    else:
         allOK = False
     if (not portsOK) or (not allOK):
         print("FAIL")
@@ -260,7 +262,9 @@ def runAllTests():
 
 
 runAllTests()
+print("stall to recover ports".rjust(30) + ":", end='', flush=True)
 dostall()
+print()
 ports_ok, countmsg = checkports(False, False)
 if not ports_ok:
     print("ERROR: A port was not freed by some process. " + countmsg + "\n")

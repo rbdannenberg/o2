@@ -18,10 +18,12 @@ for design details */
 #include "msgsend.h"
 
 dyn_array o2_mqtt_procs;
-// xxx.xxx.xxx.xxx:yyy.yyy.yyy.yyy:ppppp
-char o2_full_name[40] = "";
 o2n_address mqtt_address;
-char mqtt_broker_ip[24] = ""; // standard "dot" format IP address for broker
+// standard "dot" format IP address for broker:
+char mqtt_broker_ip[O2_IP_LEN] = "";
+// records that mqtt_enable() was called and should be initialized asap.
+bool o2_mqtt_waiting_for_public_ip = false;
+
 
 o2_err_t o2_mqtt_enable(const char *broker, int port_num)
 {
@@ -47,17 +49,21 @@ o2_err_t o2_mqtt_enable(const char *broker, int port_num)
     }
     printf("o2_mqtt_enable %s with IP %s\n", broker, mqtt_broker_ip);
     DA_INIT(o2_mqtt_procs, proc_info_ptr, 0);
-    // when we get it, o2_mqtt_initialize will be called
-    return o2_get_public_ip();
+    return o2_mqtt_initialize();
 }
 
 
-void o2_mqtt_initialize(const char *public_ip)
+o2_err_t o2_mqtt_initialize()
 {
+    if (!o2n_network_enabled) {
+        return O2_NO_NETWORK;
+    }
+    if (!o2n_public_ip[0]) {
+        o2_mqtt_waiting_for_public_ip = true;
+        return O2_SUCCESS;
+    }
     // make MQTT broker connection
     o2m_initialize(mqtt_broker_ip, o2n_address_get_port(&mqtt_address));
-    snprintf(o2_full_name, 40, "%s:%s", (const char *) public_ip,
-             o2_ctx->proc->name);
     // subscribe to O2-<ensemblename>/disc
     char topic[O2_MAX_NAME_LEN + 16];
     topic[0] = 'O'; topic[1] = '2'; topic[2] = '-';
@@ -65,12 +71,14 @@ void o2_mqtt_initialize(const char *public_ip)
     strcpy(topic + 3, o2_ensemble_name);
     strcat(topic + 3, "/disc");
     o2m_subscribe(topic);  // topic is O2-<ensemblename>/disc
-    // send o2_full_name to O2-<ensemblename>/disc, retain is off.
-    o2_mqtt_publish(topic, (const uint8_t *) o2_full_name,
-                    strlen(o2_full_name), 0);
+    // send name to O2-<ensemblename>/disc, retain is off.
+    assert(o2_ctx->proc->name);
+    o2_mqtt_publish(topic, (const uint8_t *) o2_ctx->proc->name,
+                    strlen(o2_ctx->proc->name), 0);
     // subscribe to O2-<public ip>:<local ip>:<port>
-    strcpy(topic + 3, o2_full_name);
+    strcpy(topic + 3, o2_ctx->proc->name);
     o2m_subscribe(topic);  // topic is O2-<public ip>:<local ip>:<port>
+    return O2_SUCCESS;
 }
 
 
@@ -118,6 +126,30 @@ static char *find_colon(char *s, const char *end)
 }
 
 
+void create_mqtt_connection(const char *name)
+{
+    proc_info_ptr mqtt = O2_CALLOCT(proc_info);
+    mqtt->tag = MQTT_NOCLOCK;
+    mqtt->name = o2_heapify(name);
+    o2_service_provider_new(mqtt->name, NULL,
+                            (o2_node_ptr) mqtt, mqtt);
+    // add this process name to the list of mqtt processes
+    DA_APPEND(o2_mqtt_procs, proc_info_ptr, mqtt);
+}
+
+
+void send_callback_via_mqtt(const char *name)
+{
+    o2_message_ptr msg = o2_make_dy_msg(o2_ctx->proc, true,
+                                        O2_DY_CALLBACK);
+    char topic[O2_MAX_NAME_LEN + 16];
+    topic[0] = 'O'; topic[1] = '2'; topic[2] = '-';
+    strcpy(topic + 3, name);
+    o2_mqtt_publish(topic, (const uint8_t *) O2_MSG_PAYLOAD(msg),
+                    msg->data.length, 0);
+}
+
+
 // handler for mqtt discovery message
 // payload should be of the form xxx.xxx.xxx.xxx:yyy.yyy.yyy.yyy:ddddd
 // payload may be altered and restored by this function, hence not const
@@ -127,13 +159,13 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
     // need 3 strings: public IP, intern IP, port
     char *end = payload + payload_len;
     const char *public_ip = payload;
-    char *intern_ip = NULL;
+    char *internal_ip = NULL;
     char *port_num = NULL;
     char *colon_ptr = find_colon(payload, end);
     if (colon_ptr) {
         *colon_ptr = 0;
-        intern_ip = colon_ptr + 1;
-        colon_ptr = find_colon(intern_ip, end);
+        internal_ip = colon_ptr + 1;
+        colon_ptr = find_colon(internal_ip, end);
         if (colon_ptr) {
             *colon_ptr = 0;
             port_num = colon_ptr + 1;
@@ -150,33 +182,48 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
     int port_string_len = end - port_num;
     memcpy(port_string, port_num, port_string_len);
     port_string[port_string_len] = 0;
+    int port = atoi(port_string);
     
-    // create full name for the remote process with zero padding for lookup
+    // we need the name for the remote process with zero padding for lookup
     char name[O2_MAX_PROCNAME_LEN];
-    snprintf(name, O2_MAX_PROCNAME_LEN, "%s:%s%c%c%c%c",
-             intern_ip, port_string, 0, 0, 0, 0);
+    snprintf(name, O2_MAX_PROCNAME_LEN, "%s:%s:%s%c%c%c%c",
+             public_ip, internal_ip, port_string, 0, 0, 0, 0);
+    assert(o2_ctx->proc->name);
 
-    // we can connect directly if remote is not behind NAT
-    // (public_ip == intern_ip) OR if remote and local share public IP
-    // (public_ip == o2_public_ip). Either way, remote ID is intern_ip
-    if (streql(public_ip, intern_ip) || streql(public_ip, o2_public_ip)) {
-        // use local area network, and maybe we are already connected:
-        o2_node_ptr *entry_ptr = o2_lookup(&o2_ctx->path_tree, name);
-        // otherwise send a discovery message to speed up discovery
-        if (!*entry_ptr) { // process is already discovered
-            o2_discovered_a_remote_process(intern_ip, atoi(port_string),
-                                           O2_DY_INFO);
+    // CASE 1 (See doc/mqtt.txt): remote is not behind NAT
+    // (public_ip == internal_ip) OR if remote and local share public IP
+    // (public_ip == o2n_public_ip). Either way, remote ID is internal_ip
+    if (streql(public_ip, internal_ip)) {
+        // CASE 1A: we are the client
+        if (strcmp(o2_ctx->proc->name, name) < 0) {
+            o2_discovered_a_remote_process(public_ip, internal_ip,
+                                           port, O2_DY_INFO);
+        } else {  // CASE 1B: we are the server
+            // CASE 1B1: we can receive a connection request
+            if (streql(o2n_public_ip, o2n_internal_ip)) {
+                o2_discovered_a_remote_process(public_ip, internal_ip,
+                                               port, O2_DY_INFO);
+            } else {  // CASE 1B2: must create an MQTT connection
+                create_mqtt_connection(name);
+            }
         }
-    } else { // set up an MQTT_NOCLOCK proc_info for the process
-        proc_info_ptr mqtt = O2_CALLOCT(proc_info);
-        mqtt->tag = MQTT_NOCLOCK;
-        mqtt->name = o2_heapify(name);
-        o2_service_provider_new(mqtt->name, NULL, (o2_node_ptr) mqtt, mqtt);
-        // add this process name to the list of mqtt processes
-        DA_APPEND(o2_mqtt_procs, proc_info_ptr, mqtt);
+        
+    } else { // CASE 2: process is behind NAT
+        // CASE 2A: we are the client
+        if (strcmp(o2_ctx->proc->name, name) < 0) {
+            o2_discovered_a_remote_process(public_ip, internal_ip,
+                                           port, O2_DY_INFO);
+        } else {  // CASE 2B: we are the server
+            if (streql(o2n_public_ip, o2n_internal_ip)) {
+                // CASE 2B2: send O2_DY_CALLBACK via MQTT
+                send_callback_via_mqtt(name);
+            } else { // CASE 2B2: we are behind NAT
+                create_mqtt_connection(name);
+            }
+        }
     }
     // reconstruct payload just to be non-destructive:
-    if (intern_ip) intern_ip[-1] = ':';
+    if (internal_ip) internal_ip[-1] = ':';
     if (port_num) port_num[-1] = ':';
 }
 
@@ -189,7 +236,7 @@ void o2m_deliver_mqtt_msg(const char *topic, int topic_len,
 {
     // see if topic matches public:intern:port string
     if (strncmp("O2-", topic, 3) == 0) {
-        if (strncmp(o2_full_name, topic + 3, topic_len - 3) == 0) {
+        if (strncmp(o2_ctx->proc->name, topic + 3, topic_len - 3) == 0) {
             // match, so send the message.
             o2_message_ptr msg = o2_message_new(payload_len);
             memcpy(O2_MSG_PAYLOAD(msg), payload, payload_len);

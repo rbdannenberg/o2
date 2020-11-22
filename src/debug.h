@@ -42,6 +42,8 @@ extern const char *o2_debug_prefix;
 void o2_dbg_msg(const char *src, o2_message_ptr msg, o2_msg_data_ptr data,
                 const char *extra_label, const char *extra_data);
 
+// Note: The ordering of these flags is coordinated with debug_chars, 
+// defined in debug.c. See o2_debug_flags() implementation there too.
 #define O2_DBc_FLAG 1
 #define O2_DBr_FLAG 2
 #define O2_DBs_FLAG 4

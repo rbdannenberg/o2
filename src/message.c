@@ -1390,9 +1390,8 @@ o2_arg_ptr o2_get_next(o2_type to_type)
 o2_err_t o2_message_deliver(o2n_info_ptr info)
 {
     o2_message_ptr msg = (o2_message_ptr) (info->in_message);
-    if (!info->application) { // no deliverer (not sure this is possible,
-        // but there could be a race condition between shutting down a
-        // service and deleting the socket
+    if (!info->application) { // no deliverer (maybe somehow a message
+        // was sent before a local process was ready to receive it)
         O2_FREE(msg);
         return O2_FAIL;
     }

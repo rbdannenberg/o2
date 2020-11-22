@@ -46,26 +46,53 @@ there a race condition? Assume messages from one client are handled
 serially. If we assume the subcriptions are committed before the
 subsequent publish is allowed to take place, there is no race.
 
-If the incoming message has the same public IP and local IP, then
-assume the process is not behind NAT (it's possible that the LAN
+CASE 1: the incoming message has the same public IP and local IP.
+Assume the process is not behind NAT (it's possible that the LAN
 behind NAT uses the same IP address as the public address, but it
-seems very unlikely and non-standard). You can connect directly, so
-send it a discovery message and let the discovery protocol make the
-connection. The remote process will become a PROC_NOCLOCK and then a
-PROC_SYNCED. 
+seems very unlikely and non-standard). 
 
-If the incoming message has a different public IP and local IP and the  
-remote process public IP is different from the local process public  
-IP, then assume the remote process is behind NAT and can only be
-accessed via MQTT. Create an MQTT_NOCLOCK connection that will become
-an MQTT_SYNCED connection. The /publicip:localip:port service name
-will map to the MQTT node.  All messages will be sent via MQTT to the
-topic corresponding to the remote process IP addresses.
+    CASE 1A: You have a lower IP than they do, so you are the client.
+    You can connect directly, send a discovery message as if you just
+    received an O2_DY_INFO and you are the client.  Let the discovery 
+    protocol make the connection. The remote process will become a 
+    PROC_NOCLOCK and then a PROC_SYNCED.
 
-If the incoming message has a different public IP and local IP and the 
-remote process public IP matches the local process public IP, then the
-processes are on the same LAN. Use the remote process local IP to send
-a discovery message and make a PROC_NOCLOCK connection.
+    CASE 1B: You have a higher IP than they do, so you are the server. 
+         CASE 1B1: Your public and local IP are the same, so you can 
+         receive a connection request. Send a discovery message with 
+         O2_DY_CALLBACK to the remote proc.  Let the discovery 
+         protocol make the connection. The remote process will 
+         become a PROC_NOCLOCK and then a PROC_SYNCED. 
+
+         CASE 1B2: Your public and local IP are different, so you are 
+         the server, but the remote process cannot make a connection 
+         because you are behind NAT and can only be accessed via MQTT. 
+         Create an MQTT_NOCLOCK connection that will become an 
+         MQTT_SYNCED connection. The /publicip:localip:port service 
+         name will map to the MQTT node.  All messages will be sent 
+         via MQTT to the topic corresponding to the remote process 
+         IP addresses. 
+
+Whatever the remote process, services are sent to !_o2/sv there.
+
+CASE 2: the incoming message has different public IP and local IP.
+Assume the process is behind NAT.
+
+    CASE 2A: You have a lower IP than they do, so you are the client.
+    You can only reach via MQTT, so create an MQTT_NOCLOCK connection
+    as in CASE 1B2.
+
+    CASE 2B: You have a higher IP than they do, so you are the server. 
+         CASE 2B1: Your public and local IP are the same, so you can 
+         receive a connection request. Send a discovery message via
+         MQTT with O2_DY_CALLBACK to the remote proc.  Let the discovery 
+         protocol make the connection. The remote process will 
+         become a PROC_NOCLOCK and then a PROC_SYNCED. 
+
+         CASE 2B2: Your public and local IP are different, so you are 
+         the server, but the remote process cannot make a connection 
+         because you are behind NAT and can only be accessed via MQTT. 
+         Create an MQTT_NOCLOCK connection as in CASE 1B2.
 
 For clock sync, we send a return address. Now, a return address will
 become dependent on the connection. A return service for a message to

@@ -14,28 +14,24 @@
 const char *o2_debug_prefix = "O2:";
 int o2_debug = 0;
 
+static const char *debug_chars = "crsRSkdhtTlmoOqg";
+
 void o2_debug_flags(const char *flags)
 {
     o2_debug = 0;
-    if (strchr(flags, 'c')) o2_debug |= O2_DBc_FLAG;
-    if (strchr(flags, 'r')) o2_debug |= O2_DBr_FLAG;
-    if (strchr(flags, 's')) o2_debug |= O2_DBs_FLAG;
-    if (strchr(flags, 'R')) o2_debug |= O2_DBR_FLAG;
-    if (strchr(flags, 'S')) o2_debug |= O2_DBS_FLAG;
-    if (strchr(flags, 'k')) o2_debug |= O2_DBk_FLAG;
-    if (strchr(flags, 'd')) o2_debug |= O2_DBd_FLAG;
-    if (strchr(flags, 'h')) o2_debug |= O2_DBh_FLAG;
-    if (strchr(flags, 't')) o2_debug |= O2_DBt_FLAG;
-    if (strchr(flags, 'T')) o2_debug |= O2_DBT_FLAG;
-    if (strchr(flags, 'l')) o2_debug |= O2_DBl_FLAG;
-    if (strchr(flags, 'm')) o2_debug |= O2_DBm_FLAG;
+    int flag = 1;
+    const char *dcptr = debug_chars;
+    while (*dcptr) {
+        if (strchr(flags, *dcptr)) {
+            o2_debug |= flag;
+        }
+        flag <<= 1;
+        dcptr++;
+    }
     if (strchr(flags, 'n')) o2_debug |= O2_DBn_FLAGS;
-    if (strchr(flags, 'o')) o2_debug |= O2_DBo_FLAG;
-    if (strchr(flags, 'O')) o2_debug |= O2_DBO_FLAG;
-    if (strchr(flags, 'q')) o2_debug |= O2_DBq_FLAG;
-    if (strchr(flags, 'g')) o2_debug |= O2_DBg_FLAG;
     if (strchr(flags, 'a')) o2_debug |= O2_DBa_FLAGS;
     if (strchr(flags, 'A')) o2_debug |= O2_DBA_FLAGS;
+    if (strchr(flags, 'N')) o2n_network_enabled = false;
 }
 
 void o2_dbg_msg(const char *src, o2_message_ptr msg, o2_msg_data_ptr data,

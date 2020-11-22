@@ -23,23 +23,27 @@ o2_message_ptr make_message()
 
 int main(int argc, const char * argv[])
 {
-    const char *ip = NULL;
+    const char *pip = NULL;
+    const char *iip = NULL;
     int port = 0;
-    printf("Usage: statusserver [debugflags] [ip port] "
-           "(see o2.h for flags, use a for all)\n"
-           "    last args, if set, specify a hub to use; if only ip is given,\n"
-           "    o2_hub(NULL, 0) is called to turn off broadcasting\n");
+    printf("Usage: statusserver [debugflags] [pip iip port] "
+           "    See o2.h for debugflags, use a for all.\n"
+           "    last args, if set, specify a hub to use as public ip,\n"
+           "    internal ip and port number. If only a pip argument\n"
+           "    appears (anything), o2_hub(NULL, NULL, 1) is called to\n"
+           "    turn off broadcasting\n");
     if (argc >= 2) {
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);
     }
     if (argc == 3) {
         port = 1;
-    } else if (argc == 4) {
-        ip = argv[2];
-        port = atoi(argv[3]);
-        printf("Using %s:%d as hub.\n", ip, port);
-    } else if (argc > 4) {
+    } else if (argc == 5) {
+        pip = argv[2];
+        iip = argv[3];
+        port = atoi(argv[4]);
+        printf("Using %s:%s:%d as hub.\n", pip, iip, port);
+    } else if (argc > 5) {
         printf("WARNING: statusserver ignoring extra command line argments\n");
     }
     if (o2_initialize("test")) {
@@ -51,12 +55,14 @@ int main(int argc, const char * argv[])
     o2_clock_set(NULL, NULL);
     
     if (port > 0)
-        o2_hub(ip, port);
+        o2_hub(pip, iip, port);
 
-    const char *address;
+    const char *my_pip;
+    const char *my_iip;
     int tcp_port;
-    o2_get_address(&address, &tcp_port);
-    printf("My address is %s:%d\n", address, tcp_port);
+    o2_err_t err = o2_get_addresses(&my_pip, &my_iip, &tcp_port);
+    assert(err == O2_SUCCESS);
+    printf("My address is %s:%s:%d\n", my_pip, my_iip, tcp_port);
 
     // wait for client service to be discovered
     while (o2_status("client") < O2_REMOTE_NOTIME) {

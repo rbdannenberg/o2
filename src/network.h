@@ -115,9 +115,11 @@ typedef struct o2n_address {
 int o2n_address_get_port(o2n_address_ptr address);
 void o2n_address_set_port(o2n_address_ptr address, int port);
 
-extern char o2n_local_ip[24];
-extern bool o2n_found_network; // true if we have an IP address, which implies a
-// network connection; if false, we only talk to 127.0.0.1 (localhost)
+extern bool o2n_network_enabled;  // network connections are permitted
+extern bool o2n_network_found;    // local area network exists
+// if !o2n_network_found, o2n_internal_ip will be "127.0.0.1" (localhost)
+extern char o2n_public_ip[O2_IP_LEN];
+extern char o2n_internal_ip[O2_IP_LEN];
 
 typedef o2_err_t (*o2n_recv_callout_type)(o2n_info_ptr info);
 typedef o2_err_t (*o2n_accept_callout_type)(o2n_info_ptr info,
@@ -135,9 +137,6 @@ o2_err_t o2n_initialize(o2n_recv_callout_type recv,
 o2n_message_ptr o2n_message_new(int size);
 
     
-const char *o2n_get_local_process_name(int port);
-
-
 o2_err_t o2n_address_init(o2n_address_ptr remote_addr_ptr, const char *ip,
                           int port_num, bool tcp_flag);
 

@@ -62,7 +62,7 @@ that allow an O2 process to serve as a bridge to other networks such
 as Bluetooth.
 
 O2 addresses begin with the service name. Thus, a complete O2 address
-would be written simply as "/synth/filter/cutoff," where "synth" is
+would be written simply as "/synth/filterFtoff," where "synth" is
 the service name.
 
 Furthermore, O2 implements a clock synchronization protocol. A single
@@ -117,7 +117,7 @@ Some major components and concepts of O2 are the following:
   and all O2 messages are delivered sequentially from the single thread
   that calls #o2_poll. Service names begin with a letter with the
   exception of "_o2" which denotes the local process, "_cs", which denotes
-  the reference clock, and `ip:port` strings, beginning with a digit, that
+  the reference clock, and `public:internal:port` strings, beginning with a digit, that
   denote a remote process.
 
 - **Message** - an O2 message, similar to an OSC message, contains an 
@@ -162,14 +162,14 @@ O2 uses O2 messages for some internal functions and also to communicate
 status information with O2 processes. Since messages are dropped if there
 is no handler, O2 processes need not set up handlers for all information.
 
-In the following descriptions, if the *service name* is `ip:port` it means
+In the following descriptions, if the *service name* is `public:internal:port` it means
 the IP address and port number are used to construct a string, e.g. 
-"192.200.145.8:40521" might be the actual service name.
+"72.100.0.50:192.200.145.8:40521" might be the actual service name.
 
 
 \subsection Internal Messages
 
-`/_o2/dy "ssii"` *ensemble_name* *local_ip* *tcp_port* *dy* -
+`/_o2/dy "ssii"` *ensemble_name* *internal_ip* *tcp_port* *dy* -
 this message is normally sent to the discovery port, but it can also be sent
 as a result of calling #o2_hub and providing an O2 process address.
 Processes must exchange discovery messages to be connected. The *dy* 
@@ -205,10 +205,10 @@ the first message sent when a process-to-process connection is made.
 `/_o2/cs/rt "s"` *reply-to* - A process can send this message to
 request round trip (to the clock reference) information; *reply-to*
 is the full address of the reply. The reply message has the type
-string "sff" and the parameters are the process name (ip:port),
+string "sff" and the parameters are the process name (public:internal:port),
 the mean round-trip time, and the minimum round-trip time.
 
-`/_o2/ps ""` - this message invokes the sending of the `/_cs/get` message
+`/_o2/cs/ps ""` - this message invokes the sending of the `/_cs/get` message
 to request the time as part of the clock synchronization protocol.
 
 `/_o2/si "siss"` *service_name* *status* *process-name* *properties* -
@@ -227,12 +227,13 @@ another provider offers the service.
     The service `_o2` is created before you can install a handler for 
 `/_o2/si`, so you will not receive an `si` messages when `_o2` is created.
      If the service name begins with a digit, it represents a remote 
-process and the name has the form IP:PORT, e.g. `128.237.161.165:50404`.
-There is also an `IP:PORT` service representing the local process, but 
-the local process is also represented by `_o2`, so the local `IP:PORT` 
+process and the name has the form public:internal:port, e.g.
+`74.109.251.118:128.237.161.165:50404`.
+There is also a `public:internal:port` service representing the local process, but
+the local process is also represented by `_o2`, so the local `public:internal:port`
 service is never reported in an `/_o2/si` message. Instead, the string 
 `"_o2"` indicates that *process* is the local one. You can get the local 
-`IP:PORT` string by calling #o2_get_address or #o2_get_ip_port_string.
+`public:internal:port` string by calling #o2_get_addresses or #o2_get_proc_name.
     The *properties* string contains the service properties in the form 
 "attr1:value1;attr2:value2;" with no leading ";". If there are no 
 properties, the string is empty. Values are escaped: within a value, the
@@ -276,6 +277,10 @@ characters. Attribute names are alphanumeric.
 ///   - n - all network flags (no malloc or scheduling): rRsS
 ///   - a - all debug flags except m (malloc/free)
 ///   - A - all debug flags except malloc and scheduling
+///   - N - disable network if flags are set before o2_initialize() is
+///         called. Internal IP becomes 127.0.0.1, public IP is 
+///         0.0.0.0 (signifying no Internet connection). Interprocess
+///         communication on the host is supported.
 #ifndef O2_NO_DEBUG
 void o2_debug_flags(const char *flags);
 #endif
@@ -358,8 +363,11 @@ typedef enum {
     O2_BLOCKED = -18,
     
     /// Unable to allocate a discovery port
-    O2_NO_PORT = -19
-    
+    O2_NO_PORT = -19,
+
+    /// Networking is disabled or Internet not found (no public IP address found)
+    O2_NO_NETWORK = -20
+
 } o2_err_t;
 
 
@@ -475,9 +483,12 @@ typedef enum {
 /** \defgroup basics Basics
  * @{
  */
+
+// room for IP address and terminating EOS
+#define O2_IP_LEN 16
 // room for longest string/address of the form:
 //   /_o2/publicIP:localIP:port + padding_to_int32_boundary
-#define O2_MAX_PROCNAME_LEN 48
+#define O2_MAX_PROCNAME_LEN ((O2_IP_LEN * 2) + 16)
 
 // limit on ensemble name length
 #define O2_MAX_NAME_LEN 63
@@ -551,6 +562,36 @@ void o2_mem_check(void *ptr);
 #else
 #define o2_mem_check(ptr) 0 // make #o2_mem_check a noop
 #endif
+
+/** \brief disable external nework connections.
+ *
+ * Set the default to enable or disable network connections to other
+ * hosts.  This setting can only be changed before O2 is started with
+ * #o2_initialize() or between calls to #o2_finish() and
+ * #o2_initialize.  When #o2_initialize() is called and network
+ * connections are enabled, O2 will try to obtain a local (internal)
+ * IP address. If found, O2 will then try to obtain a public IP
+ * address. At the conclusion of this 2-stage initialization, the
+ * process will receive an O2 name of the form
+ * public:internal:port. If a public IP address is not found in 10
+ * seconds, the public port is 0.0.0.0, which indicates no Internet
+ * connection. If no local IP address is found, or if the only known
+ * address is 127.0.0.1 (localhost), then the local IP address becomes
+ * 127.0.0.1 with the public IP address 0.0.0.0. If the default for
+ * network connections is set to false with #o2_network_enable,
+ * initialization immediately sets the lcoal IP to 127.0.0.1 and the
+ * public IP to 0.0.0.0. In any case, if the local IP is 127.0.0.1,
+ * then discovery messages are only sent to localhost, and no
+ * discovery messages are broadcast. Even then, O2 can still open
+ * connections for OSC. OSC connections depend only on network
+ * connectivity and ignore the #o2_network_enable setting.
+ *
+ * @param enable Use true to enable or false to disable networking.
+ *
+ * @return O2_SUCCESS if setting is accepted, otherwise O2 is already 
+ * running and O2_ALREADY_RUNNING is returned.
+ */
+o2_err_t o2_network_enable(bool enable);
 
 /** \brief O2 timestamps are doubles representing seconds since the
  * approximate start time of the ensemble.
@@ -912,23 +953,30 @@ o2_time o2_set_discovery_period(o2_time period);
  * and future O2 processes that are discovered, either through the 
  * normal discovery protocol or by connecting with the #o2_hub call.
  *
+ * #o2_hub only works if there is an Internet connection, so connecting
+ * through MQTT is likely to be a better solution.
+ *
  * After #o2_hub is called, discovery broadcasting is stopped, so if
  * #o2_hub fails to connect to another process, you will only discover
  * more processes if they initiate the exchange. You can use #o2_hub
  * specifically to disable broadcast-based discovery by passing NULL
- * as the ipaddress parameter. 
+ * as the public_ip parameter.
  *
- * You can call #o2_hub multiple times. Each time potentially makes
+ * You can call #o2_hub multiple times, but the call may simply
+ * return #O2_FAIL if #o2_hub is called more than once before a public
+ * IP address is obtained. Each call potentially makes
  * a remote process become a hub for this local process. This might
  * result in duplicate messages when new processes join the O2 
  * ensemble, but duplicate messages are ignored.
  * 
- * @param ipaddress the IP address of the hub or NULL
+ * @param public_ip the public IP address of the hub or NULL
+ * @param internal_ip the local IP address of the hub
  * @param port the port number of the hub's TCP port
  *
- * @return #O2_SUCCESS if success, #O2_FAIL if not.
+ * @return #O2_SUCCESS if success, #O2_FAIL if not,
+ *         #O2_NOT_INITIALIZED if O2 is not initialized.
  */
-int o2_hub(const char *ipaddress, int port);
+int o2_hub(const char *public_ip, const char *internal_ip, int port);
 
 
 /**
@@ -942,9 +990,26 @@ int o2_hub(const char *ipaddress, int port);
  * are on the local network, then you do not need this function or
  * #o2_hub. Instead, let the discovery protocol exchange process
  * addresses automatically.)
+ *
+ * Because O2 must query a STUN server to obtain the public IP
+ * address, this function will return O2_FAIL for some time after
+ * `o2_initialize` is called. Typically, the public IP address will be
+ * available in less than 1 second, but the STUN calls will continue
+ * for 10 seconds before O2 gives up and concludes that the
+ * Internet is unreachable, in which case the public_ip is set to
+ * 0.0.0.0 and this call returns O2_SUCCESS.
+ *
+ * If there is no network at all, the internal ip is 127.0.0.1 (localhost)
+ * and O2 will still operate, connecting to other O2 processes on the
+ * same host.
  * 
- * @param ipaddress is a pointer that will be set to either NULL 
+ * @param public_ip is a pointer that will be set to either NULL
  * (on failure) or a string of the form "128.2.10.6". The string
+ * should not be modified, and the string will be freed by O2 if
+ * #o2_finish is called.
+ *
+ * @param internal_ip is a pointer that will be set to either NULL
+ * (on failure) or a string of the form "196.0.1.6". The string
  * should not be modified, and the string will be freed by O2 if
  * #o2_finish is called.
  *
@@ -953,24 +1018,42 @@ int o2_hub(const char *ipaddress, int port);
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-o2_err_t o2_get_address(const char **ipaddress, int *port);
+o2_err_t o2_get_addresses(const char **public_ip, const char **internal_ip,
+                        int *port);
 
 /**
- * \brief Get IP:Port service name string.
+ * \brief Get Public:Local:Port service name string.
  *
- * An O2 process is identified by its IP address and Port number.
+ * An O2 process is identified by its IP addresses and Port number.
  * An O2 process is a special service name that is automatically
- * created when O2 is initialized. For example, "192.168.1.166:55630".
+ * created when O2 is initialized. For example,
+ * "74.100.0.50:192.168.1.166:55630".
  * By convention, you should always use "_o2" instead. This is an
- * alias for the local process. The full address:ip string for a
+ * alias for the local process. The full public:local:port string for a
  * process is used, for example, in status messages ("/_o2/si") to
  * identify a remote process that is providing the service.
  *
- * @return pointer to the IP:Port string. The result will be NULL if
+ * @return pointer to the Public:Local:Port string. The result will be NULL if
  *         O2 is unable to obtain the host's IP address or unable to
  *         obtain a TCP server port.
  */
-const char *o2_get_ip_port_string(void);
+const char *o2_get_proc_name(void);
+
+/**
+ * \brief Parse Public:Local:Port string and extract fields
+ *
+ * @param name the full PublicIP:LocalIP:PortNumber string
+ *
+ * @param public_ip address where public_ip is written, at least O2_IP_LEN long
+ *
+ * @param internal_ip address where internal_ip is written, at least O2_IP_LEN long
+ *
+ * @param port address where the port number is written
+ *
+ *  @return O2_SUCCESS if all parameters were written, otherwise O2_FAIL
+ */
+int o2_parse_name(const char *name, char *public_ip,
+                  char *internal_ip, int *port);
     
 /**
  *  \brief Add a service to the current process.
@@ -1489,7 +1572,7 @@ int o2_run(int rate);
  *
  * When the status of a service changes, a message is sent with address
  * `!_o2/si`. The type string is "sis" and the parameters are (1) the 
- * service name, (2) the new status, and (3) the ip:port string of
+ * service name, (2) the new status, and (3) the public:internal:port string of
  * the process that offers (or offered) the service.
  */
 int o2_status(const char *service);
@@ -1575,18 +1658,18 @@ extern bool o2_clock_is_synchronized;
  *   O2_FAIL is returned and `*mean` and `*min` are unaltered.
  *
  * Note: You can get this information from a remote process by 
- * sending a message to `!ip:port/cs/rt`, where `ip:port` is the
- * ip:port string for a process. (One way to get this is to call
- * `o2_get_address` and construct a ip:port process name from 
+ * sending a message to `!public:internal:port/cs/rt`, where `public:internal:port` is the
+ * public:internal:port string for a process. (One way to get this is to call
+ * `o2_get_addresses` and construct a public:internal:port process name from 
  * the information returned. But then you can just call 
  * `o2_roundtrip` for the local process round trip information.
  * To get remote process names, you can create a handler for 
  * `/_o2/si`. The process name is provided whenever one of its
  * services is created or otherwise changes status.) The 
- * type string for `!ip:port/cs/rt` is "s", and the parameter is
+ * type string for `!public:internal:port/cs/rt` is "s", and the parameter is
  * an O2 address. When the message is received, a reply is
  * sent to the address with the type string "sff",
- * and the parameters are (1) the process ip:port name, (2) the
+ * and the parameters are (1) the process public:internal:port name, (2) the
  * mean of recent round trip times to the reference clock, and
  * (3) the minimum of recent round trip times. (The clock is set
  * using the minimum, so this number is an upper bound on the
@@ -2610,7 +2693,25 @@ o2_err_t o2_bridge_remove(const char *protocol_name);
  * @{
  */
 
-o2_err_t o2_mqtt_enable(const char *broker, int port_num);
+/**
+ * \brief Enable MQTT to form wide-area-network connections between O2 processes
+ *
+ * Note that #o2_mqtt_enable can be called before #o2_initialize or while O2
+ * initialization is waiting for a public IP port. In that case, O2_SUCCESS is
+ * called, but if O2 fails to obtain a public IP port (within about 10 seconds),
+ * an MQTT connection will not be established. This decision can be detected by
+ *  calling #o2_get_addresses (it will set the #public_ip parameter to "0.0.0.0" 
+ * if there is no public IP).
+ *
+ * @param broker An IP address or name for an MQTT broker, or NULL for default.
+ *
+ * @param port_num A port number for the MQTT borker, or 0 for default.
+ *
+ * @return O2_SUCCESS if successful, O2_NOT_INITIALIZED if O2 is not initialized,
+ *         or O2_NO_NETWORK if networking is disabled (see #o2_network_enable) or
+ *         no Internet connection was found.
+ */
+ o2_err_t o2_mqtt_enable(const char *broker, int port_num);
 
 /** @} */ // end of a mqttapi group
 #endif

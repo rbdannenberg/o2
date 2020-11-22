@@ -13,11 +13,12 @@
                               ((stun_client_ptr) (node)))
 #endif 
 
-extern char o2_public_ip[O2_MAX_PROCNAME_LEN];
-
 typedef struct stun_client_info {
     int tag;
 } stun_client_info, *stun_client_ptr;
+
+// used to detect duplicate calls to o2_get_public_ip():
+extern bool o2_stun_query_running;
 
 o2_err_t o2_get_public_ip();
 

@@ -11,7 +11,8 @@ set(TESTS_MIDI_EXAMPLE OFF CACHE BOOL "Compile midiclient & midiserver,
 requiring portmidi library")
 
 set(BUILD_WITH_PATTERN_SUPPORT ON CACHE BOOL "Allow pattern matching")   
-set(BUILD_WITH_OSC_SUPPORT ON CACHE BOOL "Include OSC support")   
+set(BUILD_WITH_OSC_SUPPORT ON CACHE BOOL "Include OSC support")
+set(BUILD_WITH_HUB_SUPPORT ON CACHE BOOL "Include o2_hub() discovery")
 set(BUILD_WITH_BUNDLE_SUPPORT ON CACHE BOOL "Allow message bundles")  
 set(BUILD_WITH_BRIDGE_SUPPORT ON CACHE BOOL "Allow other transport add-ons")   
 set(BUILD_WITH_SHAREDMEM_SUPPORT ON CACHE BOOL 
@@ -43,7 +44,12 @@ else(BUILD_WITH_OSC_SUPPORT)
   add_definitions("-DO2_NO_OSC")
 endif(BUILD_WITH_OSC_SUPPORT)  
   
-if(BUILD_WITH_BUNDLE_SUPPORT)   
+if(BUILD_WITH_HUB_SUPPORT)
+else(BUILD_WITH_HUB_SUPPORT)
+  add_definitions("-DO2_NO_HUB")
+endif(BUILD_WITH_HUB_SUPPORT)
+  
+if(BUILD_WITH_BUNDLE_SUPPORT)
 else(BUILD_WITH_BUNDLE_SUPPORT)  
   add_definitions("-DO2_NO_BUNDLES")   
 endif(BUILD_WITH_BUNDLE_SUPPORT)  
@@ -342,14 +348,16 @@ target_link_libraries(tappub ${LIBRARIES})
 add_executable(tapsub test/tapsub.c)      
 target_include_directories(tapsub PRIVATE ${CMAKE_SOURCE_DIR}/src)       
 target_link_libraries(tapsub ${LIBRARIES}) 
+
+if(BUILD_WITH_HUB_SUPPORT)
+  add_executable(hubserver test/hubserver.c)
+  target_include_directories(hubserver PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(hubserver ${LIBRARIES})
   
-add_executable(hubserver test/hubserver.c)
-target_include_directories(hubserver PRIVATE ${CMAKE_SOURCE_DIR}/src)       
-target_link_libraries(hubserver ${LIBRARIES}) 
-  
-add_executable(hubclient test/hubclient.c)       
-target_include_directories(hubclient PRIVATE ${CMAKE_SOURCE_DIR}/src)        
-target_link_libraries(hubclient ${LIBRARIES}) 
+  add_executable(hubclient test/hubclient.c)
+  target_include_directories(hubclient PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(hubclient ${LIBRARIES})
+endif(BUILD_WITH_HUB_SUPPORT)
    
 add_executable(dropserver test/dropserver.c)
 target_include_directories(dropserver PRIVATE ${CMAKE_SOURCE_DIR}/src)       

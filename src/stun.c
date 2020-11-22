@@ -11,11 +11,13 @@
 #include "msgsend.h"
 #include "pathtree.h"
 #include "o2sched.h"
+#include "discovery.h"
+#include "mqtt.h"
 
 static o2n_info_ptr public_ip_info = NULL;
 static o2n_address stun_server_address;
 static int port = 0;
-char o2_public_ip[O2_MAX_PROCNAME_LEN] = "";
+static int stun_try_count = 0;
 
 typedef struct binding_req {
     short stun_method;
@@ -32,12 +34,22 @@ typedef struct binding_reply {
 } binding_reply, *binding_reply_ptr;
 
     
-static bool stun_query_running = false;
+// this helps prevent/cancel spurious calls to o2_get_public_ip()
+bool o2_stun_query_running = false;
 
 void o2_stun_query(o2_msg_data_ptr msgdata, const char *types,
                    o2_arg_ptr *argv, int argc, const void *user_data)
 {
-    if (o2_public_ip[0]) return;
+    if (o2n_public_ip[0]) {
+        o2_stun_query_running = false;
+        return;
+    }
+    if (stun_try_count >= 5) {  // give up
+        strcpy(o2n_public_ip, "0.0.0.0");
+        o2_init_phase2();
+        o2_stun_query_running = false;
+        return;
+    }
     o2_message_ptr msg = (o2_message_ptr) O2_MALLOC(80);
     binding_req_ptr brp = (binding_req_ptr) &msg->data.flags; // after length
     brp->stun_method = htons(0x0001);
@@ -49,17 +61,22 @@ void o2_stun_query(o2_msg_data_ptr msgdata, const char *types,
     msg->data.length = sizeof(binding_req);
     o2n_send_udp_via_info(public_ip_info, &stun_server_address,
                           (o2n_message_ptr) msg);
+    stun_try_count++;
     o2_send_start();
-    msg = o2_message_finish(o2_local_time() + 2,
-                            "!_o2/ipq", true);
+    msg = o2_message_finish(o2_local_time() + 2, "!_o2/ipq", true);
     o2_prepare_to_deliver(msg);
     o2_schedule(&o2_ltsched);
 }
 
 
+// only called from o2_discovery_initialize() which is called by o2_initialize()
+// If the network changes, you MUST restart O2 because the "unique" local process
+// name will change if the public port becomes available or changes.
 o2_err_t o2_get_public_ip()
 {
-    if (stun_query_running || o2_public_ip[0]) {
+    if (o2_stun_query_running || o2n_public_ip[0]) {
+        printf("---- o2_get_public_ip - o2_stun_query_running %d "
+               "o2n_public_ip %s\n", o2_stun_query_running, o2n_public_ip);
         return O2_ALREADY_RUNNING; // started already
     }
     stun_client_ptr client = O2_MALLOCT(stun_client_info);
@@ -68,11 +85,11 @@ o2_err_t o2_get_public_ip()
     o2n_address_init(&stun_server_address, "stun.l.google.com", 19302, false);
     // schedule stun_query until we get a reply
     o2_method_new_internal("/_o2/ipq", "", &o2_stun_query, NULL, false, false);
+    o2_stun_query_running = true;  // do not reset until O2 is initialized again
     o2_stun_query(NULL, NULL, NULL, 0, NULL);
-    stun_query_running = true;
     return O2_SUCCESS;
 }
-    
+
 
 void o2_stun_reply_handler(void *info)
 {
@@ -91,12 +108,11 @@ void o2_stun_reply_handler(void *info)
                 // short port = ntohs(*(short *) ptr);
                 // port ^= 0x2112;
                 ptr += 2;
-                sprintf(o2_public_ip, "%u.%u.%u.%u", ptr[0] ^ 0x21,
+                sprintf(o2n_public_ip, "%u.%u.%u.%u", ptr[0] ^ 0x21,
                         ptr[1] ^ 0x12, ptr[2] ^ 0xA4, ptr[3] ^ 0x42);
                 // if you get the IP address, close the socket
                 o2n_close_socket(public_ip_info);
-                printf("o2_stun_reply_handler got %s\n", o2_public_ip);
-                o2_mqtt_initialize(o2_public_ip);
+                o2_init_phase2();
                 break;
             }
             ptr += 4 + attr_len;
