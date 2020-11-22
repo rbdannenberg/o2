@@ -1390,13 +1390,18 @@ o2_arg_ptr o2_get_next(o2_type to_type)
 o2_err_t o2_message_deliver(o2n_info_ptr info)
 {
     o2_message_ptr msg = (o2_message_ptr) (info->in_message);
+    info->in_message = NULL; // make sure it doesn't get freed again
+    o2_prepare_to_deliver(msg);
     if (!info->application) { // no deliverer (maybe somehow a message
         // was sent before a local process was ready to receive it)
-        O2_FREE(msg);
-        return O2_FAIL;
+        // This is allowed for NET_UDP_SERVER, which might receive a
+        // /dy message before the process is created and attached to it
+        // to start up discovery. In that case, return SUCCESS so we don't
+        // close the socket. Otherwise, something is really bad, so FAIL
+        // and close the socket.
+        o2_complete_delivery();
+        return (info->net_tag == NET_UDP_SERVER ? O2_SUCCESS : O2_FAIL);
     }
-    o2_prepare_to_deliver(msg);
-    info->in_message = NULL; // make sure it doesn't get freed again
     // application could point to proc_info or osc_info. We don't know
     // which, but both have an initial int tag field. It's tempting to call
     // the nice macro TO_PROC_INFO(info->application), but in debug mode this

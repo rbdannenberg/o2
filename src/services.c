@@ -144,10 +144,14 @@ o2_err_t o2_service_provider_new(o2string service_name,
         assert(!properties);
         return O2_SERVICE_EXISTS;
     } else {
-        assert(proc || streql(ss->key, "_o2"));
         // Now we know it's safe to add a service and we have a place to put it
-        // See design documentation in o2.c for an explanation of proc->name
-        // vs. "_o2" here:
+        // Note that the proc name does not need to exist. Proc name is needed
+        // to decide which service is active based on proc names. If there is
+        // no proc name, o2_node_to_proc_name() will return _o2, which cannot
+        // be used in place of an IP address for purposes of picking the active
+        // service provider, BUT if there are any other service providers, it
+        // means that discovery is running, and that can only happen after we
+        // have a full pip:iip:port name.
         active = o2_add_to_service_list(ss, proc->name, service,
                                         (char *) properties);
         O2_DBG(printf("%s ** new service %s is %p (%s) active %d\n",
@@ -161,8 +165,7 @@ o2_err_t o2_service_provider_new(o2string service_name,
         // If this is a new process connection, process_name is NULL
         // and we do not send !_o2/si yet. See o2n_recv() in o2_net.c
         // where protocol completes and !_o2/si is sent.
-        // Also, if we do not know our public_ip yet, process_name is NULL
-        // and we do not send !_o2/si unitl we have a name.
+        // Also, we always send _o2 to name the local process.
         const char *proc_name = (proc == o2_ctx->proc ? "_o2" : proc->name);
         o2_send_cmd("!_o2/si", 0.0, "siss", service_name, status,
                     proc_name, properties ? properties + 1 : "");
@@ -483,10 +486,9 @@ o2_err_t o2_service_remove(const char *service_name, proc_info_ptr proc,
     DA_REMOVE(*svlist, service_provider, index);
 
     o2_do_not_reenter++; // protect data structures
-    assert(o2_ctx->proc->name);
     // send notification message
     o2_send_cmd("!_o2/si", 0.0, "siss", service_name, O2_FAIL,
-                ISA_PROC(proc) ? proc->name : o2_ctx->proc->name, "");
+                o2_node_to_proc_name((o2_node_ptr) proc), "");
 
     // if we deleted active service, pick a new one
     if (index == 0) { // move top public:internal:port provider to top spot

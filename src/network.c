@@ -1098,16 +1098,25 @@ static int read_event_handler(SOCKET sock, o2n_info_ptr info)
             perror("udp_recv_handler");
             return O2_FAIL;
         }
+#ifdef OLD_DEBUG_CODE
 #ifndef O2_NO_DEBUG
         // make sure our info is not associated with some other socket --
         // sometimes, info->in_message is not NULL, but it should be. How
-        // does it get set? Aliasing?
+        // does it get set? Aliasing? Probably not - we failed the
+        // assert(!info->in_message) below, so we got past this loop.
         for (int j = 0; j < o2n_fds_info.length; j++) {
             if (j != info->fds_index && o2n_get_info(j) == info) {
                 printf("ALIAS!!!!!! %d %d\n", j, info->fds_index);
                 assert(false);
             }
         }
+        if (info->in_message) {
+            printf("info->in_message, len %d:\n", info->in_message->length);
+            o2_node_show((o2_node_ptr) info, 2);
+            printf("    message is ");
+            o2_message_print((o2_message_ptr) info->in_message);
+        }
+#endif
 #endif
         assert(!info->in_message);
         info->in_message = o2n_message_new(len);
@@ -1154,11 +1163,12 @@ static int read_event_handler(SOCKET sock, o2n_info_ptr info)
     // COMMON CODE for TCP and UDP receive message:
     // endian corrections are done in handler
     o2n_message_source = info;
-    if ((*o2n_recv_callout)(info) == O2_SUCCESS) {
-        info_message_cleanup(info);
-    } else if (info->net_tag == NET_TCP_CONNECTING ||
-               info->net_tag == NET_TCP_CLIENT ||
-               info->net_tag == NET_TCP_CONNECTION) {
+    o2_err_t err = (*o2n_recv_callout)(info);
+    info_message_cleanup(info);
+    if (err != O2_SUCCESS &&
+        (info->net_tag == NET_TCP_CONNECTING ||
+         info->net_tag == NET_TCP_CLIENT ||
+         info->net_tag == NET_TCP_CONNECTION)) {
         o2n_close_socket(info);
     }
     return O2_SUCCESS;

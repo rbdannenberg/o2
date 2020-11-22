@@ -152,9 +152,18 @@ void o2_proc_info_free(proc_info_ptr proc)
 }
 
 
+// If node is a proc, then return the name field; otherwise, return "_o2"
+// because all non-proc nodes are handled by the local process. An
+// exception is that the local process does not initially have a name,
+// so if node equals o2_ctx->proc, return "_o2." This is a temporary name
+// internally, and it's always the name given to users (calls into O2).
 const char *o2_node_to_proc_name(o2_node_ptr node)
 {
-    return (ISA_PROC(node) ? TO_PROC_INFO(node)->name : "_o2");
+    return (ISA_PROC(node) ?
+               (TO_PROC_INFO(node)->name ?
+                   TO_PROC_INFO(node)->name :
+                   (TO_PROC_INFO(node) == o2_ctx->proc ? "_o2" : NULL)) :
+               "_o2");
 }
 
 
@@ -284,14 +293,12 @@ o2_err_t o2_net_connected(o2n_info_ptr info)
 // 
 o2_status_t o2_status_from_proc(o2_node_ptr service, const char **process)
 {
-    const char *proc_name = o2_ctx->proc->name;
+    const char *proc_name = o2_node_to_proc_name(service);
     o2_status_t stat = O2_UNKNOWN;
     if (!service) return stat;
     switch (service->tag) {
         case PROC_NOCLOCK:
         case PROC_SYNCED: {
-            proc_info_ptr proc = TO_PROC_INFO(service);
-            proc_name = proc->name;
             stat = o2_clock_is_synchronized && service->tag == PROC_SYNCED ?
                    O2_REMOTE : O2_REMOTE_NOTIME;
             break;
