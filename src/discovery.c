@@ -77,13 +77,13 @@ int o2_parse_name(const char *name, char *public_ip,
         return O2_FAIL;
     }
     colon++;  // colon is first char after ':'
-    strlcpy(public_ip, name, colon - name);
+    o2strcpy(public_ip, name, colon - name);
     char *colon2 = strchr(colon, ':');
     if (!colon2 || colon2 - colon > O2_IP_LEN - 1) {
         return O2_FAIL;
     }
     colon2++;  // colon2 is first char after second ':'
-    strlcpy(internal_ip, colon, colon2 - colon);
+    o2strcpy(internal_ip, colon, colon2 - colon);
     *port = atoi(colon2);
     return O2_SUCCESS;
 }
@@ -684,8 +684,8 @@ int o2_hub(const char *public_ip, const char *internal_ip, int port)
         return o2_discovered_a_remote_process(public_ip, internal_ip,
                                               port, O2_DY_INFO);
     } else {
-        strlcpy(hub_pip, public_ip, O2_IP_LEN);
-        strlcpy(hub_iip, internal_ip, O2_IP_LEN);
+        o2strcpy(hub_pip, public_ip, O2_IP_LEN);
+        o2strcpy(hub_iip, internal_ip, O2_IP_LEN);
         hub_port = port;
         hub_needs_public_ip = true;
     }

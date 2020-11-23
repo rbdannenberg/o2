@@ -113,6 +113,14 @@ void o2_mem_finish(void); // implemented by o2mem.c, called to free
 
 #define streql(a, b) (strcmp(a, b) == 0)
 
+// o2strlcpy is like strlcpy but it does not return length:
+#ifdef __APPLE__
+#define o2strcpy(d, s, n) ((void) strlcpy(d, s, n))
+#else
+void o2strcpy(char * restrict dst, const char * restrict src,
+              size_t dstsize);
+#endif
+
 extern o2_time o2_local_now;
 extern o2_time o2_global_now;
 extern o2_time o2_global_offset; // o2_global_now - o2_local_now

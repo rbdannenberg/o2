@@ -1303,3 +1303,15 @@ o2_err_t o2_finish()
     o2_ctx = NULL;
     return O2_SUCCESS;
 }
+
+
+#ifndef __APPLE__
+void o2strcpy(char * restrict dst, const char * restrict src,
+              size_t dstsize)
+{
+    strncpy(dst, src, dstsize);
+    // make sure dst is terminated:
+    dst[dstsize - 1] = 0;
+}
+#endif
+

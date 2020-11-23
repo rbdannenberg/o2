@@ -787,7 +787,7 @@ o2_err_t o2n_send(o2n_info_ptr info, bool block)
             // err >= 0, update how much we have sent
             info->out_msg_sent += err;
             if (err >= n) { // finished sending message
-                assert(info->out_msg_sent == n);
+                assert(err == n);
                 info->out_msg_sent = 0;
                 o2n_message_ptr next = msg->next;
                 O2_FREE(msg);
