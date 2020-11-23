@@ -193,12 +193,13 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
     // CASE 1 (See doc/mqtt.txt): remote is not behind NAT
     // (public_ip == internal_ip) OR if remote and local share public IP
     // (public_ip == o2n_public_ip). Either way, remote ID is internal_ip
+    int cmp = strcmp(o2_ctx->proc->name, name);
     if (streql(public_ip, internal_ip)) {
         // CASE 1A: we are the client
-        if (strcmp(o2_ctx->proc->name, name) < 0) {
+        if (cmp < 0) {
             o2_discovered_a_remote_process(public_ip, internal_ip,
                                            port, O2_DY_INFO);
-        } else {  // CASE 1B: we are the server
+        } else if (cmp > 0) {  // CASE 1B: we are the server
             // CASE 1B1: we can receive a connection request
             if (streql(o2n_public_ip, o2n_internal_ip)) {
                 o2_discovered_a_remote_process(public_ip, internal_ip,
@@ -206,20 +207,24 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
             } else {  // CASE 1B2: must create an MQTT connection
                 create_mqtt_connection(name);
             }
+        } else {  // we got our own name
+            return;
         }
         
     } else { // CASE 2: process is behind NAT
         // CASE 2A: we are the client
-        if (strcmp(o2_ctx->proc->name, name) < 0) {
+        if (cmp < 0) {
             o2_discovered_a_remote_process(public_ip, internal_ip,
                                            port, O2_DY_INFO);
-        } else {  // CASE 2B: we are the server
+        } else if (cmp > 0) {  // CASE 2B: we are the server
             if (streql(o2n_public_ip, o2n_internal_ip)) {
                 // CASE 2B2: send O2_DY_CALLBACK via MQTT
                 send_callback_via_mqtt(name);
             } else { // CASE 2B2: we are behind NAT
                 create_mqtt_connection(name);
             }
+        } else {  // we got our own name
+            return;
         }
     }
     // reconstruct payload just to be non-destructive:
