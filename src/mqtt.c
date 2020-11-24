@@ -17,17 +17,10 @@ for design details */
 #include "services.h"
 #include "msgsend.h"
 #include "clock.h"
+#include "pathtree.h"
 
 static void o2_mqtt_discovery_handler(o2_msg_data_ptr msg, const char *types,
-                           o2_arg_ptr *argv, int argc, const void *user_data)
-{
-    o2_extract_start(msg);
-    o2_arg_ptr name_arg = o2_get_next(O2_STRING);
-    if (!name_arg) {
-        return;
-    }
-    create_mqtt_connection(name_arg->s);
-}
+                           o2_arg_ptr *argv, int argc, const void *user_data);
 
 dyn_array o2_mqtt_procs;
 o2n_address mqtt_address;
@@ -130,6 +123,42 @@ void o2_mqtt_free(proc_info_ptr proc)
 }
 
 
+o2_err_t create_mqtt_connection(const char *name)
+{
+    proc_info_ptr mqtt = O2_CALLOCT(proc_info);
+    mqtt->tag = MQTT_NOCLOCK;
+    mqtt->name = o2_heapify(name);
+    o2_service_provider_new(mqtt->name, NULL,
+                            (o2_node_ptr) mqtt, mqtt);
+    // add this process name to the list of mqtt processes
+    DA_APPEND(o2_mqtt_procs, proc_info_ptr, mqtt);
+
+    // We can address this to _o2 instead of the full name because
+    // we are sending it directly over MQTT to the destination process.
+    o2_send_start();
+    o2_add_string(o2_ctx->proc->name);
+    o2_message_ptr msg = o2_message_finish(0.0, "!_o2/mqtt/dy", true);
+    RETURN_IF_ERROR(o2_mqtt_send(mqtt, msg));
+
+    o2_err_t err = O2_SUCCESS;
+    if (!err) err = o2_send_clocksync_proc(mqtt);
+    if (!err) err = o2_send_services(mqtt);
+    return err;
+}
+
+
+static void o2_mqtt_discovery_handler(o2_msg_data_ptr msg, const char *types,
+                           o2_arg_ptr *argv, int argc, const void *user_data)
+{
+    o2_extract_start(msg);
+    o2_arg_ptr name_arg = o2_get_next(O2_STRING);
+    if (!name_arg) {
+        return;
+    }
+    create_mqtt_connection(name_arg->s);
+}
+
+
 // Similar to strchr(s, ':'), but this function does not assume a terminating
 // end-of-string zero because MQTT strings are not terminated. The end
 // parameter is the address of the next character AFTER s
@@ -142,28 +171,6 @@ static char *find_colon(char *s, const char *end)
         s++;
     }
     return NULL;
-}
-
-
-o2_err_t create_mqtt_connection(const char *name)
-{
-    proc_info_ptr mqtt = O2_CALLOCT(proc_info);
-    mqtt->tag = MQTT_NOCLOCK;
-    mqtt->name = o2_heapify(name);
-    o2_service_provider_new(mqtt->name, NULL,
-                            (o2_node_ptr) mqtt, mqtt);
-    // add this process name to the list of mqtt processes
-    DA_APPEND(o2_mqtt_procs, proc_info_ptr, mqtt);
-
-    char addr[O2_MAX_PROCNAME_LEN + 16];
-    snprintf(addr, O2_MAX_PROCNAME_LEN + 16, "!%s/mqtt/dy%c%c%c%c",
-             name, 0, 0, 0, 0);
-    RETURN_IF_ERROR(o2_send_cmd(addr, 0.0, "s", o2_ctx->proc->name));
-
-    o2_err_t err = O2_SUCCESS;
-    if (!err) err = o2_send_clocksync_proc(mqtt);
-    if (!err) err = o2_send_services(mqtt);
-    return err;
 }
 
 
