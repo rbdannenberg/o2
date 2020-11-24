@@ -31,20 +31,45 @@ discovery. So MQTT will be an add-on for non-local networks, not
 a replacement for discovery in situations where there is Internet
 access.
 
-o2_mqtt_enable(const char *broker) first uses a stun server to find
-the public IP address, then sets up a connection to the MQTT broker
-and subscribes to the topics O2-<ensemblename>/disc and O2-<public
-ip>:<local ip>:<port>. Then, send public IP and local IP to the /disc
-topic. Other processes will also send to the /disc topic, so every
-process will discover every other process soon after it connects to
-the broker.
+o2_mqtt_enable(const char *broker) sets up a connection to the MQTT
+broker and subscribes to the topics O2-<ensemblename>/disc and
+O2-<ensemble>:<public ip>:<local ip>:<port>. Then, send public IP and
+local IP to the /disc topic. Other processes will also send to the
+/disc topic, so every process will discover every other process soon
+after it connects to the broker.
 
-Do not use the *store* feature so that when you crash, others will
-not "discover" a stale address. However, when you reboot, everyone
-already in the application will get the new correct address. Is
-there a race condition? Assume messages from one client are handled
-serially. If we assume the subcriptions are committed before the
-subsequent publish is allowed to take place, there is no race.
+Do not use the *store* feature so that when you crash, others will not
+"discover" a stale address. However, when you reboot, everyone already
+in the application will get the new correct address. Is there a race
+condition that could allow two processes connecting to the broker to
+miss each other's /disc messages? Assume messages from one client are
+handled serially. If we assume the subcriptions are committed before
+the subsequent publish is allowed to take place, there is no race.
+
+There is, however, an interesting race where both processes discover
+each other at the same time, so that each initiates a protocol to
+contact the other. Contacts and discoveries are designed to be
+idempotent so that no harm is done.
+
+Because O2 discovery messages (/_o2/dy) are tightly coupled to setting
+up TCP connections and associating sockets with O2 process names, we
+implement an entirely separate MQTT discovery protocol as follows:
+
+When a process initializes, it subscribes to O2-<ensemblename>/disc
+and and publishes it's name to the same topic. Whenever a name arrives
+on this topic and the name is unknown, the process creates a local
+service with the name and tag MQTT_NOCLOCK, and "connects" to it by
+sending an O2 message with address "!_o2/mqtt/dy", type "s",
+containing the name of the sender. This has the same effect as an
+O2-<ensemblename>/disc message except the message is sent to a
+particular process instead of all processes. If the sender is not
+known, it is created as a service with an MQTT_NOCLOCK tag and the
+usual clock status and service info messages are sent.
+
+It is possible to discovery a process through MQTT that can be
+connected directly, so before sending the "!_o2/mqtt/dy" message, the
+following decision tree is followed, and things revert to normal
+discovery if MQTT can be avoided:
 
 CASE 1: the incoming message has the same public IP and local IP.
 Assume the process is not behind NAT (it's possible that the LAN
@@ -78,9 +103,8 @@ Whatever the remote process, services are sent to !_o2/sv there.
 CASE 2: the incoming message has different public IP and local IP.
 Assume the process is behind NAT.
 
-    CASE 2A: You have a lower IP than they do, so you are the client.
-    You can only reach via MQTT, so create an MQTT_NOCLOCK connection
-    as in CASE 1B2.
+    CASE 2A: You have a lower IP than they do.  You can only reach
+    via MQTT, so create an MQTT_NOCLOCK connection as in CASE 1B2.
 
     CASE 2B: You have a higher IP than they do, so you are the server. 
          CASE 2B1: Your public and local IP are the same, so you can 

@@ -191,6 +191,9 @@ If there is no network at all, the internal ip is 127.0.0.1 (localhost),
 and discovery still works to connect to other processes on the same
 host.
 
+Also note that if the local host is using VPN, the internal IP address
+detected by O2 may not actually be reachable.
+
 On startup, the public ip is not known, and the local process has no
 name (other than the alias "_o2"). When the public ip is resolved, the
 name is installed as o2_ctx->proc->name.

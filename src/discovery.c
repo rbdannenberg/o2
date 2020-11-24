@@ -344,6 +344,7 @@ o2_err_t o2_discovered_a_remote_process(const char *public_ip,
 
         // else we are the client
         proc->tag = PROC_NOCLOCK;
+        assert(proc->name == NULL);  // make sure we don't leak memory
         proc->name = o2_heapify(name);
         int dy_flag = (streql(name, o2_hub_addr) ? O2_DY_HUB : O2_DY_CONNECT);
         o2_service_provider_new(name, NULL, (o2_node_ptr) proc, proc);
@@ -374,7 +375,7 @@ o2_err_t o2_discovered_a_remote_process(const char *public_ip,
             O2_DBd(printf("%s ** discovery got REPLY sending !_o2/hub %s\n",
                           o2_debug_prefix, name));
         } else if (dy == O2_DY_CONNECT) { 
-            // similar to info, but close connection
+            // similar to info, but sender has just made a tcp connection
             O2_DBG(printf("%s ** discovery got CONNECT from client %s, %s\n",
                            o2_debug_prefix, name, "connection complete"));
             if (streql(name, o2_hub_addr)) {
@@ -397,7 +398,8 @@ o2_err_t o2_discovered_a_remote_process(const char *public_ip,
     }
     if (!err) err = o2_send_clocksync_proc(proc);
     if (!err) err = o2_send_services(proc);
-    if (!err) err = o2n_address_init(&proc->udp_address, internal_ip, port, false);
+    if (!err) err = o2n_address_init(&proc->udp_address,
+                                     internal_ip, port, false);
     O2_DBd(printf("%s UDP port %d for remote proc %s set to %d avail as %d\n",
                   o2_debug_prefix, port, internal_ip,
                   ntohs(proc->udp_address.sa.sin_port),

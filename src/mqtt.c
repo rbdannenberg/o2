@@ -16,6 +16,18 @@ for design details */
 #include "message.h"
 #include "services.h"
 #include "msgsend.h"
+#include "clock.h"
+
+static void o2_mqtt_discovery_handler(o2_msg_data_ptr msg, const char *types,
+                           o2_arg_ptr *argv, int argc, const void *user_data)
+{
+    o2_extract_start(msg);
+    o2_arg_ptr name_arg = o2_get_next(O2_STRING);
+    if (!name_arg) {
+        return;
+    }
+    create_mqtt_connection(name_arg->s);
+}
 
 dyn_array o2_mqtt_procs;
 o2n_address mqtt_address;
@@ -58,6 +70,8 @@ o2_err_t o2_mqtt_initialize()
     if (!o2n_network_enabled) {
         return O2_NO_NETWORK;
     }
+    RETURN_IF_ERROR(o2_method_new_internal("/_o2/mqtt/dy", "s",
+                         &o2_mqtt_discovery_handler, NULL, false, false));
     if (!o2n_public_ip[0]) {
         o2_mqtt_waiting_for_public_ip = true;
         return O2_SUCCESS;
@@ -67,7 +81,8 @@ o2_err_t o2_mqtt_initialize()
     // subscribe to O2-<ensemblename>/disc
     char topic[O2_MAX_NAME_LEN + 16];
     topic[0] = 'O'; topic[1] = '2'; topic[2] = '-';
-    assert(strlen(o2_ensemble_name) <= O2_MAX_NAME_LEN); // enforced by o2_initialize
+    // enforced by o2_initialize:
+    assert(strlen(o2_ensemble_name) <= O2_MAX_NAME_LEN); 
     strcpy(topic + 3, o2_ensemble_name);
     strcat(topic + 3, "/disc");
     o2m_subscribe(topic);  // topic is O2-<ensemblename>/disc
@@ -126,7 +141,7 @@ static char *find_colon(char *s, const char *end)
 }
 
 
-void create_mqtt_connection(const char *name)
+o2_err_t create_mqtt_connection(const char *name)
 {
     proc_info_ptr mqtt = O2_CALLOCT(proc_info);
     mqtt->tag = MQTT_NOCLOCK;
@@ -135,6 +150,16 @@ void create_mqtt_connection(const char *name)
                             (o2_node_ptr) mqtt, mqtt);
     // add this process name to the list of mqtt processes
     DA_APPEND(o2_mqtt_procs, proc_info_ptr, mqtt);
+
+    char addr[O2_MAX_PROCNAME_LEN + 16];
+    snprintf(addr, O2_MAX_PROCNAME_LEN + 16, "!%s/mqtt/dy%c%c%c%c",
+             name, 0, 0, 0, 0);
+    RETURN_IF_ERROR(o2_send_cmd(addr, 0.0, "s", o2_ctx->proc->name));
+
+    o2_err_t err = O2_SUCCESS;
+    if (!err) err = o2_send_clocksync_proc(mqtt);
+    if (!err) err = o2_send_services(mqtt);
+    return err;
 }
 
 
@@ -214,8 +239,7 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
     } else { // CASE 2: process is behind NAT
         // CASE 2A: we are the client
         if (cmp < 0) {
-            o2_discovered_a_remote_process(public_ip, internal_ip,
-                                           port, O2_DY_INFO);
+            create_mqtt_connection(name);
         } else if (cmp > 0) {  // CASE 2B: we are the server
             if (streql(o2n_public_ip, o2n_internal_ip)) {
                 // CASE 2B2: send O2_DY_CALLBACK via MQTT
