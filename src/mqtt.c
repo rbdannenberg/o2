@@ -84,27 +84,31 @@ o2_err_t o2_mqtt_initialize()
     // enforced by o2_initialize:
     assert(strlen(o2_ensemble_name) <= O2_MAX_NAME_LEN); 
     strcpy(topic + 3, o2_ensemble_name);
-    strcat(topic + 3, "/disc");
+    char *after_ensemble = topic + strlen(topic);
+    strcpy(after_ensemble, "/disc");
     o2m_subscribe(topic);  // topic is O2-<ensemblename>/disc
     // send name to O2-<ensemblename>/disc, retain is off.
     assert(o2_ctx->proc->name);
     o2_mqtt_publish(topic, (const uint8_t *) o2_ctx->proc->name,
                     strlen(o2_ctx->proc->name), 0);
-    // subscribe to O2-<public ip>:<local ip>:<port>
-    strcpy(topic + 3, o2_ctx->proc->name);
+    // subscribe to O2-<ensemble>:<public ip>:<local ip>:<port>
+    *after_ensemble++ = ':';
+    strcpy(after_ensemble, o2_ctx->proc->name);
     o2m_subscribe(topic);  // topic is O2-<public ip>:<local ip>:<port>
     return O2_SUCCESS;
 }
 
 
-void o2_mqtt_send(proc_info_ptr proc, o2_message_ptr msg)
+o2_err_t o2_mqtt_send(proc_info_ptr proc, o2_message_ptr msg)
 {
     printf("o2_mqtt_send: ");
     o2_message_print(msg);
-    const char *topic = proc->name;
+    char topic[O2_MAX_NAME_LEN + O2_MAX_PROCNAME_LEN + 16];
+    snprintf(topic, O2_MAX_NAME_LEN + O2_MAX_PROCNAME_LEN + 16,
+             "%s%s:%s", "O2-", o2_ensemble_name, proc->name);
     int payload_len = msg->data.length;
     const uint8_t *payload = (const uint8_t *) &msg->data.flags;
-    o2_mqtt_publish(topic, payload, payload_len, 0);
+    return o2_mqtt_publish(topic, payload, payload_len, 0);
 }
 
 

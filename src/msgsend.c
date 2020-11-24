@@ -576,6 +576,10 @@ o2_err_t o2_message_send_sched(int schedulable)
             o2_drop_message("service was not found", msg);
         }
         return rslt;
+#ifndef O2_NO_MQTT
+    } else if (IS_MQTT_PROC(service)) {   // delivery by MQTT
+        return o2_mqtt_send(TO_PROC_INFO(service), msg);
+#endif
 #ifndef O2_NO_BRIDGES
     } else if (ISA_BRIDGE(service)) {
         bridge_inst_ptr inst = (bridge_inst_ptr) service;
@@ -589,7 +593,7 @@ o2_err_t o2_message_send_sched(int schedulable)
         }
 #endif
 #ifndef O2_NO_OSC
-   } else if (ISA_OSC(service)) {
+    } else if (ISA_OSC(service)) {
         // this is a bit complicated: send immediately if it is a bundle
         // or is not scheduled in the future. Otherwise use O2 scheduling.
         if (!schedulable ||

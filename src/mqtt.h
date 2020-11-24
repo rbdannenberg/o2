@@ -18,7 +18,7 @@ extern bool o2_mqtt_waiting_for_public_ip;
 
 o2_err_t o2_mqtt_initialize();
 
-void o2_mqtt_send(proc_info_ptr proc, o2_message_ptr msg);
+o2_err_t o2_mqtt_send(proc_info_ptr proc, o2_message_ptr msg);
 
 void o2_mqtt_free(proc_info_ptr proc);
 
