@@ -102,17 +102,19 @@ static o2n_message_ptr mqtt_finish_msg(int command)
 {
     int len = o2_ctx->msg_data.length;
     uint8_t varlen[4];
-    varlen[0] = 0;
-    int varlen_len = 1;
-    int varlen_index = 0;
-    while (len > 0) {
-        varlen[varlen_index++] = len & 0x7F;
+    int varlen_len = 0;
+    do {
+        int encoded = len & 0x7F;
         len >>= 7;
-        varlen_len = varlen_index;
-    }
+        if (len > 0) {
+            encoded |= 0x80;
+        }
+        varlen[varlen_len++] = encoded;
+    } while (len > 0);
     len = o2_ctx->msg_data.length;
     // (this will allocate some unused bytes for flags and timestamp:)
     int msg_len = len + varlen_len + 1;
+    printf("msg_len %d len %d varlen_len %d\n", msg_len, len, varlen_len);
     o2n_message_ptr msg = O2N_MESSAGE_ALLOC(msg_len);
     msg->length = msg_len;
     // move data
@@ -142,6 +144,8 @@ o2_err_t o2m_initialize(const char *server, int port_num)
     mqtt_append_bytes(bytes, 6);
     o2n_message_ptr msg = mqtt_finish_msg(MQTT_CONNECT);
     connack_expected++;
+    O2_DBq(printf("%s sending MQTT_CONNECT connack expected %d\n",
+                  o2_debug_prefix, connack_expected));
     connack_time = o2_local_time();
     return o2n_send_tcp(mqtt_info, false, msg);
 }
@@ -157,6 +161,8 @@ o2_err_t o2m_subscribe(const char *topic)
     mqtt_append_bytes(&byte, 1);
     o2n_message_ptr msg = mqtt_finish_msg(MQTT_SUBSCRIBE);
     suback_expected++;
+    O2_DBq(printf("%s sending MQTT_SUBSCRIBE %s suback expected %d\n",
+                  o2_debug_prefix, topic, suback_expected));
     suback_time = o2_local_time();
     return o2n_send_tcp(mqtt_info, false, msg);
 }
@@ -211,7 +217,7 @@ bool handle_first_mqtt_msg()
         int topic_len = (inbuff[posn] << 8) + inbuff[posn + 1];
         posn += 2;
         o2m_deliver_mqtt_msg((const char *) inbuff + posn, topic_len,
-                             inbuff + posn + topic_len + 2, len - topic_len - 4);
+                  inbuff + posn + topic_len + 2, len - topic_len - 4);
         // remove this message from mqtt_input
         posn += len - 2;
         o2m_received(posn);
@@ -220,18 +226,24 @@ bool handle_first_mqtt_msg()
             goto incomplete;
         }
         connack_count++;
+        O2_DBq(printf("%s MQTT_CONNACK received, count %d\n",
+                      o2_debug_prefix, connack_count));
         o2m_received(4);
     } else if (first == MQTT_SUBACK) {
         if (mqtt_input.length < 5) {
             goto incomplete;
         }
         suback_count++;
+        O2_DBq(printf("%s MQTT_SUBACK received, count %d\n",
+                      o2_debug_prefix, suback_count));
         o2m_received(5);
     } else if (first == MQTT_PUBACK) {
         if (mqtt_input.length < 4) {
             goto incomplete;
         }
         puback_count++;
+        O2_DBq(printf("%s MQTT_PUBACK received, count %d\n",
+                      o2_debug_prefix, puback_count));
         o2m_received(4);
     } else {
         printf("O2 Warning: could not parse incoming MQTT message\n");
@@ -298,10 +310,21 @@ o2_err_t o2_mqtt_publish(const char *topic, const uint8_t *payload,
     packet_id = (packet_id + 1) & 0xFFFF;
     o2_send_start();
     mqtt_append_string(topic);
+    assert(o2_ctx->msg_data.length == 2 + strlen(topic));
     mqtt_append_int16(packet_id);
+    assert(o2_ctx->msg_data.length == 4 + strlen(topic));
     mqtt_append_bytes((void *) payload, payload_len);
+    assert(o2_ctx->msg_data.length == 4 + strlen(topic) + payload_len);
+    printf("o2_mqtt_publish payload_len %d\n", payload_len);
     o2n_message_ptr msg = mqtt_finish_msg(MQTT_PUBLISH | retain);
-    return o2n_send_tcp(mqtt_info, false, msg);
+    printf("o2_mqtt_publish message len %d\n", msg->length);
+    puback_expected++;
+    O2_DBq(printf("%s sending that msg via MQTT_PUBLISH puback expected %d\n",
+                  o2_debug_prefix, puback_expected));
+    o2_err_t err = o2n_send_tcp(mqtt_info, false, msg);
+    O2_DBq(if (err)
+               printf("o2n_send_tcp returns %s\n", o2_error_to_string(err)););
+    return err;
 }
 
 #endif

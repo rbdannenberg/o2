@@ -82,6 +82,8 @@ o2_err_t o2_mqtt_initialize()
     o2m_subscribe(topic);  // topic is O2-<ensemblename>/disc
     // send name to O2-<ensemblename>/disc, retain is off.
     assert(o2_ctx->proc->name);
+    O2_DBq(printf("%s publishing disc topic %s payload %s\n",
+                  o2_debug_prefix, topic, o2_ctx->proc->name));
     o2_mqtt_publish(topic, (const uint8_t *) o2_ctx->proc->name,
                     strlen(o2_ctx->proc->name), 0);
     // subscribe to O2-<ensemble>:<public ip>:<local ip>:<port>
@@ -94,13 +96,13 @@ o2_err_t o2_mqtt_initialize()
 
 o2_err_t o2_mqtt_send(proc_info_ptr proc, o2_message_ptr msg)
 {
-    printf("o2_mqtt_send: ");
-    o2_message_print(msg);
     char topic[O2_MAX_NAME_LEN + O2_MAX_PROCNAME_LEN + 16];
     snprintf(topic, O2_MAX_NAME_LEN + O2_MAX_PROCNAME_LEN + 16,
              "%s%s:%s", "O2-", o2_ensemble_name, proc->name);
     int payload_len = msg->data.length;
     const uint8_t *payload = (const uint8_t *) &msg->data.flags;
+    O2_DBq(o2_dbg_msg("o2_mqtt_send", msg, &msg->data, NULL, NULL));
+    printf("o2_mqtt_send payload_len (msg len) %d\n", payload_len);
     return o2_mqtt_publish(topic, payload, payload_len, 0);
 }
 
@@ -138,6 +140,8 @@ o2_err_t create_mqtt_connection(const char *name)
     o2_send_start();
     o2_add_string(o2_ctx->proc->name);
     o2_message_ptr msg = o2_message_finish(0.0, "!_o2/mqtt/dy", true);
+    assert(msg->data.length == 12 + o2_strsize("!_o2/mqtt/dy") +
+           o2_strsize(",s") + o2_strsize(o2_ctx->proc->name));
     RETURN_IF_ERROR(o2_mqtt_send(mqtt, msg));
 
     o2_err_t err = O2_SUCCESS;
@@ -192,6 +196,7 @@ void send_callback_via_mqtt(const char *name)
 //
 void o2_mqtt_disc_handler(char *payload, int payload_len)
 {
+    O2_DBq(printf("%s entered o2_mqtt_disc_handler\n", o2_debug_prefix));
     // need 3 strings: public IP, intern IP, port
     char *end = payload + payload_len;
     const char *public_ip = payload;
@@ -219,6 +224,8 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
     memcpy(port_string, port_num, port_string_len);
     port_string[port_string_len] = 0;
     int port = atoi(port_string);
+    O2_DBq(printf("%s o2_mqtt_disc_handler got %s %s %d\n", o2_debug_prefix,
+                  public_ip, internal_ip, port));
     
     // we need the name for the remote process with zero padding for lookup
     char name[O2_MAX_PROCNAME_LEN];
@@ -233,17 +240,23 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
     if (streql(public_ip, internal_ip)) {
         // CASE 1A: we are the client
         if (cmp < 0) {
+            O2_DBq(printf("%s o2_mqtt_disc_handler 1A\n", o2_debug_prefix));
             o2_discovered_a_remote_process(public_ip, internal_ip,
                                            port, O2_DY_INFO);
         } else if (cmp > 0) {  // CASE 1B: we are the server
             // CASE 1B1: we can receive a connection request
             if (streql(o2n_public_ip, o2n_internal_ip)) {
+                O2_DBq(printf("%s o2_mqtt_disc_handler 1B1\n",
+                              o2_debug_prefix));
                 o2_discovered_a_remote_process(public_ip, internal_ip,
                                                port, O2_DY_INFO);
             } else {  // CASE 1B2: must create an MQTT connection
+                O2_DBq(printf("%s o2_mqtt_disc_handler 1B2\n",
+                              o2_debug_prefix));
                 create_mqtt_connection(name);
             }
         } else {  // we got our own name
+            O2_DBq(printf("%s we \"discovered\" our own name; ignored.\n"));
             return;
         }
         
@@ -253,9 +266,13 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
             create_mqtt_connection(name);
         } else if (cmp > 0) {  // CASE 2B: we are the server
             if (streql(o2n_public_ip, o2n_internal_ip)) {
-                // CASE 2B2: send O2_DY_CALLBACK via MQTT
+                // CASE 2B1: send O2_DY_CALLBACK via MQTT
+                O2_DBq(printf("%s o2_mqtt_disc_handler 2B1\n",
+                              o2_debug_prefix));
                 send_callback_via_mqtt(name);
             } else { // CASE 2B2: we are behind NAT
+                O2_DBq(printf("%s o2_mqtt_disc_handler 2B2\n",
+                              o2_debug_prefix));
                 create_mqtt_connection(name);
             }
         } else {  // we got our own name
@@ -274,16 +291,29 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
 void o2m_deliver_mqtt_msg(const char *topic, int topic_len,
                           uint8_t *payload, int payload_len)
 {
+    O2_DBq(printf("%s o2m_deliver_mqtt_msg topic %s payload_len %d\n",
+                  o2_debug_prefix, topic, payload_len));
     // see if topic matches public:intern:port string
     if (strncmp("O2-", topic, 3) == 0) {
-        if (strncmp(o2_ctx->proc->name, topic + 3, topic_len - 3) == 0) {
+        size_t o2_ens_len = 3 + strlen(o2_ensemble_name);  // counts "O2-"
+        // test for topic == O2-ens:pip:iip:port 
+        if (o2_ens_len < strlen(topic) &&
+            memcmp(o2_ensemble_name, topic + 3, o2_ens_len - 3) == 0 &&
+            topic[o2_ens_len] == ':' &&
+            strncmp(o2_ctx->proc->name, topic + o2_ens_len + 1,
+                    topic_len - (o2_ens_len + 1)) == 0 &&
+            // last check insures topic contains all of proc->name:
+            o2_ens_len + 1 + strlen(o2_ctx->proc->name) == topic_len)  {
             // match, so send the message.
             o2_message_ptr msg = o2_message_new(payload_len);
             memcpy(O2_MSG_PAYLOAD(msg), payload, payload_len);
+            O2_DBq(o2_dbg_msg("o2m_deliver_mqtt_msg", msg, &msg->data,
+                              NULL, NULL));
             o2_prepare_to_deliver(msg);
             o2_message_send_sched(true);
         } else if (strncmp(o2_ensemble_name, topic + 3, topic_len - 8) == 0 &&
                    strncmp(topic + topic_len - 5, "/disc", 5) == 0) {
+            O2_DBq(printf("%s o2m_deliver_mqtt_msg (disc)\n", o2_debug_prefix));
             // discovered a process through MQTT bridge
             o2_mqtt_disc_handler((char *) payload, payload_len);
         }

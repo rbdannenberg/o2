@@ -268,6 +268,8 @@ int o2_add_string_or_symbol(o2_type code, const char *s)
     *((int32_t *) (PTR(ilast) - 4)) = 0;
     memcpy(dst, s, s_len);
     o2_ctx->msg_data.length += (s_len + 4) & ~3;
+    printf("o2_add_string %s strlen %d adding %d to length to get %d\n",
+           s, s_len, (s_len + 4) & ~3, o2_ctx->msg_data.length);
     DA_APPEND(o2_ctx->msg_types, char, code);
     return O2_SUCCESS;
 }    
