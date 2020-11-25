@@ -561,7 +561,9 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
     proc_info_ptr proc = TO_PROC_INFO(o2_service_find(name, &services));
     if (!proc || !IS_REMOTE_PROC(proc)) {
         O2_DBG(printf("%s ### ERROR: o2_services_handler did not find %s\n", 
-                      o2_debug_prefix, name));
+                      o2_debug_prefix, name);
+               o2_node_show((o2_node_ptr) (&o2_ctx->path_tree), 2));
+        
         return; // message is bogus (should we report this?)
     }
     o2_arg_ptr addarg;     // boolean - adding a service or deleting one?

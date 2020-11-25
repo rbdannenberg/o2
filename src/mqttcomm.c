@@ -50,18 +50,26 @@ static o2_time suback_time = 0;
 
 void print_bytes(const char *prefix, char *bytes, int len)
 {
-    printf("%s:", prefix);
-    for (int i = 0; i < len; i++) {
-        printf(" %02x", (uint8_t) bytes[i]);
+    printf("%s:\n", prefix);
+    int i = 0;
+    while (i < len) {
+        for (int j = 0; j < 16; j++) {  // print hex chars
+            if (i + j < len) {
+                printf(" %02x", (uint8_t) bytes[i + j]);
+            } else {
+                printf("   ");
+            }
+        }
+        printf("  ");
+        for (int j = 0; j < 16; j++) {  // print ascii chars
+            if (i + j < len) {
+                uint8_t b = (uint8_t) bytes[i + j];
+                printf("%c", (b >= '!' && b <= '~' ? b : (uint8_t) '.'));
+            }
+        }
+        printf("\n");
+        i += 16;
     }
-    printf("\n");
-    int spaces = strlen(prefix) + 1;
-    for (int i = 0; i < spaces; i++) printf(" ");
-    for (int i = 0; i < len; i++) {
-        uint8_t b = (uint8_t) bytes[i];
-        printf("  %c", (b >= '!' && b <= '~' ? b : (uint8_t) ' '));
-    }
-    printf("\n");
 }
 
 
