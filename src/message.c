@@ -377,7 +377,7 @@ o2_message_ptr o2_service_message_finish(
     int prefix = (is_bundle ? '#' : '/');
 #endif
     o2_message_ptr msg = NULL;
-    int msg_size = (char *)(&msg->data.address) - (char *)(&msg->data.length) +
+    int msg_size = offsetof(o2_msg_data, address) - sizeof(msg->data.length) +
                    addr_size + types_size + o2_ctx->msg_data.length;
      msg = o2_message_new(msg_size); // sets length for us
     if (!msg) return NULL;
