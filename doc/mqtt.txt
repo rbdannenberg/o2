@@ -33,7 +33,7 @@ access.
 
 o2_mqtt_enable(const char *broker) sets up a connection to the MQTT
 broker and subscribes to the topics O2-<ensemblename>/disc and
-O2-<ensemble>:<public ip>:<local ip>:<port>. Then, send public IP and
+O2-<ensemble>/<public ip>:<local ip>:<port>. Then, send public IP and
 local IP to the /disc topic. Other processes will also send to the
 /disc topic, so every process will discover every other process soon
 after it connects to the broker.

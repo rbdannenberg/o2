@@ -84,7 +84,7 @@ o2_err_t o2_mqtt_initialize()
     assert(o2_ctx->proc->name);
     O2_DBq(printf("%s publishing disc topic %s payload %s\n",
                   o2_debug_prefix, topic, o2_ctx->proc->name));
-    o2_mqtt_publish("/disc", "", (const uint8_t *) o2_ctx->proc->name,
+    o2_mqtt_publish("disc", (const uint8_t *) o2_ctx->proc->name,
                     strlen(o2_ctx->proc->name), 0);
     // subscribe to O2-<ensemble>:<public ip>:<local ip>:<port>
     *after_ensemble++ = ':';
@@ -103,7 +103,7 @@ o2_err_t o2_mqtt_send(proc_info_ptr proc, o2_message_ptr msg)
     const uint8_t *payload = (const uint8_t *) &msg->data.flags;
     // O2_DBq(o2_dbg_msg("o2_mqtt_send", msg, &msg->data, NULL, NULL));
     printf("o2_mqtt_send payload_len (msg len) %d\n", payload_len);
-    o2_err_t err = o2_mqtt_publish(":", proc->name, payload, payload_len, 0);
+    o2_err_t err = o2_mqtt_publish(proc->name, payload, payload_len, 0);
     O2_FREE(msg);
     return err;
 }
@@ -198,7 +198,7 @@ void send_callback_via_mqtt(const char *name)
 {
     o2_message_ptr msg = o2_make_dy_msg(o2_ctx->proc, true,
                                         O2_DY_CALLBACK);
-    o2_mqtt_publish(":", name, (const uint8_t *) O2_MSG_PAYLOAD(msg),
+    o2_mqtt_publish(name, (const uint8_t *) O2_MSG_PAYLOAD(msg),
                     msg->data.length, 0);
 }
 
@@ -307,13 +307,13 @@ void o2m_deliver_mqtt_msg(const char *topic, int topic_len,
 {
     O2_DBq(printf("%s o2m_deliver_mqtt_msg topic %s payload_len %d\n",
                   o2_debug_prefix, topic, payload_len));
-    // see if topic matches O2-ensemble:public:intern:port string
+    // see if topic matches O2-ensemble/public:intern:port string
     if (strncmp("O2-", topic, 3) == 0) {
         size_t o2_ens_len = 3 + strlen(o2_ensemble_name);  // counts "O2-"
-        // test for topic == O2-ens:pip:iip:port 
+        // test for topic == O2-ens/pip:iip:port
         if (o2_ens_len < strlen(topic) &&
             memcmp(o2_ensemble_name, topic + 3, o2_ens_len - 3) == 0 &&
-            topic[o2_ens_len] == ':' &&
+            topic[o2_ens_len] == '/' &&
             strncmp(o2_ctx->proc->name, topic + o2_ens_len + 1,
                     topic_len - (o2_ens_len + 1)) == 0 &&
             // last check insures topic contains all of proc->name:

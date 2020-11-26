@@ -100,19 +100,18 @@ static void mqtt_append_string(const char *s)
 
 // append the concatenation of "O2-", o2_ensemble_name, s1, s2
 //   (to append a full topic string)
-static void mqtt_append_topic(const char *s1, const char *s2)
+static void mqtt_append_topic(const char *s1)
 {
     int len0 = strlen(o2_ensemble_name);
     int len1 = strlen(s1);
-    int len2 = strlen(s2);
-    int len = 4 + len0 + len1 + len2;
+    int len = 4 + len0 + len1;
     o2_message_check_length(len + 2);
     MQTT_APPEND_INT16(len);
     char *base = o2_ctx->msg_data.array + o2_ctx->msg_data.length;
     memcpy(base, "O2-", 3);
     memcpy(base + 3, o2_ensemble_name, len0);
-    memcpy(base + 3 + len0, s1, len1);
-    memcpy(base + 3 + len0 + len1, s2, len2);
+    base[3 + len0] = "/";
+    memcpy(base + 4 + len0, s1, len1);
     o2_ctx->msg_data.length += len;
 }
 
@@ -334,20 +333,20 @@ o2_err_t o2_mqtt_can_send()
             O2_FAIL);
 }
 
-o2_err_t o2_mqtt_publish(const char *t1, const char *t2,
+o2_err_t o2_mqtt_publish(const char *subtopic,
                          const uint8_t *payload, int payload_len, int retain)
 {
     packet_id = (packet_id + 1) & 0xFFFF;
     o2_send_start();
-    mqtt_append_topic(t1, t2);
+    mqtt_append_topic(subtopic);
     assert(o2_ctx->msg_data.length ==
-           6 + strlen(o2_ensemble_name) + strlen(t1) + strlen(t2));
+           6 + strlen(o2_ensemble_name) + strlen(subtopic));
     mqtt_append_int16(packet_id);
     assert(o2_ctx->msg_data.length ==
-           8 + strlen(o2_ensemble_name) + strlen(t1) + strlen(t2));
+           8 + strlen(o2_ensemble_name) + strlen(subtopic));
     mqtt_append_bytes((void *) payload, payload_len);
     assert(o2_ctx->msg_data.length == 8 + strlen(o2_ensemble_name) +
-                                      strlen(t1) + strlen(t2) + payload_len);
+                                      strlen(subtopic) + payload_len);
     printf("o2_mqtt_publish payload_len %d\n", payload_len);
     o2n_message_ptr msg = mqtt_finish_msg(MQTT_PUBLISH | retain);
     printf("o2_mqtt_publish message len %d\n", msg->length);
