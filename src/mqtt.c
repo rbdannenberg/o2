@@ -125,8 +125,17 @@ void o2_mqtt_free(proc_info_ptr proc)
 }
 
 
-o2_err_t create_mqtt_connection(const char *name)
+// connect to a remote process via MQTT. If from_disc is true, this
+// connection request came through topic O2-<ensemble_name>, so we
+// should send a /dy to the other process to get their services.
+o2_err_t create_mqtt_connection(const char *name, bool from_disc)
 {
+    // if name already exists, then we've sent services to it and do not
+    // need to do it again.
+    services_entry_ptr services = *o2_services_find(name);
+    if (services) {
+        return O2_SUCCESS;
+    }
     proc_info_ptr mqtt = O2_CALLOCT(proc_info);
     mqtt->tag = MQTT_NOCLOCK;
     mqtt->name = o2_heapify(name);
@@ -135,15 +144,16 @@ o2_err_t create_mqtt_connection(const char *name)
     // add this process name to the list of mqtt processes
     DA_APPEND(o2_mqtt_procs, proc_info_ptr, mqtt);
 
-    // We can address this to _o2 instead of the full name because
-    // we are sending it directly over MQTT to the destination process.
-    o2_send_start();
-    o2_add_string(o2_ctx->proc->name);
-    o2_message_ptr msg = o2_message_finish(0.0, "!_o2/mqtt/dy", true);
-    assert(msg->data.length == 12 + o2_strsize("!_o2/mqtt/dy") +
-           o2_strsize(",s") + o2_strsize(o2_ctx->proc->name));
-    RETURN_IF_ERROR(o2_mqtt_send(mqtt, msg));
-
+    if (from_disc) {
+        // We can address this to _o2 instead of the full name because
+        // we are sending it directly over MQTT to the destination process.
+        o2_send_start();
+        o2_add_string(o2_ctx->proc->name);
+        o2_message_ptr msg = o2_message_finish(0.0, "!_o2/mqtt/dy", true);
+        assert(msg->data.length == 12 + o2_strsize("!_o2/mqtt/dy") +
+               o2_strsize(",s") + o2_strsize(o2_ctx->proc->name));
+        RETURN_IF_ERROR(o2_mqtt_send(mqtt, msg));
+    }
     o2_err_t err = O2_SUCCESS;
     if (!err) err = o2_send_clocksync_proc(mqtt);
     if (!err) err = o2_send_services(mqtt);
@@ -159,7 +169,7 @@ static void o2_mqtt_discovery_handler(o2_msg_data_ptr msg, const char *types,
     if (!name_arg) {
         return;
     }
-    create_mqtt_connection(name_arg->s);
+    create_mqtt_connection(name_arg->s, false);
 }
 
 
@@ -253,7 +263,7 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
             } else {  // CASE 1B2: must create an MQTT connection
                 O2_DBq(printf("%s o2_mqtt_disc_handler 1B2\n",
                               o2_debug_prefix));
-                create_mqtt_connection(name);
+                create_mqtt_connection(name, true);
             }
         } else {  // we got our own name
             O2_DBq(printf("%s we \"discovered\" our own name; ignored.\n",
@@ -264,7 +274,7 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
     } else { // CASE 2: process is behind NAT
         // CASE 2A: we are the client
         if (cmp < 0) {
-            create_mqtt_connection(name);
+            create_mqtt_connection(name, true);
         } else if (cmp > 0) {  // CASE 2B: we are the server
             if (streql(o2n_public_ip, o2n_internal_ip)) {
                 // CASE 2B1: send O2_DY_CALLBACK via MQTT
@@ -274,7 +284,7 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
             } else { // CASE 2B2: we are behind NAT
                 O2_DBq(printf("%s o2_mqtt_disc_handler 2B2\n",
                               o2_debug_prefix));
-                create_mqtt_connection(name);
+                create_mqtt_connection(name, true);
             }
         } else {  // we got our own name
             return;

@@ -156,7 +156,8 @@ o2_err_t o2_service_provider_new(o2string service_name,
                                         (char *) properties);
         O2_DBG(printf("%s ** new service %s is %p (%s) active %d\n",
                       o2_debug_prefix, ss->key, service,
-                      o2_tag_to_string(service->tag), active));
+                      o2_tag_to_string(service->tag), active);
+               o2_node_show((o2_node_ptr) &o2_ctx->path_tree, 2));
     }
     if (active) {
         // we have an update in the active service, so report it to the local

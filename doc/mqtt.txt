@@ -119,23 +119,16 @@ Assume the process is behind NAT.
          Create an MQTT_NOCLOCK connection as in CASE 1B2.
 
 For clock sync, we send a return address. Now, a return address will
-become dependent on the connection. A return service for a message to
-a PROC will be just the process name /ipaddress:port/, but for an MQTT
-connection, the return service will be /publicip:localip:port/.
-
-Service messages to /_o2/sv must also be constructed carefully. If the
-message is going to a PROC, the process name is just IP:port, but
-messages must also be sent to all MQTT connections using process name
-publicIP:localIP:port.
+become dependent on the connection.
 
 There is only one TCP connection to the MQTT broker, but may be many
 processes. The MQTT connection should be shared by all, created by 
 o2_mqtt_enable(const char *mqtt_broker), and closed by o2_finish().
 
 When a remote process or service is discovered through MQTT, we need
-to set up a service named remoteIP:localIP:port that maps to a node
+to set up a service named pip:iip:port that maps to a node
 with tag MQTT_NOCLOCK or MQTT_SYNCED. This node should have a pointer
-back to the remoteIP:localIP:port key so we can find the process name
+back to the pip:iip:port key so we can find the process name
 for the provider of any service, but unlike PROC nodes that have
 net_info and udp_address fields for sending messages, these MQTT nodes
 will just send messages via the singleton MQTT connection.
@@ -149,10 +142,24 @@ less than 800 bytes if we have 8-byte pointers and up to 100
 processes.
 
 When a message is received from the MQTT broker, we get the topic,
-which is the receiver's publicIP:localIP:port name, but not the
+which is the receiver's pip:iip:port name, but not the
 sender. We need to know the sender, e.g. for a /_cs/cs or /_o2/sv
 message. We will add the process name to /_cs/cs messages (it's
 already in /_o2/sv). 
+
+Discovery Protocol
+------------------
+PROCESS 1                  BROKER           PROCESS 2
+subscribe ---------------->
+publish to O2-ens/disc --->
+                                 <--------- subscribe
+create proc2 <--------- O2-ens/disc <------ publish to O2-ens/disc
+publish --------------> !_o2/mqtt/dy -----> create proc1
+publish ------------------ !_o2/sv -------> create services
+create services <--------- !_o2/sv <------- publish
+
+If message comes from O2-ens/disc, then send back !_o2/mqtt/dy and
+clock and services info. If messages comes to private
 
 ==== everything below this line is obsoleted by the design above ====
 ==== It's here for reference in case I want to rethink things.   ====
