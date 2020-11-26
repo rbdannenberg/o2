@@ -299,7 +299,7 @@ o2_status_t o2_status_from_proc(o2_node_ptr service, const char **process)
     switch (service->tag) {
         case PROC_NOCLOCK:
         case PROC_SYNCED: {
-            stat = o2_clock_is_synchronized && service->tag == PROC_SYNCED ?
+            stat = (o2_clock_is_synchronized && service->tag == PROC_SYNCED) ?
                    O2_REMOTE : O2_REMOTE_NOTIME;
             break;
         }
@@ -319,6 +319,13 @@ o2_status_t o2_status_from_proc(o2_node_ptr service, const char **process)
         case BRIDGE_SYNCED:
             stat = o2_clock_is_synchronized && service->tag == BRIDGE_SYNCED ?
                    O2_BRIDGE : O2_BRIDGE_NOTIME;
+            break;
+#endif
+#ifndef O2_NO_MQTT
+        case MQTT_NOCLOCK:
+        case MQTT_SYNCED:
+            stat = (o2_clock_is_synchronized && service->tag == MQTT_SYNCED) ?
+                   O2_REMOTE : O2_REMOTE_NOTIME;
             break;
 #endif
         default: // not implemented yet or it's a NODE_TAP or not connected
