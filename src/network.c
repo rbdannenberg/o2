@@ -212,7 +212,7 @@ o2_err_t o2n_send_udp_via_info(o2n_info_ptr info, o2n_address_ptr ua,
 }
 
 
-// send a udp message to an address
+// send a udp message to an address, free the msg
 o2_err_t o2n_send_udp(o2n_address_ptr ua, o2n_message_ptr msg)
 {
     return o2n_send_udp_via_socket(o2n_udp_send_sock, ua, msg);
@@ -236,7 +236,7 @@ void o2n_send_udp_local(int port, o2n_message_ptr msg)
     O2_FREE(msg);
 }
 
-
+// This function takes ownership of msg
 o2_err_t o2n_send_tcp(o2n_info_ptr info, int block, o2n_message_ptr msg)
 {
     // if proc has a pending message, we must send with blocking

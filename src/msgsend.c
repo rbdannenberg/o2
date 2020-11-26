@@ -570,16 +570,13 @@ o2_err_t o2_message_send_sched(int schedulable)
         o2_complete_delivery(); // remove from o2_ctx->msgs and freej
         o2_drop_message("service was not found", msg);
         return O2_NO_SERVICE;
-    } else if (IS_REMOTE_PROC(service)) { // remote delivery, UDP or TCP
-        o2_err_t rslt = o2_send_remote(TO_PROC_INFO(service), true);
-        if (rslt != O2_SUCCESS) {
-            o2_drop_message("service was not found", msg);
-        }
-        return rslt;
+    } else if (IS_REMOTE_PROC(service)
 #ifndef O2_NO_MQTT
-    } else if (IS_MQTT_PROC(service)) {   // delivery by MQTT
-        return o2_mqtt_send(TO_PROC_INFO(service), msg);
+               || IS_MQTT_PROC(service)
 #endif
+              ) { // remote delivery, UDP or TCP or MQTT
+        o2_err_t rslt = o2_send_remote(TO_PROC_INFO(service), true);
+        return rslt;
 #ifndef O2_NO_BRIDGES
     } else if (ISA_BRIDGE(service)) {
         bridge_inst_ptr inst = (bridge_inst_ptr) service;
@@ -617,10 +614,11 @@ o2_err_t o2_message_send_sched(int schedulable)
 }
 
 
-// send a message via TCP or UDP to proc, frees the message
+// send a message via TCP or UDP to proc, frees the current message
 o2_err_t o2_send_remote(proc_info_ptr proc, int block)
 {
     if (proc == NULL) {
+        o2_drop_message("proc is NULL in o2_send_remote", o2_ctx->msgs);
         o2_complete_delivery(); // remove from o2_ctx->msgs and free
         return O2_NO_SERVICE;
     }
@@ -628,32 +626,27 @@ o2_err_t o2_send_remote(proc_info_ptr proc, int block)
 #ifndef O2_NO_DEBUG
 #ifndef O2_NO_MQTT
     if (IS_MQTT_PROC(proc)) {
-        O2_DBsS(o2_dbg_msg("sending via mqtt", msg, &msg->data,
-                           "to", proc->name));
-    } else
-#endif
-    if (msg->data.flags & O2_TCP_FLAG) {
-        O2_DBsS(
+        O2_DB(O2_DBs_FLAG | O2_DBS_FLAG | O2_DBq_FLAG,
             o2_msg_data_ptr mdp = &msg->data;
             int sysmsg = mdp->address[1] == '_' || isdigit(mdp->address[1]);
-            if (proc->net_info->out_message && !block) { // will have to queue
-                O2_DBS(if (sysmsg) o2_dbg_msg("queueing TCP", msg, mdp,
-                                              "to", proc->name));
-                O2_DBs(if (!sysmsg) o2_dbg_msg("queueing TCP", msg, mdp,
-                                               "to", proc->name));
-            } else {
-                O2_DBS(if (sysmsg) o2_dbg_msg("sending TCP", msg, mdp,
-                                              "to", proc->name));
-                O2_DBs(if (!sysmsg) o2_dbg_msg("sending TCP", msg, mdp,
-                                               "to", proc->name));
+            int db = (o2_debug & O2_DBq_FLAG) ||
+                     (sysmsg ? (o2_debug && O2_DBS_FLAG) :
+                               (o2_debug && O2_DBs_FLAG));
+            if (db) {
+                o2_dbg_msg("sending via mqtt", msg, &msg->data,
+                           "to", proc->name);
             });
-    } else { // send via UDP
-        O2_DBs(if (msg->data.address[1] != '_' &&
-                   !isdigit(msg->data.address[1])) o2_dbg_msg("sending UDP",
-                                       msg, &msg->data, "to", proc->name));
-        O2_DBS(if (msg->data.address[1] == '_' ||
-                   isdigit(msg->data.address[1]))  o2_dbg_msg("sending UDP",
-                                       msg, &msg->data, "to", proc->name));
+    } else
+#endif
+    {
+        o2_msg_data_ptr mdp = &msg->data;
+        bool sysmsg = mdp->address[1] == '_' || isdigit(mdp->address[1]);
+        O2_DB(sysmsg ? O2_DBS_FLAG : O2_DBs_FLAG,
+            bool blocking = proc->net_info->out_message && !block;
+            const char *desc = (mdp->flags & O2_TCP_FLAG ?
+                                (blocking ? "queueing TCP" : "sending TCP") :
+                                "sending UDP");
+            o2_dbg_msg(desc, msg, mdp, "to", proc->name));
     }
 #endif
     int tcp_flag = msg->data.flags & O2_TCP_FLAG; // before byte swap

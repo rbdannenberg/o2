@@ -335,7 +335,7 @@ o2_status_t o2_status_from_proc(o2_node_ptr service, const char **process)
 #ifndef O2_NO_DEBUG
 void o2_proc_info_show(proc_info_ptr proc)
 {
-    printf(" port=%d name=%s\n", o2n_address_get_port(&proc->udp_address),
+    printf(" port=%d name=%s", o2n_address_get_port(&proc->udp_address),
            proc->name);
 }
 #endif

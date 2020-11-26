@@ -84,7 +84,7 @@ o2_err_t o2_mqtt_initialize()
     assert(o2_ctx->proc->name);
     O2_DBq(printf("%s publishing disc topic %s payload %s\n",
                   o2_debug_prefix, topic, o2_ctx->proc->name));
-    o2_mqtt_publish(topic, (const uint8_t *) o2_ctx->proc->name,
+    o2_mqtt_publish("/disc", "", (const uint8_t *) o2_ctx->proc->name,
                     strlen(o2_ctx->proc->name), 0);
     // subscribe to O2-<ensemble>:<public ip>:<local ip>:<port>
     *after_ensemble++ = ':';
@@ -94,16 +94,18 @@ o2_err_t o2_mqtt_initialize()
 }
 
 
+// send an O2 message to proc, which is an MQTT proc
+// prerequisite: msg is in network byte order
+// msg is freed before returning
 o2_err_t o2_mqtt_send(proc_info_ptr proc, o2_message_ptr msg)
 {
-    char topic[O2_MAX_NAME_LEN + O2_MAX_PROCNAME_LEN + 16];
-    snprintf(topic, O2_MAX_NAME_LEN + O2_MAX_PROCNAME_LEN + 16,
-             "%s%s:%s", "O2-", o2_ensemble_name, proc->name);
     int payload_len = msg->data.length;
     const uint8_t *payload = (const uint8_t *) &msg->data.flags;
-    O2_DBq(o2_dbg_msg("o2_mqtt_send", msg, &msg->data, NULL, NULL));
+    // O2_DBq(o2_dbg_msg("o2_mqtt_send", msg, &msg->data, NULL, NULL));
     printf("o2_mqtt_send payload_len (msg len) %d\n", payload_len);
-    return o2_mqtt_publish(topic, payload, payload_len, 0);
+    o2_err_t err = o2_mqtt_publish(":", proc->name, payload, payload_len, 0);
+    O2_FREE(msg);
+    return err;
 }
 
 
@@ -152,6 +154,11 @@ o2_err_t create_mqtt_connection(const char *name, bool from_disc)
         o2_message_ptr msg = o2_message_finish(0.0, "!_o2/mqtt/dy", true);
         assert(msg->data.length == 12 + o2_strsize("!_o2/mqtt/dy") +
                o2_strsize(",s") + o2_strsize(o2_ctx->proc->name));
+        O2_DBq(o2_dbg_msg("create_mqtt_connection", msg, &msg->data,
+                          NULL, NULL));
+        #if IS_LITTLE_ENDIAN
+            o2_msg_swap_endian(&msg->data, true);
+        #endif
         RETURN_IF_ERROR(o2_mqtt_send(mqtt, msg));
     }
     o2_err_t err = O2_SUCCESS;
@@ -187,15 +194,11 @@ static char *find_colon(char *s, const char *end)
     return NULL;
 }
 
-
 void send_callback_via_mqtt(const char *name)
 {
     o2_message_ptr msg = o2_make_dy_msg(o2_ctx->proc, true,
                                         O2_DY_CALLBACK);
-    char topic[O2_MAX_NAME_LEN + 16];
-    topic[0] = 'O'; topic[1] = '2'; topic[2] = '-';
-    strcpy(topic + 3, name);
-    o2_mqtt_publish(topic, (const uint8_t *) O2_MSG_PAYLOAD(msg),
+    o2_mqtt_publish(":", name, (const uint8_t *) O2_MSG_PAYLOAD(msg),
                     msg->data.length, 0);
 }
 
@@ -304,7 +307,7 @@ void o2m_deliver_mqtt_msg(const char *topic, int topic_len,
 {
     O2_DBq(printf("%s o2m_deliver_mqtt_msg topic %s payload_len %d\n",
                   o2_debug_prefix, topic, payload_len));
-    // see if topic matches public:intern:port string
+    // see if topic matches O2-ensemble:public:intern:port string
     if (strncmp("O2-", topic, 3) == 0) {
         size_t o2_ens_len = 3 + strlen(o2_ensemble_name);  // counts "O2-"
         // test for topic == O2-ens:pip:iip:port 
@@ -318,6 +321,9 @@ void o2m_deliver_mqtt_msg(const char *topic, int topic_len,
             // match, so send the message.
             o2_message_ptr msg = o2_message_new(payload_len);
             memcpy(O2_MSG_PAYLOAD(msg), payload, payload_len);
+#if IS_LITTLE_ENDIAN
+            o2_msg_swap_endian(&msg->data, false);
+#endif
             O2_DBq(o2_dbg_msg("o2m_deliver_mqtt_msg", msg, &msg->data,
                               NULL, NULL));
             o2_prepare_to_deliver(msg);
