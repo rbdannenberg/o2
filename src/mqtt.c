@@ -72,24 +72,15 @@ o2_err_t o2_mqtt_initialize()
     // make MQTT broker connection
     o2m_initialize(mqtt_broker_ip, o2n_address_get_port(&mqtt_address));
     // subscribe to O2-<ensemblename>/disc
-    char topic[O2_MAX_NAME_LEN + 16];
-    topic[0] = 'O'; topic[1] = '2'; topic[2] = '-';
-    // enforced by o2_initialize:
-    assert(strlen(o2_ensemble_name) <= O2_MAX_NAME_LEN); 
-    strcpy(topic + 3, o2_ensemble_name);
-    char *after_ensemble = topic + strlen(topic);
-    strcpy(after_ensemble, "/disc");
-    o2m_subscribe(topic);  // topic is O2-<ensemblename>/disc
+    o2m_subscribe("disc");  // topic is O2-<ensemblename>/disc
     // send name to O2-<ensemblename>/disc, retain is off.
     assert(o2_ctx->proc->name);
-    O2_DBq(printf("%s publishing disc topic %s payload %s\n",
-                  o2_debug_prefix, topic, o2_ctx->proc->name));
+    O2_DBq(printf("%s publishing to O2-%s/disc with payload %s\n",
+                  o2_debug_prefix, o2_ensemble_name, o2_ctx->proc->name));
     o2_mqtt_publish("disc", (const uint8_t *) o2_ctx->proc->name,
                     strlen(o2_ctx->proc->name), 0);
-    // subscribe to O2-<ensemble>:<public ip>:<local ip>:<port>
-    *after_ensemble++ = ':';
-    strcpy(after_ensemble, o2_ctx->proc->name);
-    o2m_subscribe(topic);  // topic is O2-<public ip>:<local ip>:<port>
+    // subscribe to O2-<ensemble>/<public ip>:<local ip>:<port>
+    o2m_subscribe(o2_ctx->proc->name);  // topic is O2-ens/pip:iip:port
     return O2_SUCCESS;
 }
 

@@ -179,7 +179,7 @@ o2_err_t o2m_subscribe(const char *topic)
     packet_id = (packet_id + 1) & 0xFFFF;
     o2_send_start();
     mqtt_append_int16(packet_id);
-    mqtt_append_string(topic);
+    mqtt_append_topic(topic);
     uint8_t byte = 0;
     mqtt_append_bytes(&byte, 1);
     o2n_message_ptr msg = mqtt_finish_msg(MQTT_SUBSCRIBE);
