@@ -110,7 +110,7 @@ static void mqtt_append_topic(const char *s1)
     char *base = o2_ctx->msg_data.array + o2_ctx->msg_data.length;
     memcpy(base, "O2-", 3);
     memcpy(base + 3, o2_ensemble_name, len0);
-    base[3 + len0] = "/";
+    base[3 + len0] = '/';
     memcpy(base + 4 + len0, s1, len1);
     o2_ctx->msg_data.length += len;
 }
