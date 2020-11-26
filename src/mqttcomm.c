@@ -345,9 +345,9 @@ o2_err_t o2_mqtt_publish(const char *t1, const char *t2,
            6 + strlen(o2_ensemble_name) + strlen(t1) + strlen(t2));
     mqtt_append_int16(packet_id);
     assert(o2_ctx->msg_data.length ==
-           7 + strlen(o2_ensemble_name) + strlen(t1) + strlen(t2));
+           8 + strlen(o2_ensemble_name) + strlen(t1) + strlen(t2));
     mqtt_append_bytes((void *) payload, payload_len);
-    assert(o2_ctx->msg_data.length == 7 + strlen(o2_ensemble_name) +
+    assert(o2_ctx->msg_data.length == 8 + strlen(o2_ensemble_name) +
                                       strlen(t1) + strlen(t2) + payload_len);
     printf("o2_mqtt_publish payload_len %d\n", payload_len);
     o2n_message_ptr msg = mqtt_finish_msg(MQTT_PUBLISH | retain);
