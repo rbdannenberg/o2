@@ -70,6 +70,10 @@ int main(int argc, const char *argv[])
         usleep(2000);
     }
     
+    double mean, min;
+    o2_roundtrip(&mean, &min);
+    printf("Clock round-trip mean %g, min %g\n", mean, min);
+
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     
     o2_send_cmd("!server/server", 0, "i", 1);

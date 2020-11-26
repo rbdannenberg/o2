@@ -423,7 +423,7 @@ static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
     if (ping_reply_count >= CLOCK_SYNC_HISTORY_LEN) {
         // find minimum round trip time
         min_rtt = round_trip_time[0];
-        mean_rtt = 0;
+        mean_rtt = min_rtt;
         int best_i = 0;
         for (i = 1; i < CLOCK_SYNC_HISTORY_LEN; i++) {
             mean_rtt += round_trip_time[i];
@@ -432,7 +432,7 @@ static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
                 best_i = i;
             }
         }
-        mean_rtt /= ping_reply_count;
+        mean_rtt /= CLOCK_SYNC_HISTORY_LEN;
         // best estimate of ref_minus_local is stored at i
         //printf("*    %s: time adjust %g\n", o2_debug_prefix,
         //       now + ref_minus_local[best_i] - o2_time_get());
