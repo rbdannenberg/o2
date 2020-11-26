@@ -256,7 +256,8 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
                 create_mqtt_connection(name);
             }
         } else {  // we got our own name
-            O2_DBq(printf("%s we \"discovered\" our own name; ignored.\n"));
+            O2_DBq(printf("%s we \"discovered\" our own name; ignored.\n",
+                          o2_debug_prefix));
             return;
         }
         

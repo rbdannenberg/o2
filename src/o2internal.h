@@ -31,6 +31,7 @@ typedef const char *o2string; // string padded to 4-byte boundary
 #include "processes.h"
 #include "stun.h"
 #include "mqtt.h"
+#include "mqttcomm.h"
 #include "bridge.h"
 
 /*

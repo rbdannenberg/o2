@@ -312,6 +312,14 @@ void o2_mqtt_received(o2n_info_ptr info)
 }
 
 
+o2_err_t o2_mqtt_can_send()
+{
+    return (mqtt_info ?
+            (mqtt_info->out_message ? O2_BLOCKED : O2_SUCCESS) :
+            O2_FAIL);
+}
+
+
 o2_err_t o2_mqtt_publish(const char *topic, const uint8_t *payload,
                          int payload_len, int retain)
 {

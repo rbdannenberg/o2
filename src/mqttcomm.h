@@ -11,5 +11,6 @@ void o2m_received(int n);
 void o2_mqtt_received(o2n_info_ptr info);
 o2_err_t o2_mqtt_publish(const char *topic, const uint8_t *payload,
                          int payload_len, int retain);
+o2_err_t o2_mqtt_can_send();
 
 #endif

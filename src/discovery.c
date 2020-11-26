@@ -559,7 +559,11 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
     // note that name is padded with zeros to 32-bit boundary
     services_entry_ptr services;
     proc_info_ptr proc = TO_PROC_INFO(o2_service_find(name, &services));
-    if (!proc || !IS_REMOTE_PROC(proc)) {
+    if (!proc || (!IS_REMOTE_PROC(proc)
+#ifndef O2_NO_MQTT
+        && !IS_MQTT_PROC(proc)
+#endif
+        )) {
         O2_DBG(printf("%s ### ERROR: o2_services_handler did not find %s\n", 
                       o2_debug_prefix, name);
                o2_node_show((o2_node_ptr) (&o2_ctx->path_tree), 2));

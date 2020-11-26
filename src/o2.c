@@ -1172,6 +1172,10 @@ o2_err_t o2_can_send(const char *service)
                 return (net_info->out_message ? O2_BLOCKED : O2_SUCCESS);
             }
 #endif
+#ifndef O2_NO_MQTT
+        } else if (IS_MQTT_PROC(entry)) {
+            return o2_mqtt_can_send();
+#endif
         } else {
             return O2_SUCCESS;
         }
