@@ -52,7 +52,7 @@ o2_err_t o2_mqtt_enable(const char *broker, int port_num)
         perror("converting mqtt ip to string");
         return O2_FAIL;
     }
-    printf("o2_mqtt_enable %s with IP %s\n", broker, mqtt_broker_ip);
+    O2_DBq(printf("o2_mqtt_enable %s with IP %s\n", broker, mqtt_broker_ip));
     DA_INIT(o2_mqtt_procs, proc_info_ptr, 0);
     return o2_mqtt_initialize();
 }
@@ -93,7 +93,7 @@ o2_err_t o2_mqtt_send(proc_info_ptr proc, o2_message_ptr msg)
     int payload_len = msg->data.length;
     const uint8_t *payload = (const uint8_t *) &msg->data.flags;
     // O2_DBq(o2_dbg_msg("o2_mqtt_send", msg, &msg->data, NULL, NULL));
-    printf("o2_mqtt_send payload_len (msg len) %d\n", payload_len);
+    O2_DBq(printf("o2_mqtt_send payload_len (msg len) %d\n", payload_len));
     o2_err_t err = o2_mqtt_publish(proc->name, payload, payload_len, 0);
     O2_FREE(msg);
     return err;

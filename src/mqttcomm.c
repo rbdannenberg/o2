@@ -145,7 +145,7 @@ static o2n_message_ptr mqtt_finish_msg(int command)
     // insert new stuff
     msg->payload[0] = command;
     memcpy(msg->payload + 1, varlen, varlen_len);
-    print_bytes("mqtt_finish_msg", msg->payload, msg->length);
+    O2_DBq(print_bytes("mqtt_finish_msg", msg->payload, msg->length));
     return msg;
 }
 
@@ -302,7 +302,8 @@ void o2_mqtt_received(o2n_info_ptr info)
     mqtt_input.length += len;
     // done with message:
     O2_FREE(msg);
-    print_bytes("o2_mqtt_received", mqtt_input.array, mqtt_input.length);
+    O2_DBq(print_bytes("o2_mqtt_received", mqtt_input.array,
+                       mqtt_input.length));
     bool handled = handle_first_mqtt_msg();
     while (handled && mqtt_input.length > 0) {
         handled = handle_first_mqtt_msg();
@@ -347,9 +348,9 @@ o2_err_t o2_mqtt_publish(const char *subtopic,
     mqtt_append_bytes((void *) payload, payload_len);
     assert(o2_ctx->msg_data.length == 8 + strlen(o2_ensemble_name) +
                                       strlen(subtopic) + payload_len);
-    printf("o2_mqtt_publish payload_len %d\n", payload_len);
+    O2_DBq(printf("o2_mqtt_publish payload_len %d\n", payload_len));
     o2n_message_ptr msg = mqtt_finish_msg(MQTT_PUBLISH | retain);
-    printf("o2_mqtt_publish message len %d\n", msg->length);
+    O2_DBq(printf("o2_mqtt_publish message len %d\n", msg->length));
     puback_expected++;
     O2_DBq(printf("%s sending that msg via MQTT_PUBLISH puback expected %d\n",
                   o2_debug_prefix, puback_expected));

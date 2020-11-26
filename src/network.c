@@ -1013,7 +1013,6 @@ static o2_err_t read_whole_message(SOCKET sock, o2n_info_ptr info)
     assert(info->in_length_got < 5);
     if (info->raw_flag) {
         // allow raw messages up to 512 bytes
-        printf("info->net_tag %d\n", info->net_tag);
         assert(info->net_tag == NET_TCP_SERVER ||
                info->net_tag == NET_TCP_CLIENT);
         info->in_message = O2N_MESSAGE_ALLOC(512);
