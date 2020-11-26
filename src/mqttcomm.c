@@ -111,9 +111,8 @@ static void mqtt_append_topic(const char *s1, const char *s2)
     char *base = o2_ctx->msg_data.array + o2_ctx->msg_data.length;
     memcpy(base, "O2-", 3);
     memcpy(base + 3, o2_ensemble_name, len0);
-    base[3 + len0] = ':';  // separator after O2-ensemble_name
-    memcpy(base + 4 + len0, s1, len1);
-    memcpy(base + 4 + len0 + len1, s2, len2);
+    memcpy(base + 3 + len0, s1, len1);
+    memcpy(base + 3 + len0 + len1, s2, len2);
     o2_ctx->msg_data.length += len;
 }
 
