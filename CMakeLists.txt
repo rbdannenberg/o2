@@ -90,31 +90,32 @@ endif(UNIX)
 # o2
  
 set(O2_SRC  
-  src/atomic.c src/atomic.h
-  src/bridge.c src/bridge.h 
-  src/clock.c src/clock.h 
-  src/debug.c src/debug.h 
-  src/discovery.c src/discovery.h 
-  src/dynarray.c src/dynarray.h
-  src/hashnode.c src/hashnode.h
-  src/message.c src/message.h 
-  src/mqtt.c src/mqtt.h 
-  src/mqttcomm.c src/mqttcomm.h 
-  src/msgsend.c src/msgsend.h 
-  src/msgprint.c
-  src/network.c src/network.h 
-  src/o2.c src/o2.h src/o2internal.h 
-  src/o2osc.c src/o2osc.h
-  src/pathtree.c src/pathtree.h
-  src/processes.c src/processes.h
-  src/properties.c src/properties.h
-  src/o2sched.c src/o2sched.h
-  src/o2usleep.c src/o2usleep.h
-  src/services.c src/services.h 
-  src/sharedmem.c src/sharedmem.h
-  src/o2mem.c src/o2mem.h 
+  src/atomic.cpp src/atomic.h
+  src/bridge.cpp src/bridge.h 
+  src/clock.cpp src/clock.h 
+  src/debug.cpp src/debug.h 
+  src/discovery.cpp src/discovery.h 
+  src/vec.cpp src/vec.h
+  src/dynarray.cpp src/dynarray.h
+  src/hashnode.cpp src/hashnode.h
+  src/message.cpp src/message.h 
+  src/mqtt.cpp src/mqtt.h 
+  src/mqttcomm.cpp src/mqttcomm.h 
+  src/msgsend.cpp src/msgsend.h 
+  src/msgprint.cpp
+  src/network.cpp src/network.h 
+  src/o2.cpp src/o2.h src/o2internal.h 
+  src/o2osc.cpp src/o2osc.h
+  src/pathtree.cpp src/pathtree.h
+  src/processes.cpp src/processes.h
+  src/properties.cpp src/properties.h
+  src/o2sched.cpp src/o2sched.h
+  src/o2usleep.cpp src/o2usleep.h
+  src/services.cpp src/services.h 
+  src/sharedmem.cpp src/sharedmem.h
+  src/o2mem.cpp src/o2mem.h 
   src/sharedmemclient.h
-  src/stun.c src/stun.h
+  src/stun.cpp src/stun.h
   )  
 
 add_library(o2_static STATIC ${O2_SRC})  
@@ -173,221 +174,221 @@ endif(WIN32)
 
 # EXECUTABLE
 # Create executables 
-add_executable(dispatchtest test/dispatchtest.c)  
+add_executable(dispatchtest test/dispatchtest.cpp)  
 target_include_directories(dispatchtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(dispatchtest ${LIBRARIES}) 
  
-add_executable(typestest test/typestest.c)   
+add_executable(typestest test/typestest.cpp)   
 target_include_directories(typestest PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(typestest ${LIBRARIES}) 
 
-add_executable(taptest test/taptest.c)   
+add_executable(taptest test/taptest.cpp)   
 target_include_directories(taptest PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(taptest ${LIBRARIES}) 
 
-add_executable(coercetest test/coercetest.c)    
+add_executable(coercetest test/coercetest.cpp)    
 target_include_directories(coercetest PRIVATE ${CMAKE_SOURCE_DIR}/src)    
 target_link_libraries(coercetest ${LIBRARIES}) 
    
-add_executable(longtest test/longtest.c)     
+add_executable(longtest test/longtest.cpp)     
 target_include_directories(longtest PRIVATE ${CMAKE_SOURCE_DIR}/src)     
 target_link_libraries(longtest ${LIBRARIES}) 
     
-add_executable(arraytest test/arraytest.c)     
+add_executable(arraytest test/arraytest.cpp)     
 target_include_directories(arraytest PRIVATE ${CMAKE_SOURCE_DIR}/src)     
 target_link_libraries(arraytest ${LIBRARIES}) 
 
 if(BUILD_WITH_PATTERN_SUPPORT)
-  add_executable(patterntest test/patterntest.c)     
+  add_executable(patterntest test/patterntest.cpp)     
   target_include_directories(patterntest PRIVATE ${CMAKE_SOURCE_DIR}/src)     
   target_link_libraries(patterntest ${LIBRARIES})  
 endif(BUILD_WITH_PATTERN_SUPPORT)
 
 if(BUILD_WITH_BRIDGE_SUPPORT)  
-  add_executable(bridgeapi test/bridgeapi.c)     
+  add_executable(bridgeapi test/bridgeapi.cpp)     
   target_include_directories(bridgeapi PRIVATE ${CMAKE_SOURCE_DIR}/src)     
   target_link_libraries(bridgeapi ${LIBRARIES})  
 endif(BUILD_WITH_BRIDGE_SUPPORT)  
  
 if(BUILD_WITH_SHAREDMEM_SUPPORT)  
-  add_executable(shmemserv test/shmemserv.c)     
+  add_executable(shmemserv test/shmemserv.cpp)     
   target_include_directories(shmemserv PRIVATE ${CMAKE_SOURCE_DIR}/src)     
   target_link_libraries(shmemserv ${LIBRARIES} ${PTHREAD})  
 endif(BUILD_WITH_SHAREDMEM_SUPPORT)  
  
-add_executable(o2client test/o2client.c)  
+add_executable(o2client test/o2client.cpp)  
 target_include_directories(o2client PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(o2client ${LIBRARIES}) 
  
-add_executable(o2server test/o2server.c)  
+add_executable(o2server test/o2server.cpp)  
 target_include_directories(o2server PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(o2server ${LIBRARIES}) 
  
-add_executable(nonblocksend test/nonblocksend.c)  
+add_executable(nonblocksend test/nonblocksend.cpp)  
 target_include_directories(nonblocksend PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(nonblocksend ${LIBRARIES}) 
  
-add_executable(nonblockrecv test/nonblockrecv.c)  
+add_executable(nonblockrecv test/nonblockrecv.cpp)  
 target_include_directories(nonblockrecv PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(nonblockrecv ${LIBRARIES}) 
  
-add_executable(statusclient test/statusclient.c)
+add_executable(statusclient test/statusclient.cpp)
 target_include_directories(statusclient PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(statusclient ${LIBRARIES}) 
   
-add_executable(statusserver test/statusserver.c)   
+add_executable(statusserver test/statusserver.cpp)   
 target_include_directories(statusserver PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(statusserver ${LIBRARIES}) 
  
-add_executable(tcpclient test/tcpclient.c)   
+add_executable(tcpclient test/tcpclient.cpp)   
 target_include_directories(tcpclient PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(tcpclient ${LIBRARIES}) 
   
-add_executable(tcpserver test/tcpserver.c)   
+add_executable(tcpserver test/tcpserver.cpp)   
 target_include_directories(tcpserver PRIVATE ${CMAKE_SOURCE_DIR}/src)   
 target_link_libraries(tcpserver ${LIBRARIES}) 
  
-add_executable(clockmirror test/clockmirror.c) 
+add_executable(clockmirror test/clockmirror.cpp) 
 target_include_directories(clockmirror PRIVATE ${CMAKE_SOURCE_DIR}/src) 
 target_link_libraries(clockmirror ${LIBRARIES}) 
 
-add_executable(clockref test/clockref.c)  
+add_executable(clockref test/clockref.cpp)  
 target_include_directories(clockref PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(clockref ${LIBRARIES}) 
 
-add_executable(appfollow test/appfollow.c) 
+add_executable(appfollow test/appfollow.cpp) 
 target_include_directories(appfollow PRIVATE ${CMAKE_SOURCE_DIR}/src) 
 target_link_libraries(appfollow ${LIBRARIES}) 
 
-add_executable(applead test/applead.c)  
+add_executable(applead test/applead.cpp)  
 target_include_directories(applead PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(applead ${LIBRARIES}) 
 
 if(BUILD_WITH_OSC_SUPPORT) 
-  add_executable(oscsendtest test/oscsendtest.c)  
+  add_executable(oscsendtest test/oscsendtest.cpp)  
   target_include_directories(oscsendtest PRIVATE ${CMAKE_SOURCE_DIR}/src)  
   target_link_libraries(oscsendtest ${LIBRARIES}) 
  
-  add_executable(oscrecvtest test/oscrecvtest.c)   
+  add_executable(oscrecvtest test/oscrecvtest.cpp)   
   target_include_directories(oscrecvtest PRIVATE ${CMAKE_SOURCE_DIR}/src)   
   target_link_libraries(oscrecvtest ${LIBRARIES}) 
   
-  add_executable(oscanytest test/oscanytest.c)   
+  add_executable(oscanytest test/oscanytest.cpp)   
   target_include_directories(oscanytest PRIVATE ${CMAKE_SOURCE_DIR}/src)   
   target_link_libraries(oscanytest ${LIBRARIES}) 
   
   if(BUILD_WITH_BUNDLE_SUPPORT)
-    add_executable(bundletest test/bundletest.c)   
+    add_executable(bundletest test/bundletest.cpp)   
     target_include_directories(bundletest PRIVATE ${CMAKE_SOURCE_DIR}/src)   
     target_link_libraries(bundletest ${LIBRARIES}) 
   
-    add_executable(oscbndlsend test/oscbndlsend.c)   
+    add_executable(oscbndlsend test/oscbndlsend.cpp)   
     target_include_directories(oscbndlsend PRIVATE ${CMAKE_SOURCE_DIR}/src)   
     target_link_libraries(oscbndlsend ${LIBRARIES}) 
 
-    add_executable(oscbndlrecv test/oscbndlrecv.c)    
+    add_executable(oscbndlrecv test/oscbndlrecv.cpp)    
     target_include_directories(oscbndlrecv PRIVATE ${CMAKE_SOURCE_DIR}/src)    
     target_link_libraries(oscbndlrecv ${LIBRARIES})  
   endif(BUILD_WITH_BUNDLE_SUPPORT)
 endif(BUILD_WITH_OSC_SUPPORT) 
 
-add_executable(infotest1 test/infotest1.c)    
+add_executable(infotest1 test/infotest1.cpp)    
 target_include_directories(infotest1 PRIVATE ${CMAKE_SOURCE_DIR}/src)    
 target_link_libraries(infotest1 ${LIBRARIES})  
  
-add_executable(infotest2 test/infotest2.c)    
+add_executable(infotest2 test/infotest2.cpp)    
 target_include_directories(infotest2 PRIVATE ${CMAKE_SOURCE_DIR}/src)    
 target_link_libraries(infotest2 ${LIBRARIES})  
 
-add_executable(o2utclient test/o2utclient.c)  
+add_executable(o2utclient test/o2utclient.cpp)  
 target_include_directories(o2utclient PRIVATE ${CMAKE_SOURCE_DIR}/src)  
 target_link_libraries(o2utclient ${LIBRARIES}) 
  
-add_executable(o2utserver test/o2utserver.c)   
+add_executable(o2utserver test/o2utserver.cpp)   
 target_include_directories(o2utserver PRIVATE ${CMAKE_SOURCE_DIR}/src)    
 target_link_libraries(o2utserver ${LIBRARIES}) 
 
-add_executable(rawtcpserver test/rawtcpserver.c)   
+add_executable(rawtcpserver test/rawtcpserver.cpp)   
 target_link_libraries(rawtcpserver ${LIBRARIES}) 
 
 if(APPLE)
-  add_executable(rawtcpclient test/rawtcpclient.c)   
+  add_executable(rawtcpclient test/rawtcpclient.cpp)   
   target_link_libraries(rawtcpclient ${LIBRARIES}) 
 
-  add_executable(rawudpserver test/rawudpserver.c)   
+  add_executable(rawudpserver test/rawudpserver.cpp)   
   target_link_libraries(rawudpserver ${LIBRARIES}) 
 
-  add_executable(rawudpclient test/rawudpclient.c)   
+  add_executable(rawudpclient test/rawudpclient.cpp)   
   target_link_libraries(rawudpclient ${LIBRARIES}) 
 endif(APPLE)
 
-add_executable(proptest test/proptest.c)    
+add_executable(proptest test/proptest.cpp)    
 target_include_directories(proptest PRIVATE ${CMAKE_SOURCE_DIR}/src)     
 target_link_libraries(proptest ${LIBRARIES}) 
  
-add_executable(o2block test/o2block.c)    
+add_executable(o2block test/o2block.cpp)    
 target_include_directories(o2block PRIVATE ${CMAKE_SOURCE_DIR}/src)     
 target_link_libraries(o2block ${LIBRARIES}) 
  
-add_executable(o2unblock test/o2unblock.c)    
+add_executable(o2unblock test/o2unblock.cpp)    
 target_include_directories(o2unblock PRIVATE ${CMAKE_SOURCE_DIR}/src)     
 target_link_libraries(o2unblock ${LIBRARIES}) 
 
-add_executable(propsend test/propsend.c)    
+add_executable(propsend test/propsend.cpp)    
 target_include_directories(propsend PRIVATE ${CMAKE_SOURCE_DIR}/src)     
 target_link_libraries(propsend ${LIBRARIES}) 
 
-add_executable(proprecv test/proprecv.c)     
+add_executable(proprecv test/proprecv.cpp)     
 target_include_directories(proprecv PRIVATE ${CMAKE_SOURCE_DIR}/src)      
 target_link_libraries(proprecv ${LIBRARIES}) 
  
-add_executable(tappub test/tappub.c)  
+add_executable(tappub test/tappub.cpp)  
 target_include_directories(tappub PRIVATE ${CMAKE_SOURCE_DIR}/src)       
 target_link_libraries(tappub ${LIBRARIES}) 
   
-add_executable(tapsub test/tapsub.c)      
+add_executable(tapsub test/tapsub.cpp)      
 target_include_directories(tapsub PRIVATE ${CMAKE_SOURCE_DIR}/src)       
 target_link_libraries(tapsub ${LIBRARIES}) 
 
 if(BUILD_WITH_HUB_SUPPORT)
-  add_executable(hubserver test/hubserver.c)
+  add_executable(hubserver test/hubserver.cpp)
   target_include_directories(hubserver PRIVATE ${CMAKE_SOURCE_DIR}/src)
   target_link_libraries(hubserver ${LIBRARIES})
   
-  add_executable(hubclient test/hubclient.c)
+  add_executable(hubclient test/hubclient.cpp)
   target_include_directories(hubclient PRIVATE ${CMAKE_SOURCE_DIR}/src)
   target_link_libraries(hubclient ${LIBRARIES})
 endif(BUILD_WITH_HUB_SUPPORT)
    
-add_executable(dropserver test/dropserver.c)
+add_executable(dropserver test/dropserver.cpp)
 target_include_directories(dropserver PRIVATE ${CMAKE_SOURCE_DIR}/src)       
 target_link_libraries(dropserver ${LIBRARIES}) 
   
-add_executable(dropclient test/dropclient.c)       
+add_executable(dropclient test/dropclient.cpp)       
 target_include_directories(dropclient PRIVATE ${CMAKE_SOURCE_DIR}/src)        
 target_link_libraries(dropclient ${LIBRARIES}) 
 
-add_executable(o2litemsg test/o2litemsg.c)        
+add_executable(o2litemsg test/o2litemsg.cpp)        
 target_include_directories(o2litemsg PRIVATE ${CMAKE_SOURCE_DIR}/src)         
 target_link_libraries(o2litemsg ${O2LITE_LIBS})  
     
-add_executable(o2liteserv test/o2liteserv.c)        
+add_executable(o2liteserv test/o2liteserv.cpp)        
 target_include_directories(o2liteserv PRIVATE ${CMAKE_SOURCE_DIR}/src)         
 target_link_libraries(o2liteserv ${O2LITE_LIBS})  
 
-add_executable(o2litehost test/o2litehost.c) 
+add_executable(o2litehost test/o2litehost.cpp) 
 target_include_directories(o2litehost PRIVATE ${CMAKE_SOURCE_DIR}/src)         
 target_link_libraries(o2litehost ${LIBRARIES})  
 
-add_executable(stuniptest test/stuniptest.c) 
+add_executable(stuniptest test/stuniptest.cpp) 
 target_include_directories(stuniptest PRIVATE ${CMAKE_SOURCE_DIR}/src)         
 target_link_libraries(stuniptest ${LIBRARIES})  
 
-add_executable(mqttclient test/mqttclient.c) 
+add_executable(mqttclient test/mqttclient.cpp) 
 target_include_directories(mqttclient PRIVATE ${CMAKE_SOURCE_DIR}/src)         
 target_link_libraries(mqttclient ${LIBRARIES})  
 
-add_executable(mqttserver test/mqttserver.c) 
+add_executable(mqttserver test/mqttserver.cpp) 
 target_include_directories(mqttserver PRIVATE ${CMAKE_SOURCE_DIR}/src)         
 target_link_libraries(mqttserver ${LIBRARIES})  
 
@@ -442,11 +443,11 @@ if(UNIX)
                    ${PORTMIDI_PATH}/x64/Debug)
     endif(USE_STATIC_LIBS)
 
-    add_executable(midiclient test/midiclient.c test/cmtio.c test/cmtio.h) 
+    add_executable(midiclient test/midiclient.cpp test/cmtio.cpp test/cmtio.h) 
     target_include_directories(midiclient PRIVATE ${CMAKE_SOURCE_DIR}/src) 
     target_link_libraries(midiclient ${LIBRARIES})
 
-    add_executable(midiserver test/midiserver.c)
+    add_executable(midiserver test/midiserver.cpp)
     target_include_directories(midiserver PRIVATE ${CMAKE_SOURCE_DIR}/src
           ${PORTMIDI_PATH} ${PORTMIDI_PATH}/../porttime)
     target_link_libraries(midiserver ${LIBRARIES} ${PORTMIDI_DBG_LIB}) 
@@ -456,10 +457,10 @@ endif(UNIX)
 message(STATUS LIBRARIES=${LIBRARIES}) 
 
 # this is some networking test code, not part of O2
-#add_executable(broadcastclient test/broadcastclient.c) 
-#add_executable(broadcastserver test/broadcastserver.c) 
-#add_executable(tcppollclient test/tcppollclient.c) 
-#add_executable(tcppollserver test/tcppollserver.c) 
+#add_executable(broadcastclient test/broadcastclient.cpp) 
+#add_executable(broadcastserver test/broadcastserver.cpp) 
+#add_executable(tcppollclient test/tcppollclient.cpp) 
+#add_executable(tcppollserver test/tcppollserver.cpp) 
 
 
 
@@ -494,28 +495,28 @@ if(BUILD_TESTS_WITH_LIBLO)
   message(STATUS "LIBLO_LIB is ${LIBLO_LIB}") 
 
   # Create executables 
-  add_executable(lo_benchmk_server  test/lo_benchmk_server.c) 
+  add_executable(lo_benchmk_server  test/lo_benchmk_server.cpp) 
   target_include_directories(lo_benchmk_server PRIVATE ${LIBLO_INCLUDE_PATH})
   target_link_libraries(lo_benchmk_server ${LIBLO_LIB} ${EXTRA_LO_LIBS}) 
 
-  add_executable(lo_benchmk_client  test/lo_benchmk_client.c) 
+  add_executable(lo_benchmk_client  test/lo_benchmk_client.cpp) 
   target_include_directories(lo_benchmk_client PRIVATE ${LIBLO_INCLUDE_PATH})  
   target_link_libraries(lo_benchmk_client ${LIBLO_LIB}  ${EXTRA_LO_LIBS})  
 
-  add_executable(lo_oscrecv test/lo_oscrecv.c) 
+  add_executable(lo_oscrecv test/lo_oscrecv.cpp) 
   target_include_directories(lo_oscrecv PRIVATE ${LIBLO_INCLUDE_PATH})  
   target_link_libraries(lo_oscrecv ${LIBLO_LIB}  ${EXTRA_LO_LIBS})   
 
-  add_executable(lo_oscsend test/lo_oscsend.c) 
+  add_executable(lo_oscsend test/lo_oscsend.cpp) 
   target_include_directories(lo_oscsend PRIVATE ${LIBLO_INCLUDE_PATH})  
   target_link_libraries(lo_oscsend ${LIBLO_LIB}  ${EXTRA_LO_LIBS})    
 
   if(BUILD_WITH_BUNDLE_SUPPORT)
-    add_executable(lo_bndlsend test/lo_bndlsend.c) 
+    add_executable(lo_bndlsend test/lo_bndlsend.cpp) 
     target_include_directories(lo_bndlsend PRIVATE ${LIBLO_INCLUDE_PATH})  
     target_link_libraries(lo_bndlsend ${LIBLO_LIB}  ${EXTRA_LO_LIBS})     
 
-    add_executable(lo_bndlrecv test/lo_bndlrecv.c) 
+    add_executable(lo_bndlrecv test/lo_bndlrecv.cpp) 
     target_include_directories(lo_bndlrecv PRIVATE ${LIBLO_INCLUDE_PATH})  
     target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_LO_LIBS})     
   endif(BUILD_WITH_BUNDLE_SUPPORT)
