@@ -29,7 +29,7 @@ char mqtt_broker_ip[O2_IP_LEN] = "";
 // records that mqtt_enable() was called and should be initialized asap.
 bool o2_mqtt_waiting_for_public_ip = false;
 
-
+// broker is a domain name, localhost, or dot format
 o2_err_t o2_mqtt_enable(const char *broker, int port_num)
 {
     if (!o2_ensemble_name) {
@@ -203,10 +203,10 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
     O2_DBq(printf("%s entered o2_mqtt_disc_handler\n", o2_debug_prefix));
     // need 3 strings: public IP, intern IP, port
     char *end = payload + payload_len;
-    const char *public_ip = payload;
+    char *public_ip = payload + 1;
     char *internal_ip = NULL;
     char *port_num = NULL;
-    char *colon_ptr = find_colon(payload, end);
+    char *colon_ptr = find_colon(public_ip, end);
     if (colon_ptr) {
         *colon_ptr = 0;
         internal_ip = colon_ptr + 1;
@@ -227,13 +227,13 @@ void o2_mqtt_disc_handler(char *payload, int payload_len)
     int port_string_len = end - port_num;
     memcpy(port_string, port_num, port_string_len);
     port_string[port_string_len] = 0;
-    int port = atoi(port_string);
-    O2_DBq(printf("%s o2_mqtt_disc_handler got %s %s %d\n", o2_debug_prefix,
+    int port = o2_hex_to_int(port_string);
+    O2_DBq(printf("%s o2_mqtt_disc_handler got %s %s %x\n", o2_debug_prefix,
                   public_ip, internal_ip, port));
     
     // we need the name for the remote process with zero padding for lookup
     char name[O2_MAX_PROCNAME_LEN];
-    snprintf(name, O2_MAX_PROCNAME_LEN, "%s:%s:%s%c%c%c%c",
+    snprintf(name, O2_MAX_PROCNAME_LEN, "@%s:%s:%s%c%c%c%c",
              public_ip, internal_ip, port_string, 0, 0, 0, 0);
     assert(o2_ctx->proc->name);
 
@@ -298,10 +298,10 @@ void o2m_deliver_mqtt_msg(const char *topic, int topic_len,
 {
     O2_DBq(printf("%s o2m_deliver_mqtt_msg topic %s payload_len %d\n",
                   o2_debug_prefix, topic, payload_len));
-    // see if topic matches O2-ensemble/public:intern:port string
+    // see if topic matches O2-ensemble/@public:intern:port string
     if (strncmp("O2-", topic, 3) == 0) {
         size_t o2_ens_len = 3 + strlen(o2_ensemble_name);  // counts "O2-"
-        // test for topic == O2-ens/pip:iip:port
+        // test for topic == O2-ens/@pip:iip:port
         if (o2_ens_len < strlen(topic) &&
             memcmp(o2_ensemble_name, topic + 3, o2_ens_len - 3) == 0 &&
             topic[o2_ens_len] == '/' &&

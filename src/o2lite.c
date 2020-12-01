@@ -13,6 +13,7 @@
 #include "o2usleep.h"
 #include "o2lite.h"
 #include <string.h>
+#include <ctype.h>
 
 // you can enable/disable O2LDB printing using -DO2LDEBUG=1 or =0 
 #if (!defined(O2LDEBUG))
@@ -37,7 +38,7 @@ void o2l_dispatch(o2l_msg_ptr msg);
 static void find_my_ip_address();
 
 static const char *o2l_services = NULL;
-static char host_ip[32]; // "100.100.100.100:65000" -> 21 chars
+static char host_ip[16]; // "7f000001:65000"
 static const char *o2l_ensemble = NULL;
 
 #ifdef WIN32
@@ -164,6 +165,36 @@ static int parse_cnt;         // how many bytes retrieved
 static int max_parse_cnt;     // how many bytes can be retrieved
 static bool parse_error;      // was there an error parsing message?
 int out_msg_cnt;              // how many bytes written to outbuf
+
+
+static int hex_to_nibble(char hex)
+{
+    if (isdigit(hex)) return hex - '0';
+    else if (hex >= 'A' && hex <= 'F') return hex - 'A' + 10;
+    else if (hex >= 'a' && hex <= 'f') return hex - 'a' + 10;
+#ifndef O2_NO_DEBUG
+    printf("ERROR: bad hex character passed to hex_to_nibble()\n");
+#endif
+    return 0;
+}
+
+static int hex_to_byte(const char *hex)
+{
+    return (hex_to_nibble(hex[0]) << 4) + hex_to_nibble(hex[1]);
+}
+
+
+// convert 8-char, 32-bit hex representation to dot-notation,
+//   e.g. "7f000001" converts to "127.0.0.1"
+//   dot must be a string of length 16 or more
+void o2l_hex_to_dot(const char *hex, char *dot)
+{
+    int i1 = hex_to_byte(hex);
+    int i2 = hex_to_byte(hex + 2);
+    int i3 = hex_to_byte(hex + 4);
+    int i4 = hex_to_byte(hex + 6);
+    snprintf(dot, 16, "%d.%d.%d.%d", i1, i2, i3, i4);
+}
 
 
 // get data from current message, which is in network order
@@ -310,7 +341,7 @@ SOCKET tcp_sock = INVALID_SOCKET;
 
 static struct sockaddr_in server_addr;
 
-char o2l_remote_ip_port[32];
+char o2l_remote_ip_port[16];
 int o2l_bridge_id = -1; // unique id for this process's connection to O2
 
 unsigned short o2_port_map[PORT_MAX] = {
@@ -475,11 +506,11 @@ void network_connect(const char *ip, int port)
     int set = 1;
     setsockopt(tcp_sock, SOL_SOCKET, SO_NOSIGPIPE, (void *) &set, sizeof set);
 #endif
-    snprintf(o2l_remote_ip_port, 32, "%s:%d", ip, port);
+    snprintf(o2l_remote_ip_port, 16, "%s:%x", ip, port);
     O2LDB printf("o2lite: connected to O2 %s\n", o2l_remote_ip_port);
     // send back !_o2/o2lite/con ipaddress updport
     o2l_send_start("!_o2/o2lite/con", 0, "si", true);
-    O2LDB printf("o2lite sends !_o2/o2lite/con %s %d\n", 
+    O2LDB printf("o2lite sends !_o2/o2lite/con %s %x\n", 
                  host_ip, udp_recv_port);
     o2l_add_string(host_ip);
     o2l_add_int(udp_recv_port);
@@ -966,11 +997,9 @@ static void find_my_ip_address()
     for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr->sa_family==AF_INET) {
             sa = (struct sockaddr_in *) ifa->ifa_addr;
-            if (!inet_ntop(AF_INET, &sa->sin_addr, host_ip, sizeof host_ip)) {
-                perror("converting local ip to string");
-                break;
-            }
-            if (!streql(host_ip, "127.0.0.1")) {
+            snprintf(host_ip, sizeof host_ip, "%08x",
+                     ntohl(sa->sin_addr.s_addr));
+            if (!streql(host_ip, "7f000001")) {
                 goto found_good_one;
             }
         }
@@ -990,14 +1019,16 @@ static void o2l_dy_handler(o2l_msg_ptr msg, const char *types,
         return;
     }
     const char *ens = o2l_get_string();
-    const char *pip = o2l_get_string();  // assume host is local; ignore public
+    o2l_get_string();  // assume host is local; ignore public
     const char *iip = o2l_get_string();  // here is the internal (local) IP
     int port = o2l_get_int32();
     if (parse_error || !streql(ens, o2l_ensemble)) {
         return; // error parsing message
     }
-    address_init(&udp_server_sa, iip, port, false);
-    network_connect(iip, port);
+    char iip_dot[16];
+    o2l_hex_to_dot(iip, iip_dot);
+    address_init(&udp_server_sa, iip_dot, port, false);
+    network_connect(iip_dot, port);
 }
 
 

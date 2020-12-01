@@ -42,7 +42,7 @@ int main(int argc, const char * argv[])
         pip = argv[2];
         iip = argv[3];
         port = atoi(argv[4]);
-        printf("Using %s:%s:%d as hub.\n", pip, iip, port);
+        printf("Using %s:%s:%x as hub.\n", pip, iip, port);
     } else if (argc > 5) {
         printf("WARNING: statusserver ignoring extra command line argments\n");
     }
@@ -62,14 +62,14 @@ int main(int argc, const char * argv[])
     int tcp_port;
     o2_err_t err = o2_get_addresses(&my_pip, &my_iip, &tcp_port);
     assert(err == O2_SUCCESS);
-    printf("My address is %s:%s:%d\n", my_pip, my_iip, tcp_port);
+    printf("Before stun: address is %s:%s:%x\n", my_pip, my_iip, tcp_port);
 
     // wait for client service to be discovered
     while (o2_status("client") < O2_REMOTE_NOTIME) {
         o2_poll();
         usleep(2000); // 2ms
     }
-    
+    printf("My address is %s:%s:%x\n", my_pip, my_iip, tcp_port);
     printf("We discovered the client at time %g.\n", o2_time_get());
 
     // wait for client service to be discovered

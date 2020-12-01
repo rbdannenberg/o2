@@ -7,6 +7,7 @@
 #include "assert.h"
 #include "lo/lo.h"
 #include "string.h"
+#include <stdbool.h>
 
 #ifdef WIN32
 #include <windows.h> 
@@ -73,8 +74,8 @@ int meta_handler(char *name, lo_arg **argv, int argc)
     if (msg_count == 0) {
         start_time = now - 2.5;
     }
-    printf("%s receieved %d, \"%s\"\n", name, argv[0]->i, &(argv[1]->s));
-    printf("    elapsed time: %g\n", now - start_time);
+    printf("%s received %d, \"%s\"\n", name, argv[0]->i, &(argv[1]->s));
+    printf("    elapsed time: %g msg_count %d\n", now - start_time, msg_count);
     assert(argv);
     assert(argc == 2);
     assert(argv[0]->i == ints[msg_count]);
@@ -92,6 +93,15 @@ int first_handler(ARGS) { return meta_handler("first_handler", argv, argc); }
 int  msg1_handler(ARGS) { return meta_handler("msg1_handler",  argv, argc); }
 int  msg2_handler(ARGS) { return meta_handler("msg2_handler",  argv, argc); }
 
+bool test_called = false;
+
+int test_handler(ARGS)
+{
+    printf("test_handler received message to /test\n");
+    test_called = true;
+    return 0;
+}
+
 
 int main(int argc, const char * argv[])
 {
@@ -105,6 +115,7 @@ int main(int argc, const char * argv[])
     lo_server server = lo_server_new_with_proto(
                                "8100", tcpflag ? LO_TCP : LO_UDP, NULL);
 
+    lo_server_add_method(server, "/test", "", &test_handler, NULL);
     lo_server_add_method(server, "/xyz/msg1", "is", &msg1_handler, NULL);
     lo_server_add_method(server, "/abcdefg/msg2", "is", &msg2_handler, NULL);
     lo_server_add_method(server, "/first", "is", &first_handler, NULL);
@@ -113,6 +124,7 @@ int main(int argc, const char * argv[])
         lo_server_recv_noblock(server, 0);
         usleep(10000); // 10ms
     }
+    assert(test_called);
     lo_server_free(server);
     sleep(1);
     printf("OSCRECV DONE\n");

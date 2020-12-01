@@ -238,7 +238,6 @@ int main(int argc, const char * argv[])
 
     const char *pip;
     const char *iip;
-    char procname[O2_MAX_PROCNAME_LEN];
     int port;
     o2_err_t err = o2_get_addresses(&pip, &iip, &port);
     assert(err == O2_SUCCESS);

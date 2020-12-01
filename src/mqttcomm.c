@@ -150,6 +150,7 @@ static o2n_message_ptr mqtt_finish_msg(int command)
 }
 
 
+// server is in domain name, localhost, or dot format
 o2_err_t o2m_initialize(const char *server, int port_num)
 {
     if (!*server) {

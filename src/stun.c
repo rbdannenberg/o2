@@ -45,7 +45,7 @@ void o2_stun_query(o2_msg_data_ptr msgdata, const char *types,
         return;
     }
     if (stun_try_count >= 5) {  // give up
-        strcpy(o2n_public_ip, "0.0.0.0");
+        strcpy(o2n_public_ip, "00000000");
         o2_init_phase2();
         o2_stun_query_running = false;
         return;
@@ -79,6 +79,7 @@ o2_err_t o2_get_public_ip()
                "o2n_public_ip %s\n", o2_stun_query_running, o2n_public_ip);
         return O2_ALREADY_RUNNING; // started already
     }
+    stun_try_count = 0;  // we get 5 tries every time we start
     stun_client_ptr client = O2_MALLOCT(stun_client_info);
     client->tag = STUN_CLIENT;
     public_ip_info = o2n_udp_server_new(&port, true, client);
@@ -108,7 +109,7 @@ void o2_stun_reply_handler(void *info)
                 // short port = ntohs(*(short *) ptr);
                 // port ^= 0x2112;
                 ptr += 2;
-                sprintf(o2n_public_ip, "%u.%u.%u.%u", ptr[0] ^ 0x21,
+                sprintf(o2n_public_ip, "%02x%02x%02x%02x", ptr[0] ^ 0x21,
                         ptr[1] ^ 0x12, ptr[2] ^ 0xA4, ptr[3] ^ 0x42);
                 // if you get the IP address, close the socket
                 o2n_close_socket(public_ip_info);

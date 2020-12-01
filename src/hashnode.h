@@ -132,8 +132,6 @@ hash_node_ptr o2_hash_node_new(const char *key);
 
 hash_node_ptr o2_tree_insert_node(hash_node_ptr node, o2string key);
 
-o2_err_t o2_embedded_msgs_deliver(o2_msg_data_ptr msg);
-
 int o2_remove_hash_entry_by_name(hash_node_ptr node, o2string key);
 
 o2_err_t o2_hash_entry_remove(hash_node_ptr node, o2_node_ptr *child,

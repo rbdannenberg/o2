@@ -280,9 +280,9 @@ void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
     
     // send !_o2/dy back to bridged process:
     o2n_address address;
-    o2_err_t err = o2n_address_init(&address, ip, port, false);
-    O2_DBd(if (err) printf("%s o2lite_dy_handler: ip %s, udp %d, err %s\n", \
-                    o2_debug_prefix, ip, port, o2_error_to_string(err)));
+    o2_err_t err = o2n_address_init_hex(&address, ip, port, false);
+    O2_DBd(if (err) printf("%s o2lite_dy_handler: ip %s, udp %d, err %s\n",
+              o2_debug_prefix, ip, port, o2_error_to_string(err)));
     o2_send_start();
     o2_message_ptr msg = o2_make_dy_msg(o2_ctx->proc, false, O2_DY_INFO);
     o2n_send_udp(&address, (o2n_message_ptr) msg); // send and free the message
@@ -290,6 +290,7 @@ void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
 
 
 // returns id and places new bridge at location id in o2lite_bridges
+//    ip is in hex format
 static int make_o2lite_bridge_inst(const char *ip, int udp)
 {
     o2lite_inst_ptr o2lite;
@@ -304,7 +305,7 @@ static int make_o2lite_bridge_inst(const char *ip, int udp)
     // put the new bridge instance at i
     o2lite = O2_CALLOCT(o2lite_inst);
     o2lite->net_info = o2n_message_source;
-    o2n_address_init(&o2lite->udp_address, ip, udp, false);
+    o2n_address_init_hex(&o2lite->udp_address, ip, udp, false);
     bridge_inst_ptr bi = o2_bridge_inst_new(o2lite_bridge, o2lite);
     o2n_message_source->application = (void *) bi;
     DA_SET(o2lite_bridges, bridge_inst_ptr, i, bi);

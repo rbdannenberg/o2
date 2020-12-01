@@ -173,14 +173,9 @@ static void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
             o2_active_sched = s; // if we recursively schedule another message,
             // use this same scheduler.
             // careful: this can call schedule and change the table
-            O2_DBt(if (msg->data.address[1] != '_' &&
-                       !isdigit(msg->data.address[1]))
-                       o2_dbg_msg("sched_dispatch", msg, &msg->data,
-                                  NULL, NULL));
-            O2_DBT(if (msg->data.address[1] == '_' ||
-                       isdigit(msg->data.address[1]))
-                       o2_dbg_msg("sched_dispatch", msg, &msg->data,
-                                  NULL, NULL));
+            O2_DB((msg->data.address[1] == '_' || msg->data.address[1] == '@') ?
+                  O2_DBT_FLAG : O2_DBt_FLAG,
+                  o2_dbg_msg("sched_dispatch", msg, &msg->data, NULL, NULL));
             o2_prepare_to_deliver(msg); // transfer ownership to o2_ctx->msgs
             o2_message_send_sched(false); // don't assume local and call
             // o2_msg_deliver; maybe this is an OSC message

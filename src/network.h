@@ -117,7 +117,7 @@ void o2n_address_set_port(o2n_address_ptr address, int port);
 
 extern bool o2n_network_enabled;  // network connections are permitted
 extern bool o2n_network_found;    // local area network exists
-// if !o2n_network_found, o2n_internal_ip will be "127.0.0.1" (localhost)
+// if !o2n_network_found, o2n_internal_ip will be "7f000001" (localhost)
 extern char o2n_public_ip[O2_IP_LEN];
 extern char o2n_internal_ip[O2_IP_LEN];
 
@@ -139,6 +139,9 @@ o2n_message_ptr o2n_message_new(int size);
     
 o2_err_t o2n_address_init(o2n_address_ptr remote_addr_ptr, const char *ip,
                           int port_num, bool tcp_flag);
+
+o2_err_t o2n_address_init_hex(o2n_address_ptr remote_addr_ptr, const char *ip,
+                              int port_num, bool tcp_flag);
 
 void o2n_close_socket(o2n_info_ptr info);
 

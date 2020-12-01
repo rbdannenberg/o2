@@ -86,7 +86,7 @@ when connection is closed:
                 o2_remove_taps_by(proc)
                     if a services_entry becomes empty either by removing
                     services or taps (and it will for the
-                    public:internal:port service), remove the services_entry
+                    @public:internal:port service), remove the services_entry
                 frees proc->name
                 frees proc itself
             closes socket
@@ -351,6 +351,7 @@ void o2_proc_info_show(proc_info_ptr proc)
 // create a proc. For local proc, tag is PROC_TCP_SERVER,
 // to connect to a remote proc, tag is PROC_NOCLOCK,
 // tag can also be PROC_TEMP, OSC_TCP_SERVER or OSC_TCP_CLIENT
+// For tag PROC_NOCLOCK, ip is domain name, localhost, or dot format
 proc_info_ptr o2_create_tcp_proc(int tag, const char *ip, int port)
 {
     // create proc_info to pass to network layer
@@ -383,7 +384,7 @@ void o2_processes_initialize()
     assert(o2_ctx->proc);
     char name[O2_MAX_PROCNAME_LEN];
     snprintf(name, O2_MAX_PROCNAME_LEN,
-             "%s:%s:%d", o2n_public_ip, o2n_internal_ip, port);
+             "@%s:%s:%x", o2n_public_ip, o2n_internal_ip, port);
     o2_ctx->proc->name = o2_heapify(name);
     O2_DBG(printf("%s Local Process Name is %s\n",
                   o2_debug_prefix, o2_ctx->proc->name));

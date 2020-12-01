@@ -683,12 +683,7 @@ int o2sm_dispatch(o2_message_ptr msg)
         char *address = msg->data.address;
     
         // STEP 2: Isolate the type string, which is after the address
-        char *types = address;
-        while (types[3]) types += 4; // find end of address string
-        // types[3] is the zero marking the end of the address,
-        // types[4] is the "," that starts the type string, so
-        // types + 5 is the first type char
-        types += 5; // now types points to first type char
+        const char *types = o2_msg_types(msg);
 
 #ifdef O2SM_PATTERNS
         // STEP 3: If service is a Handler, call the handler directly
@@ -750,6 +745,7 @@ void o2sm_poll()
         while (schedule_head) {
             next = schedule_head->next;
             O2_FREE(schedule_head);
+            schedule_head = next;
         }
     } else { // send timestamped messages that are ready to go
         while (schedule_head && schedule_head->data.timestamp < now) {

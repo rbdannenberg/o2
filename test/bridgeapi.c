@@ -48,7 +48,7 @@ o2_err_t br_send(bridge_inst_ptr node)
     o2_message_print(msg);
     printf("\n");
     // extract the parameter
-    assert(streql(O2_MSGDATA_TYPES(&msg->data), "i"));
+    assert(streql(o2_msg_types(msg), "i"));
     o2_extract_start(&msg->data);
     message_int = o2_get_next(O2_INT32)->i32;
     o2_complete_delivery();

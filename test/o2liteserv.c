@@ -79,8 +79,8 @@ void sift_han(o2l_msg_ptr msg, const char *types, void *data, void *info)
 
 int main(int argc, const char * argv[])
 {
-    printf("Usage: o2liteserv tcp\n"
-           "    pass t to test with TCP, u for UDP\n");
+    printf("Usage: o2liteserv [tcp]\n"
+           "    pass t to test with TCP, u (default) for UDP\n");
     if (argc >= 2) {
         if (strchr(argv[1], 't' )) {
             use_tcp = true;

@@ -97,7 +97,7 @@ int main(int argc, const char * argv[])
     int port;
     o2_err_t err = o2_get_addresses(&pip, &iip, &port);
     assert(err == O2_SUCCESS);
-    sprintf(procname, "%s:%s:%d", pip, iip, port);
+    sprintf(procname, "%s:%s:%x", pip, iip, port);
     assert(streql(o2_service_process(one), "_o2"));
     assert(o2_service_tapper(one) == NULL);
 

@@ -147,8 +147,12 @@ void wait_for_pip(void)
     while (true) {
         o2_err_t err = o2_get_addresses(&pip, &iip, &my_port);
         assert(!err);
-        if (pip[0]) return;
-        printf("#  -> waiting for public IP\n");
+        if (pip[0]) {
+            printf("#  -> wait_for_pip got %s\n", pip);
+            assert(!streql(pip, "00000000"));
+            return;
+        }
+        printf("#   -> waiting for public IP\n");
         delay_for(0.5);
     }
 }
@@ -272,7 +276,11 @@ int test_other_as_hub(int order)
     server_port = 0;
     
     startup(8, "reinitialize and call o2_hub()");
-    o2_err_t err = o2_hub(server_pip_copy, server_iip_copy, server_port_copy);
+    char pip_dot[O2_IP_LEN];
+    o2_hex_to_dot(server_pip_copy, pip_dot);
+    char iip_dot[O2_IP_LEN];
+    o2_hex_to_dot(server_iip_copy, iip_dot);
+    o2_err_t err = o2_hub(pip_dot, iip_dot, server_port_copy);
     assert(err == O2_SUCCESS);
     wait_for_pip();
     bool client_greater = my_ipport_is_greater(server_pip_copy, 
@@ -292,7 +300,7 @@ int test_other_as_hub(int order)
     wait_for_server();
     // see if we discovered what we expected
     step(10, "check that we discovered expected server IP:port");
-    printf("#   -> hub says server is %s:%s:%d\n", server_pip, server_iip,
+    printf("#   -> hub says server is %s:%s:%x\n", server_pip, server_iip,
            server_port);
     assert(streql(server_pip, server_pip_copy));
     assert(streql(server_iip, server_iip_copy));

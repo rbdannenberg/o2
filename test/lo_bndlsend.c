@@ -105,6 +105,9 @@ int main(int argc, const char * argv[])
     printf("client: %p\n", client);
     char s[128];
     
+    int rslt = lo_send(client, "/test", "");
+    assert(rslt != -1);
+    
     lo_timetag now;
     lo_timetag_now(&now);
     lo_timetag timetag;

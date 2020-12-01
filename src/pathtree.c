@@ -95,7 +95,7 @@ hash_node_ptr o2_hash_node_new(const char *key)
 //
 bool o2_find_handlers_rec(char *remaining, char *name,
         o2_node_ptr node, o2_msg_data_ptr msg,
-        char *types)
+        const char *types)
 {
     char *slash = strchr(remaining, '/');
     if (slash) *slash = 0;

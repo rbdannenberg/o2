@@ -85,6 +85,7 @@ int main(int argc, const char * argv[])
         o2_debug_flags(argv[1]);
         tcpflag = (strchr(argv[1], 'u') == NULL);
         master = (strchr(argv[1], 'M') != NULL);
+        printf("debugflags %s, tcp %d, master %d\n", argv[1], tcpflag, master);
     }
     if (argc > 2) {
         printf("WARNING: o2server ignoring extra command line argments\n");

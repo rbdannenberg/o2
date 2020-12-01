@@ -4,14 +4,13 @@
 #include <stdio.h>
 #include "o2.h"
 #include "assert.h"
-// why do we need this? If we need this we also need thread_local from o2_internal.h
-//          #include "o2_message.h"
 
 
 #define N_ADDRS 20
 
 int expected = 0;  // expected encodes the expected order of invoking services
 // e.g. 2121 means (right to left) service1, service2, service1, service2
+
 
 void service_one(o2_msg_data_ptr data, const char *types,
                  o2_arg_ptr *argv, int argc, const void *user_data)
@@ -22,6 +21,7 @@ void service_one(o2_msg_data_ptr data, const char *types,
     assert(expected % 10 == 1);
     expected /= 10;
 }
+
 
 void service_two(o2_msg_data_ptr data, const char *types,
                  o2_arg_ptr *argv, int argc, const void *user_data)
@@ -36,6 +36,16 @@ void service_two(o2_msg_data_ptr data, const char *types,
 
 int main(int argc, const char * argv[])
 {
+    printf("Usage: bundletest [debugflags] "
+           "(see o2.h for flags, use a for all)\n");
+    if (argc == 2) {
+        o2_debug_flags(argv[1]);
+        printf("debug flags are: %s\n", argv[1]);
+    }
+    if (argc > 2) {
+        printf("WARNING: bundletest ignoring extra command line argments\n");
+    }
+
     o2_initialize("test");
     o2_service_new("one");
     o2_method_new("/one/i", "i", &service_one, NULL, true, true);
@@ -53,6 +63,7 @@ int main(int argc, const char * argv[])
 
     expected = 21;
     o2_send_start();
+
     o2_add_message(one);
     o2_add_message(two);
     o2_send_finish(0.0, "#one", true);

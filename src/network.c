@@ -91,6 +91,47 @@ static o2n_close_callout_type o2n_close_callout;
 
 static bool o2n_socket_delete_flag = false;
 
+static int hex_to_nibble(char hex)
+{
+    if (isdigit(hex)) return hex - '0';
+    else if (hex >= 'A' && hex <= 'F') return hex - 'A' + 10;
+    else if (hex >= 'a' && hex <= 'f') return hex - 'a' + 10;
+#ifndef O2_NO_DEBUG
+    printf("ERROR: bad hex character passed to hex_to_nibble()\n");
+#endif
+    return 0;
+}
+
+static int hex_to_byte(const char *hex)
+{
+    return (hex_to_nibble(hex[0]) << 4) + hex_to_nibble(hex[1]);
+}
+
+
+// convert 8-char, 32-bit hex representation to dot-notation,
+//   e.g. "7f000001" converts to "127.0.0.1"
+//   dot must be a string of length 16 or more
+void o2_hex_to_dot(const char *hex, char *dot)
+{
+    int i1 = hex_to_byte(hex);
+    int i2 = hex_to_byte(hex + 2);
+    int i3 = hex_to_byte(hex + 4);
+    int i4 = hex_to_byte(hex + 6);
+    snprintf(dot, 16, "%d.%d.%d.%d", i1, i2, i3, i4);
+}
+
+
+int o2_hex_to_int(const char *hex)
+{
+    char h;
+    int i = 0;
+    while ((h = *hex++)) {
+        i = (i << 4) + hex_to_nibble(h);
+    }
+    return i;
+}
+
+
 // macOS does not always free ports, so to aid in debugging orphaned ports,
 // define CLOSE_SOCKET_DEBUG 1 and get a list of sockets that are opened
 // and closed
@@ -143,6 +184,8 @@ o2n_info_ptr o2n_get_info(int i)
 }
 
 
+// initialize an o2n_address from ip and port number
+//   ip is domain name, "localhost", or dot notation, not hex
 o2_err_t o2n_address_init(o2n_address_ptr remote_addr_ptr, const char *ip,
                           int port_num, bool tcp_flag)
 {
@@ -173,6 +216,16 @@ o2_err_t o2n_address_init(o2n_address_ptr remote_addr_ptr, const char *ip,
     }
     if (aiptr) freeaddrinfo(aiptr);
     return rslt;
+}
+
+
+// same as o2n_address_init, except ip is in hex format rather than dot format
+o2_err_t o2n_address_init_hex(o2n_address_ptr remote_addr_ptr, const char *ip,
+                              int port_num, bool tcp_flag)
+{
+    char ip_dot_form[O2_IP_LEN];
+    o2_hex_to_dot(ip, ip_dot_form);
+    return o2n_address_init(remote_addr_ptr, ip_dot_form, port_num, tcp_flag);
 }
 
 
@@ -458,10 +511,9 @@ static void get_internal_ip(void)
     for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr->sa_family == AF_INET) {
             sa = (struct sockaddr_in *) ifa->ifa_addr;
-            if (!inet_ntop(AF_INET, &sa->sin_addr, o2n_internal_ip,
-                           sizeof o2n_internal_ip)) {
-                perror("converting local ip to string");
-            } else if (!streql(o2n_internal_ip, "127.0.0.1")) {
+            snprintf(o2n_internal_ip, O2_IP_LEN, "%08x",
+                     ntohl(sa->sin_addr.s_addr));
+            if (!streql(o2n_internal_ip, "7f000001")) {
                 o2n_network_found = true;
                 break;
             }
@@ -470,7 +522,7 @@ static void get_internal_ip(void)
     freeifaddrs(ifap);
     // make sure we got an address:
     if (!o2n_internal_ip[0]) {
-        strcpy(o2n_internal_ip, "127.0.0.1");  // localhost
+        strcpy(o2n_internal_ip, "7f000001");  // localhost
     }
 }
 
@@ -504,8 +556,8 @@ o2_err_t o2n_initialize(o2n_recv_callout_type recv,
         // o2_finish, which calls o2n_finish, so all is properly shut down
         RETURN_IF_ERROR(o2n_broadcast_socket_new(&o2n_broadcast_sock));
     } else {
-        strcpy(o2n_public_ip, "0.0.0.0");
-        strcpy(o2n_internal_ip, "127.0.0.1");
+        strcpy(o2n_public_ip, "00000000");
+        strcpy(o2n_internal_ip, "7f000001");
     }
 
     // Initialize addr for local sending
@@ -647,9 +699,9 @@ void o2n_free_deleted_sockets()
 
 
 // create a TCP connection to a server
-//
+//    ip is in dot format or domain name or localhost, not hex format
 o2n_info_ptr o2n_connect(const char *ip, int tcp_port,
-                         void * application)
+                         void *application)
 {
     o2n_info_ptr info = o2n_tcp_socket_new(NET_TCP_CONNECTING, 0, application);
     if (!info) {

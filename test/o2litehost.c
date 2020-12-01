@@ -51,6 +51,7 @@ int main(int argc, const char *argv[])
 {
     printf("Usage: o2litehost [maxmsgs] [debugflags]\n"
            "    see o2.h for flags, use a for all, - for none\n"
+           "    default maxmsgs is 500\n"
            "    end maxmsgs with t, e.g. 10000t, to test with TCP\n");
     if (argc >= 2) {
         max_msg_count = atoi(argv[1]);

@@ -56,9 +56,8 @@ void o2_msg_data_print_2(o2_msg_data_ptr msg);
 // recursive call to process embedded, which may itself be a bundle.
 //
 #define FOR_EACH_EMBEDDED(msg, code)                     \
-    char *end_of_msg = PTR(msg) + msg->length; \
-    o2_msg_data_ptr embedded = (o2_msg_data_ptr) \
-            ((msg)->address + o2_strsize((msg)->address) + sizeof(int32_t)); \
+    char *end_of_msg = O2_MSG_DATA_END(msg); \
+    o2_msg_data_ptr embedded = (o2_msg_data_ptr) (o2_msg_data_types(msg) - 1); \
     while (PTR(embedded) < end_of_msg) { int32_t len; \
         code; \
         embedded = (o2_msg_data_ptr) (PTR(embedded) + len + sizeof(int32_t)); }

@@ -274,6 +274,7 @@ o2_err_t o2_osc_port_free(int port_num)
 // for the tcp connection.
 // if udp, then set the udp address info in the osc_info
 // add osc_info as the service
+// ip is domain name, localhost, or dot format, not hex
 o2_err_t o2_osc_delegate(const char *service_name, const char *ip,
                     int port_num, int tcp_flag)
 {
@@ -448,19 +449,18 @@ static o2_err_t msg_data_to_osc_data(osc_info_ptr osc, o2_msg_data_ptr msg,
     if (IS_BUNDLE(msg)) {
         if (msg->timestamp > min_time) min_time = msg->timestamp;
         o2_add_bundle_head(o2_time_to_osc(min_time));
-        char *end_of_msg = PTR(msg) + msg->length;
+        const char *end_of_msg = O2_MSG_DATA_END(msg);
         o2_msg_data_ptr embedded = (o2_msg_data_ptr)
-            ((msg)->address + o2_strsize((msg)->address) + sizeof(int32_t));
-        while (PTR(embedded) < end_of_msg) { int32_t len;
+                                   (o2_msg_data_types(msg) - 1);
+        while (PTR(embedded) < end_of_msg) {
             int32_t *len_ptr = o2_msg_len_ptr();
-            len = embedded->length;
-            if ((PTR(embedded) + len > end_of_msg) ||
+            const char *end_of_embedded = O2_MSG_DATA_END(embedded);
+            if (end_of_embedded > end_of_msg ||
                 msg_data_to_osc_data(osc, embedded, min_time) != O2_SUCCESS) {
                 return O2_FAIL;
             }
             o2_set_msg_length(len_ptr);
-            embedded = (o2_msg_data_ptr)
-                       (PTR(embedded) + len + sizeof(int32_t));
+            embedded = (o2_msg_data_ptr) end_of_embedded;
         }
     } else {
 #endif
@@ -474,8 +474,8 @@ static o2_err_t msg_data_to_osc_data(osc_info_ptr osc, o2_msg_data_ptr msg,
         // Get the address of the rest of the message:
         char *types_ptr = msg->address + 4;
         while (types_ptr[-1]) types_ptr += 4;
-        o2_add_raw_bytes((int32_t) (PTR(msg) + msg->length -
-                                    types_ptr), types_ptr);
+        o2_add_raw_bytes((int32_t) (PTR(msg) + sizeof(msg->length) +
+                                    msg->length - types_ptr), types_ptr);
 #ifndef O2_NO_BUNDLES
     }
 #endif

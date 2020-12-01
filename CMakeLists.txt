@@ -477,9 +477,11 @@ message(STATUS LIBRARIES=${LIBRARIES})
 # library dependencies from this CMakeLists.txt file 
 ##########################################################
 
+message(STATUS "TESTS_BUILD ${TESTS_BUILD} BUILD_WITH_OSC_SUPPORT ${BUILD_WITH_OSC_SUPPORT} BUILD_TESTS_WITH_LIBLO ${BUILD_TESTS_WITH_LIBLO}")
+
 if(TESTS_BUILD)
 if(BUILD_WITH_OSC_SUPPORT)  
-if(TESTS_BUILD_WITH_LIBLO)
+if(BUILD_TESTS_WITH_LIBLO)
   set(LIBLO_PATH "${CMAKE_SOURCE_DIR}/../liblo-0.28" CACHE PATH
                  "Where to find liblo_64s.a, the liblo library.") 
   set(LIBLO_LIB LIBLO_LIB-NOTFOUND CACHE FILEPATH
@@ -517,6 +519,6 @@ if(TESTS_BUILD_WITH_LIBLO)
     target_include_directories(lo_bndlrecv PRIVATE ${LIBLO_INCLUDE_PATH})  
     target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_LO_LIBS})     
   endif(BUILD_WITH_BUNDLE_SUPPORT)
-endif(TESTS_BUILD_WITH_LIBLO)
+endif(BUILD_TESTS_WITH_LIBLO)
 endif(BUILD_WITH_OSC_SUPPORT)  
 endif(TESTS_BUILD)

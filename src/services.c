@@ -61,7 +61,7 @@ o2_err_t o2_service_new2(o2string padded_name)
         O2_FREE(node);
         return rslt;
     }
-    // Note that when the local public:internal:port service is created,
+    // Note that when the local @public:internal:port service is created,
     // there are no remote connections yet, so o2_notify_others()
     // will not send any messages.
     o2_notify_others(padded_name, true, NULL, NULL);
@@ -85,16 +85,16 @@ o2_err_t o2_service_new2(o2string padded_name)
  *
  * CASE 1: this is a new local service
  *
- * CASE 2: this is the installation of /public:internal:port for a newly
+ * CASE 2: this is the installation of /@public:internal:port for a newly
  *         discovered remote process. service == proc
  *
  * CASE 3: this is creating a service that delegates to OSC. service is
  *         an osc_info_ptr, process is the local process
  *
- * CASE 4: handling /public:internal:port/sv: service is a o2n_info_ptr equal
+ * CASE 4: handling /@public:internal:port/sv: service is a o2n_info_ptr equal
  *          to process. Note that /sv can indicate update to properties
  * 
- * CASE 5: this is the installation of /public:internal:port for a newly
+ * CASE 5: this is the installation of /@public:internal:port for a newly
  *         discovered MQTT process. service == proc
  *
  * Algorithm:
@@ -219,11 +219,11 @@ o2_node_ptr o2_service_find(const char *service_name,
 {
     *services = *o2_services_find(service_name);
     if (!*services) {
-        // map local public:internal:port string to "_o2": Note that we
+        // map local @public:internal:port string to "_o2": Note that we
         // could save a hash
         // lookup by doing this test first, but I think this is pretty rare:
-        // only system messages from remote processes will use !PIP:IIP:PORT/
-        if (isdigit(service_name[0]) && o2_ctx->proc->name &&
+        // only system messages from remote processes will use @pip:iip:port/
+        if (service_name[0] == '@' && o2_ctx->proc->name &&
              streql(service_name, o2_ctx->proc->name)) {
             *services = *o2_services_find("_o2");
         } else {
@@ -399,7 +399,7 @@ static void remove_empty_services_entry(services_entry_ptr ss)
  *     the osc_info_entry's service_name is owned by the services_entry
  *     free the osc_info_entry
  *  
- * CASE 2: /public:internal:port/sv gets a service removed message.
+ * CASE 2: /@public:internal:port/sv gets a service removed message.
  *         info is remote
  *
  * CASE 3: NET_TCP_CLIENT or _CONNECTION gets hangup. remove_remote_services
@@ -492,7 +492,7 @@ o2_err_t o2_service_remove(const char *service_name, proc_info_ptr proc,
                 o2_node_to_proc_name((o2_node_ptr) proc), "");
 
     // if we deleted active service, pick a new one
-    if (index == 0) { // move top public:internal:port provider to top spot
+    if (index == 0) { // move top @public:internal:port provider to top spot
         pick_service_provider(svlist);
     }
     // now we probably have a new service, report it:
@@ -502,9 +502,6 @@ o2_err_t o2_service_remove(const char *service_name, proc_info_ptr proc,
         int status = o2_status_from_proc(spp->service, &process_name);
         if (status != O2_FAIL) {
             assert(process_name[0]);
-            // exclude reports of our own public:internal:port service
-//        if (!isdigit(service_name[0] ||
-//            new_service->tag != PROC_TCP_SERVER)) {
             o2_send_cmd("!_o2/si", 0.0, "siss", service_name, status,
                         process_name,
                         spp->properties ? spp->properties + 1 : "");

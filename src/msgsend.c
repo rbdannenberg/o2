@@ -120,6 +120,7 @@ typedef struct pending {
 // *appearance* of a leak so we can focus on actual problems (if any).
 o2_message_ptr o2_active_message = NULL;
 
+
 void o2_drop_msg_data(const char *warn, o2_msg_data_ptr data)
 {
     char fullmsg[100];
@@ -131,6 +132,7 @@ void o2_drop_msg_data(const char *warn, o2_msg_data_ptr data)
     snprintf(fullmsg, 100, "%s%s", "dropping message because ", warn);
     (*o2_ctx->warning)(fullmsg, data);
 }
+
 
 void o2_drop_message(const char *warn, o2_message_ptr msg)
 {
@@ -310,22 +312,21 @@ void o2_call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg,
 }
 
 
-o2_err_t o2_embedded_msgs_deliver(o2_msg_data_ptr msg)
+static o2_err_t o2_embedded_msgs_deliver(o2_msg_data_ptr msg)
 {
-    char *end_of_msg = PTR(msg) + msg->length;
-    o2_msg_data_ptr embedded = (o2_msg_data_ptr)
-            (msg->address + o2_strsize(msg->address) + sizeof(int32_t));
+    char *end_of_msg = O2_MSG_DATA_END(msg);
+    // embedded message starts where ',' of type string should be:
+    o2_msg_data_ptr embedded = (o2_msg_data_ptr) (o2_msg_data_types(msg) - 1);
     while (PTR(embedded) < end_of_msg) {
         // need to copy each embedded message before sending
         int len = embedded->length;
         o2_message_ptr message = o2_message_new(len);
-        memcpy((char *) &message->data, (char *) embedded, len);
+        memcpy((char *) &message->data, (char *) embedded,
+               len + sizeof(embedded->length));
         message->next = NULL;
-        message->data.length = len;
         message->data.flags |= O2_TCP_FLAG;
         o2_message_send(message);
-        embedded = (o2_msg_data_ptr)
-                (PTR(embedded) + len + sizeof(int32_t));
+        embedded = (o2_msg_data_ptr) O2_MSG_DATA_END(embedded);
     }
     return O2_SUCCESS;
 }
@@ -377,8 +378,8 @@ void send_message_to_tap(service_tap_ptr tap)
     memcpy((char *) (newmsg->data.address + newlen), msg->data.address + curlen,
            curaddrlen - curlen);
     // copy the rest of the message
-    int len = ((char *) &msg->data) + msg->data.length -
-                                      &msg->data.address[curaddrall];
+    int len = ((char *) &msg->data) + msg->data.length +
+                    sizeof(msg->data.length) - &msg->data.address[curaddrall];
     memcpy((char *) (newmsg->data.address + newaddrall),
            msg->data.address + curaddrall, len);
     newmsg->data.flags = O2_TCP_FLAG | O2_TAP_FLAG;
@@ -408,12 +409,13 @@ void o2_msg_deliver(o2_node_ptr service, services_entry_ptr ss)
 {
     bool delivered = false;
     char *address;
-    char *types;
+    const char *types;
     // STEP 0: If message is a bundle, send each embedded message separately
     o2_message_ptr msg = o2_ctx->msgs;
 #ifndef O2_NO_BUNDLES
     if (IS_BUNDLE(&msg->data)) {
         o2_embedded_msgs_deliver(&msg->data);
+        delivered = true;
         goto done;
     }
 #endif
@@ -425,12 +427,7 @@ void o2_msg_deliver(o2_node_ptr service, services_entry_ptr ss)
     }
     
     // STEP 2: Isolate the type string, which is after the address
-    types = address;
-    while (types[3]) types += 4; // find end of address string
-    // types[3] is the zero marking the end of the address,
-    // types[4] is the "," that starts the type string, so
-    // types + 5 is the first type char
-    types += 5; // now types points to first type char
+    types = o2_msg_types(msg);
 
     O2_DBl(printf("%s o2_msg_deliver msg %p addr %s\n", o2_debug_prefix,
                   msg, address));
@@ -447,24 +444,27 @@ void o2_msg_deliver(o2_node_ptr service, services_entry_ptr ss)
 #endif
               ) {
         o2_node_ptr handler;
-        // temporary address if service is our public:internal:port :
+        // temporary address if service is our @public:internal:port :
         char tmp_addr[O2_MAX_PROCNAME_LEN];
         char *handler_address;
         // '!' allows for direct lookup, but if the service name is
-        // public:internal:port, a straightforward lookup will not find the
-        // handler because the the key uses /_o2/....  Since the service->tag
-        // is NODE_HASH, this service name, if it starts with a digit,
-        // must be the local public:internal:port because any other
-        // public:internal:port would have a tag of PROC or MQTT.
-        if (isdigit(address[1])) {
+        // @public:internal:port, a straightforward lookup will not find the
+        // handler because the the key uses /_o2/....  So translate the local
+        // @pip:iip:port service to _o2.
+        if (address[1] == '@') {
             // build an address with /_o2/ for lookup. The maximum address
             // length is small because all /_o2/ nodes are built-in and short:
             *((int32_t *) tmp_addr) = *(int32_t *) "/_o2"; // copy "/_o2"
             char *slash_ptr = strchr(address + 4, '/');
             if (!slash_ptr) goto done; // not deliverable because "/_o2" does
                                        // not have a handler
-            strncpy(tmp_addr + 4, slash_ptr, O2_MAX_PROCNAME_LEN - 5);
-            tmp_addr[O2_MAX_PROCNAME_LEN - 1] = 0; // make sure address is terminated
+            // leave 4 bytes of extra room at the end to fill with zeros by
+            // setting n to size - 8 instead of size - 4:
+            o2strcpy(tmp_addr + 4, slash_ptr, O2_MAX_PROCNAME_LEN - 8);
+            // make sure address is padded to 32-bit word to make o2string:
+            // first, find pointer to the byte AFTER the EOS character:
+            char *endptr = tmp_addr + 6 + strlen(tmp_addr + 5);
+            *endptr++ = 0; *endptr++ = 0; *endptr++ = 0;  // extra fill
             handler_address = tmp_addr;
         } else {
             address[0] = '/'; // must start with '/' to get consistent hash
@@ -475,7 +475,7 @@ void o2_msg_deliver(o2_node_ptr service, services_entry_ptr ss)
         if (handler && handler->tag == NODE_HANDLER) {
             // Even though we might have done a lookup on /_o2/..., the message
             // passed to the handler will have the original address, which might
-            // be something like /128.2.65.100:4321/...
+            // be something like /_7f00001:7f00001:4321/...
             o2_call_handler((handler_entry_ptr) handler,
                             &msg->data, types);
             delivered = true; // either delivered or warning issued
@@ -511,6 +511,7 @@ void o2_msg_deliver(o2_node_ptr service, services_entry_ptr ss)
   done:
     if (!delivered) {
         o2_drop_message("no handler was found", msg);
+        O2_DBsS(o2_node_show((o2_node_ptr) (&o2_ctx->path_tree), 2));
     }
     o2_complete_delivery();
 }
@@ -530,18 +531,15 @@ o2_err_t o2_send_marker(const char *path, double time, int tcp_flag,
     if (rslt != O2_SUCCESS) {
         return rslt; // could not allocate a message!
     }
-#ifndef O2_NO_DEBUG
-    if (o2_debug & // either non-system (s) or system (S) mask
-        (msg->data.address[1] != '_' && !isdigit(msg->data.address[1]) ?
-         O2_DBs_FLAG : O2_DBS_FLAG)) {
-        printf("%s sending%s (%p) ", o2_debug_prefix,
-               (tcp_flag ? " cmd" : ""), msg);
-        o2_msg_data_print(&msg->data);
-        printf("\n");
-    }
-#endif
+    O2_DB((msg->data.address[1] == '_' || msg->data.address[1] == '@') ?
+          O2_DBS_FLAG : O2_DBs_FLAG,  // either non-system (s) or system (S)
+          printf("%s sending%s (%p) ", o2_debug_prefix,
+                 (tcp_flag ? " cmd" : ""), msg);
+          o2_msg_data_print(&msg->data);
+          printf("\n"));
     return o2_message_send(msg);
 }
+
 
 // This is the externally visible message send function.
 // 
@@ -551,6 +549,7 @@ o2_err_t o2_message_send(o2_message_ptr msg)
     o2_prepare_to_deliver(msg); // transfer msg to o2_ctx->msgs
     return o2_message_send_sched(true);
 }
+
 
 // Internal message send function.
 // schedulable is normally true meaning we can schedule messages
@@ -627,26 +626,26 @@ o2_err_t o2_send_remote(proc_info_ptr proc, int block)
 #ifndef O2_NO_MQTT
     if (IS_MQTT_PROC(proc)) {
         O2_DB(O2_DBs_FLAG | O2_DBS_FLAG | O2_DBq_FLAG,
-            o2_msg_data_ptr mdp = &msg->data;
-            int sysmsg = mdp->address[1] == '_' || isdigit(mdp->address[1]);
-            int db = (o2_debug & O2_DBq_FLAG) ||
-                     (sysmsg ? (o2_debug && O2_DBS_FLAG) :
-                               (o2_debug && O2_DBs_FLAG));
-            if (db) {
-                o2_dbg_msg("sending via mqtt", msg, &msg->data,
-                           "to", proc->name);
-            });
+              o2_msg_data_ptr mdp = &msg->data;
+              int sysmsg = mdp->address[1] == '_' || mdp->address[1] == '@';
+              int db = (o2_debug & O2_DBq_FLAG) ||
+                       (sysmsg ? (o2_debug && O2_DBS_FLAG) :
+                                 (o2_debug && O2_DBs_FLAG));
+              if (db) {
+                  o2_dbg_msg("sending via mqtt", msg, &msg->data,
+                             "to", proc->name);
+              });
     } else
 #endif
     {
         o2_msg_data_ptr mdp = &msg->data;
-        bool sysmsg = mdp->address[1] == '_' || isdigit(mdp->address[1]);
+        bool sysmsg = mdp->address[1] == '_' || mdp->address[1] == '@';
         O2_DB(sysmsg ? O2_DBS_FLAG : O2_DBs_FLAG,
-            bool blocking = proc->net_info->out_message && !block;
-            const char *desc = (mdp->flags & O2_TCP_FLAG ?
-                                (blocking ? "queueing TCP" : "sending TCP") :
-                                "sending UDP");
-            o2_dbg_msg(desc, msg, mdp, "to", proc->name));
+              bool blocking = proc->net_info->out_message && !block;
+              const char *desc = (mdp->flags & O2_TCP_FLAG ?
+                                  (blocking ? "queueing TCP" : "sending TCP") :
+                                  "sending UDP");
+              o2_dbg_msg(desc, msg, mdp, "to", proc->name));
     }
 #endif
     int tcp_flag = msg->data.flags & O2_TCP_FLAG; // before byte swap

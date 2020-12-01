@@ -261,7 +261,7 @@ static void announce_synchronized()
 // Algorithm: for each service offered by proc,
 //                if the status is O2_LOCAL (implies proc is local) and
 //                   a local service is active and
-//                   the service is not public:internal:port:
+//                   the service is not @public:internal:port:
 //                    send !_o2/si with service_name, status, local proc name
 //                elif the status is O2_REMOTE and
 //                     the service is offered by proc:

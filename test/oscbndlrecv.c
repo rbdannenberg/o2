@@ -69,6 +69,7 @@ o2_time times[] = {2.5, 2.5, 2.6, 2.6, 2.7, 2.7, 2.8, 2.8, 2.9, 2.9,
 
 
 int msg_count = 0;
+bool test_called = false;
 o2_time start_time = 0.0;
 
 
@@ -106,6 +107,13 @@ void msg1_handler (ARGS) { meta_handler("msg1_handler",  argv, argc, msg); }
 void msg2_handler (ARGS) { meta_handler("msg2_handler",  argv, argc, msg); }
 
 
+void test_handler(ARGS)
+{
+    printf("test_handler got /oscrecv/test message\n");
+    test_called = true;
+}
+
+
 int main(int argc, const char * argv[])
 {
     printf("Usage: oscbndlrecv flags "
@@ -127,7 +135,8 @@ int main(int argc, const char * argv[])
     printf("created osc server port 8100\n");
 
     o2_clock_set(NULL, NULL);
-    
+
+    o2_method_new("/oscrecv/test", "", test_handler, NULL, false, true);
     o2_method_new("/oscrecv/xyz/msg1", "is", msg1_handler, NULL, false, true);
     o2_method_new("/oscrecv/abcdefg/msg2", "is", msg2_handler, 
                   NULL, false, true);
@@ -136,6 +145,7 @@ int main(int argc, const char * argv[])
         o2_poll();
         usleep(1000); // 1ms
     }
+    assert(test_called);
     o2_osc_port_free(8100);
     o2_finish();
     sleep(1);

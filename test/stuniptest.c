@@ -31,9 +31,9 @@ int main(int argc, const char * argv[])
     if (o2n_public_ip[0]) {
         printf("Public IP: %s\n", o2n_public_ip);
         printf("Full name: %s\n", o2_get_proc_name()); 
-        if (o2n_network_found && !streql(o2n_public_ip, "0.0.0.0")) {
+        if (o2n_network_found && !streql(o2n_public_ip, "00000000")) {
             printf("DONE\n");
-        } else if (!o2n_network_found && streql(o2n_public_ip, "0.0.0.0")) {
+        } else if (!o2n_network_found && streql(o2n_public_ip, "00000000")) {
             printf("DONE\n");
         } else {
             printf("FAILED\n");

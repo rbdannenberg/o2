@@ -69,7 +69,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
         printf("FAILURE -- expected empty string for properties\n");
     }
     // ***** this check is not really relevant anymore because we
-    // ***** do not use the public:internal:port name (now we use _o2 instead)
+    // ***** do not use the @public:internal:port name (now we use _o2 instead)
     // ***** but I left this check here because it is not being
     // ***** tested anywhere else -- why not?
     // here are 2 ways to get the IP:Port name of this process:
@@ -82,7 +82,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
     char my_proc_name[O2_MAX_PROCNAME_LEN];
     if (!my_pip) my_pip = "none";
     if (!my_iip) my_iip = "none";
-    snprintf(my_proc_name, O2_MAX_PROCNAME_LEN, "%s:%s:%d", my_pip, my_iip,
+    snprintf(my_proc_name, O2_MAX_PROCNAME_LEN, "@%s:%s:%x", my_pip, my_iip,
              my_port);
 
     // (2) get the name from o2_context (now part of O2 API):

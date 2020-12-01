@@ -23,7 +23,7 @@ extern SOCKET o2_discovery_socket;
 extern o2n_info_ptr o2_discovery_udp_server;
 
 #ifndef O2_NO_HUB
-extern char o2_hub_addr[O2_MAX_PROCNAME_LEN]; // public:internal:port of hub
+extern char o2_hub_addr[O2_MAX_PROCNAME_LEN]; // @public:internal:port of hub
         // if any, otherwise empty string. Non-empty turns off broadcasting.
 #endif
 
@@ -66,10 +66,9 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
               o2_arg_ptr *argv, int argc, const void *user_data);
 
 o2_err_t o2_discovered_a_remote_process(const char *public_ip,
-                       const char *internal_ip, int port, int dy);
+                    const char *internal_ip, int port, int dy);
 
 o2_message_ptr o2_make_dy_msg(proc_info_ptr proc, int tcp_flag,
                               int dy_flag);
-
 
 #endif /* DISCOVERY_H */

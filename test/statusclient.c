@@ -51,7 +51,7 @@ int main(int argc, const char * argv[])
             printf("Port specified as 0, enter new value: ");
             port = atoi((const char *) fgets(input, 100, stdin));
         }
-        printf("Using %s:%s:%d as hub.\n", pip, iip, port);
+        printf("Using %s:%s:%x as hub.\n", pip, iip, port);
     } else if (argc > 5) {
         printf("WARNING: statusclient too many command line argments\n");
     }
@@ -66,7 +66,7 @@ int main(int argc, const char * argv[])
     int tcp_port;
     o2_err_t err = o2_get_addresses(&pipaddr, &iipaddr, &tcp_port);
     assert(err == O2_SUCCESS);
-    printf("My address is %s:%s:%d\n", pipaddr, iipaddr, tcp_port);
+    printf("My address is %s:%s:%x\n", pipaddr, iipaddr, tcp_port);
     
     while (running) {
         o2_poll();

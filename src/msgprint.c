@@ -39,9 +39,8 @@ void o2_msg_data_print(o2_msg_data_ptr msg)
         return;
     }
 #endif
-    char *types = O2_MSGDATA_TYPES(msg);
-    int types_len = (int) strlen(types);
-    char *data_next = O2MEM_BIT32_ALIGN_PTR(types + types_len + 4);
+    const char *types = o2_msg_data_types(msg);
+    const char *data_next = o2_msg_data_params(types);
     
     while (*types) {
         switch (*types) {

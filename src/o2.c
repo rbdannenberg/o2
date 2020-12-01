@@ -254,8 +254,8 @@ discovery and O2 messages, we avoid making network.c depend upon
 scheduling and O2 functions. Instead, the layers that use network.c
 can either
     1. set o2n_network_enabled to false in which case the
-       o2n_public_ip is set to "0.0.0.0" to signify "no Internet" and
-       o2n_internal_ip is set to localhost ("127.0.0.1") or 
+       o2n_public_ip is set to "00000000" to signify "no Internet" and
+       o2n_internal_ip is set to localhost ("7f000001") or
     2. the o2n_public_ip can be left as the empty string, signifying 
        "public IP is unknown" or
     3. the o2n_public_ip can be changed some time after initialization
@@ -269,7 +269,7 @@ ports. If not, initialization should fail "early." Searching for
 ports is also a fairly non-real-time operation, so it is good to 
 get it over with during initialization. The problem is that when
 discovery creates a TCP socket which is represented by a proc_info,
-we would like to have the full public:internal:port name for the
+we would like to have the full @public:internal:port name for the
 process, but that depends on the public IP address which becomes
 known only after running the STUN protocol.
 
@@ -286,7 +286,7 @@ application does not need the full process name, there should not be a
 problem. The application must also wait for services to be discovered,
 so some amount of asynchrony and synchronization is a given. There are
 some careful internal checks so that generally the local process is
-named by "_o2" instead of the full public:internal:port name. In some
+named by "_o2" instead of the full @public:internal:port name. In some
 places, before using the name field of a proc_info structure, we
 compare the proc_info address to o2_ctx->proc (the local process's
 proc_info_ptr). If equal, we use "_o2" instead of proc->name.
@@ -368,7 +368,7 @@ Process Creation
 
 o2_discovery_handler() receives !_o2/dy message. There are two cases
 based on whether the local host is the server or client. (The server is
-the host with the greater public:internal:port string. The client
+the host with the greater @public:internal:port string. The client
 connects to the
 server.) If the server gets a discovery message from the client, it
 can't connect because it's the server, so it merely generates an
@@ -391,7 +391,7 @@ Client receives /dy over TCP, closes the TCP connection.
 Server broadcasts /dy (discovery) to all, including client.
     THEN
 Either way, the client now knows the server and connects to it:
-    Locally, the client creates a service named "public:internal:port"
+    Locally, the client creates a service named "@public:internal:port"
         representing
         the server by pointing to an o2n_info so that if another
         /dy message arrives, the client will not make another connection.
@@ -861,7 +861,7 @@ o2_err_t o2_initialize(const char *ensemble_name)
     o2_service_new2("_o2\000\000");
     
     if (o2n_public_ip[0]) {  // we already have a (pseudo) public ip
-        assert(streql(o2n_public_ip, "0.0.0.0"));
+        assert(streql(o2n_public_ip, "00000000"));
         o2_init_phase2();    // continue with Phase 2
     } else if ((err = o2_get_public_ip())) {
         goto cleanup;
@@ -890,7 +890,7 @@ void o2_init_phase2()
 
 
 o2_err_t o2_get_addresses(const char **public_ip, const char **internal_ip,
-                        int *port)
+                          int *port)
 {
     if (!o2_ctx || !o2_ctx->proc) {
         return O2_FAIL;

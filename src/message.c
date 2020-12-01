@@ -62,8 +62,6 @@
 #include "bridge.h"
 #include "mqttcomm.h"
 
-// returns the address of the byte AFTER the message
-#define MSG_END(msg) (PTR(&(msg)->flags) + (msg)->length)
 
 // --------- PART 1 : SCRATCH AREAS FOR MESSAGE CONSTRUCTION --------
 // Construct messages by writing type string to msg_types and data to
@@ -336,12 +334,8 @@ int o2_add_message(o2_message_ptr msg)
     is_bundle = true;
 #endif
     // add a length followed by data portion of msg
-    int msg_len = msg->data.length + 4; // add 4 for length
-    o2_message_check_length(msg_len);
-    char *src = PTR(&msg->data) - 4; // get length and data
-    char *dst = PTR(o2_ctx->msg_data.array) + o2_ctx->msg_data.length;
-    memcpy(dst, src, msg_len);
-    o2_ctx->msg_data.length += (msg_len + 3) & ~3;
+    int msg_len = msg->data.length + sizeof(msg->data.length);
+    o2_add_raw_bytes(msg_len, PTR(&msg->data));
     return O2_SUCCESS;
 }
 
@@ -393,18 +387,19 @@ o2_message_ptr o2_service_message_finish(
     }
     memcpy(dst, address, addr_len);
 
-    dst = PTR(end);
-    end = (int32_t *) (dst + types_size);
-    end[-1] = 0; // fill last 32-bit word with zeros
-    // if building a bundle, types will be ',', and types will be
-    // copied to the message, but types will be overwritten by the
-    // first message of the bundle (or if the bundle has zero messages,
-    // the type string will be written after the end of the message,
-    // (and yes, there is room because small messages are allocated
-    // from a list of fixed-size buffers).
-    memcpy(dst, o2_ctx->msg_types.array, types_len);
-    dst += types_size;
-    memcpy(dst, o2_ctx->msg_data.array, o2_ctx->msg_data.length);
+#ifndef O2_NO_BUNDLES
+    if (is_bundle) {
+        ;  // do nothing - no typestring here
+    } else
+#endif
+    {
+        assert(types_size > 0);
+        dst = PTR(end);
+        end = (int32_t *) (dst + types_size);
+        end[-1] = 0; // fill last 32-bit word with zeros
+        memcpy(dst, o2_ctx->msg_types.array, types_len);
+    }
+    memcpy(end, o2_ctx->msg_data.array, o2_ctx->msg_data.length);
     o2_mem_check(msg);
     return msg;
 }
@@ -426,6 +421,7 @@ int o2_add_bundle_head(int64_t time)
 }
 #endif
 
+// append space for a length pointer and return it's address
 int *o2_msg_len_ptr()
 {
     o2_message_check_length(sizeof(int32_t));
@@ -434,7 +430,8 @@ int *o2_msg_len_ptr()
     return (int *) (mdata->array + mdata->length - sizeof(int32_t));
 }
 
-
+// set the previously allocated length to the length of everything
+// after it, using network byte order for length
 int o2_set_msg_length(int32_t *msg_len_ptr)
 {
     dyn_array_ptr mdata = &o2_ctx->msg_data;
@@ -452,7 +449,8 @@ int o2_add_raw_bytes(int32_t len, char *bytes)
 {
     o2_message_check_length(len);
     memcpy(o2_ctx->msg_data.array + o2_ctx->msg_data.length, bytes, len);
-    o2_ctx->msg_data.length += len;
+    // if not a multiple of 4 bytes, we round up length to word boundary
+    o2_ctx->msg_data.length += (len + 3) & ~3;
     return O2_SUCCESS;
 }
 
@@ -526,11 +524,19 @@ char *o2_msg_data_get(int32_t *len_ptr)
 // the end of an array or vector (otherwise NULL is returned to
 // indicate error, as usual).
 
-static o2_msg_data_ptr mx_msg = NULL; // the message we are extracting from
-static char *mx_types = NULL;         // pointer to the type codes
-static char *mx_type_next = NULL;     // pointer to the next type code
-static char *mx_data_next = NULL;     // pointer to the next data item in mx_msg
-static char *mx_barrier = NULL;       // pointer to end of message
+
+const char *o2_next_o2string(const char *str)
+{
+    while (str[3]) str += 4;
+    return str + 4;
+}
+
+
+static o2_msg_data_ptr mx_msg = NULL;   // the message we are extracting from
+static const char *mx_types = NULL;     // the type codes
+static const char *mx_type_next = NULL; // the next type code
+static const char *mx_data_next = NULL; // the next data item in mx_msg
+static const char *mx_barrier = NULL;   // pointer to end of message
 static bool mx_vector_to_vector_pending = false; // expecting vector element
 // type code, will return a whole vector
 static bool mx_array_to_vector_pending = false;  // expecting vector element
@@ -689,16 +695,12 @@ ssize_t o2_validate_bundle(void *data, ssize_t size)
 #endif // VALIDATION_FUNCTIONS
 
 #define PREPARE_TO_ACCESS(typ) \
-    char *end = data_next + sizeof(typ); \
+    const char *end = data_next + sizeof(typ); \
     if (end > end_of_msg) return O2_INVALID_MSG;
 
 /* convert endianness of a message */
 o2_err_t o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
 {
-    char *types = O2_MSGDATA_TYPES(msg);
-    int types_len = (int) strlen(types);
-    char *data_next = O2MEM_BIT32_ALIGN_PTR(types + types_len + 4);
-
     msg->flags = swap32(msg->flags);
     int64_t i64_time = *(int64_t *) &msg->timestamp;
     i64_time = swap64(i64_time);
@@ -707,19 +709,22 @@ o2_err_t o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
 #ifndef O2_NO_BUNDLES
     if (IS_BUNDLE(msg)) {
         FOR_EACH_EMBEDDED(msg,
-            int32_t *len_ptr = (int32_t *) embedded - 1;
+            int32_t *len_ptr = &(embedded->length);
             len = *len_ptr;
             *len_ptr = swap32(*len_ptr);
             if (!is_host_order) len = *len_ptr;
-            if (PTR(msg) + len > end_of_msg) {
+            if (PTR(msg) + len + sizeof(int32_t) > end_of_msg) {
                 return O2_FAIL;
             }
             o2_msg_swap_endian(embedded, is_host_order));
         return O2_SUCCESS;
     }
 #endif
+    const char *types = o2_msg_data_types(msg);
+    const char *data_next = o2_msg_data_params(types);
+
     // do not write beyond barrier (message may be malformed)
-    char *end_of_msg = PTR(msg) + msg->length + sizeof msg->length;
+    char *end_of_msg = O2_MSG_DATA_END(msg);
     while (*types) {
         if (data_next >= end_of_msg) {
             return O2_FAIL;
@@ -763,7 +768,7 @@ o2_err_t o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
             }
             case O2_STRING:
             case O2_SYMBOL: {
-                char *end = data_next + o2_strsize(data_next);
+                const char *end = data_next + o2_strsize(data_next);
                 if (end > end_of_msg) return O2_INVALID_MSG;
                 data_next = end;
                 break;
@@ -938,11 +943,8 @@ int o2_extract_start(o2_msg_data_ptr msg)
     mx_msg = msg;
     // point temp_type_end to the first type code byte.
     // skip over padding and ','
-    mx_types = O2_MSGDATA_TYPES(msg);
+    mx_types = o2_msg_data_types(msg);
     mx_type_next = mx_types;
-    
-    // argv needs 4 * type string length + 2 * remaining length
-    // coerce to int to avoid compiler warning; o2 messages can't be that long
     int types_len = (int) strlen(mx_types);
     // mx_types + types_len points to the end-of-typestring byte and there can
     // be up to 3 more zero-pad bytes to the next word boundary
@@ -952,7 +954,7 @@ int o2_extract_start(o2_msg_data_ptr msg)
     // the message to get the length of the "real" data. Coerce to int
     // to avoid compiler warning; message cannot be big, so int (as
     // opposed to long) is plenty big.
-    mx_barrier = MSG_END(msg);
+    mx_barrier = O2_MSG_DATA_END(msg);
     int msg_data_len = (int) (mx_barrier - mx_data_next);
     // add 2 for safety
     int argv_needed = types_len * 4 + msg_data_len * 2 + 2;
@@ -1283,8 +1285,9 @@ o2_arg_ptr o2_get_next(o2_type to_type)
             case O2_BLOB:
                 if (to_type != O2_BLOB) {
                     rslt = NULL; // type mismatch
+                } else {
+                    MX_SKIP(sizeof(uint32_t) + rslt->b.size);
                 }
-                MX_SKIP(sizeof(uint32_t) + rslt->b.size);
                 break;
             case O2_INT64:
                 if (to_type != O2_INT64) {
@@ -1414,16 +1417,10 @@ o2_err_t o2_message_deliver(o2n_info_ptr info)
 #if IS_LITTLE_ENDIAN
             o2_msg_swap_endian(&msg->data, false);
 #endif
-            O2_DBr(if (msg->data.address[1] != '_' &&
-                       !isdigit(msg->data.address[1]))
-                       o2_dbg_msg("msg received", msg, &msg->data, "by",
-                               o2_tag_to_string(
-                                   TO_PROC_INFO(info->application)->tag)));
-            O2_DBR(if (msg->data.address[1] == '_' ||
-                       isdigit(msg->data.address[1]))
-                       o2_dbg_msg("msg received", msg, &msg->data, "by",
-                               o2_tag_to_string(
-                                   TO_PROC_INFO(info->application)->tag)));
+            O2_DB((msg->data.address[1] == '_' || msg->data.address[1] == '@') ?
+                  O2_DBR_FLAG : O2_DBr_FLAG,
+                  o2_dbg_msg("msg received", msg, &msg->data, "by",
+                      o2_tag_to_string(TO_PROC_INFO(info->application)->tag)));
             o2_message_send_sched(true);
             break;
 #ifndef O2_NO_OSC

@@ -114,7 +114,11 @@ void o2_mem_finish(void); // implemented by o2mem.c, called to free
 
 #define streql(a, b) (strcmp(a, b) == 0)
 
-// o2strlcpy is like strlcpy but it does not return length:
+// o2strcpy is like strlcpy but it does not return length.
+// precisely, o2strcpy() copies up to n characters (including EOS) from
+// s to d. String s is truncated to a maximum length of n - 1 and terminated
+// with a zero EOS byte. (Any remainder of d may or may not be filled with
+// zeros, unlike strlcpy, which zero fills.)
 #ifdef __APPLE__
 #define o2strcpy(d, s, n) ((void) strlcpy(d, s, n))
 #else
