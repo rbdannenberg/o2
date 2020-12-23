@@ -35,7 +35,7 @@ int s = 0;
 int w = 1;
 
 void service_one(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 O2arg_ptr *argv, int argc, void *user_data)
 {
     char p[100];
     sprintf(p, "/two/benchmark/%d", s % N_ADDRS);
@@ -49,7 +49,7 @@ void service_one(o2_msg_data_ptr data, const char *types,
 }
 
 void service_two(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, void *user_data)
+                 O2arg_ptr *argv, int argc, void *user_data)
 {
     char p[100];
     sprintf(p, "/one/benchmark/%d", w % N_ADDRS);
@@ -95,7 +95,7 @@ int main(int argc, const char * argv[])
     const char *iip;
     char procname[O2_MAX_PROCNAME_LEN];
     int port;
-    o2_err_t err = o2_get_addresses(&pip, &iip, &port);
+    O2err err = o2_get_addresses(&pip, &iip, &port);
     assert(err == O2_SUCCESS);
     sprintf(procname, "%s:%s:%x", pip, iip, port);
     assert(streql(o2_service_process(one), "_o2"));

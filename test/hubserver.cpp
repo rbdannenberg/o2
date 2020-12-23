@@ -104,10 +104,10 @@ char client_iip[O2_IP_LEN];
 int client_port = -1;
 
 void service_info_handler(o2_msg_data_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, const void *user_data)
+                O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
-    int status = argv[1]->i32;
+    O2status status = (O2status) argv[1]->i32;
     const char *status_string = o2_status_to_string(status);
     const char *process = argv[2]->s;
     const char *properties = argv[3]->s;
@@ -117,7 +117,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
         printf("FAILURE -- expected empty string for properties\n");
         assert(false);
     }
-    if (status == O2_FAIL) {
+    if (status == O2_UNKNOWN) {
         return;  // service has been removed
     }
     // our purpose is to detect the client and its IP and port
@@ -131,7 +131,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
 int client_hi_count = 0;
 
 void client_says_hi(o2_msg_data_ptr data, const char *types,
-                    o2_arg_ptr *argv, int argc, const void *user_data)
+                    O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("#   -> client_says_hi got %s\n", argv[0]->s);
     client_hi_count++;
@@ -167,7 +167,7 @@ void substep(const char *msg)
 void startup(int n, const char *msg)
 {
     step(n, msg);
-    o2_err_t err = o2_initialize("test");
+    O2err err = o2_initialize("test");
     if (err) {
         printf("ERROR %s in o2_initialize()\n", o2_error_to_string(err));
     }
@@ -189,8 +189,10 @@ void wait_for_client(void)
         o2_poll();
         usleep(2000); // 2ms
         if (count++ % 1000 == 0) {
-            printf("#   -> still waiting for client, client status is %s at %ld\n", 
-                   o2_status_to_string(o2_status("client")), elapsed_time());
+            printf("#   -> still waiting for client, "
+                   "client status is %s at %ld\n", 
+                   o2_status_to_string((O2status) o2_status("client")),
+                                       elapsed_time());
         }
     }
     assert(client_pip[0]);
@@ -205,7 +207,7 @@ void wait_for_pip(void)
     const char *iip;
     int my_port;
     while (true) {
-        o2_err_t err = o2_get_addresses(&pip, &iip, &my_port);
+        O2err err = o2_get_addresses(&pip, &iip, &my_port);
         assert(!err);
         if (pip[0]) {
             printf("#  -> wait_for_pip got %s\n", pip);
@@ -226,7 +228,7 @@ bool my_ipport_is_greater(const char *client_pip,
     const char *pip;
     const char *iip;
     int my_port;
-    o2_err_t err = o2_get_addresses(&pip, &iip, &my_port);
+    O2err err = o2_get_addresses(&pip, &iip, &my_port);
     assert(err == O2_SUCCESS);
     strcpy(my_pip, pip); // copy O2 public ip to our variable
     strcpy(my_iip, iip); // copy O2 internal ip to our variable
@@ -338,7 +340,7 @@ int test_other_as_hub(int order)
     o2_hex_to_dot(client_pip_copy, pip_dot);
     char iip_dot[O2_IP_LEN];
     o2_hex_to_dot(client_iip_copy, iip_dot);
-    o2_err_t err = o2_hub(pip_dot, iip_dot, client_port_copy);
+    O2err err = o2_hub(pip_dot, iip_dot, client_port_copy);
 
     assert(err == O2_SUCCESS);
     wait_for_pip();

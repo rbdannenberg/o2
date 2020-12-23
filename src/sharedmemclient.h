@@ -50,20 +50,25 @@
     o2sm_send_marker(path, time, true, \
                    __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
-o2_err_t o2sm_send_marker(const char *path, double time, int tcp_flag,
+O2err o2sm_send_marker(const char *path, double time, int tcp_flag,
                           const char *typestring, ...);
-o2_err_t o2sm_send_finish(o2_time time, const char *address, int tcp_flag);
-o2_err_t o2sm_message_send(o2_message_ptr msg);
+O2err o2sm_send_finish(O2time time, const char *address, int tcp_flag);
+O2err o2sm_message_send(O2message_ptr msg);
 
+int o2sm_get_id(); 
 void o2sm_poll();
-o2_time o2sm_time_get();
-o2_err_t o2_shmem_inst_finish(bridge_inst_ptr inst);
-void o2sm_initialize(o2_ctx_ptr ctx, bridge_inst_ptr inst);
-o2_err_t o2_shmem_finish();
-o2_message_ptr o2sm_get_message(bridge_inst_ptr inst);
-o2_err_t o2sm_service_new(const char *service, const char *properties);
+O2time o2sm_time_get();
+O2err o2_shmem_inst_finish(Bridge_info *inst);
+void o2sm_initialize(O2_context *ctx, Bridge_info *inst);
+O2err o2_shmem_finish();
+O2message_ptr o2sm_get_message(Bridge_info *inst);
+O2err o2sm_service_new(const char *service, const char *properties);
+#define o2sm_method_new(path, typespec, h, user_data, coerce, parse) \
+    o2_method_new_internal(path, typespec, h, user_data, coerce, parse)
+/*
 int o2sm_method_new(const char *path, const char *typespec,
-                    o2_method_handler h, void *user_data, 
+                    O2method_handler h, void *user_data, 
                     bool coerce, bool parse);
+*/
 void o2sm_finish();
 

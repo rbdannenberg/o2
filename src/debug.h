@@ -4,7 +4,7 @@
  * April 2020
  */
 
-// o2_message_print() is included in debug versions automatically.
+// O2message_print() is included in debug versions automatically.
 // It is also included if O2_MSGPRINT is defined.
 
 #ifndef O2_NO_DEBUG
@@ -39,7 +39,7 @@ const char *o2_tag_to_string(int tag);
 
 extern int o2_debug;
 extern const char *o2_debug_prefix;
-void o2_dbg_msg(const char *src, o2_message_ptr msg, o2_msg_data_ptr data,
+void o2_dbg_msg(const char *src, O2message_ptr msg, o2_msg_data_ptr data,
                 const char *extra_label, const char *extra_data);
 
 // Note: The ordering of these flags is coordinated with debug_chars, 

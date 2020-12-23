@@ -20,7 +20,7 @@
 int ints[] = {1005, 2005, 1006, 2006, 1007, 2007, 1008, 2008, 1009, 2009,
               3001, 3002, 3003, 4001, 4002, 4003, 999};
 
-char *strings[] = {
+const char *strings[] = {
     "an arbitrary string at 2.5",
     "another arbitrary string at 2.5",
     "an arbitrary string at 2.6",
@@ -66,7 +66,7 @@ double timetag_to_secs(lo_timetag tt)
 }
 
 
-int meta_handler(char *name, lo_arg **argv, int argc)
+int meta_handler(const char *name, lo_arg **argv, int argc)
 {
     lo_timetag ttnow;
     lo_timetag_now(&ttnow);

@@ -7,7 +7,6 @@
 #include "o2internal.h"
 #include "services.h"
 #include "o2osc.h"
-#include "bridge.h"
 
 #if IS_LITTLE_ENDIAN
 // for little endian machines
@@ -30,8 +29,7 @@ int o2_strsize(const char *s)
 }
 
 
-static int initialize_hashtable(dyn_array_ptr table, int locations)
-{
+<{
     DA_INIT_ZERO(*table, o2_node_ptr, locations);
     if (!table->array) return O2_FAIL;
     table->length = locations; // this is a hash table, all locations are used
@@ -44,37 +42,29 @@ static int initialize_hashtable(dyn_array_ptr table, int locations)
 // o2_node_add inserts an entry into the hash table. If the table becomes
 // too full, a new larger table is created.
 //
-o2_err_t o2_node_add(hash_node_ptr hnode, o2_node_ptr entry)
+o2_err_t Hash_node::insert(O2node *entry)
 {
-    o2_node_ptr *ptr = o2_lookup(hnode, entry->key);
+    O2node **ptr = lookup(entry->key);
     if (*ptr) { // if we found it, this is a replacement
         // splice out existing entry and delete it
-        o2_hash_entry_remove(hnode, ptr, false);
+        entry_remove(ptr, false);
     }
-    return o2_add_entry_at(hnode, ptr, entry);
+    return entry_insert_at(ptr, entry);
 }
 
 
-static o2_err_t resize_table(hash_node_ptr node, int new_locs)
+static o2_err_t Hash_node::table_insert(int new_locs)
 {
-    dyn_array old = node->children; // copy whole dynamic array
-    if (initialize_hashtable(&node->children, new_locs))
-        return O2_FAIL;
+    Vec<O2node *> old(children); // copy whole dynamic array
+    children.init(new_locs);
     // now, old array is in old, node->children is newly allocated
     // copy all entries from old to node->children
-    assert(node->children.array != NULL);
-    o2_mem_check(node->children.array);
-    enumerate enumerator;
-    o2_enumerate_begin(&enumerator, &old);
-    o2_node_ptr entry;
-    while ((entry = o2_enumerate_next(&enumerator))) {
-        o2_mem_check(old.array);
-        o2_node_add(node, entry);
+    Enumerate enumerator(&old);
+    O2node *entry;
+    while ((entry = enumerator.next())) {
+        node->insert(entry);
     }
-    // now we have moved all entries into the new table and we can free the
-    // old one
-    DA_FINISH(old);
-    o2_mem_check(node->children.array);
+    // old will be freed when we return
     return O2_SUCCESS;
 }
 
@@ -97,14 +87,8 @@ static o2_err_t resize_table(hash_node_ptr node, int new_locs)
 // The parameter should be an entry to remove -- either an
 // internal entry (NODE_HASH) or a leaf entry (NODE_HANDLER)
 //
-void o2_node_free(o2_node_ptr entry)
+void O2node::~O2node()
 {
-    if (entry->tag == NODE_HASH) {
-        o2_hash_node_finish(TO_HASH_NODE(entry));
-    } else if (entry->tag == NODE_HANDLER) {
-        o2_handler_entry_finish((handler_entry_ptr) entry);
-    } else if (entry->tag == NODE_SERVICES) {
-        o2_services_entry_finish(TO_SERVICES_ENTRY(entry));
 #ifndef O2_NO_BRIDGES
     } else if (ISA_BRIDGE(entry)) {
         bridge_inst_ptr inst = (bridge_inst_ptr) entry;
@@ -251,7 +235,7 @@ hash_node_ptr o2_node_initialize(hash_node_ptr node, const char *key)
 // The hash table uses linked lists for collisions to make
 // deletion simple. key must be aligned on a 32-bit word boundary
 // and must be padded with zeros to a 32-bit boundary
-o2_node_ptr *o2_lookup(hash_node_ptr node, o2string key)
+o2_node_ptr *o2_lookup(Hash_node *node, o2string key)
 {
     int n = node->children.length;
     int64_t hash = get_hash(key);

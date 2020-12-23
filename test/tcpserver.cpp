@@ -23,7 +23,7 @@ bool running = true;
 // back to one of the client addresses
 //
 void server_test(o2_msg_data_ptr msg, const char *types,
-                o2_arg ** argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     msg_count++;

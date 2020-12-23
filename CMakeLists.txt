@@ -18,7 +18,7 @@ set(BUILD_WITH_BRIDGE_SUPPORT ON CACHE BOOL "Allow other transport add-ons")
 set(BUILD_WITH_SHAREDMEM_SUPPORT ON CACHE BOOL 
     "Include shared memory bridge API, requires bridge support")
 set(BUILD_WITH_MESSAGE_PRINT OFF CACHE BOOL
-"Provide o2_message_print even in non-debug builds (it is always provided in debug builds)")
+"Provide O2message_print even in non-debug builds (it is always provided in debug builds)")
 
 set(BUILD_WITH_O2LITE_DISCOVERY ON CACHE BOOL 
 "Added code to o2lite clients for faster discovery") 
@@ -90,21 +90,23 @@ endif(UNIX)
 # o2
  
 set(O2_SRC  
-  src/atomic.cpp src/atomic.h
+  src/o2atomic.cpp src/o2atomic.h
+  src/o2base.h
   src/bridge.cpp src/bridge.h 
   src/clock.cpp src/clock.h 
   src/debug.cpp src/debug.h 
   src/discovery.cpp src/discovery.h 
   src/vec.cpp src/vec.h
   src/dynarray.cpp src/dynarray.h
-  src/hashnode.cpp src/hashnode.h
+  src/o2node.cpp src/o2node.h
+  # src/hashnode.cpp src/hashnode.h
   src/message.cpp src/message.h 
   src/mqtt.cpp src/mqtt.h 
   src/mqttcomm.cpp src/mqttcomm.h 
   src/msgsend.cpp src/msgsend.h 
   src/msgprint.cpp
   src/network.cpp src/network.h 
-  src/o2.cpp src/o2.h src/o2internal.h 
+  src/o2.cpp src/o2.h src/o2base.h src/o2internal.h 
   src/o2osc.cpp src/o2osc.h
   src/pathtree.cpp src/pathtree.h
   src/processes.cpp src/processes.h
@@ -114,6 +116,7 @@ set(O2_SRC
   src/services.cpp src/services.h 
   src/sharedmem.cpp src/sharedmem.h
   src/o2mem.cpp src/o2mem.h 
+  src/o2obj.h
   src/sharedmemclient.h
   src/stun.cpp src/stun.h
   )  
@@ -368,21 +371,21 @@ add_executable(dropclient test/dropclient.cpp)
 target_include_directories(dropclient PRIVATE ${CMAKE_SOURCE_DIR}/src)        
 target_link_libraries(dropclient ${LIBRARIES}) 
 
-add_executable(o2litemsg test/o2litemsg.cpp)        
+add_executable(o2litemsg test/o2litemsg.c)
 target_include_directories(o2litemsg PRIVATE ${CMAKE_SOURCE_DIR}/src)         
 target_link_libraries(o2litemsg ${O2LITE_LIBS})  
     
-add_executable(o2liteserv test/o2liteserv.cpp)        
+add_executable(o2liteserv test/o2liteserv.c)
 target_include_directories(o2liteserv PRIVATE ${CMAKE_SOURCE_DIR}/src)         
 target_link_libraries(o2liteserv ${O2LITE_LIBS})  
 
-add_executable(o2litehost test/o2litehost.cpp) 
+add_executable(o2litehost test/o2litehost.cpp)
 target_include_directories(o2litehost PRIVATE ${CMAKE_SOURCE_DIR}/src)         
 target_link_libraries(o2litehost ${LIBRARIES})  
 
-add_executable(stuniptest test/stuniptest.cpp) 
-target_include_directories(stuniptest PRIVATE ${CMAKE_SOURCE_DIR}/src)         
-target_link_libraries(stuniptest ${LIBRARIES})  
+add_executable(stuniptest test/stuniptest.cpp)
+target_include_directories(stuniptest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(stuniptest ${LIBRARIES})
 
 add_executable(mqttclient test/mqttclient.cpp) 
 target_include_directories(mqttclient PRIVATE ${CMAKE_SOURCE_DIR}/src)         

@@ -6,6 +6,8 @@
 #ifndef O2_H
 #define O2_H
 
+#include "o2base.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -57,7 +59,7 @@ to other processes. Each process can offer zero or more named
 address space for a distributed O2 application. In O2, services
 replace the notion of network addresses (e.g. 128.2.100.57) in OSC.
 
-O2 is based on IP (Internet Protocol), but there are some mechanisms
+O2 is based on IP (Internet Bridge_protocol), but there are some mechanisms
 that allow an O2 process to serve as a bridge to other networks such
 as Bluetooth.
 
@@ -220,25 +222,27 @@ active, the change is reported locally to the application by sending
 this `/_o2/si` message. Normally, you should not add handlers or use
 the `_o2` service, but in this case, an application is expected to 
 add a custom handler to receive status updates. 
-    See #o2_status for a list of status values. In addition, 
-O2_FAIL is reported when the current provider of a service is removed.
-This may be followed immediately by another message to `/_o2/si` if
-another provider offers the service.
-    The service `_o2` is created before you can install a handler for 
-`/_o2/si`, so you will not receive an `si` messages when `_o2` is created.
-     If the service name begins with a digit, it represents a remote 
+    See #o2_status for a list of status values. O2_UNKNOWN is reported
+when the current provider of a service is removed.  This may be
+followed immediately by another message to `/_o2/si` if another
+provider offers the service.
+    The service `_o2` is created before you can install a handler for
+`/_o2/si`, so you will not receive an `si` messages when `_o2` is
+created.
+     If the service name begins with '@', it represents a remote
 process and the name has the form @public:internal:port, e.g.
-`74.109.251.118:128.237.161.165:50404`.
-There is also a `@public:internal:port` service representing the local process, but
-the local process is also represented by `_o2`, so the local `@public:internal:port`
-service is never reported in an `/_o2/si` message. Instead, the string 
-`"_o2"` indicates that *process* is the local one. You can get the local 
-`@public:internal:port` string by calling #o2_get_addresses or #o2_get_proc_name.
-    The *properties* string contains the service properties in the form 
-"attr1:value1;attr2:value2;" with no leading ";". If there are no 
-properties, the string is empty. Values are escaped: within a value, the
-characters ":;\" are preceded by "\" since ":" and ";" are separator
-characters. Attribute names are alphanumeric.
+`@74.109.251.118:128.237.161.165:50404`.  There is also a
+`@public:internal:port` service representing the local process, but
+the local process is also represented by `_o2`, so the local
+`@public:internal:port` service is never reported in an `/_o2/si`
+message. Instead, the string `"_o2"` indicates that *process* is the
+local one. You can get the local `@public:internal:port` string by
+calling #o2_get_addresses or #o2_get_proc_name.
+    The *properties* string contains the service properties in the
+form "attr1:value1;attr2:value2;" with no leading ";". If there are no
+properties, the string is empty. Values are escaped: within a value,
+the characters ":;\" are preceded by "\" since ":" and ";" are
+separator characters. Attribute names are alphanumeric.
 */
 
 // get uint32_t, etc.:
@@ -327,7 +331,7 @@ typedef enum {
     O2_BAD_TYPE = -7,
     
     /// \brief an error return value: mismatched types and arguments
-    /// returned by #o2_message_build, #o2_send, #o2_send_cmd
+    /// returned by #O2message_build, #o2_send, #o2_send_cmd
     O2_BAD_ARGS = -8,
     
     /// an error return value for #o2_initialize: the socket is closed.
@@ -365,10 +369,11 @@ typedef enum {
     /// Unable to allocate a discovery port
     O2_NO_PORT = -19,
 
-    /// Networking is disabled or Internet not found (no public IP address found)
+    /// Networking is disabled or Internet not found
+    /// (no public IP address found)
     O2_NO_NETWORK = -20
 
-} o2_err_t;
+} O2err;
 
 
 // Status return codes for o2_status function:
@@ -468,7 +473,7 @@ typedef enum {
     /// \brief tag value for #o2_services_list
     ///
     O2_TAP = 8
-} o2_status_t;    
+} O2status;    
 
 /** @} */
 
@@ -483,86 +488,6 @@ typedef enum {
 /** \defgroup basics Basics
  * @{
  */
-
-// room for IP address in dot notation and terminating EOS
-#define O2_IP_LEN 16
-// room for longest string/address of the form:
-//   /_publicIP:localIP:port + padding_to_int32_boundary
-#define O2_MAX_PROCNAME_LEN 32
-
-// limit on ensemble name length
-#define O2_MAX_NAME_LEN 63
-
-extern void *((*o2_malloc_ptr)(size_t size));
-extern void ((*o2_free_ptr)(void *));
-
-/** \brief allocate memory
- *
- * O2 allows you to provide custom heap implementations to avoid
- * priority inversion or other real-time problems. Normally, you
- * should not need to explicitly allocate memory since O2 functions
- * are provided to allocate, construct, and deallocate messages, but
- * if you need to allocate memory, especially in an O2 message
- * handler callback, i.e. within the sphere of O2 execution, you
- * should use #O2_MALLOC, #O2_FREE, and #O2_CALLOC.
- */
-#ifndef O2_MALLOC
-#ifdef NO_O2_DEBUG
-#define O2_MALLOC(x) (*o2_malloc_ptr)(x)
-#define O2_MALLOCNT(n, typ) ((typ *) ((*o2_malloc_ptr)((n) * sizeof(typ))))
-#else
-void *o2_dbg_malloc(size_t size, const char *file, int line);
-#define O2_MALLOC(x) o2_dbg_malloc(x, __FILE__, __LINE__)
-#define O2_MALLOCNT(n, typ) \
-        ((typ *) o2_dbg_malloc((n) * sizeof(typ), __FILE__, __LINE__))
-#endif
-#define O2_MALLOCT(typ) O2_MALLOCNT(1, typ)
-#endif
-
-/** \brief free memory allocated by #O2_MALLOC */
-#ifndef O2_FREE
-#ifdef NO_O2_DEBUG
-#define O2_FREE(x) (*o2_free_ptr)(x)
-#else
-void o2_dbg_free(const void *obj, const char *file, int line);
-#define O2_FREE(x) o2_dbg_free(x, __FILE__, __LINE__)
-#endif
-#endif
-
-/** \brief allocate and zero memory (see #O2_MALLOC) */
-#ifndef O2_CALLOC
-#ifdef NO_O2_DEBUG
-void *o2_calloc(size_t n, size_t s);
-#define O2_CALLOC(n, s) o2_calloc(n, s)
-#define O2_CALLOCNT(n, typ) ((typ *) o2_calloc(n, sizeof(typ)))
-#else
-void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
-#define O2_CALLOC(n, s) o2_dbg_calloc(n, s, __FILE__, __LINE__)
-#define O2_CALLOCNT(n, typ) \
-        ((typ *) o2_dbg_calloc(n, sizeof(typ), __FILE__, __LINE__))
-#endif
-#define O2_CALLOCT(typ) O2_CALLOCNT(1, typ)
-#endif
-
-// if debugging is on, default is O2MEM_DEBUG
-#ifndef O2MEM_DEBUG
-#ifdef NO_O2_DEBUG
-// set to 0 for no memory debug mode
-#define O2MEM_DEBUG 0
-#else
-// set this to 2 to get verbose memory information
-#define O2MEM_DEBUG 1
-#endif
-#endif
-
-    
-// if O2_MEMDEBUG, extra checks are made for memory consistency,
-// and you can check any pointer using o2_mem_check(ptr):
-#ifdef O2MEM_DEBUG
-void o2_mem_check(void *ptr);
-#else
-#define o2_mem_check(ptr) 0 // make #o2_mem_check a noop
-#endif
 
 /** \brief disable external nework connections.
  *
@@ -592,28 +517,28 @@ void o2_mem_check(void *ptr);
  * @return O2_SUCCESS if setting is accepted, otherwise O2 is already 
  * running and O2_ALREADY_RUNNING is returned.
  */
-o2_err_t o2_network_enable(bool enable);
+O2err o2_network_enable(bool enable);
 
 /** \brief O2 timestamps are doubles representing seconds since the
  * approximate start time of the ensemble.
  */
-typedef double o2_time;
+typedef double O2time;
 
 /** \brief data part of an O2 message
  *
  * This data type is used to pass o2 message data to message handlers.
  * It appears many other times in the code. You should NEVER allocate
- * or free an o2_msg_data struct. Instead, create a message using 
+ * or free an O2msg_data struct. Instead, create a message using 
  * #o2_send_start, `o2_add_*()`, and #o2_message_finish to get an 
- * o2_message_ptr. Within the o2_message, the data field is an
- * o2_msg_data structure. We would use o2_message everywhere instead
- * of o2_msg_data, but bundles can contain multiple o2_msg_data 
- * structures without the extra baggage contained in an o2_message.
+ * O2message_ptr. Within the O2message, the data field is an
+ * O2msg_data structure. We would use O2message everywhere instead
+ * of O2msg_data, but bundles can contain multiple O2msg_data 
+ * structures without the extra baggage contained in an O2message.
  */
-typedef struct o2_msg_data {
+typedef struct O2msg_data {
     int32_t length; // msg length, not including this length field
     int32_t flags; // O2_TAP_FLAG and O2_TCP_FLAG
-    o2_time timestamp;   ///< the message delivery time (0 for immediate)
+    O2time timestamp;   ///< the message delivery time (0 for immediate)
     /** \brief the message address string
      *
      * Although this field is declared as 4 bytes, actual messages
@@ -623,7 +548,7 @@ typedef struct o2_msg_data {
      * the length field itself is given by the `length` field.
      */
     char address[4];
-} o2_msg_data, *o2_msg_data_ptr;
+} O2msg_data, *o2_msg_data_ptr;
 
 
 /** \brief get the type string from o2_msg_data_ptr
@@ -648,22 +573,22 @@ const char *o2_next_o2string(const char *str);
 /** \brief an O2 message container
  *
  * Note: This struct represents an O2 message that is stored on the heap.
- * o2_message is an alias for o2n_message. At the o2n (network)
- * abstraction, there is no o2_msg_data type.
+ * O2message is an alias for o2n_message. At the o2n (network)
+ * abstraction, there is no O2msg_data type.
  *
- * Note that o2_messages are on the heap and can be allocated, scheduled,
- * sent, and freed.  In contrast, o2_msg_data structures are contained 
- * within o2_messages and are passed to method handlers, but cannot be
+ * Note that O2messages are on the heap and can be allocated, scheduled,
+ * sent, and freed.  In contrast, O2msg_data structures are contained 
+ * within O2messages and are passed to method handlers, but cannot be
  * allocated, scheduled, sent, or freed. They are always the data field
- * of a containing o2_message.
+ * of a containing O2message.
  */
-typedef struct o2_message {
+typedef struct O2message {
     union {
-        struct o2_message *next; ///< links used for free list and scheduler
+        struct O2message *next; ///< links used for free list and scheduler
         int64_t pad_if_needed;   ///< make sure allocated is 8-byte aligned
     };
-    o2_msg_data data;
-} o2_message, *o2_message_ptr;
+    O2msg_data data;
+} O2message, *O2message_ptr;
 
 /// The address of the actual message, not including the length field:
 #define O2_MSG_PAYLOAD(msg) PTR(&(msg)->data.flags)
@@ -675,10 +600,10 @@ typedef struct o2_message {
  *  A blob can be passed in an O2 message using the 'b' type. Created
  *  by calls to #o2_blob_new.
  */
-typedef struct o2_blob {
+typedef struct O2blob {
   uint32_t size;  ///< size of data
   char data[4];   ///< the data, actually of variable length
-} o2_blob, *o2_blob_ptr;
+} O2blob, *O2blob_ptr;
 
 
 /**
@@ -708,20 +633,20 @@ typedef enum {
     // O2 types
     O2_BOOL =      'B',     ///< Boolean value returned as either 0 or 1
     O2_VECTOR =    'v',     ///< Prefix to indicate a vector
-} o2_type, *o2_type_ptr;
+} O2type, *O2type_ptr;
 
 
 /**
  * \brief union of all O2 parameter types
  *
- * An o2_arg_ptr is a pointer to an O2 message argument. If argument
+ * An O2arg_ptr is a pointer to an O2 message argument. If argument
  * parsing is requested (by setting the parse parameter in o2_method_new),
- * then the handler receives an array of o2_arg_ptrs. If argument parsing
+ * then the handler receives an array of O2arg_ptrs. If argument parsing
  * is not requested, you have the option of parsing the message one
  * parameter at a time by calling #o2_get_next, which returns an
- * o2_arg_ptr.
+ * O2arg_ptr.
  *
- * The o2_arg_ptr can then be dereferenced to obtain a value of the
+ * The O2arg_ptr can then be dereferenced to obtain a value of the
  * expected type. For example, you could write
  * \code{.c}
  *     double d = o2_get_next(O2_DOUBLE)->d;
@@ -747,8 +672,8 @@ typedef union {
     int        c;    ///< Standard C, 8 bit, char, stored as int.
     uint32_t   m;    ///< A 4 byte MIDI packet. MSB to LSB are port id,
                      ///< status, data1, data2
-    o2_time    t;    ///< TimeTag value.
-    o2_blob    b;    ///< a blob (unstructured bytes)
+    O2time    t;    ///< TimeTag value.
+    O2blob     b;    ///< a blob (unstructured bytes)
     int32_t    B;    ///< a boolean value, either 0 or 1
     struct {
         int32_t len; ///< length of vector in bytes
@@ -767,11 +692,11 @@ typedef union {
             // unpack messages.
         };
     } v;
-} o2_arg, *o2_arg_ptr;
+} O2arg, *O2arg_ptr;
 
 
-extern o2_arg_ptr o2_got_start_array;
-extern o2_arg_ptr o2_got_end_array;
+extern O2arg_ptr o2_got_start_array;
+extern O2arg_ptr o2_got_end_array;
 
 
 /** \brief set this flag to stop #o2_run
@@ -804,7 +729,7 @@ extern const char *o2_ensemble_name; // also used to detect initialization
  *
  * @param msg a message to be printed
  */
-void o2_message_print(o2_message_ptr msg);
+void O2message_print(O2message_ptr msg);
 
 
 /** \brief print a message from msg_data_ptr to stdout
@@ -828,13 +753,13 @@ void o2_msg_data_print(o2_msg_data_ptr msg);
  *              coerce_flag were set in the method creation call,
  *              types will match the types in argv, but not necessarily
  *              the type string or types in msg.
- * @param argv An array of #o2_arg types containing the values, e.g. if the
+ * @param argv An array of #O2arg types containing the values, e.g. if the
  *             first argument of the incoming message is of type 'f' then
  *             the value will be found in argv[0]->f. (If parse_args was
  *             not set in the method creation call, argv will be NULL.)
  *             For vectors, specified in types by the sequence "vi", "vh", 
  *             "vf", or "vd", there will be one pointer in argv pointing to
- *             a vector description (the v field in o2_arg). For arrays,
+ *             a vector description (the v field in O2arg). For arrays,
  *             there are *no* pointers corresponding to '[' or ']' in the
  *             types string; but there is one pointer in argv for each array
  *             element.
@@ -847,8 +772,8 @@ void o2_msg_data_print(o2_msg_data_ptr msg);
  * @param user_data This contains the user_data value passed in the call
  *             to the method creation call.
  */
-typedef void (*o2_method_handler)(const o2_msg_data_ptr msg, const char *types,
-                                  o2_arg_ptr *argv, int argc,
+typedef void (*O2method_handler)(const o2_msg_data_ptr msg, const char *types,
+                                  O2arg_ptr *argv, int argc,
                                   const void *user_data);
 
 
@@ -867,7 +792,7 @@ typedef void (*o2_method_handler)(const o2_msg_data_ptr msg, const char *types,
  *  #O2_RUNNING if already running, #O2_BAD_NAME if `ensemble_name`
  *  is NULL.
  */
-o2_err_t o2_initialize(const char *ensemble_name);
+O2err o2_initialize(const char *ensemble_name);
 
 
 /**
@@ -940,7 +865,7 @@ int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)),
  *
  * @return the previous polling period
  */
-o2_time o2_set_discovery_period(o2_time period);
+O2time o2_set_discovery_period(O2time period);
 
 
 /**
@@ -985,7 +910,7 @@ o2_time o2_set_discovery_period(o2_time period);
  * @return #O2_SUCCESS if success, #O2_FAIL if not,
  *         #O2_NOT_INITIALIZED if O2 is not initialized.
  */
-int o2_hub(const char *public_ip, const char *internal_ip, int port);
+O2err o2_hub(const char *public_ip, const char *internal_ip, int port);
 
 
 /**
@@ -1051,7 +976,7 @@ int o2_hex_to_int(const char *hex);
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-o2_err_t o2_get_addresses(const char **public_ip, const char **internal_ip,
+O2err o2_get_addresses(const char **public_ip, const char **internal_ip,
                         int *port);
 
 /**
@@ -1100,7 +1025,7 @@ int o2_parse_name(const char *name, char *public_ip,
  * o2_method_new("/synth/volume", "f", synth_volume_handler, NULL, NULL, true);
  * \endcode
  * and define `synth_volume_handler` (see the type declaration for
- * #o2_method_handler and #o2_method_new)
+ * #O2method_handler and #o2_method_new)
  * User-created service names must begin with a letter.
  * Normally, services should be *unique* across the ensemble. If 
  * #service_name is already locally defined in this process (by a previous
@@ -1118,7 +1043,7 @@ int o2_parse_name(const char *name, char *public_ip,
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-o2_err_t o2_service_new(const char *service_name);
+O2err o2_service_new(const char *service_name);
 
 
 /**
@@ -1384,7 +1309,7 @@ int o2_service_property_free(const char *service, const char *attr);
  * the tap's process, and if the tappper service is (re)created, these
  * tap messages will be delivered to the new tapper service.
  */
-o2_err_t o2_tap(const char *tappee, const char *tapper);
+O2err o2_tap(const char *tappee, const char *tapper);
 
 
 /**
@@ -1398,7 +1323,7 @@ o2_err_t o2_tap(const char *tappee, const char *tapper);
  *
  * Remove a previously installed tap
  */
-o2_err_t o2_untap(const char *tappee, const char *tapper);
+O2err o2_untap(const char *tappee, const char *tapper);
 
 
 /**
@@ -1413,7 +1338,7 @@ o2_err_t o2_untap(const char *tappee, const char *tapper);
  * 
  * @return #O2_SUCCSS if success, #O2_FAIL if not.
  */
-int o2_service_free(const char *service_name);
+O2err o2_service_free(const char *service_name);
 
 
 /**
@@ -1446,8 +1371,8 @@ int o2_service_free(const char *service_name);
  * way to receive multiples addresses with one handler is to handle /W,
  * i.e. to install a handler for just the service.
  */
-o2_err_t o2_method_new(const char *path, const char *typespec,
-                  o2_method_handler h, const void *user_data,
+O2err o2_method_new(const char *path, const char *typespec,
+                  O2method_handler h, const void *user_data,
                   bool coerce, bool parse);
 
 /**
@@ -1456,32 +1381,34 @@ o2_err_t o2_method_new(const char *path, const char *typespec,
  * @param warn     A human-readable description of the cause.
  * @param msg      a pointer to the message data to be dropped
  *
- * This default parameter for #o2_message_warnings prints the `warn`
+ * This default parameter for #O2message_warnings prints the `warn`
  * string followed by the message to be dropped (if O2_NO_DEBUG is
  * undefined) or the message address and type string (if O2_NO_DEBUG
  * is defined) to stdout. Do not call this function. Use 
  * #o2_drop_message or #o2_drop_msg_data instead. You can pass this
- * function to #o2_message_warnings to restore default warning behavior.
+ * function to #O2message_warnings to restore default warning behavior.
  */
-void o2_message_drop_warning(const char *warn, o2_msg_data_ptr msg);
+void O2message_drop_warning(const char *warn, o2_msg_data_ptr msg);
 
 /**
  * \brief Tell world that a message was dropped.
  *
  * @param warn     A human-readable description of the cause.
- * @param msg      a pointer to the message data to be dropped
+ * @param free_the_msg      if true, frees the message
  *
  * Applications and libraries can call this function to report dropped
  * messages in the same manner as O2. The default behavior is to call
- * #o2_message_drop_warning or another handler installed by a previous
- * call to #o2_message_warnings.
+ * #O2message_drop_warning or another handler installed by a previous
+ * call to #O2message_warnings. This function assumes the message is
+ * at the head of the list o2_ctx->msgs, so you can access it wtih
+ * #o2_current_message() and aquire ownership with #o2_postpone_delivery().
  */
-void o2_drop_message(const char *warn, o2_message_ptr msg);
+void o2_drop_message(const char *warn, bool free_the_msg);
 
 /**
  * \brief Enable/Disable warnings for dropped messages.
  *
- * @param warning   a function such as o2_message_drop_warning to 
+ * @param warning   a function such as O2message_drop_warning to 
  *                  issue the warning or NULL.
  *
  * It can be very annoying when O2 messages are not received due to
@@ -1494,7 +1421,7 @@ void o2_drop_message(const char *warn, o2_message_ptr msg);
  * behavior is to print a warning to stdout, but since that does not 
  * always exist, you can call this function to install a custom handler.
  *
- * Call #o2_message_warnings(NULL) to disable any warnings.
+ * Call #O2message_warnings(NULL) to disable any warnings.
  *
  * The #warning function, if any, must not free #msg, which is
  * owned and eventually freed by the caller.
@@ -1507,7 +1434,7 @@ void o2_drop_message(const char *warn, o2_message_ptr msg);
  * With O2, however, failed or non-existent remote services are
  * detected (eventually), resulting in warnings even for UDP messages.
  */
-void o2_message_warnings(
+void O2message_warnings(
         void (*warning)(const char *warn, o2_msg_data_ptr msg));
 
 
@@ -1530,7 +1457,7 @@ void o2_message_warnings(
  *
  *  @return 0 (O2_SUCCESS) if succeed, -1 (O2_FAIL) if not.
  */
-o2_err_t o2_poll(void);
+O2err o2_poll(void);
 
 /**
  * \brief Run O2.
@@ -1572,7 +1499,7 @@ int o2_run(int rate);
  * `o2_status(service) >= O2_LOCAL_NOTIME`.
  * - to test if delivery is possible with a non-zero timestamp, use
  * `o2_status(service) >= O2_LOCAL`. Note that status can change over
- * time, e.g. the status of a remote service will be #O2_FAIL until
+ * time, e.g. the status of a remote service will be #O2_UNKNOWN until
  * the service is discovered. It will then change to #O2_REMOTE_NOTIME
  * until both the sender and receiver achieve clock synchronization
  * and share their synchronized status, and finally the status will
@@ -1613,21 +1540,21 @@ int o2_status(const char *service);
 
 #ifndef O2_NO_DEBUG
 /**
- * \brief retrieve text version of an o2_status_t
+ * \brief retrieve text version of an O2status
  *
  * @param status a status code
  * 
  * @return human-readable string representation of status
  *
- * note that the parameter is of type #o2_status_t while #o2_status returns
+ * note that the parameter is of type #O2status while #o2_status returns
  * int. Therefore #o2_status_to_string(#o2_status("service")) is an
- * invalid conversion from int to #o2_status_t. This is because #o2_status
- * can also return an #o2_err_t (a negative value). You can pass an error
+ * invalid conversion from int to #O2status. This is because #o2_status
+ * can also return an #O2err (a negative value). You can pass an error
  * value to #o2_status_to_string and it will return "O2_FAIL" (rather
  * than a specific error description). Normally, you will retrieve an int
- * from #o2_status and call #o2_status_to_string((#o2_status_t) stat).
+ * from #o2_status and call #o2_status_to_string((#O2status) stat).
  */
-const char *o2_status_to_string(o2_status_t status);
+const char *o2_status_to_string(O2status status);
 #endif
 
 
@@ -1672,7 +1599,7 @@ const char *o2_status_to_string(o2_status_t status);
  * The receiver can then detect blocking using #o2_can_send and 
  * implement any policy or filtering desired.
  */
-o2_err_t o2_can_send(const char *service);
+O2err o2_can_send(const char *service);
 
 
 /**
@@ -1715,7 +1642,7 @@ int o2_roundtrip(double *mean, double *min);
  *
  * See #o2_clock_set for details.
  */
-typedef o2_time(*o2_time_callback)(void *rock);
+typedef O2time (*o2_time_callback)(void *rock);
 
 
 /**
@@ -1778,7 +1705,7 @@ int o2_clock_set(o2_time_callback gettime, void *rock);
                    __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
 /** \cond INTERNAL */ \
-o2_err_t o2_send_marker(const char *path, double time, int tcp_flag,
+O2err o2_send_marker(const char *path, double time, int tcp_flag,
                           const char *typestring, ...);
 /** \endcond */
 
@@ -1804,7 +1731,7 @@ o2_err_t o2_send_marker(const char *path, double time, int tcp_flag,
  *  possible. If the message arrives early, it will be held at the
  *  service and dispatched as soon as possible after the indicated time.
  *  @param typestring the type string for the message. Each character
- *  indicates one data item. Type codes are defined by #o2_type.
+ *  indicates one data item. Type codes are defined by #O2type.
  *  @param ...  the data of the message. There is one parameter for each
  *  character in the typestring.
  *
@@ -1827,7 +1754,7 @@ o2_err_t o2_send_marker(const char *path, double time, int tcp_flag,
  * After the call, the `msg` parameter is "owned" by O2, which will
  * free it. Therefore, do *not* free msg after calling #o2_message_send.
  */
-o2_err_t o2_message_send(o2_message_ptr msg);
+O2err o2_message_send(O2message_ptr msg);
 
 /**
  * \brief Get the estimated synchronized global O2 time.
@@ -1842,7 +1769,7 @@ o2_err_t o2_message_send(o2_message_ptr msg);
  *
  *  @return the time in seconds, or -1 if global (reference) time is unknown.
  */
-o2_time o2_time_get(void);
+O2time o2_time_get(void);
 
 
 /**
@@ -1850,7 +1777,7 @@ o2_time o2_time_get(void);
  *
  * @return the local time in seconds
  */
-o2_time o2_local_time(void);
+O2time o2_local_time(void);
 
 /**
  *  \brief Return text representation of an O2 error
@@ -1859,7 +1786,7 @@ o2_time o2_local_time(void);
  *
  *  @return return the error code as a string
  */
-const char *o2_error_to_string(o2_err_t i);
+const char *o2_error_to_string(O2err i);
 
 /**
  *  \brief release the memory and shut down O2.
@@ -1869,7 +1796,7 @@ const char *o2_error_to_string(o2_err_t i);
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-o2_err_t o2_finish(void);
+O2err o2_finish(void);
 
 /** @} */ // end of Basics
 
@@ -1882,13 +1809,14 @@ o2_err_t o2_finish(void);
 /**
  *  \brief Create a port to receive OSC messages.
  *
- *  OSC messages are converted to O2 messages and directed to the service.
- *  E.g. if the service is "maxmsp" and the message address is
- *  `/foo/x`, then the message is directed to and handled by
+ *  OSC messages are converted to O2 messages and directed to the
+ *  service.  E.g. if the service is "maxmsp" and the message address
+ *  is `/foo/x`, then the message is directed to and handled by
  *  `/maxmsp/foo/x`. If the #service_name does not exist at any time
- *  after calling #o2_osc_port_new, incoming OSC messages will be dropped
- *  until the service is available again. Note that this function does
- *  not automatically create a service named `service_name`.
+ *  after calling #o2_osc_port_new, incoming OSC messages will be
+ *  dropped until the service is available again. Note that this
+ *  function does not automatically create a service named
+ *  `service_name`.
  *
  *  @param service_name The name of the service to which messages are delivered
  *  @param port_num     Port number.
@@ -1896,17 +1824,18 @@ o2_err_t o2_finish(void);
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-o2_err_t o2_osc_port_new(const char *service_name, int port_num,
+O2err o2_osc_port_new(const char *service_name, int port_num,
                            int tcp_flag);
 
 /**
  * \brief Remove a port receiving OSC messages.
  *
- * This removes a port created by #o2_osc_port_new. If you want to 
- * remove the corresponding service, you must also call #o2_service_free
- * with the service name. The port should be the same port passed to
- * #o2_osc_port_new. In the case of TCP, this will close all connections
- * that were *accepted* from this server port.
+ * This removes a port created by #o2_osc_port_new. If you want to
+ * remove the corresponding service, you must also call
+ * #o2_service_free with the service name. The port should be the same
+ * port passed to #o2_osc_port_new. In the case of TCP, this will
+ * close all connections that were *accepted* from this server port as
+ * well as the server port.
  *
  * @param port_num The port number that receives OSC messages or that receives
           connect requests for TCP connections.
@@ -1914,7 +1843,7 @@ o2_err_t o2_osc_port_new(const char *service_name, int port_num,
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  *
  */
-o2_err_t o2_osc_port_free(int port_num);
+O2err o2_osc_port_free(int port_num);
 
 
 /**
@@ -1941,7 +1870,7 @@ o2_err_t o2_osc_port_free(int port_num);
  *
  * If this is a tcp connection, close it by calling #o2_service_free.
  */
-o2_err_t o2_osc_delegate(const char *service_name, const char *ip,
+O2err o2_osc_delegate(const char *service_name, const char *ip,
                            int port_num, int tcp_flag);
 
 /**
@@ -1951,9 +1880,10 @@ o2_err_t o2_osc_delegate(const char *service_name, const char *ip,
  *
  * @return the previous offset
  *
- * O2 global time should start from 0.0 when the clock is started, whereas
- * OSC time starts at 1 Jan 1900. The offset is the OSC time corresponding
- * to O2 time 0.0. Equivalently, OSC_time = O2_time + offset.
+ * O2 global time should start from 0.0 when the clock is started,
+ * whereas OSC time starts at 1 Jan 1900. The offset is the OSC time
+ * corresponding to O2 time 0.0. Equivalently, OSC_time = O2_time +
+ * offset.
  */
 uint64_t o2_osc_time_offset(uint64_t offset);
 /** @} */ // end of OSC Interoperation
@@ -1963,17 +1893,16 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  * \defgroup lowlevelsend Low-Level Message Send
  *
  * Rather than passing all parameters in one call or letting O2
- * extract parameters from a message before calling its handler,
- * these functions allow building messages one parameter at a time
- * and extracting message parameters one at a time.
- * The functions operate on "hidden" messages, so these functions are
- * not reentrant.
+ * extract parameters from a message before calling its handler, these
+ * functions allow building messages one parameter at a time and
+ * extracting message parameters one at a time.  The functions operate
+ * on "hidden" messages, so these functions are not reentrant.
  *
  * To build a message, begin by calling #o2_send_start to allocate a
  * message. Then call one of the `o2_add_*()` functions to add each
- * parameter. Finally, call either #o2_send_finish to send the 
- * message. You should not explicitly allocate or deallocate a 
- * message using this procedure.
+ * parameter. Finally, call either #o2_send_finish to send the
+ * message. You should not explicitly allocate or deallocate a message
+ * using this procedure.
  *
  * To extract parameters from a message, begin by calling
  * #o2_extract_start to prepare to get parameters from the
@@ -1982,13 +1911,14 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  * and you can read the parameter from the result. Results other than
  * strings, MIDI, and blobs may only remain valid until the next call
  * to #o2_get_next, so you should use or copy the value before reading
- * the next one. Values that are not coerced (requiring a copy) are 
+ * the next one. Values that are not coerced (requiring a copy) are
  * left in the O2 message and have the same lifetime as the message.
  * You should not reuse this storage because the message may have
- * multiple destinations; thus, the message content should not be altered.
+ * multiple destinations; thus, the message content should not be
+ * altered.
  *
  * A by-product of #o2_extract_start and #o2_get_next is an argument
- * vector (argv) that can be accessed from o2_argv. (This is the same
+ * vector (argv) that can be accessed from O2argv. (This is the same
  * argument vector created automatically when a handler is added with
  * #o2_method_new when the parse parameter is true.) A possible
  * advantage of using a sequence of #o2_get_next calls rather than
@@ -1996,106 +1926,106 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  * various types and numbers of parameters. Also, you can check vector
  * lengths and stop parsing if unacceptable lengths are encountered.
  * 
- * #o2_get_next will perform type conversion if possible
- * when the requested type does not match the actual type. You can
- * determine the original type by reading the type string in the
- * message. The number of parameters is determined by the length of
- * the type string, with some exceptions.
+ * #o2_get_next will perform type conversion if possible when the
+ * requested type does not match the actual type. You can determine
+ * the original type by reading the type string in the message. The
+ * number of parameters is determined by the length of the type
+ * string, with some exceptions.
  *
- * Vectors can be coerced into arrays, in which case
- * each element will be coerced as requested. Arrays can be coerced 
- * into vectors if each element of the array can be coerced into
- * the expected vector element type. Vector lengths are provided by
- * the message; there is no way to coerce or limit vector lengths or
- * check that the length matches an expected value. (You can determine
- * the length from the return value and of course you can decide to
- * reject the message if the length is not acceptable.)
+ * Vectors can be coerced into arrays, in which case each element will
+ * be coerced as requested. Arrays can be coerced into vectors if each
+ * element of the array can be coerced into the expected vector
+ * element type. Vector lengths are provided by the message; there is
+ * no way to coerce or limit vector lengths or check that the length
+ * matches an expected value. (You can determine the length from the
+ * return value and of course you can decide to reject the message if
+ * the length is not acceptable.)
  *
  * When a vector is returned, the argument vector has a single element
  * that points to a vector descriptor (the "v" field), which contains
  * the vector element types and the length of the vector (>= 0).
  *
  * When an array is returned, the argument vector contains the value
- * o2_got_start_array followed by an o2_arg_ptr for each element of 
+ * o2_got_start_array followed by an O2arg_ptr for each element of
  * the array, followed by o2_got_end_array.
  *
- * When types T (True), F (False), I (Infinitum), or N (Nil) are in 
- * the message, there is an entry in the argument vector; however, 
+ * When types T (True), F (False), I (Infinitum), or N (Nil) are in
+ * the message, there is an entry in the argument vector; however,
  * there is no data associated with these types (other than the type
- * itself), so the pointers should not be used except to test for non-NULL.
+ * itself), so the pointers should not be used except to test for
+ * non-NULL.
  *
- * In all other cases, the argument vector contains data
- * corresponding to the data item in the message. This may be a pointer
- * into the actual message or a pointer to a temporary location in case
- * the element was coerced to a different type.
+ * In all other cases, the argument vector contains data corresponding
+ * to the data item in the message. This may be a pointer into the
+ * actual message or a pointer to a temporary location in case the
+ * element was coerced to a different type.
  *
  * When the actual type code in the message is in "TFIN" you should
- * call #o2_get_next even though there is no corresponding data
- * stored in the message. The return value, if successful, is a
- * non-NULL pointer that points within or just after the message, but
- * you must not dereference this pointer. (NULL indicates failure as
- * with other type codes. One rationale for calling #o2_get_next
- * even when there is nothing to "get" is that you can call
- * o2_get_next(O2_BOOL) to retrieve 'T', 'F', or 'B' types as an int32_t
- * which is 0 or 1. The 'I' and 'N' types are never coerced.
+ * call #o2_get_next even though there is no corresponding data stored
+ * in the message. The return value, if successful, is a non-NULL
+ * pointer that points within or just after the message, but you must
+ * not dereference this pointer. (NULL indicates failure as with other
+ * type codes. One rationale for calling #o2_get_next even when there
+ * is nothing to "get" is that you can call o2_get_next(O2_BOOL) to
+ * retrieve 'T', 'F', or 'B' types as an int32_t which is 0 or 1. The
+ * 'I' and 'N' types are never coerced.
  *
- * Normally, you should not free the message because
- * normally you are accessing the message in a handler and the message
- * will be freed by the O2 message dispatch code that called the
- * handler.
+ * Normally, you should not free the message because normally you are
+ * accessing the message in a handler and the message will be freed by
+ * the O2 message dispatch code that called the handler.
  *
  * Arrays denoted by [...] in the type string are handled in a somewhat
  * special way:
  *
- * If an array is expected, call o2_get_next(O2_ARRAY_START). 
- * The return value will be
- * o2_got_start_array on success, or NULL if there is no array. The actual
- * value in the message may be an array or a vector. If it is a vector, the
- * elements of the vector will be coerced to the types requested in 
- * successive calls to #o2_get_next. After retrieving array elements, call
- * o2_get_next(O2_ARRAY_END). The return value should be o2_got_end_array.
- * NULL is
- * returned if there is an error. For example, suppose you call #o2_get_next
- * with characters from the type string "[id]" and the actual parameter is
- * a vector integers ("vi") of length 2. The return values from #o2_get_next
- * will be o2_got_start_array, an o2_arg_ptr to an integer, an o2_arg_ptr to
- * a double (coerced from the integer vector), and finally o2_got_end_array.
- * If the vector length is 1, the third return value will be NULL. If the
- * vector length is 3 (or more), the fourth return value will be NULL rather
- * than o2_got_end_array.
+ * If an array is expected, call o2_get_next(O2_ARRAY_START).  The
+ * return value will be o2_got_start_array on success, or NULL if
+ * there is no array. The actual value in the message may be an array
+ * or a vector. If it is a vector, the elements of the vector will be
+ * coerced to the types requested in successive calls to
+ * #o2_get_next. After retrieving array elements, call
+ * o2_get_next(O2_ARRAY_END). The return value should be
+ * o2_got_end_array.  NULL is returned if there is an error. For
+ * example, suppose you call #o2_get_next with characters from the
+ * type string "[id]" and the actual parameter is a vector integers
+ * ("vi") of length 2. The return values from #o2_get_next will be
+ * o2_got_start_array, an O2arg_ptr to an integer, an O2arg_ptr to a
+ * double (coerced from the integer vector), and finally
+ * o2_got_end_array.  If the vector length is 1, the third return
+ * value will be NULL. If the vector length is 3 (or more), the fourth
+ * return value will be NULL rather than o2_got_end_array.
  *
- * The special values o2_got_start_array and o2_got_end_array are not valid
- * structures. In other words, fields such as o2_got_start_array->i32 are 
- * never valid or meaningful. Instead, o2_got_start_array and o2_got_end_array
- * are just 'tokens' used to indicate success in type checking. These values
- * are distinct from NULL, which indicates a type incompatibility.
+ * The special values o2_got_start_array and o2_got_end_array are not
+ * valid structures. In other words, fields such as
+ * o2_got_start_array->i32 are never valid or meaningful. Instead,
+ * o2_got_start_array and o2_got_end_array are just 'tokens' used to
+ * indicate success in type checking. These values are distinct from
+ * NULL, which indicates a type incompatibility.
  *
  * Note also that vector elements cannot be retrieved directly without
- * calling o2_get_next(O2_VECTOR) or o2_get_next(O2_ARRAY_START). 
- * For example, if the actual
- * argument is a two-element integer vector ("vi"), a call to 
- * o2_get_next(O2_INT32) will fail unless it is preceded by 
- * o2_get_next(O2_VECTOR) or o2_get_next(O2_ARRAY_START).
+ * calling o2_get_next(O2_VECTOR) or o2_get_next(O2_ARRAY_START).  For
+ * example, if the actual argument is a two-element integer vector
+ * ("vi"), a call to o2_get_next(O2_INT32) will fail unless it is
+ * preceded by o2_get_next(O2_VECTOR) or o2_get_next(O2_ARRAY_START).
  *
- * If a vector is expected, call o2_get_next(O2_VECTOR). The return value will
- * be a non-null o2_arg_ptr if the next argument in the actual message 
- * is a vector or array, and otherwise NULL. You should not dereference this
- * return value yet...
+ * If a vector is expected, call o2_get_next(O2_VECTOR). The return
+ * value will be a non-null O2arg_ptr if the next argument in the
+ * actual message is a vector or array, and otherwise NULL. You should
+ * not dereference this return value yet...
  *
- * You *must* then call #o2_get_next with the desired type for vector 
- * elements. The return value will be an o2_arg_ptr (which will be
- * the same value previously returned) containing v.typ set to 
- * the desired type, v.len still set to the number of elements, and v.vi,
- * v.vh, v.vd, v.vf, or v.vc pointing to the possibly coerced elements.
+ * You *must* then call #o2_get_next with the desired type for vector
+ * elements. The return value will be an O2arg_ptr (which will be the
+ * same value previously returned) containing v.typ set to the desired
+ * type, v.len still set to the number of elements, and v.vi, v.vh,
+ * v.vd, v.vf, or v.vc pointing to the possibly coerced elements.
  *
  * Note that the sequence of calling #o2_get_next twice for vectors
- * corresponds to the two type characters used to encode them, e.g. "vi"
- * indicates a vector of integers.
+ * corresponds to the two type characters used to encode them,
+ * e.g. "vi" indicates a vector of integers.
  *
- * Coercion is supported as follows. If coercion is provided from
- * the type indicated on the left on some row to the types corresponding
- * to columns where an "x" appears ("*" indicates special consideration
- * described below.
+ * Coercion is supported as follows. If coercion is provided from the
+ * type indicated on the left on some row to the types corresponding
+ * to columns where an "x" appears ("*" indicates special
+ * consideration described below.
  * 
  *      i h f d t s S T F B b m c N I
  *    i x x x x x     * * x            32-bit int
@@ -2142,7 +2072,7 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  *
  * @return the address of the new blob or NULL if memory cannot be allocated.
  */
-o2_blob_ptr o2_blob_new(uint32_t size);
+O2blob_ptr o2_blob_new(uint32_t size);
 
 
 /**
@@ -2163,7 +2093,7 @@ int o2_add_float(float f);
 
 /// \brief This function suppports #o2_add_symbol and #o2_add_string
 /// Normally, you should not call this directly.
-int o2_add_string_or_symbol(o2_type tcode, const char *s);
+int o2_add_string_or_symbol(O2type tcode, const char *s);
 
 /// \brief add a symbol to the message (see #o2_send_start)
 #define o2_add_symbol(s) o2_add_string_or_symbol(O2_SYMBOL, s)
@@ -2171,11 +2101,11 @@ int o2_add_string_or_symbol(o2_type tcode, const char *s);
 /// \brief add a string to the message (see #o2_send_start)
 #define o2_add_string(s) o2_add_string_or_symbol(O2_STRING, s)
 
-/// \brief add an `o2_blob` to the message (see #o2_send_start), where
-///        the blob is given as a pointer to an #o2_blob object.
-int o2_add_blob(o2_blob_ptr b);
+/// \brief add an `O2blob` to the message (see #o2_send_start), where
+///        the blob is given as a pointer to an #O2blob object.
+int o2_add_blob(O2blob_ptr b);
 
-/// \brief add an `o2_blob` to the message (see #o2_send_start), where
+/// \brief add an `O2blob` to the message (see #o2_send_start), where
 ///        the blob is specified by a size and a data address.
 int o2_add_blob_data(uint32_t size, void *data);
 
@@ -2184,7 +2114,7 @@ int o2_add_int64(int64_t i);
 
 /// \brief This function supports #o2_add_double and #o2_add_time
 /// Normally, you should not call this directly.
-int o2_add_double_or_time(o2_type tchar, double d);
+int o2_add_double_or_time(O2type tchar, double d);
 
 /// \brief add a `double` to the message (see #o2_send_start)
 #define o2_add_double(d) o2_add_double_or_time(O2_DOUBLE, d)
@@ -2194,7 +2124,7 @@ int o2_add_double_or_time(o2_type tchar, double d);
 
 /// \brief This function supports #o2_add_int32 and #o2_add_char
 /// Normally, you should not call this directly.
-int o2_add_int32_or_char(o2_type tcode, int32_t i);
+int o2_add_int32_or_char(O2type tcode, int32_t i);
 
 /// \brief add an `int32` to the message (see #o2_send_start)
 #define o2_add_int32(i) o2_add_int32_or_char(O2_INT32, i)
@@ -2208,7 +2138,7 @@ int o2_add_midi(uint32_t m);
 /// \brief This function supports #o2_add_true, #o2_add_false, #o2_add_bool,
 /// #o2_add_nil, #o2_add_infinitum, and others.
 /// Normally, you should not call this directly.
-int o2_add_only_typecode(o2_type typecode);
+int o2_add_only_typecode(O2type typecode);
 
 /// \brief add "true" to the message (see #o2_send_start)
 #define o2_add_true() o2_add_only_typecode(O2_TRUE);
@@ -2244,7 +2174,7 @@ int o2_add_only_typecode(o2_type typecode);
  *             in a format determined by element_type. The element
  *             type is restricted to a character in "ifhtdc"
  */
-int o2_add_vector(o2_type element_type,
+int o2_add_vector(O2type element_type,
                   int length, void *data);
 
 #ifndef O2_NO_BUNDLES
@@ -2263,7 +2193,7 @@ int o2_add_vector(o2_type element_type,
  * This function does NOT free msg. Probably you should call 
  * O2_FREE(msg) after calling o2_add_message(msg).
  */
-int o2_add_message(o2_message_ptr msg);
+int o2_add_message(O2message_ptr msg);
 #endif
 
 /**
@@ -2280,7 +2210,7 @@ int o2_add_message(o2_message_ptr msg);
  * messages using #o2_add_message), the address should be '#' 
  * followed by the service name, e.g. "#service1".
  */
-o2_message_ptr o2_message_finish(o2_time time, const char *address,
+O2message_ptr o2_message_finish(O2time time, const char *address,
                                  int tcp_flag);
 
 /**
@@ -2298,7 +2228,7 @@ o2_message_ptr o2_message_finish(o2_time time, const char *address,
  * forward OSC messages to a service, but it is the implementation
  * of #o2_message_finish, which simply passes NULL for service.
  */
-o2_message_ptr o2_service_message_finish(o2_time time,
+O2message_ptr o2_service_message_finish(O2time time,
              const char *service, const char *address, int tcp_flag);
 
 
@@ -2324,9 +2254,9 @@ o2_message_ptr o2_service_message_finish(o2_time time,
  * easy to distinguish. One (probably) clear case is that if a message is
  * sent to a non-existent service, #O2_NO_SERVICE is returned. #O2_NO_CLOCK
  * is returned if there is no established clock and the message has a
- * non-zero timestamp. For other situations, see #o2_message_warnings.
+ * non-zero timestamp. For other situations, see #O2message_warnings.
  */
-o2_err_t o2_send_finish(o2_time time, const char *address, int tcp_flag);
+O2err o2_send_finish(O2time time, const char *address, int tcp_flag);
 
 
 /** @} */
@@ -2337,7 +2267,7 @@ o2_err_t o2_send_finish(o2_time time, const char *address, int tcp_flag);
  * These functions can retrieve message arguments one-at-a-time.
  * There are some hidden state variables to keep track of the state
  * of unpacking, so these functions are not reentrant.
- * Arguments are returned using a pointer to a union type: #o2_arg_ptr.
+ * Arguments are returned using a pointer to a union type: #O2arg_ptr.
  *
  */
 
@@ -2392,13 +2322,13 @@ int o2_extract_start(o2_msg_data_ptr msg);
 Note: call #o2_method_new with type_spec = "id", h = my_handler,
 coerce = false, parse = false. In this case, since there is
 no type coercion, type_spec must match the message exactly,
-so #o2_get_next should always return a non-null o2_arg_ptr.
+so #o2_get_next should always return a non-null O2arg_ptr.
 However, this code can fail if a badly formed message is sent
 because there is no test for the NULL value that will be
 returned by #o2_get_next.
 \code{.c}
-    int my_handler(o2_message_ptr msg, char *types,
-                   o2_arg_ptr *argv, int argc, void *user_data)
+    int my_handler(O2message_ptr msg, char *types,
+                   O2arg_ptr *argv, int argc, void *user_data)
     {
         o2_extract_start(msg);
         // we expect an int32 and a double argument
@@ -2420,15 +2350,15 @@ Since type coercion can fail (e.g. string will not be converted
 to number, not even "123"), we need to check the return value
 from #o2_get_next, where NULL indicates incompatible types.
 \code{.c}
-    int my_handler(o2_message_ptr msg, char *types,
-                   o2_arg_ptr *argv, int argc, void *user_data)
+    int my_handler(O2message_ptr msg, char *types,
+                   O2arg_ptr *argv, int argc, void *user_data)
     {
         o2_extract_start(msg);
         // we want to get an int32 and a double argument
-        o2_arg_ptr ap = o2_get_next(O2_INT32);
+        O2arg_ptr ap = o2_get_next(O2_INT32);
         if (!ap) return O2_FAIL; // parameter cannot be coerced
         int32_t my_int = ap->i32;
-        o2_arg_ptr ap = o2_get_next(O2_DOUBLE);
+        O2arg_ptr ap = o2_get_next(O2_DOUBLE);
         if (!ap) return O2_FAIL; // parameter cannot be coerced
         double my_double = ap->d;
         ...
@@ -2439,7 +2369,7 @@ from #o2_get_next, where NULL indicates incompatible types.
  *
  * @return the next message parameter or NULL if no more parameters
 */
-o2_arg_ptr o2_get_next(o2_type type_code);
+O2arg_ptr o2_get_next(O2type type_code);
 
 /** @} */
 
@@ -2459,11 +2389,11 @@ o2_arg_ptr o2_get_next(o2_type type_code);
 #define O2_SCHED_TABLE_LEN 128
 
 // Scheduler data structure.
-typedef struct o2_sched {
-  int64_t last_bin;
-  double last_time;
-  o2_message_ptr table[O2_SCHED_TABLE_LEN];
-} o2_sched, *o2_sched_ptr;
+typedef struct O2sched {
+    int64_t last_bin;
+    double last_time;
+    O2message_ptr table[O2_SCHED_TABLE_LEN];
+} O2sched, *O2sched_ptr;
 /** \endcond */
 
 /**
@@ -2475,7 +2405,7 @@ typedef struct o2_sched {
  * timed message sends will fail and attempts to #o2_schedule_msg will
  * fail.
  */
-extern o2_sched o2_gtsched;
+extern O2sched o2_gtsched;
 
 /**
  * \brief Scheduler that schedules according to local clock time
@@ -2490,7 +2420,7 @@ extern o2_sched o2_gtsched;
  *
  * In these cases, you should schedule messages using #o2_ltsched.
  */
-extern o2_sched o2_ltsched;
+extern O2sched o2_ltsched;
 
 /**
  * \brief Current scheduler.
@@ -2500,7 +2430,7 @@ extern o2_sched o2_ltsched;
  * schedules a message can use this pointer to continue using the same
  * scheduler.
  */
-extern o2_sched_ptr o2_active_sched; // the scheduler that should be used
+extern O2sched_ptr o2_active_sched; // the scheduler that should be used
 
 
 /**
@@ -2528,7 +2458,7 @@ extern o2_sched_ptr o2_active_sched; // the scheduler that should be used
  * messages scheduled within handlers are appended to a "pending
  * messages" queue and delivered after the handler returns.
  */
-int o2_schedule_msg(o2_sched_ptr scheduler, o2_message_ptr msg);
+int o2_schedule_msg(O2sched_ptr scheduler, O2message_ptr msg);
 
 /** @} */ // end of a basics group
 
@@ -2546,40 +2476,10 @@ int o2_schedule_msg(o2_sched_ptr scheduler, o2_message_ptr msg);
  * @{
  */
 
-/// \brief 
-#define BRIDGE_NOCLOCK 40
-#define BRIDGE_SYNCED  41
-
 /// \brief enable O2lite protocol connections to this proces
-o2_err_t o2lite_initialize();
-
-struct bridge_inst;
-typedef struct bridge_inst *bridge_inst_ptr;
-
-/// \brief callback function type for custom transport handling
-typedef o2_err_t (*bridge_fn)(bridge_inst_ptr inst);
-
-/// \brief common ground between O2 and custom transports
-typedef struct bridge_protocol { // "subclass" of o2_node
-    char protocol[8];        ///< protocol name
-    bridge_fn bridge_poll;   ///< poll transport for messages, inst is NULL
-    bridge_fn bridge_send;   ///< callback to send message through transport
-    bridge_fn bridge_recv;   ///< 
-    bridge_fn bridge_inst_finish; ///< callback to finalize a bridge_inst
-    bridge_fn bridge_finish; ///< callback to close transport, inst is NULL
-} bridge_protocol, *bridge_protocol_ptr;
+O2err o2lite_initialize();
 
 
-// a bridge_inst is created for every service offered by the bridge.
-// a bridge_inst is not shared by services. a bridge_inst can also
-// be the application field of an o2n_info structure. This is not shared
-// either. The info pointer can be anything: shared, unshared, or static.
-//
-typedef struct bridge_inst {   // an instance of a bridge protocol
-    int tag;                   ///< BRIDGE_NOCLOCK or BRIDGE_SYNCED
-    bridge_protocol_ptr proto; ///< the protocol name and callbacks
-    void *info;                ///< transport and connection-specific info
-} bridge_inst, *bridge_inst_ptr;
 /** @} */ // end of a bridgeapi group
 
 /**
@@ -2589,7 +2489,7 @@ typedef struct bridge_inst {   // an instance of a bridge protocol
  * reference to the message to be sent, but it does not assume ownership
  * of the message.
  */
-o2_message_ptr o2_current_message();
+O2message_ptr o2_current_message();
 
 
 /**
@@ -2617,109 +2517,8 @@ void o2_complete_delivery();
  * Never call this function from a message handler passed to #o2_method_new.
  * These handlers may not take ownership of messages.
  */
-o2_message_ptr o2_postpone_delivery();
+O2message_ptr o2_postpone_delivery();
 
-
-/**
- * /brief Add a new transport to O2 process
- *
- * A bridge is an extension to O2 to allow communication with devices
- * over non-TCP/IP O2 protocols. For example, you can bridge to
- * Bluetooth, WebSockets, shared-memory threads or even microcontrollers
- * with TCP/IP where a simpler point-to-point connection is desired.
- * A bridge is a *run-time* extension to O2. Code external to O2 installs
- * and configures the bridge. Therefore, O2 does not need to be recompiled
- * to support a new protocol over a bridge -- extensions are all 
- * compiled separately. 
- *
- * @param protocol a unique name for this bridge, typically reflecting the
- *                 transport that it services, e.g. "O2lite" or "WebSock".
- *                 Note the 7-character limit.
- * @param bridge_poll will be called each time #o2_poll is called. This
- *                    function should check for incoming messages and/or
- *                    tend to outgoing messages.
- * @param bridge_send is called when an O2 message is sent to a service
- *                    offered by the bridge.
- * @param bridge_finish is called when O2 is shut down or to explicitly
- *                      close the brige.
- *
- * Details on bridge_send implementation: Call #o2_current_message to
- * obtain the message to be delivered. After processing the message, call
- * #o2_complete_delivery to free the message. The bridge can also assume 
- * ownership of the message beyond the scope of #bridge_send: Instead of 
- * calling #o2_complete_deliver (which frees the message), call 
- * #o2_postpone_delivery. Once #o2_postpone_delivery is called, you "own"
- * the message and are responsible for freeing it. To avoid memory leaks 
- * or potential reports of memory leaks, the bridge should be prepared to
- * free the message with #O2_FREE if #bridge_finish before the bridge 
- * frees the message. Typically, the message is held until the transport
- * can deliver all of its data; then use #O2_FREE to free the message.
- *
- * Note that there is no special way to inject messages into O2 from a
- * bridge. The #bridge_poll function will normally accept data from the
- * transport, marshall the data into an O2 message, and invoke O2 functions
- * to send the message.
- *
- * The #bridge_finish callback should free any allocated memory associated
- * with the bridge, but it should assume all instances (services) using the
- * bridge are removed already. These are automatically freed by 
- * #o2_bridge_remove or #o2_service_remove For this reason, never call 
- * the #bridge_finish or #o2_bridge_inst_finish functions directly.
- *
- * By default, the bridge is constructed with tag BRIDGE_NOCLOCK, which
- * means any message with a future timestamp will be scheduled locally
- * and sent at the time indicated by the timestamp. If and when the bridge
- * can handler timed deliveries (ideally, accurately scheduling at the
- * receiving end), set the tag to BRIDGE_SYNCED.
- *
- * To forward messages from O2, the bridge must create a local O2 service. Use
- * #o2_service_provider_new with the bridge as the "service" parameter
- * and the local process, `o2_ctx->proc` as the "proc" parameter.  The
- * properties parameter can be any property string, but typically is NULL.
- * Note that the service name is an #o2string, which means it is zero 
- * padded to a 32-bit boundary to support rapid hash function computation.
- * This is not a normal C string, which has no padding.
- * 
- * Bridges may install handlers for "/_o2/protocol/dy". The handler should
- * ensure that the first parameter matches #o2_ensemble_name and the rest 
- * of the parameters are protocol specific. E.g. "/_o2/o2lite/dy" is used
- * by O2lite processes to connect to O2 when o2lite is initialized.
- * 
- * Note that a bridge is a connection to a *transport* as opposed to a 
- * *process* or *host* computer. A single bridge may interface with multiple
- * connections to multiple endpoints. If this is the case, #bridge_send may
- * need a table to map service names to connections in order to properly
- * deliver messages. The O2 library implements hash tables and other functions
- * that may be useful, but these are not part of the public O2 API. In the
- * case of multiple connections, consider sending a unique identifier or number
- * to each connection, allowing service providers a way to create unique
- * service names.
- * 
- * Alternatively, you can install a new bridge for each connection, but
- * that means each bridge will be polled individually and the separate
- * bridges may have to coordinate to share a device. Also, each bridge will
- * need a unique protocol string to serve as an identifier.
- */
-bridge_protocol_ptr o2_bridge_new(const char *name,
-                          bridge_fn bridge_poll, bridge_fn bridge_send,
-                          bridge_fn bridge_recv, bridge_fn bridge_inst_finish,
-                          bridge_fn bridge_finish);
-
-/// \brief print a representation of the bridge for debugging.
-void o2_bridge_show(bridge_inst_ptr bridge);
-
-/// \brief Remove all services that delegate to this bridge.
-/// If info is not
-/// null, remove only services whose inst->info matches info (typically
-/// there is a different info for each bridged process, so this is used
-/// to remove only the services that delegate via the protocol to that
-/// specific process.
-o2_err_t o2_bridge_remove_services(bridge_protocol_ptr protocol, void *info);
-
-/// \brief shut down a bridge and all its connections and services
-o2_err_t o2_bridge_remove(const char *protocol_name);
-
-/** @} */ // end of a bridgeapi group
 
 #ifndef O2_NO_MQTT
 /** \defgroup mqttapi MQTT Bridge API
@@ -2744,14 +2543,14 @@ o2_err_t o2_bridge_remove(const char *protocol_name);
  *         or O2_NO_NETWORK if networking is disabled (see #o2_network_enable) or
  *         no Internet connection was found.
  */
- o2_err_t o2_mqtt_enable(const char *broker, int port_num);
+ O2err o2_mqtt_enable(const char *broker, int port_num);
 
 /** @} */ // end of a mqttapi group
 #endif
 
 // note: shared mem process support depends on bridge support
 #ifndef O2_NO_SHAREDMEM
-o2_err_t o2_shmem_initialize();
+O2err o2_shmem_initialize();
 #endif
 #endif
 

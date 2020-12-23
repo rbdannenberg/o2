@@ -20,7 +20,7 @@ int msg_count = 0;
 bool running = true;
 
 void client_test(o2_msg_data_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, const void *user_data)
+                O2arg_ptr *argv, int argc, const void *user_data)
 {
     msg_count++;
     int32_t i = msg_count + 1;

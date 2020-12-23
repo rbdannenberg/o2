@@ -36,7 +36,7 @@ static void drop_warning(const char *warn, o2_msg_data_ptr msg)
 // this is a handler for incoming messages
 //
 void bye(o2_msg_data_ptr msg, const char *types,
-         o2_arg_ptr *argv, int argc, const void *user_data)
+         O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     msg_count++;
@@ -59,7 +59,7 @@ int main(int argc, const char *argv[])
     }
 
     o2_initialize("test");
-    o2_message_warnings(drop_warning);
+    O2message_warnings(drop_warning);
     o2_service_new("dropclient");
     //                                                   coerce parse
     o2_method_new("/dropclient/bye",    "i", &bye, NULL, false, true);

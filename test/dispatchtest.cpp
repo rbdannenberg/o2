@@ -13,7 +13,7 @@ int s = 0;
 int w = 1;
 
 void service_one(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     char p[100];
     sprintf(p, "/two/benchmark/%d", s % N_ADDRS);
@@ -27,7 +27,7 @@ void service_one(o2_msg_data_ptr data, const char *types,
 }
 
 void service_two(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     char p[100];
     sprintf(p, "/one/benchmark/%d", w % N_ADDRS);
@@ -39,7 +39,6 @@ void service_two(o2_msg_data_ptr data, const char *types,
     }
     w++;
 }
-
 
 int main(int argc, const char * argv[])
 {
@@ -58,7 +57,7 @@ int main(int argc, const char * argv[])
         sprintf(path, "/two/benchmark/%d", i);
         o2_method_new(path, "i", &service_two, NULL, false, false);
     }
-
+    
     o2_send("/one/benchmark/0", 0, "i", 0);
     while (s < MAX_MESSAGES) {
         o2_poll();

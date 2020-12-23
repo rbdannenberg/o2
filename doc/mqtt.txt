@@ -133,6 +133,14 @@ for the provider of any service, but unlike PROC nodes that have
 net_info and udp_address fields for sending messages, these MQTT nodes
 will just send messages via the singleton MQTT connection.
 
+For simplicity, we'll use MQTT_info for two purposes:
+1. to represent a remote process. Thus, there is one MQTT_info for each
+   remote pip:iip:port key. The fds_info pointer on these instances is
+   NULL, and they find the network connection via the global mqtt_info.
+2. to represent a Net_interface. This unique instance is referenced by
+   mqtt_info and its fds_info member points to an Fds_info object,
+   which points back as usual through its owner member variable.
+
 To enumerate MQTT processes, since they do not have corresponding
 o2n_info structures, we need an array of names. Names are added if we
 enter a new name in path_tree, and names are deleted if we remove one

@@ -88,7 +88,7 @@ void run_for_awhile(double dur)
 // back to one of the client addresses
 //
 void server_test(o2_msg_data_ptr msg, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     if (msg_count < 10) {
@@ -110,7 +110,7 @@ void server_test(o2_msg_data_ptr msg, const char *types,
 static int copy_count = 0;
 
 void copy_i(o2_msg_data_ptr msg, const char *types,
-                  o2_arg_ptr *argv, int argc, const void *user_data)
+                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     if (copy_count < 5 * n_addrs) { // print the first 5 messages

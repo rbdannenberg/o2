@@ -6,12 +6,24 @@
 
 // see services.c for discussion on creating/deleting services
 
-typedef struct services_entry { // "subclass" of o2_node
-    int tag; // must be NODE_SERVICES
-    o2string key; // key (service name) is "owned" by this struct
-    o2_node_ptr next;
-    dyn_array services;
-            // dynamic array of type service_provider
+class Service_provider : O2obj {
+  public:
+    O2node *service;
+    // if service is a Proc_info or MQTT_info ptr, here are properties
+    char *properties;   
+};
+
+class Service_tap : O2obj {
+  public:
+    o2string tapper;  // redirect copy of message to this service
+    Proxy_info *proc;  // send the message copy to this process
+};
+
+
+class Services_entry : public O2node {
+  public:
+    Vec<Service_provider> services;
+            // dynamic array of type Service_provider
             // links to offers of this service. First in list
             // is the service to send to. Here "offers" means a hash_node
             // (local service), handler_entry (local service with just one
@@ -19,92 +31,59 @@ typedef struct services_entry { // "subclass" of o2_node
             // service), osc_info (for service delegated to OSC), or
             // bridge_inst (for a bridge over alternate non-IP transport).
             // Valid tags for services in this array are:
-            //    NODE_HASH, NODE_HANDLER, BRIDGE_NOCLOCK, BRIDGE_SYNCED,
-            //    OSC_TCP_CLIENT, OSC_UDP_CLIENT, INFO_TCP_NOMSGYET,
-            //    PROC_NOCLOCK, PROC_SYNCED, NODE_EMPTY
-    dyn_array taps; // the "taps" on this service -- these are of type
+            //    O2TAG_HASH, O2TAG_HANDLER, O2TAG_BRIDGE,
+            //    O2TAG_OSC_TCP_CLIENT, O2TAG_OSC_UDP_CLIENT,
+            //    O2TAG_TCP_NOMSGYET, O2TAG_PROC, O2TAG__EMPTY
+    Vec<Service_tap> taps; // the "taps" on this service -- these are of type
             // service_tap and indicate services that should get copies
             // of messages sent to the service named by key.
-} services_entry, *services_entry_ptr;
+    Services_entry(const char *service_name) :
+            O2node(service_name, O2TAG_SERVICES), services(1), taps(0) { }
+    virtual ~Services_entry();
+#ifndef O2_NO_DEBUG
+    void show(int indent);
+#endif
+    Service_provider *proc_service_find(Proxy_info *proc);
+    bool add_service(o2string our_ip_port, O2node *service, char *properties);
+    O2err service_remove(const char *srv_name, int index, Proxy_info *proc);
+    O2err insert_tap(o2string tapper, Proxy_info *proxy);
+    O2err tap_remove(Proxy_info *proc, const char *tapper);
+    void pick_service_provider();
+    void remove_if_empty();
+    
+    static Services_entry **find(const char *service_name);
+
+    /**
+     *  \brief Use initial part of an O2 address to find an o2_service using
+     *  a hash table lookup.
+     *
+     *  @param name points to the service name (do not include the
+     *              initial '!' or '/' from the O2 address).
+     *
+     *  @return The pointer to the service, which is a Hash_node, Handler_node,
+     *          or Proxy_info (Proc_info, OSC_info or Bridge_info)
+     */
+    static O2node *service_find(const char *service_name,
+                                Services_entry **services);
+    static Services_entry **find_from_msg(O2message_ptr msg);
+    static Services_entry *must_get_services(o2string service_name);
+    static O2err service_new(o2string padded_name);
+    static O2err service_provider_new(o2string name, const char *properties,
+                                         O2node *service, Proxy_info *proc);
+    static O2err service_provider_replace(const char *service_name,
+                               O2node **node_ptr, O2node *new_service);
+    static O2err proc_service_remove(const char *service_name,
+                  Proxy_info *proc, Services_entry *ss, int index);
+    static void list_services(Vec<Services_entry *> &list);
+    static O2err remove_services_by(Proxy_info *proc);
+    static O2err remove_taps_by(Proxy_info *proc);
+};
 
 #ifdef O2_NO_DEBUG
-#define TO_SERVICES_ENTRY(node) ((services_entry_ptr) node)
+#define TO_SERVICES_ENTRY(node) ((Services_entry *) node)
 #else
-#define TO_SERVICES_ENTRY(node) (assert(node->tag == NODE_SERVICES), \
-                                 (services_entry_ptr) node)
+#define TO_SERVICES_ENTRY(node) (assert(ISA_SERVICES(node)), \
+                                 (Services_entry *) node)
 #endif
 
-#define GET_SERVICE(list, i) (DA_GET(list, service_provider, i).service)
-#define GET_SERVICE_PROVIDER(list, i) DA_GET_ADDR(list, service_provider, i)
-#define GET_TAP_PTR(list, i) DA_GET_ADDR(list, service_tap, i)
-
-typedef struct service_provider {
-    o2_node_ptr service;
-    char *properties;    // if service is a proc_info_ptr, here are properties
-} service_provider, *service_provider_ptr;
-
-typedef struct service_tap {
-    o2string tapper;     // redirect copy of message to this service
-    proc_info_ptr proc;  // send the message copy to this process
-} service_tap, *service_tap_ptr;
-
-
-o2_err_t o2_service_new2(o2string padded_name);
-
-
-o2_err_t o2_service_provider_new(o2string key, const char *properties,
-                                 o2_node_ptr service, proc_info_ptr proc);
-
-
-/**
- *  \brief Use initial part of an O2 address to find an o2_service using
- *  a hash table lookup.
- *
- *  @param name points to the service name (do not include the
- *              initial '!' or '/' from the O2 address).
- *
- *  @return The pointer to the service, tag may be INFO_TCP_SOCKET 
- *          (remote process), NODE_HASH (local service), 
- *          NODE_HANDLER (local service with single handler),
- *          or NODE_OSC_REMOTE_SERVICE (redirect to OSC server),
- *          or NULL if name is not found.
- */
-o2_node_ptr o2_service_find(const char *name, services_entry_ptr *services);
-
-o2_err_t o2_services_insert_tap(services_entry_ptr ss, o2string tapper,
-                                proc_info_ptr proc);
-
-o2_err_t o2_service_provider_replace(const char *service_name,
-               o2_node_ptr *node_ptr, o2_node_ptr new_service);
-
-o2_err_t o2_service_remove(const char *service_name, proc_info_ptr proc,
-                           services_entry_ptr ss, int index);
-
-int o2_remove_services_by(proc_info_ptr proc);
-
-o2_err_t o2_tap_remove_from(services_entry_ptr ss, proc_info_ptr proc,
-                            const char *tapper);
-
-int o2_remove_taps_by(proc_info_ptr proc);
-
-services_entry_ptr o2_must_get_services(o2string service_name);
-
-int o2_service_free(const char *service_name);
-
-void o2_services_entry_finish(services_entry_ptr entry);
-
-bool o2_add_to_service_list(services_entry_ptr ss, o2string our_ip_port,
-                            o2_node_ptr service, char *properties);
-
-services_entry_ptr *o2_services_find(const char *service_name);
-
-services_entry_ptr *o2_services_from_msg(o2_message_ptr msg);
-
-service_provider_ptr o2_proc_service_find(proc_info_ptr proc,
-                                  services_entry_ptr services);
-
-void o2_list_services(dyn_array_ptr list);
-
-#ifndef O2_NO_DEBUG
-void o2_services_entry_show(services_entry_ptr node, int indent);
-#endif
+O2err o2_service_free(const char *service_name);

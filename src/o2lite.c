@@ -31,7 +31,7 @@
 // a more type-safe malloc:
 #define MALLOCT(typ) (typ *) malloc(sizeof(typ));
 // get address of first 32-bit word boundary at or above ptr:
-#define ROUNDUP(ptr) ((char *)((size_t) ((const char *) ptr + 3) & ~3))
+#define ROUNDUP(ptr) ((char *)((((size_t) ptr) + 3) & ~3))
 #define streql(a, b) (strcmp(a, b) == 0)
 
 void o2l_dispatch(o2l_msg_ptr msg);
@@ -478,8 +478,7 @@ void o2l_send_services()
         // invariant: s points after service, nptr points to end of name
         *nptr = 0;
         if (nptr == name) continue; // skip comma
-        o2l_send_start("!_o2/o2lite/sv", 0, "isiis", true);
-        o2l_add_int32(o2l_bridge_id);
+        o2l_send_start("!_o2/o2lite/sv", 0, "siis", true);
         o2l_add_string(name);
         o2l_add_int32(1); // exists
         o2l_add_int32(1); // this is a service
@@ -879,8 +878,7 @@ static void clock_ping()
 {
     clock_ping_send_time = o2l_local_now;
     clock_sync_id++;
-    o2l_send_start("!_o2/o2lite/cs/get", 0, "iis", false);
-    o2l_add_int32(o2l_bridge_id);
+    o2l_send_start("!_o2/o2lite/cs/get", 0, "is", false);
     o2l_add_int32(clock_sync_id);
     o2l_add_string("!_o2/cs/put");
     o2l_send();
@@ -1032,6 +1030,7 @@ static void o2l_dy_handler(o2l_msg_ptr msg, const char *types,
 }
 
 
+// Handler for !_o2/id message
 static void o2l_id_handler(o2l_msg_ptr msg, const char *types,
                            void *data, void *info)
 {

@@ -6,25 +6,25 @@
 #include "assert.h"
 #include "string.h"
 // why do we need this? If we need this we also need thread_local from o2_internal.h
-//          #include "o2_message.h"
+//          #include "O2message.h"
 
 
 bool got_the_message = false;
 
-o2_blob_ptr a_blob;
+O2blob_ptr a_blob;
 char a_midi_msg[4];
 
 int arg_count = 0;
 
 // receive arg_count floats
 void service_f(o2_msg_data_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, const void *user_data)
+               O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
         assert(*types ==  O2_FLOAT);
 #ifndef NDEBUG
-        o2_arg_ptr arg = // only needed for assert()
+        O2arg_ptr arg = // only needed for assert()
 #endif
         o2_get_next(O2_FLOAT);
         assert(arg);
@@ -38,13 +38,13 @@ void service_f(o2_msg_data_ptr data, const char *types,
 
 // receive arg_count doubles
 void service_d(o2_msg_data_ptr data, const char *types,
-               o2_arg_ptr *argv, int argc, const void *user_data)
+               O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
         assert(*types ==  O2_DOUBLE);
 #ifndef NDEBUG
-        o2_arg_ptr arg = // only needed for assert()
+        O2arg_ptr arg = // only needed for assert()
 #endif
         o2_get_next(O2_DOUBLE);
         assert(arg);
@@ -58,7 +58,7 @@ void service_d(o2_msg_data_ptr data, const char *types,
 
 // receive arg_count floats, coerced to ints, with parsing
 void service_fc(o2_msg_data_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, const void *user_data)
+                O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == arg_count);
     o2_extract_start(data);
@@ -79,7 +79,7 @@ void service_fc(o2_msg_data_ptr data, const char *types,
 
 // receive arg_count doubles, coerced to ints, with parsing
 void service_dc(o2_msg_data_ptr data, const char *types,
-                o2_arg_ptr *argv, int argc, const void *user_data)
+                O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == arg_count);
     o2_extract_start(data);

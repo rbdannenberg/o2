@@ -24,13 +24,13 @@
 #define streql(a, b) (strcmp(a, b) == 0)
 
 int hello_count = 0;
-o2_time cs_time = 1000000.0;
+O2time cs_time = 1000000.0;
 
 // this is a handler that polls for current status
 // it runs about every 1s
 //
 void applead(o2_msg_data_ptr msg, const char *types,
-               o2_arg_ptr *argv, int argc, const void *user_data)
+               O2arg_ptr *argv, int argc, const void *user_data)
 {
     int ss = o2_status("server");
     int cs = o2_status("client");
@@ -56,7 +56,7 @@ void applead(o2_msg_data_ptr msg, const char *types,
 // this is a handler to get a "hello" message from appfollow
 //
 void apphello(o2_msg_data_ptr msg, const char *types,
-              o2_arg_ptr *argv, int argc, const void *user_data)
+              O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("applead got hello message\n");
     hello_count++;
@@ -67,7 +67,7 @@ int rtt_sent = false;
 char client_ip_port[O2_MAX_PROCNAME_LEN];
 
 void service_info(o2_msg_data_ptr msg, const char *types,
-                  o2_arg_ptr *argv, int argc, const void *user_data)
+                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
     int new_status = argv[1]->i32;
@@ -93,7 +93,7 @@ void service_info(o2_msg_data_ptr msg, const char *types,
 int rtt_received = false;
 
 void rtt_reply(o2_msg_data_ptr msg, const char *types,
-               o2_arg_ptr *argv, int argc, const void *user_data)
+               O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
     float mean = argv[1]->f;

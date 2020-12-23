@@ -1,11 +1,11 @@
-The "brige" facility allows for non-O2 connections to other processes.
+The "bridge" facility allows for non-O2 connections to other processes.
 These include:
  - non-TCP/IP connections through bluetooth, serial, MIDI, or other transports
  - TCP/IP connections to O2lite, a simplified single connection protocol
- - TCP connections through MQTT for long-distance connections
  - Possible future reworking of OSC support
 
-bridge_info is an O2 node type, valid as a service.  For comparison,
+Bridge_info is an O2 node type, similar to the Proc_info class (both
+ar subtypes of Remote_info) and valid as a service.  For comparison,
 services include handlers and hash tables for local services, and
 process descriptors for remote services.
 
@@ -61,28 +61,42 @@ round-trip time, and returning clock sync pings.
 
 Since we want to keep bridges as simple as possible, Option 2 seems
 better.  More capable devices can run O2, so we assume inability to
-run O2 implies a limited microcontroller for which we should make the
-implementation simple.
+run O2 implies a limited microcontroller or unwillingness to fully
+implement O2, so we should make the implementation simple.
+
+However, we want to use MQTT as an alternate to peer-to-peer
+connections and therefore MQTT does not use the bridge mechanism.
+
 
 BRIDGE API
 
-Once a bridge is in place, a bridge_info node as a service handles
-incoming messages. Tags for this type of node are BRIDGE_NOCLOCK and
+The Bridge_proto class is an abstract superclass for all bridge
+protocols. E.g. there is one for o2lite, and there could be another
+for O2 over bluetooth or web sockets. A Bridge_proto offers these
+methods:
+  - poll() -- check for incoming messages
+  - constructor -- open connections
+  - destructor -- close connections and remove all services provided
+                  using this bridge type (see o2_bridge_remove()).
+A Bridge_proto also has a protocol name, which is 7 characters or less.
+
+
+The Bridge_info class is an abstract superclass for all services
+reached by a bridge. A Bridge_info implements the following
+methods:
+  - send() -- given a pending O2 message, send it to the receiver
+  - destructor -- called when the service is removed
+A Bridge_info class has a pointer (proto) to it's corresponding Bridge_proto.
+
+Once a Bridge_proto is in place, when a service is discovered, a
+Bridge_info instance is created with tag BRIDGE_NOCLOCK and
 BRIDGE_SYNCED.
 
-Delivery to a BRIDGE_SYNCED tag will call a handler
-(protocol->bridge_send) immediately, passing in the address of the
-bridge_entry with tag BRIDGE_SYNCED. The bridge_info also contains a
-void *info field on which the bridge can attach per-connection,
-protocol-specific information.
+Delivery to a BRIDGE_SYNCED tag will call the send() method
+immediately.
 
 Delivery to a BRIDGE_NOCLOCK tag with a non-zero timestamp will put
 the message in the scheduling queue for later delivery.
-
-Bridge services may need to be polled to drive network I/O. When a
-bridge service is initialized, it can call o2_bridge_new() with a
-function to be polled. Polling is stopped when o2_finish() is called
-or when o2_bridge_remove() is called.
 
 Bridge processes can send messages in a bridge-specific format to be
 received by the bridge polling function and then delivered using
@@ -95,7 +109,7 @@ possibly a TCP server port for each bridge process.
 DISCOVERY
 
 To avoid discovering arbitrary O2 hosts, a bridge should be explicitly
-installed. For a give protocol, there should be a
+installed. For a given protocol, there should be a
 protocol_initialize() function that installs the bridge. Discovery or
 other attempts to connect to a particular process will fail until the
 process initializes the protocol. Multiple O2 processes can enable a
@@ -116,6 +130,9 @@ Given this design, we can revisit the O2lite idea. O2lite should be
 subset of the IP protocol described above with minimal functionality
 to send and receive data including discovery.
 
+Since it uses IP, there is an O2lite_net class to define handlers for
+socket events: accepted, connected, deliver, remove.
+
 O2LITE DISCOVERY 
 
 Bridged process sends !_o2/o2lite/dy to all discovery port numbers,
@@ -126,20 +143,19 @@ the bridged process UDP port.
 
 The O2 process also sends ordinary !_o2/dy discovery messages, so if
 the bridged process does not broadcast to !_o2/dy, it will
-still eventually get a discovery message.
+still eventually get an O2 discovery message.
 
 When bridged process gets !_o2/dy, it makes a TCP connection to the O2
 process. The O2 process accepts a connection, creating a proc_info
 with name == NULL and tag == PROC_NOCLOCK. The bridged process
 immediately sends !_o2/o2lite/con with the bridged process IP address
-and UDP port. This frees the placeholder PROC_NOCLOCK proc_info and
-replaces it with a bridge_info with tag BRIDGE_NOCLOCK.
+and UDP port. This frees the placeholder PROC_NOCLOCK Proc_info and
+replaces it with a Bridge_info with tag BRIDGE_NOCLOCK.
 
 The O2 process replies with !_o2/id with a small id number to identify
 this connection and the bridged process. The O2 process keeps a table
-mapping o2lite ID's to the bridge_info structures representing TCP
-connections. (bridge_info structures also represent service
-providers.)
+mapping o2lite ID's to the Bridge_info structures representing TCP
+connections.
 
 To create a service, the bridged process sends to !_o2/o2lite/sv with
 its ID, service-name, exists-flag, service-flag, and
@@ -198,6 +214,36 @@ we adopt the convention that every send is delivered across the bridge
 (it may in fact loop back if a message is sent to a service provided
 by the bridged process.) Bridged services may not conflict with local
 services; the first service creator wins.
+
+With O2, you can have 2 service providers offering the same
+service. The highest IP:Port name "wins," but if that process dies,
+the next higher IP:Port "takes over" the service. With Bridges,
+service names must not conflict. The first service created, whether it
+is local or a bridged service, becomes the service. Subsequent
+attempts to offer the same service will fail if they come to the same
+O2 process.
+
+There is a special case where O2 processes A and B each provide a
+bridge. One host X uses the bridge to connect to A, and host Y uses
+the bridge to connect to B. Both X and Y offer the same service
+S. This will work because S appears to be offered by both A and B,
+which is allowed. However if A crashes and X now connects to B, when X
+sends its service S to B, B will reject the service since S already
+exists on B. This is confusing at the least, so designers should take
+care not to offer duplicate services over bridges.
+
+In cases where you want to have similar services offered by multiple
+bridged processes, each bridged process has a unique ID number. For
+example, if multiple microcomputers offer an LED service to turn an
+LED off and on, you can name the services LED-1, LED-2, etc., by
+appending the ID. This will still cause problems if microcomputers
+connect to different hosts because each host will isue the same ID
+sequence: 1, 2, 3, .... If all microcomputers must be individually
+addressed, the best solution is to form a complete address string of
+the form pip:iip:port:id and use it in the service name, e.g.
+temperature-80002845:80002845:40654:3. This is not a unique problem
+with bridges. O2 has the same problem that one cannot easily generate
+non-conflicting service names.
 
 
 O2LITE PROPERTIES

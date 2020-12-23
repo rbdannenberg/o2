@@ -7,16 +7,17 @@
 #include "o2internal.h"
 #include "services.h"
 #include "message.h"
+#include "msgsend.h"
 
 typedef struct service_info {
     o2string name;
-    o2_status_t service_type;
+    O2status service_type;
     o2string process; // the port:ip of process offering the service
     o2string properties; // service properties or the tapper of tappee
 } service_info, *service_info_ptr;
 
 
-static dyn_array service_list = {0, 0, NULL};
+static Vec<service_info> service_list;
 
 
 // add every active service to service_list. Get services from list of
@@ -27,29 +28,26 @@ int o2_services_list()
         return O2_NOT_INITIALIZED;
     }
     o2_services_list_free();
-    enumerate enumerator;
-    o2_enumerate_begin(&enumerator, &o2_ctx->path_tree.children);
-    o2_node_ptr entry;
-    while ((entry = o2_enumerate_next(&enumerator))) {
-        services_entry_ptr services = TO_SERVICES_ENTRY(entry);
-        if (services->services.length > 0) {
-            service_provider_ptr spp =
-                    GET_SERVICE_PROVIDER(services->services, 0);
-            service_info_ptr sip = DA_EXPAND(service_list, service_info);
+    Enumerate enumerator(&o2_ctx->path_tree);
+    O2node *entry;
+    while ((entry = enumerator.next())) {
+        Services_entry *services = TO_SERVICES_ENTRY(entry);
+        if (services->services.size() > 0) {
+            Service_provider *spp = &services->services[0];
+            service_info_ptr sip = service_list.append_space(1);
             sip->name = o2_heapify(entry->key);
-            sip->process = o2_heapify(o2_node_to_proc_name(spp->service));
+            sip->process = o2_heapify(spp->service->get_proc_name());
             sip->service_type = (ISA_PROC(spp->service) ? O2_REMOTE : O2_LOCAL);
             sip->properties = spp->properties;
             if (sip->properties) { // need to own string if any
                 sip->properties = o2_heapify(sip->properties);
             }
         }
-        service_tap_ptr stp;
-        for (int i = 0; i < services->taps.length; i++) {
-            stp = GET_TAP_PTR(services->taps, i);
-            service_info_ptr sip = DA_EXPAND(service_list, service_info);
+        for (int i = 0; i < services->taps.size(); i++) {
+            Service_tap *stp = &services->taps[i];
+            service_info_ptr sip = service_list.append_space(1);
             sip->name = o2_heapify(entry->key);
-            sip->process = o2_heapify(stp->proc->name);
+            sip->process = o2_heapify(stp->proc->key);
             sip->service_type = O2_TAP;
             sip->properties = o2_heapify(stp->tapper);
 
@@ -62,13 +60,13 @@ int o2_services_list()
 
 int o2_services_list_free()
 {
-    for (int i = 0; i < service_list.length; i++) {
-        service_info_ptr sip = SERVICE_INFO(service_list, i);
+    for (int i = 0; i < service_list.size(); i++) {
+        service_info_ptr sip = &service_list[i];
         O2_FREE(sip->name);
         O2_FREE(sip->process);
         if (sip->properties) O2_FREE(sip->properties);
     }
-    service_list.length = 0;
+    service_list.clear();
     return O2_SUCCESS;
 }
 
@@ -77,15 +75,14 @@ int o2_services_list_free()
 void o2_services_list_finish()
 {
     o2_services_list_free();
-    DA_FINISH(service_list);
+    service_list.finish();
 }
 
 
 const char *o2_service_name(int i)
 {
-    if (i >= 0 && i < service_list.length) {
-        service_info_ptr sip = SERVICE_INFO(service_list, i);
-        return sip->name;
+    if (i >= 0 && i < service_list.size()) {
+        return service_list[i].name;
     }
     return NULL;
 }
@@ -93,9 +90,8 @@ const char *o2_service_name(int i)
 
 int o2_service_type(int i)
 {
-    if (i >= 0 && i < service_list.length) {
-        service_info_ptr sip = SERVICE_INFO(service_list, i);
-        return sip->service_type;
+    if (i >= 0 && i < service_list.size()) {
+        return service_list[i].service_type;
     }
     return O2_FAIL;
 }
@@ -103,9 +99,8 @@ int o2_service_type(int i)
 
 const char *o2_service_process(int i)
 {
-    if (i >= 0 && i < service_list.length) {
-        service_info_ptr sip = SERVICE_INFO(service_list, i);
-        return sip->process;
+    if (i >= 0 && i < service_list.size()) {
+        return service_list[i].process;
     }
     return NULL;
 }
@@ -113,8 +108,8 @@ const char *o2_service_process(int i)
 
 const char *o2_service_tapper(int i)
 {
-    if (i >= 0 && i < service_list.length) {
-        service_info_ptr sip = SERVICE_INFO(service_list, i);
+    if (i >= 0 && i < service_list.size()) {
+        service_info_ptr sip = &service_list[i];
         if (sip->service_type != O2_TAP) {
             return NULL; // there is no tapper, it's a service
         }
@@ -126,8 +121,8 @@ const char *o2_service_tapper(int i)
 
 const char *o2_service_properties(int i)
 {
-    if (i >= 0 && i < service_list.length) {
-        service_info_ptr sip = SERVICE_INFO(service_list, i);
+    if (i >= 0 && i < service_list.size()) {
+        service_info_ptr sip = &service_list[i];
         if (sip->service_type == O2_TAP) {
             return NULL; // it's a tap
         } // otherwise it's a service and properties is good
@@ -221,7 +216,7 @@ const char *o2_service_getprop(int i, const char *attr)
 
 int o2_service_search(int i, const char *attr, const char *value)
 {
-    while (i >= 0 && i < service_list.length) {
+    while (i >= 0 && i < service_list.size()) {
         const char *p = o2_service_properties(i);
         if (p) {
             p--; // back up to initial ";"
@@ -253,7 +248,7 @@ static void encode_value_to(char *p, const char *v)
 
 // returns true if properties string has changed
 //
-static bool service_property_free(service_provider_ptr spp,
+static bool service_property_free(Service_provider *spp,
                                   const char *attr)
 {
     // see if attr already exists. If so, just remove it in place.
@@ -277,7 +272,7 @@ static bool service_property_free(service_provider_ptr spp,
 // add property at front of old properties; assume old properties does
 // not contain attr
 // 
-static void service_property_add(service_provider_ptr spp, const char *attr,
+static void service_property_add(Service_provider *spp, const char *attr,
                                  const char *value)
 {
     // allocate space for new properties string
@@ -312,21 +307,21 @@ int o2_service_set_property(const char *service, const char *attr,
                             const char *value)
 {
     // find service_provider struct matching service
-    services_entry_ptr services = *o2_services_find(service);
+    Services_entry *services = *Services_entry::find(service);
     if (!services) {
         return O2_FAIL;
     }
     // need to find locally provided service in service list
-    for (int i = 0; i < services->services.length; i++) {
-        service_provider_ptr spp = GET_SERVICE_PROVIDER(services->services, i);
+    for (int i = 0; i < services->services.size(); i++) {
+        Service_provider *spp = &services->services[i];
         if (!ISA_PROC(spp->service)) {
             service_property_free(spp, attr);
             // this test allows us to free attr by passing in value == NULL:
             if (value) service_property_add(spp, attr, value);
             o2_notify_others(service, true, NULL, spp->properties);
-            if (o2_ctx->proc->name) {  // no notice until we have a name
+            if (o2_ctx->proc->key) {  // no notice until we have a name
                 o2_send_cmd("!_o2/si", 0.0, "siss", service, O2_FAIL,
-                            o2_ctx->proc->name,
+                            o2_ctx->proc->key,
                             spp->properties ? spp->properties + 1 : "");
             }
             return O2_SUCCESS;

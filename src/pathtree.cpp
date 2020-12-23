@@ -12,69 +12,14 @@
 #include "services.h"
 #include "msgsend.h"
 
-thread_local o2_ctx_ptr o2_ctx = NULL;
+thread_local O2_context *o2_ctx = NULL;
 
 #ifndef O2_NO_PATTERNS
 static bool o2_pattern_match(const char *str, const char *p);
 #endif
-static o2_err_t remove_method_from_tree(char *remaining, char *name,
-                                        hash_node_ptr node);
+static O2err remove_method_from_tree(char *remaining, char *name,
+                                        Hash_node *node);
 
-
-// enumerate is used to visit all entries in a hash table
-// it is used for:
-// - enumerating services with status change when we become the
-//       reference clock process
-// - enumerating all services offered by a given process when
-//       that process's clock status changes
-// - enumerating local services to send to another process
-// - enumerating node entries in o2_node_show
-// - enumerating node entries for pattern matching an address
-// - enumerating all services to look for tappers that 
-//       match a deleted process
-// - enumerating all services to look for services offered by
-//       a deleted process
-// - enumerating all entries to rehash them into a different
-//       size of table
-// - enumerating services that belong to process to show service
-//       names in o2_sockets_show()
-
-void o2_enumerate_begin(enumerate_ptr enumerator, dyn_array_ptr dict)
-{
-    enumerator->dict = dict;
-    enumerator->index = 0;
-    enumerator->entry = NULL;
-}
-
-
-// return next entry from table. Entries can be inserted into
-// a new table because enumerate_next does not depend upon the
-// pointers in each entry once the entry is enumerated.
-//
-o2_node_ptr o2_enumerate_next(enumerate_ptr enumerator)
-{
-    while (!enumerator->entry) {
-        int i = enumerator->index++;
-        if (i >= enumerator->dict->length) {
-            return NULL; // no more entries
-        }
-        enumerator->entry = DA_GET(*(enumerator->dict), o2_node_ptr, i);
-    }
-    o2_node_ptr ret = enumerator->entry;
-    enumerator->entry = enumerator->entry->next;
-    return ret;
-}
-
-
-// create a node in the path tree
-//
-// key is "owned" by caller
-//
-hash_node_ptr o2_hash_node_new(const char *key)
-{
-    hash_node_ptr node = O2_MALLOCT(hash_node);
-    return o2_node_initialize(node, key);
-}
 
 #ifndef O2_NO_PATTERNS
 // This is the main worker for dispatching messages. It determines if a node
@@ -94,7 +39,7 @@ hash_node_ptr o2_hash_node_new(const char *key)
 // returns true if a message was delivered
 //
 bool o2_find_handlers_rec(char *remaining, char *name,
-        o2_node_ptr node, o2_msg_data_ptr msg,
+        O2node *node, o2_msg_data_ptr msg,
         const char *types)
 {
     char *slash = strchr(remaining, '/');
@@ -103,16 +48,15 @@ bool o2_find_handlers_rec(char *remaining, char *name,
     if (slash) *slash = '/';
     bool delivered = false;
     if (pattern) { // this is a pattern
-        enumerate enumerator;
-        o2_enumerate_begin(&enumerator, &TO_HASH_NODE(node)->children);
-        o2_node_ptr entry;
-        while ((entry = o2_enumerate_next(&enumerator))) {
+        Enumerate enumerator(TO_HASH_NODE(node));
+        O2node *entry;
+        while ((entry = enumerator.next())) {
             if (o2_pattern_match(entry->key, remaining)) {
-                if (slash && (entry->tag == NODE_HASH)) {
+                if (slash && ISA_HASH(entry)) {
                     delivered |= o2_find_handlers_rec(slash + 1, name, entry,
                                                       msg, types);
-                } else if (!slash && (entry->tag == NODE_HANDLER)) {
-                    o2_call_handler((handler_entry_ptr) entry, msg, types);
+                } else if (!slash && ISA_HANDLER(entry)) {
+                    ((Handler_entry *) entry)->invoke(msg, types);
                     delivered |= true;
                 }
             }
@@ -121,15 +65,15 @@ bool o2_find_handlers_rec(char *remaining, char *name,
         if (slash) *slash = 0;
         o2_string_pad(name, remaining);
         if (slash) *slash = '/';
-        o2_node_ptr entry = *o2_lookup(TO_HASH_NODE(node), name);
+        O2node *entry = *TO_HASH_NODE(node)->lookup(name);
         if (entry) {
-            if (slash && (entry->tag == NODE_HASH)) {
+            if (slash && ISA_HASH(entry)) {
                 delivered = o2_find_handlers_rec(slash + 1, name,
                                                  entry, msg, types);
-            } else if (!slash && (entry->tag == NODE_HANDLER)) {
+            } else if (!slash && ISA_HANDLER(entry)) {
                 char *path_end = remaining + strlen(remaining);
                 path_end = O2MEM_BIT32_ALIGN_PTR(path_end);
-                o2_call_handler((handler_entry_ptr) entry, msg, path_end + 5);
+                ((Handler_entry *) entry)->invoke(msg, path_end + 5);
                 delivered = true; // either delivered or warning issued
             }
         }
@@ -143,19 +87,18 @@ bool o2_find_handlers_rec(char *remaining, char *name,
 //
 // path is "owned" by caller (so it is copied here)
 //
-o2_err_t o2_method_new_internal(const char *path, const char *typespec,
-                                o2_method_handler h, const void *user_data,
+O2err o2_method_new_internal(const char *path, const char *typespec,
+                                O2method_handler h, const void *user_data,
                                 bool coerce, bool parse)
 {
     // some variables that might not even be used are declared here
     // to avoid compiler warnings related to jumping over initializations
     // (this seems to be a GNU C++ compiler problem)
-    handler_entry_ptr full_path_handler; 
-    hash_node_ptr hnode;
+    Handler_entry *full_path_handler; 
     o2string types_copy;
-    handler_entry_ptr handler;
-    o2_node_ptr node;
-    service_provider_ptr spp;
+    Handler_entry *handler;
+    O2node *node;
+    Service_provider *spp;
     int types_len;
     
     // o2_heapify result is declared as const, but if we don't share it, there's
@@ -167,20 +110,24 @@ o2_err_t o2_method_new_internal(const char *path, const char *typespec,
     char *remaining = key + 1;
 #ifndef O2_NO_PATTERNS
     char name[NAME_BUF_LEN];
+    Hash_node *new_node;
+    Hash_node *tree_node;
+#else
+    O2node *new_node;
 #endif
     char *slash = strchr(remaining, '/');
     if (slash) *slash = 0;
-    services_entry_ptr services = *o2_services_find(remaining);
+    Services_entry *services = *Services_entry::find(remaining);
     // note that slash has not been restored (see o2_service_replace below)
     // services now is the existing services_entry node if it exists.
     // slash points to end of the service name in the path.
 
-    o2_err_t ret = O2_NO_SERVICE;
+    O2err ret = O2_NO_SERVICE;
     if (!services) goto free_key_return; // cleanup and return because it is
                        // an error to add a method to a non-existent service
     // find the service offered by this process (o2_ctx->proc) --
     // the method should be attached to our local offering of the service
-    spp = o2_proc_service_find(o2_ctx->proc, services);
+    spp = services->proc_service_find(o2_ctx->proc);
     // if we have no service local, this fails with O2_NO_SERVICE
     if (!spp) {
         O2_FREE(key);
@@ -189,72 +136,66 @@ o2_err_t o2_method_new_internal(const char *path, const char *typespec,
     node = spp->service;
     assert(node);    // we must have a local offering of the service
 
-    handler = O2_MALLOCT(handler_entry);
-    handler->tag = NODE_HANDLER;
-    handler->key = NULL; // gets set below with the final node of the address
-    handler->handler = h;
-    handler->user_data = user_data;
-    handler->full_path = key;
     types_copy = NULL;
     types_len = 0;
     if (typespec) {
         types_copy = o2_heapify(typespec);
-        if (!types_copy) goto error_return_2;
+        if (!types_copy) goto free_key_return;
         // coerce to int to avoid compiler warning -- this could overflow but
         // only in cases where it would be impossible to construct a message
         types_len = (int) strlen(typespec);
     }
-    handler->type_string = types_copy;
-    handler->types_len = types_len;
-    handler->coerce_flag = coerce;
-    handler->parse_args = parse;
+    handler = new Handler_entry(NULL, h, user_data, key, types_copy,
+                                types_len, coerce, parse);
     
     // case 1: method is global handler for entire service replacing a
-    //         NODE_HASH with specific handlers: remove the NODE_HASH
-    //         and insert a new NODE_HANDLER as local service.
+    //         Hash_node with specific handlers: remove the O2TAG_HASH
+    //         and insert a new Handler_entry as local service.
     // case 2: method is a global handler, replacing an existing global handler:
     //         same as case 1 so we can use o2_service_replace to clean up the
     //         old handler rather than duplicate that code.
     // case 3: method is a specific handler and a global handler exists:
-    //         replace the global handler with a NODE_HASH and continue to 
+    //         replace the global handler with a Hash_node and continue to
     //         case 4
-    // case 4: method is a specific handler and a NODE_HASH exists as the
+    // case 4: method is a specific handler and a Hash_node exists as the
     //         local service: build the path in the tree according to the
     //         the remaining address string
 
     // slash here means path has nodes, e.g. /serv/foo vs. just /serv
     if (!slash) { // (cases 1 and 2: install new global handler)
-        handler->key = NULL;
         handler->full_path = NULL;
-        ret = o2_service_provider_replace(key + 1, &spp->service,
-                                          (o2_node_ptr) handler);
+        ret = Services_entry::service_provider_replace(key + 1, &spp->service,
+                                                       handler);
         goto free_key_return; // do not need full path for global handler
     }
 
-    // cases 3 and 4: path has nodes. If service is a NODE_HANDLER, 
-    //   replace with NODE_HASH
-    hnode = (hash_node_ptr) node;
-    if (hnode->tag == NODE_HANDLER) {
+    // cases 3 and 4: path has nodes. If service is a Handler_entry,
+    //   replace with Hash_node
+    if (ISA_HANDLER(node)) {
         // change global handler to a null node
-#ifdef O2_NO_PATTERNS
-        // note that this is really an o2_node, not a hash_node_ptr
-        hnode = O2_CALLOCT(o2_node);
-        hnode->tag = NODE_EMPTY;
-#else
+#ifndef O2_NO_PATTERNS
         // change global handler to an empty hash_node
-        hnode = o2_hash_node_new(NULL); // top-level key is NULL
+        new_node = new Hash_node(NULL); // top-level key is NULL
+#else
+        new_node = new O2node(NULL, O2TAG_EMPTY);  // placeholder that tells
+        // message delivery to find the handler in the full_path_table
 #endif
-        if (!hnode) goto error_return_3;
-        if ((ret = o2_service_provider_replace(key + 1, &spp->service,
-                                               (o2_node_ptr) hnode))) {
+        if (!new_node) goto error_return_3;
+        if ((ret = Services_entry::service_provider_replace(key + 1,
+                                            &spp->service, new_node))) {
             goto error_return_3;
         }
+        node = new_node;
     }
-    // now hnode is the root of a path tree for all paths for this service
+    // now node is the root of a path tree for all paths for this service
     assert(slash);
     *slash = '/'; // restore the full path in key
     remaining = slash + 1;
 #ifndef O2_NO_PATTERNS
+    // if we are installing a Handler entry as a leaf in the tree, node
+    // must be a Hash_node, and we need a Hash_node to search the tree
+    // for the proper insert point:
+    tree_node = (Hash_node *) node;
     // support pattern matching by adding this path to the path tree
     while ((slash = strchr(remaining, '/'))) {
         *slash = 0; // terminate the string at the "/"
@@ -262,35 +203,29 @@ o2_err_t o2_method_new_internal(const char *path, const char *typespec,
         *slash = '/'; // restore the string
         remaining = slash + 1;
         // if necessary, allocate a new entry for name
-        hnode = o2_tree_insert_node(hnode, name);
-        assert(hnode);
-        o2_mem_check(hnode);
-        // node is now the node for the path up to name
+        tree_node = tree_node->tree_insert_node(name);
+        assert(tree_node);
+        o2_mem_check(tree_node);
+        // tree_node is now the node for the path up to name
     }
     // node is now where we should put the final path name with the handler;
     // remaining points to the final segment of the path
     handler->key = o2_heapify(remaining);
-    if ((ret = o2_node_add(hnode, (o2_node_ptr) handler))) {
+    if ((ret = tree_node->insert(handler))) {
         goto error_return_3;
     }
-    // make an entry for the full path table
-    full_path_handler = O2_MALLOCT(handler_entry);
-    memcpy(full_path_handler, handler, sizeof *handler); // copy info
-    full_path_handler->key = key; // this key has already been copied
-    full_path_handler->full_path = NULL; // only tree nodes have full_path
-    if (types_copy) types_copy = o2_heapify(typespec);
-    full_path_handler->type_string = types_copy;
+    // make an entry for the full path table by copying handler:
+    full_path_handler = new Handler_entry(handler);
     handler = full_path_handler;
 #else // if O2_NO_PATTERNS:
     handler->key = handler->full_path;
     handler->full_path = NULL;
 #endif
     // put the entry in the full path table
-    ret = o2_node_add(&o2_ctx->full_path_table, (o2_node_ptr) handler);
+    ret = o2_ctx->full_path_table.insert(handler);
     goto just_return;
   error_return_3:
     if (types_copy) O2_FREE((void *) types_copy);
-  error_return_2:
     O2_FREE(handler);
   free_key_return: // not necessarily an error (case 1 & 2)
     O2_FREE(key);
@@ -547,36 +482,36 @@ int o2_remove_method(const char *path)
 //
 // returns O2_FAIL if path is not found in tree (should not happen)
 //
-static o2_err_t remove_method_from_tree(char *remaining, char *name,
-                                          hash_node_ptr node)
+static O2err remove_method_from_tree(char *remaining, char *name,
+                                        Hash_node *node)
 {
     char *slash = strchr(remaining, '/');
-    o2_node_ptr *entry_ptr; // another return value from o2_lookup
+    O2node **entry_ptr; // another return value from o2_lookup
     if (slash) { // we have an internal node name
         *slash = 0; // terminate the string at the "/"
         o2_string_pad(name, remaining);
         *slash = '/'; // restore the string
-        entry_ptr = o2_lookup(node, name);
-        if ((!*entry_ptr) || ((*entry_ptr)->tag != NODE_HASH)) {
+        entry_ptr = node->lookup(name);
+        if ((!*entry_ptr) || (ISA_HASH(*entry_ptr))) {
             printf("could not find method\n");
             return O2_FAIL;
         }
         // *entry addresses a node entry
         node = TO_HASH_NODE(*entry_ptr);
         remove_method_from_tree(slash + 1, name, node);
-        if (node->num_children == 0) {
+        if (node->empty()) {
             // remove the empty table
-            return o2_hash_entry_remove(node, entry_ptr, true);
+            return node->entry_remove(entry_ptr, true);
         }
         return O2_SUCCESS;
     }
     // now table is where we find the final path name with the handler
     // remaining points to the final segment of the path
     o2_string_pad(name, remaining);
-    entry_ptr = o2_lookup(node, name);
+    entry_ptr = node->lookup(name);
     // there should be an entry, remove it
     if (*entry_ptr) {
-        o2_hash_entry_remove(node, entry_ptr, true);
+        node->entry_remove(entry_ptr, true);
         return O2_SUCCESS;
     }
     return O2_FAIL;
@@ -600,13 +535,12 @@ void o2_string_pad(char *dst, const char *src)
     dst[NAME_BUF_LEN - 1] = 0; // finish padding and/or terminate string
 }
 
-void o2_handler_entry_finish(handler_entry_ptr handler)
+void o2_handler_entry_finish(Handler_entry *handler)
 {
     // if we remove a leaf node from the tree, remove the
     //  corresponding full path:
     if (handler->full_path) {
-        o2_remove_hash_entry_by_name(&o2_ctx->full_path_table,
-                                     handler->full_path);
+        o2_ctx->full_path_table.entry_remove_by_name(handler->full_path);
         handler->full_path = NULL; // this string should be freed
             // in the previous call to remove_hash_entry_by_name(); remove
             // the pointer so if anyone tries to reference it, it will
@@ -620,7 +554,7 @@ void o2_handler_entry_finish(handler_entry_ptr handler)
 }
 
 #ifndef O2_NO_DEBUG
-void o2_handler_entry_show(handler_entry_ptr handler)
+void o2_handler_entry_show(Handler_entry *handler)
 {
     if (handler->full_path) {
         printf(" full_path=%s", handler->full_path);

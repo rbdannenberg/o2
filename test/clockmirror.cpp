@@ -16,10 +16,10 @@
 
 int keep_alive = false;
 int polling_rate = 100;
-o2_time cs_time = 1000000.0;
+O2time cs_time = 1000000.0;
 
 void clockmirror(o2_msg_data_ptr msg, const char *types,
-                o2_arg ** argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     int ss = o2_status("server");
     int cs = o2_status("client");
@@ -43,7 +43,7 @@ void clockmirror(o2_msg_data_ptr msg, const char *types,
     // due to there being no global time reference, we will schedule
     // messages directly on the local scheduler
     o2_send_start();
-    o2_message_ptr m = o2_message_finish(o2_local_time() + 1,
+    O2message_ptr m = o2_message_finish(o2_local_time() + 1,
                                          "!client/clockmirror", true);
     o2_schedule_msg(&o2_ltsched, m);
 }

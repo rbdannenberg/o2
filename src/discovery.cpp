@@ -12,7 +12,6 @@
 #include "clock.h"
 #include "discovery.h"
 #include "o2sched.h"
-#include "bridge.h"
 #include "pathtree.h"
 
 // These parameters hit all 16 ports in 3.88s, then all 16 again by 30s,
@@ -35,7 +34,7 @@ static int disc_msg_count = 0;
 static double disc_period = INITIAL_DISCOVERY_PERIOD;
 static int next_disc_index = 0; // index to o2_port_map, port to send to
 static int my_port = -1; // port we grabbed, for UDP and TCP
-static o2_time max_disc_period = DEFAULT_DISCOVERY_PERIOD;
+static O2time max_disc_period = DEFAULT_DISCOVERY_PERIOD;
 static int disc_port_index = -1;
 
 // From Wikipedia: The range 49152–65535 (215+214 to 216−1) contains
@@ -49,19 +48,19 @@ static int o2_port_map[PORT_MAX] = { 64541, 60238, 57143, 55764, 56975, 62711,
 static int o2_local_remote[PORT_MAX] = {3, 3, 3, 3, 3, 3, 3, 3,
                                         3, 3, 3, 3, 3, 3, 3, 3};
 // picked from o2_port_map when discovery is initialized.
-o2n_info_ptr o2_discovery_udp_server = NULL;
+Fds_info *o2_discovery_udp_server = NULL;
 
 static bool hub_needs_public_ip = false;
 static char hub_pip[O2_IP_LEN];
 static char hub_iip[O2_IP_LEN];
 static int hub_port;
 
-static void hub_has_new_client(proc_info_ptr nc);
+static void hub_has_new_client(Proc_info *nc);
 
 
-o2_time o2_set_discovery_period(o2_time period)
+O2time o2_set_discovery_period(O2time period)
 {
-    o2_time old = max_disc_period;
+    O2time old = max_disc_period;
     if (period < 0.1) period = 0.1;
     disc_period = period;
     max_disc_period = period;
@@ -72,7 +71,7 @@ o2_time o2_set_discovery_period(o2_time period)
 int o2_parse_name(const char *name, char *public_ip,
                   char *internal_ip, int *port)
 {
-    char *colon = strchr(name, ':');
+    const char *colon = strchr(name, ':');
     if (*name != '@') {
         return O2_FAIL;
     }
@@ -82,7 +81,7 @@ int o2_parse_name(const char *name, char *public_ip,
     // we allow extra char after public ip, which becomes EOS:
     o2strcpy(public_ip, name + 1, colon - name);
     colon++;  // colon is now first char after ':'
-    char *colon2 = strchr(colon, ':');
+    const char *colon2 = strchr(colon, ':');
     if (!colon2 || colon2 - colon > O2_IP_LEN - 1) {
         return O2_FAIL;
     }
@@ -97,7 +96,7 @@ int o2_parse_name(const char *name, char *public_ip,
 // also ensures that we can open the selected port for both UDP and TCP
 // servers.
 //
-o2_err_t o2_discovery_initialize()
+O2err o2_discovery_initialize()
 {
     o2_hub_addr[0] = 0;
     hub_needs_public_ip = false;
@@ -108,10 +107,10 @@ o2_err_t o2_discovery_initialize()
     // If there are no available port number, print the error & return O2_FAIL.
     for (disc_port_index = 0; disc_port_index < PORT_MAX; disc_port_index++) {
         my_port = o2_port_map[disc_port_index];
-        o2_discovery_udp_server = o2n_udp_server_new(&my_port, false, NULL);
+        o2_discovery_udp_server = Fds_info::create_udp_server(&my_port, false);
         if (o2_discovery_udp_server) {
-            o2_ctx->proc = o2_create_tcp_proc(PROC_TCP_SERVER, NULL,
-                                                         my_port);
+            o2_ctx->proc = Proc_info::create_tcp_proc(O2TAG_PROC_TCP_SERVER,
+                                                      NULL, my_port);
             if (o2_ctx->proc) {
                 break;
             }
@@ -159,7 +158,7 @@ void o2_discovery_init_phase2()
 }
 
 
-o2_err_t o2_discovery_finish(void)
+O2err o2_discovery_finish(void)
 {
     return O2_SUCCESS;
 }
@@ -168,7 +167,7 @@ o2_err_t o2_discovery_finish(void)
 /**
  * Make /_o2/dy message, if this is a udp message, switch to network byte order
  */
-o2_message_ptr o2_make_dy_msg(proc_info_ptr proc, int tcp_flag,
+O2message_ptr o2_make_dy_msg(Proc_info *proc, int tcp_flag,
                               int dy_flag)
 {
     char public_ip_buff[O2_IP_LEN];
@@ -181,11 +180,11 @@ o2_message_ptr o2_make_dy_msg(proc_info_ptr proc, int tcp_flag,
     if (proc == o2_ctx->proc) {
         public_ip = o2n_public_ip;
         internal_ip = o2n_internal_ip;
-        port = proc->net_info->port;
+        port = proc->fds_info->port;
     } else {
         public_ip  = public_ip_buff;
         internal_ip = internal_ip_buff;
-        if (o2_parse_name(proc->name, public_ip_buff, internal_ip_buff, &port))
+        if (o2_parse_name(proc->key, public_ip_buff, internal_ip_buff, &port))
             return NULL;
     }
 
@@ -193,7 +192,7 @@ o2_message_ptr o2_make_dy_msg(proc_info_ptr proc, int tcp_flag,
         o2_add_string(public_ip) || o2_add_string(internal_ip) ||
         o2_add_int32(port) || o2_add_int32(dy_flag);
     if (err) return NULL;
-    o2_message_ptr msg = o2_message_finish(0.0, "!_o2/dy", tcp_flag);
+    O2message_ptr msg = o2_message_finish(0.0, "!_o2/dy", tcp_flag);
     if (!msg) return NULL;
 #if IS_LITTLE_ENDIAN
     if (!tcp_flag) {
@@ -212,13 +211,13 @@ o2_message_ptr o2_make_dy_msg(proc_info_ptr proc, int tcp_flag,
  *
  * Receiver will get message and call o2_discovery_handler()
  */
-static o2_err_t o2_broadcast_message(int port, int local_remote)
+static O2err o2_broadcast_message(int port, int local_remote)
 {
     if (local_remote == 0) {  // no sending is enabled
         return O2_SUCCESS;
     }
     // set up the address and port
-    o2_message_ptr m = o2_make_dy_msg(o2_ctx->proc, false, O2_DY_INFO);
+    O2message_ptr m = o2_make_dy_msg(o2_ctx->proc, false, O2_DY_INFO);
     // m is in network order
     if (!m) {
         return O2_FAIL;
@@ -254,10 +253,10 @@ static o2_err_t o2_broadcast_message(int port, int local_remote)
 // If we are the client, o2_send_services()
 //
 void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
-                          o2_arg_ptr *argv, int argc, const void *user_data)
+                          O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2_discovery_handler gets", NULL, msg, NULL, NULL));
-    o2_arg_ptr ens_arg, pip_arg, iip_arg, tcp_arg, dy_arg;
+    O2arg_ptr ens_arg, pip_arg, iip_arg, tcp_arg, dy_arg;
     // get the arguments: ensemble name, ip as string,
     //                    port, discovery port
     o2_extract_start(msg);
@@ -293,15 +292,14 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
 //        the connection. Then we can behave like O2_DY_INFO.
 //
 // public_ip and internal_ip are in hex notation
-o2_err_t o2_discovered_a_remote_process(const char *public_ip,
+O2err o2_discovered_a_remote_process(const char *public_ip,
                        const char *internal_ip, int port, int dy)
 {
     // note: in the case of o2_hub(), there may be no incoming discovery
     // message and so remote will be bogus, but since o2_hug() passes
     // O2_DY_INFO for dy, remote will not be used so the value is immaterial
-    o2n_info_ptr remote = o2n_message_source;
     if (dy == O2_DY_CALLBACK) { // similar to info, but close connection first
-        o2n_close_socket(remote); // we are going to be the client
+        o2_message_source->fds_info->close_socket(); // we should be the client
         dy = O2_DY_INFO; 
     }
 
@@ -310,17 +308,20 @@ o2_err_t o2_discovered_a_remote_process(const char *public_ip,
     snprintf(name, O2_MAX_PROCNAME_LEN, "@%s:%s:%x%c%c%c%c",
              public_ip, internal_ip, port, 0, 0, 0, 0);
 
-    proc_info_ptr proc = NULL;
-    o2_message_ptr reply_msg = NULL;
+    O2_DBd(printf("    o2_discovery_handler: remote %s local %s\n",
+                  name, o2_ctx->proc->key));
+    
+    Proc_info *proc = NULL;
+    O2message_ptr reply_msg = NULL;
     if (dy == O2_DY_INFO) {
-        assert(o2_ctx->proc->name);
-        int compare = strcmp(o2_ctx->proc->name, name);
+        assert(o2_ctx->proc->key);
+        int compare = strcmp(o2_ctx->proc->key, name);
         if (compare == 0) {
             O2_DBd(printf("%s Ignored: I received my own broadcast message\n",
                           o2_debug_prefix));
             return O2_SUCCESS; // the "discovered process" is this one
         }
-        o2_node_ptr *entry_ptr = o2_lookup(&o2_ctx->path_tree, name);
+        O2node **entry_ptr = o2_ctx->path_tree.lookup(name);
         if (*entry_ptr) { // process is already discovered, ignore message
             O2_DBd(printf("%s ** process already discovered, ignore %s\n",
                           o2_debug_prefix, name));
@@ -329,7 +330,8 @@ o2_err_t o2_discovered_a_remote_process(const char *public_ip,
         // process is unknown, make a proc_info for it and start connecting...
         char ipdot[O2_IP_LEN];
         o2_hex_to_dot(internal_ip, ipdot);
-        proc = o2_create_tcp_proc(PROC_TEMP, ipdot, port);
+        proc = Proc_info::create_tcp_proc(O2TAG_PROC_TEMP,
+                                          (const char *) ipdot, port);
         // proc name is NULL
 
         if (compare > 0) { // we are the server, the other party should connect
@@ -339,8 +341,8 @@ o2_err_t o2_discovered_a_remote_process(const char *public_ip,
             // send /dy by TCP
             o2_prepare_to_deliver(o2_make_dy_msg(o2_ctx->proc, true,
                                                  O2_DY_CALLBACK));
-                if (o2_send_remote(proc, false) != O2_SUCCESS) {
-                o2_proc_info_free(proc); // error recovery: don't leak memory
+            if (proc->send(false) != O2_SUCCESS) {
+                delete proc; // error recovery: don't leak memory
             } else {
                 // this connection will be closed by receiving client
                 O2_DBd(printf("%s ** discovery sending O2_DY_CALLBACK to %s\n",
@@ -350,19 +352,19 @@ o2_err_t o2_discovered_a_remote_process(const char *public_ip,
         }
 
         // else we are the client
-        proc->tag = PROC_NOCLOCK;
-        assert(proc->name == NULL);  // make sure we don't leak memory
-        proc->name = o2_heapify(name);
+        proc->tag = O2TAG_PROC;
+        assert(proc->key == NULL);  // make sure we don't leak memory
+        proc->key = o2_heapify(name);
         int dy_flag = (streql(name, o2_hub_addr) ? O2_DY_HUB : O2_DY_CONNECT);
-        o2_service_provider_new(name, NULL, (o2_node_ptr) proc, proc);
+        Services_entry::service_provider_new(name, NULL, proc, proc);
         O2_DBG(printf("%s ** discovery sending O2_DY_CONNECT to server %s\n",
                       o2_debug_prefix, name));
         reply_msg = o2_make_dy_msg(o2_ctx->proc, true, dy_flag);
-    } else { // dy is not O2_DY_INFO, must be O2_DY_CALLBACK or O2_DY_CONNECT
+    } else { // dy is not O2_DY_INFO, must be O2_DY_CONNECT
              //    or O2_DY_REPLY or O2_DY_HUB
-        proc = TO_PROC_INFO(remote->application);
-        proc->name = o2_heapify(name);
-        o2_service_provider_new(proc->name, NULL, (o2_node_ptr) proc, proc);
+        proc = TO_PROC_INFO(o2_message_source);
+        proc->key = o2_heapify(name);
+        Services_entry::service_provider_new(proc->key, NULL, proc, proc);
         if (dy == O2_DY_HUB) { // this is the hub, this is the server side
             printf("######## This is the hub server side #######\n");
             // send a /dy to remote with O2_DY_REPLY
@@ -372,7 +374,7 @@ o2_err_t o2_discovered_a_remote_process(const char *public_ip,
         } else if (dy == O2_DY_REPLY) { // first message from hub
             if (!streql(name, o2_hub_addr)) { // should be equal
                 printf("Warning: expected O2_DY_REPLY to be from hub\n");
-                o2n_close_socket(remote);
+                o2_message_source->fds_info->close_socket();
                 return O2_FAIL;
             }
             printf("####### This is the hub client side #######\n");
@@ -395,22 +397,21 @@ o2_err_t o2_discovered_a_remote_process(const char *public_ip,
         } else {
             O2_DBd(printf("Warning: unexpected dy type %d name %s\n",
                           dy, name));
-            o2_proc_info_free(proc);
+            delete proc;
         }
     }
-    o2_err_t err = O2_SUCCESS;
+    O2err err = O2_SUCCESS;
     if (reply_msg) {
         o2_prepare_to_deliver(reply_msg);
-        err = o2_send_remote(proc, false);
+        err = proc->send(false);
     }
     if (!err) err = o2_send_clocksync_proc(proc);
     if (!err) err = o2_send_services(proc);
-    if (!err) err = o2n_address_init_hex(&proc->udp_address,
-                                         internal_ip, port, false);
+    if (!err) err = proc->udp_address.init_hex(internal_ip, port, false);
     O2_DBd(printf("%s UDP port %d for remote proc %s set to %d avail as %d\n",
                   o2_debug_prefix, port, internal_ip,
                   ntohs(proc->udp_address.sa.sin_port),
-                  o2n_address_get_port(&proc->udp_address)));
+                  proc->udp_address.get_port()));
     return err;
 }
 
@@ -426,20 +427,18 @@ o2_err_t o2_discovered_a_remote_process(const char *public_ip,
 // the first service is the process itself, which contains important
 // properties information
 //
-o2_err_t o2_send_services(proc_info_ptr proc)
+O2err o2_send_services(Proxy_info *proc)
 {
     o2_send_start();
-    assert(o2_ctx->proc->name);
-    o2_add_string(o2_ctx->proc->name);
-    o2string dest = proc->name;
-    enumerate enumerator;
-    o2_enumerate_begin(&enumerator, &o2_ctx->path_tree.children);
-    o2_node_ptr entry;
-    while ((entry = o2_enumerate_next(&enumerator))) {
-        services_entry_ptr services = TO_SERVICES_ENTRY(entry);
-        for (int i = 0; i < services->services.length; i++) {
-            service_provider_ptr spp =
-                    GET_SERVICE_PROVIDER(services->services, i);
+    assert(o2_ctx->proc->key);
+    o2_add_string(o2_ctx->proc->key);
+    o2string dest = proc->key;
+    Enumerate enumerator(&o2_ctx->path_tree);
+    O2node *entry;
+    while ((entry = enumerator.next())) {
+        Services_entry *services = TO_SERVICES_ENTRY(entry);
+        for (int i = 0; i < services->services.size(); i++) {
+            Service_provider *spp = &services->services[i];
             if (!ISA_PROC(spp->service)) {
                 // must be local so it's a service to report unless it is
                 // _o2 or the local process:
@@ -455,8 +454,8 @@ o2_err_t o2_send_services(proc_info_ptr proc)
                 break; 
             }
         }
-        for (int i = 0; i < services->taps.length; i++) {
-            service_tap_ptr stp = GET_TAP_PTR(services->taps, i);
+        for (int i = 0; i < services->taps.size(); i++) {
+            Service_tap *stp = &services->taps[i];
             o2_add_string(entry->key); // tappee
             o2_add_true();
             o2_add_false();
@@ -466,10 +465,10 @@ o2_err_t o2_send_services(proc_info_ptr proc)
                           o2_debug_prefix, entry->key, stp->tapper, dest));
         }
     }
-    o2_message_ptr msg = o2_message_finish(0.0, "!_o2/sv", true);
+    O2message_ptr msg = o2_message_finish(0.0, "!_o2/sv", true);
     if (!msg) return O2_FAIL;
     o2_prepare_to_deliver(msg);
-    o2_send_remote(proc, false);
+    proc->send(false);
     return O2_SUCCESS;
 }
 
@@ -483,44 +482,37 @@ o2_err_t o2_send_services(proc_info_ptr proc)
 // Also, to make things go faster, we send discovery message to the client
 // side of the pair, so whichever name is lower gets the message.
 //
-static void hub_has_new_client(proc_info_ptr nc)
+static void hub_has_new_client(Proc_info *nc)
 {
-    o2n_info_ptr info;
-    int i = 0;
-    while ((info = o2n_get_info(i++))) {
-        proc_info_ptr proc = (proc_info_ptr) (info->application);
-        switch (proc->tag) {
-            case PROC_NOCLOCK:
-            case PROC_SYNCED: {
-                proc_info_ptr client_info, server_info;
-                // figure out which is the client
-                int compare = strcmp(proc->name, nc->name);
-                if (compare > 0) { // proc is server
-                    client_info = nc;
-                    server_info = proc;
-                } else if (compare < 0) {
-                    client_info = proc;
-                    server_info = nc;
-                } else {      // if equal, tag should be PROC_TCP_SERVER
-                    continue; // so this should never be reached
-                }
-                o2_message_ptr msg = o2_make_dy_msg(server_info, true, false);
-                o2_prepare_to_deliver(msg);
-                int err = o2_send_remote(client_info, false);
-                if (err) {
-                    assert(o2_ctx->proc->name);
-                    printf("ERROR sending discovery message from hub:\n"
-                            "    client %s server %s hub %s\n",
-                            client_info->name, server_info->name,
-                            o2_ctx->proc->name);
-                }
-                O2_DBd(printf("%s hub_has_new_client %s sent %s to %s\n",
-                                o2_debug_prefix, o2_ctx->proc->name,
-                                server_info->name, client_info->name));
-                break;
+    for (int i = 0; i < o2n_fds_info.size(); i++) {
+        Fds_info *info = o2n_fds_info[i];
+        Proc_info *proc = (Proc_info *) (info->owner);
+        if (ISA_PROC(proc)) {  // TODO: is this the right condition?
+            Proc_info *client_info, *server_info;
+            // figure out which is the client
+            int compare = strcmp(proc->key, nc->key);
+            if (compare > 0) { // proc is server
+                client_info = nc;
+                server_info = proc;
+            } else if (compare < 0) {
+                client_info = proc;
+                server_info = nc;
+            } else {      // if equal, tag should be PROC_TCP_SERVER
+                continue; // so this should never be reached
             }
-            default:
-                break;
+            O2message_ptr msg = o2_make_dy_msg(server_info, true, false);
+            o2_prepare_to_deliver(msg);
+            int err = client_info->send(false);
+            if (err) {
+                assert(o2_ctx->proc->key);
+                printf("ERROR sending discovery message from hub:\n"
+                        "    client %s server %s hub %s\n",
+                        client_info->key, server_info->key,
+                        o2_ctx->proc->key);
+            }
+            O2_DBd(printf("%s hub_has_new_client %s sent %s to %s\n",
+                            o2_debug_prefix, o2_ctx->proc->key,
+                            server_info->key, client_info->key));
         }
     }
 }
@@ -529,14 +521,13 @@ static void hub_has_new_client(proc_info_ptr nc)
 // /_o2/hub handler: makes this the hub of the sender
 //
 void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
-                    o2_arg_ptr *argv, int argc, const void *user_data)
+                    O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(o2n_message_source);
-    if (IS_REMOTE_PROC((o2_node_ptr) (o2n_message_source->application))) {
+    assert(o2_message_source);
+    if (ISA_REMOTE_PROC(o2_message_source)) {
         o2_ctx->proc->uses_hub = O2_I_AM_HUB;
         printf("####### I am the hub #########\n");
-        hub_has_new_client(TO_PROC_INFO((o2_node_ptr)
-                                        (o2n_message_source->application)));
+        hub_has_new_client(TO_PROC_INFO(o2_message_source));
     }
 }
 
@@ -554,29 +545,28 @@ void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
 //      to/from services
 //
 void o2_services_handler(o2_msg_data_ptr msg, const char *types,
-                         o2_arg_ptr *argv, int argc, const void *user_data)
+                         O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(msg);
-    o2_arg_ptr arg = o2_get_next(O2_STRING);
+    O2arg_ptr arg = o2_get_next(O2_STRING);
     if (!arg) return;
     char *name = arg->s;
     // note that name is padded with zeros to 32-bit boundary
-    services_entry_ptr services;
-    proc_info_ptr proc = TO_PROC_INFO(o2_service_find(name, &services));
-    if (!proc || (!IS_REMOTE_PROC(proc)
-#ifndef O2_NO_MQTT
-        && !IS_MQTT_PROC(proc)
-#endif
-        )) {
+    Services_entry *services;
+    Proxy_info *proc = (Proxy_info *)
+                        Services_entry::service_find(name, &services);
+    // proc might not really be a Proxy_info, but at least it is an O2node,
+    // and we can check the tag:
+    if (!proc || (!ISA_REMOTE_PROC(proc))) {
         O2_DBG(printf("%s ### ERROR: o2_services_handler did not find %s\n", 
                       o2_debug_prefix, name);
-               o2_node_show((o2_node_ptr) (&o2_ctx->path_tree), 2));
+               o2_ctx->path_tree.show(2));
         
         return; // message is bogus (should we report this?)
     }
-    o2_arg_ptr addarg;     // boolean - adding a service or deleting one?
-    o2_arg_ptr isservicearg; // boolean - service (true) or tap (false)?
-    o2_arg_ptr prop_tap_arg;  // string - properties string or tapper name
+    O2arg_ptr addarg;     // boolean - adding a service or deleting one?
+    O2arg_ptr isservicearg; // boolean - service (true) or tap (false)?
+    O2arg_ptr prop_tap_arg;  // string - properties string or tapper name
     while ((arg = o2_get_next(O2_STRING)) &&
            (addarg = o2_get_next(O2_BOOL)) &&
            (isservicearg = o2_get_next(O2_BOOL)) &&
@@ -588,17 +578,17 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
                           "name - %s\n", o2_debug_prefix, service));
         } else if (addarg->B) { // add a new service or tap from remote proc
             O2_DBd(printf("%s found service /%s offered by /%s%s%s\n",
-                          o2_debug_prefix, service, proc->name,
+                          o2_debug_prefix, service, proc->key,
                           (isservicearg->B ? " tapper " : ""), prop_tap));
             if (isservicearg->B) {
-                o2_service_provider_new(service, prop_tap,
-                                        (o2_node_ptr) proc, proc);
+                Services_entry::service_provider_new(service, prop_tap,
+                                                     proc, proc);
             } else {
                 o2_tap_new(service, proc, prop_tap);
             }
         } else { // remove a service - it is no longer offered by proc
             if (isservicearg->B) {
-                o2_service_remove(service, proc, NULL, -1);
+                Services_entry::proc_service_remove(service, proc, NULL, -1);
             } else {
                 o2_tap_remove(service, proc, prop_tap);
             }
@@ -611,16 +601,15 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
 // o2_send_discovery_at() is called from o2.c to launch discovery
 //      and used by the /_o2/ds handler (below) to reschedule itself
 //
-void o2_send_discovery_at(o2_time when)
+void o2_send_discovery_at(O2time when)
 {
     // want to schedule another call to send again. Do not use send()
     // because we are operating off of local time, not synchronized
     // global time. Instead, form a message and schedule it:
     if (o2_send_start()) return;
-    o2_message_ptr ds_msg = o2_message_finish(when, "!_o2/ds", true);
+    O2message_ptr ds_msg = o2_message_finish(when, "!_o2/ds", true);
     if (!ds_msg) return;
-    o2_prepare_to_deliver(ds_msg);
-    o2_schedule(&o2_ltsched);
+    o2_schedule_msg(&o2_ltsched, ds_msg);
 }
 
 
@@ -631,7 +620,7 @@ void o2_send_discovery_at(o2_time when)
 //    o2_ctx->info_ip (as a string), udp port (int), tcp port (int)
 //
 void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
-                    o2_arg_ptr *argv, int argc, const void *user_data)
+                    O2arg_ptr *argv, int argc, const void *user_data)
 {
     if (o2_hub_addr[0]) {
         return; // end discovery broadcasts after o2_hub()
@@ -645,19 +634,19 @@ void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
     // except if o2lite is enabled, keep sending to all ports because
     // the o2lite client may depend on getting any port and may not
     // be sending/broadcasting any discovery messages.
-    if (disc_msg_count >= 2 * PORT_MAX || !o2lite_bridge) {
+    if (disc_msg_count >= 2 * PORT_MAX || !o2lite_protocol) {
         next_disc_index = next_disc_index % (disc_port_index + 1);
     }
     int local_remote = o2_local_remote[next_disc_index];
     if (local_remote) {
-        o2_err_t err = o2_broadcast_message(o2_port_map[next_disc_index],
+        O2err err = o2_broadcast_message(o2_port_map[next_disc_index],
                                             local_remote);
         if (err == O2_SEND_FAIL) { // broadcast failed, so disable it
             o2_local_remote[next_disc_index] &= ~2;
         }
     }
     disc_msg_count++;
-    o2_time next_time = o2_local_time() + disc_period;
+    O2time next_time = o2_local_time() + disc_period;
     // back off rate by 10% until we're sending every max_disc_period (4s):
     disc_period *= RATE_DECAY;
 
@@ -675,7 +664,7 @@ void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
 // public_ip and internal_ip are dot addresses, e.g. "127.0.0.1"
 // or a domain name
 //
-int o2_hub(const char *public_ip, const char *internal_ip, int port)
+O2err o2_hub(const char *public_ip, const char *internal_ip, int port)
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
@@ -689,9 +678,9 @@ int o2_hub(const char *public_ip, const char *internal_ip, int port)
         return O2_FAIL;  // second call to o2_hub() before we know Public IP
         // we do not queue up pending discovery messages to hubs, so we fail
     }
-    o2n_address pub_address, int_address;
-    RETURN_IF_ERROR(o2n_address_init(&pub_address, public_ip, port, true));
-    RETURN_IF_ERROR(o2n_address_init(&int_address, internal_ip, port, true));
+    Net_address pub_address, int_address;
+    RETURN_IF_ERROR(pub_address.init(public_ip, port, true));
+    RETURN_IF_ERROR(int_address.init(internal_ip, port, true));
     char pip[O2_IP_LEN];
     char iip[O2_IP_LEN];
     snprintf(pip, O2_IP_LEN, "%08x", ntohl(pub_address.sa.sin_addr.s_addr));

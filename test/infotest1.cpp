@@ -35,13 +35,13 @@ const char *status_to_string(int status)
 
 
 void service_one(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("Service one received a message\n");
 }
 
 void service_two(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("Service two received a message\n");
 }
@@ -56,7 +56,7 @@ int expected_si_status_first[] = {
 const char *expected_si_service_later[] = {"_o2", "one", "two"};
 
 void service_info_handler(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
     int status = argv[1]->i32;
@@ -77,7 +77,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
     const char *my_pip = NULL;
     const char *my_iip = NULL;
     int my_port = -1;
-    o2_err_t err = o2_get_addresses(&my_pip, &my_iip, &my_port);
+    O2err err = o2_get_addresses(&my_pip, &my_iip, &my_port);
     assert(err == O2_SUCCESS);
     char my_proc_name[O2_MAX_PROCNAME_LEN];
     if (!my_pip) my_pip = "none";

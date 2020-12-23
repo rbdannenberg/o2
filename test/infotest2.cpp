@@ -47,18 +47,18 @@ const char *status_to_string(int status)
 
 
 void service_one(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("Service one received a message\n");
 }
 
 
-o2_time cs_time = 1000000.0;
+O2time cs_time = 1000000.0;
 
 // this is a handler that polls for current status
 //
 void clockmaster(o2_msg_data_ptr msg, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     int ss = o2_status("server");
     int cs = o2_status("client");
@@ -204,7 +204,7 @@ int check_service(const char *service, const char *ip_port, int status)
 
 
 void service_info_handler(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
     int status = argv[1]->i32;

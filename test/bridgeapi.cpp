@@ -4,7 +4,8 @@
 // July 2020
 
 /* 
-This test:
+This test. We'll call our new protocol class Demo_protocol and 
+subclass of Bridge_info will be Demo_info.
 - install a new bridge with protocol "Demo"
 - create a service named "bridge"
 - view the service status
@@ -12,11 +13,11 @@ This test:
 - receive and print messages arriving over the bridge
 - send a timed message to the service
 - receive message over the bridge and check timing
-- change the bridge status to BRIDGE_SYNCED
+- change the bridge tag to internal scheduling
 - send an untimed message
-- check receipt of the untimed message to BRIDGE_SYNCED bridge
-- send a timed message to BRIDGE_SYNCED
-- check receipt of the timed message to BRIDGE_SYNCED bridge
+- check receipt of the untimed message to scheduling bridge
+- send a timed message to BRIDGE
+- check receipt of the timed message to scheduling bridge
 - close the bridge
 */
 
@@ -25,65 +26,107 @@ This test:
 #include <assert.h>
 #include "o2internal.h"
 #include "services.h"
-#include "bridge.h"
 
-void *br_info = (void *) 12345;
-bridge_inst_ptr br_inst;
+O2message_ptr demo_incoming = NULL; // message queue
+O2message_ptr sent_message = NULL;
+int message_int = -9999;
+int poll_outgoing_count = 0;
+bool demo_protocol_destructed = false;
+bool demo_info_destructed = false;
 
+class Demo_protocol : public Bridge_protocol {
+public:
+    Demo_protocol() : Bridge_protocol("Demo") { }
+    virtual ~Demo_protocol() { demo_protocol_destructed = true; }
 
-o2_err_t br_poll(bridge_inst_ptr node)
-{
-    assert(node == NULL);
-    return O2_SUCCESS;
-}
+    /// o2sm needs no polling function since it shares the o2n_ API?
+    virtual O2err bridge_poll() {
+        O2err rslt = O2_SUCCESS;
+        // deliver just the last on each poll
+        O2message_ptr *ptr = &demo_incoming;
+        // we're not at the end if *ptr points to another message
+        while (*ptr && (*ptr)->next) ptr = &((*ptr)->next);
+        if (*ptr) { // send a mesage
+            O2message_ptr msg = *ptr;
+            *ptr = NULL;
+            O2err err = o2_message_send(msg);
+            // return the first non-success error code if any
+            if (rslt == O2_SUCCESS) rslt = err;
+        }
+        return rslt;
+    }
+};
 
-int32_t message_int = -1;
+Bridge_protocol *demo_protocol = NULL;
 
+class Demo_info : public Bridge_info {
+public:
+    bool no_scheduling_here;
+    Demo_info() : Bridge_info() {
+        tag |= O2TAG_SYNCED;
+        no_scheduling_here = true;
+    }
 
-o2_err_t br_send(bridge_inst_ptr node)
-{
-    assert(node->info == br_info);
-    o2_message_ptr msg = o2_current_message();
-    printf("br_send got a message: ");
-    o2_message_print(msg);
-    printf("\n");
-    // extract the parameter
-    assert(streql(o2_msg_types(msg), "i"));
-    o2_extract_start(&msg->data);
-    message_int = o2_get_next(O2_INT32)->i32;
-    o2_complete_delivery();
-    return O2_SUCCESS;
-}
+    virtual ~Demo_info() {
+        if (!this) return;
+        // remove all sockets serviced by this connection
+        proto()->remove_services(this);
+        demo_info_destructed = true;
+    }
 
-o2_err_t br_recv(bridge_inst_ptr node)
-{
-    assert(node->info == br_info);
-    o2_message_ptr msg = o2_current_message();
-    printf("br_recv got a message: ");
-    o2_message_print(msg);
-    printf("\n");
-    o2_complete_delivery();
-    return O2_SUCCESS;
-}
+    virtual Bridge_protocol *proto() { return demo_protocol; }
 
-o2_err_t br_inst_finish(bridge_inst_ptr node)
-{
-    printf("br_inst_finish called\n");
-    assert(node->info == br_info);
-    return O2_SUCCESS;
-}
+    // Demo is always "synchronized" with the Host because it uses the
+    // host's clock. Also, since 3rd party processes do not distinguish
+    // between Demo services and Host services at this IP address, they
+    // see the service status according to the Host status. Once the Host
+    // is synchronized with the 3rd party, the 3rd party expects that
+    // timestamps will work. Thus, we always report that the Demo
+    // process is synchronized.
+    bool local_is_synchronized() { return true; }
 
+    // Demo does scheduling, but only for increasing timestamps.
+    bool schedule_before_send() { return no_scheduling_here; }
 
-o2_err_t br_finish(bridge_inst_ptr node)
-{
-    printf("br_finish called\n");
-    return O2_SUCCESS;
-}
-    
+    O2err send(bool block) {
+        int tcp_flag;
+        O2message_ptr msg = pre_send(&tcp_flag);
+        // we have a message to send to the service via shared
+        // memory -- find queue and add the message there atomically
+        sent_message = msg;
+        const char *types_str = o2_msg_types(msg);
+        if (streql(msg->data.address, "/demobridge1/test") &&
+            streql(types_str, "i")) {
+            o2_extract_start(&msg->data);
+            message_int = o2_get_next(O2_INT32)->i32;
+            printf("got message at %g with int32 %d\n",
+                   o2_time_get(), message_int);
+            O2_FREE(msg);
+        }
+        return O2_SUCCESS;
+    }
+
+    void poll_outgoing() {
+        poll_outgoing_count++;
+    }
+
+#ifndef O2_NO_DEBUG
+    virtual void show(int indent) {
+        printf("\n");
+    }
+#endif
+    // virtual O2status status(const char **process);  -- see Bridge_info
+
+    // Net_interface:
+    O2err accepted(Fds_info *conn) { return O2_FAIL; }  // cannot accept
+    O2err connected() { return O2_FAIL; } // we are not a TCP client
+};
+
+Demo_info *demo_info = NULL;
 
 int main(int argc, const char * argv[])
 {
-    o2_err_t err = O2_SUCCESS;
+    O2err err = O2_SUCCESS;
 
     if (argc == 2) {
         o2_debug_flags(argv[1]);
@@ -97,40 +140,38 @@ int main(int argc, const char * argv[])
         exit(1);
     }
     // install a new bridge with protocol "Demo"
-    bridge_protocol_ptr bridge = o2_bridge_new("Demo", &br_poll, &br_send,
-                                    &br_recv, &br_inst_finish, &br_finish);
-    br_inst = o2_bridge_inst_new(bridge, br_info);
-    assert(bridge);
+    demo_protocol = new Demo_protocol();
 
-    // create a service named "bridge"
-    char name[16];
-    memset(name, 0, 16);
-    strncpy(name, "bridge", 16);
-    err = o2_service_provider_new(name, NULL, (o2_node_ptr) br_inst,
-                                  o2_ctx->proc);
+    demo_info = new Demo_info();
+    assert(demo_info);
+
+    // create a service named "demobridge1"
+    err = Services_entry::service_provider_new(
+            "demobridge1", NULL, demo_info, o2_ctx->proc);
     assert(err == O2_SUCCESS);
 
     // view the service status
-    int stat = o2_status("bridge");
-    printf("Status of bridge is %s\n", o2_status_to_string((o2_status_t) stat));
+    int stat = o2_status("demobridge1");
+    printf("Status of bridge is %s\n", o2_status_to_string((O2status) stat));
     assert(stat == O2_BRIDGE_NOTIME);
     // send to the service
-    o2_send("/bridge/test", 0, "i", 23); // no clock, no sync
+    o2_send("/demobridge1/test", 0, "i", 23); // no clock, no sync
     assert(message_int == 23);
     message_int = -1;
 
-    // send a timed message to the service
+    // send a message to the service
     o2_clock_set(NULL, NULL);
-    stat = o2_status("bridge");
-    printf("Status of bridge is %s\n", o2_status_to_string((o2_status_t) stat));
-    assert(stat == O2_BRIDGE_NOTIME);
-    o2_send("/bridge/test", 0, "i", 34); // clock, no sync
+    stat = o2_status("demobridge1");
+    printf("Status of bridge is %s\n", o2_status_to_string((O2status) stat));
+    assert(stat == O2_BRIDGE);
+    o2_send("/demobridge1/test", 0, "i", 34); // clock, no sync
     assert(message_int == 34);
     message_int = -1;
     
-    // receive message over the bridge and check timing
+    // send message over the bridge and check timing
     double now = o2_time_get();
-    o2_send("/bridge/test", now + 0.2, "i", 45); // clock, future, no sync
+    printf("timed send at %g for %g\n", now, now + 0.2);
+    o2_send("/demobridge1/test", now + 0.2, "i", 45); // clock, future, no sync
     while (o2_time_get() < now + 0.4 && message_int != 45) {
         o2_poll();
         usleep(2000); // 2 ms
@@ -141,23 +182,24 @@ int main(int argc, const char * argv[])
     assert(delay > 0.19 && delay < 0.21);
     message_int = -1;
 
-    // change the bridge status to BRIDGE_SYNCED
-    br_inst->tag = BRIDGE_SYNCED;
-    stat = o2_status("bridge");
-    printf("Status of bridge is %s\n", o2_status_to_string((o2_status_t) stat));
+    // change the bridge status to internal scheduling
+    demo_info->no_scheduling_here = false;
+    stat = o2_status("demobridge1");
+    printf("Status of bridge is %s\n", o2_status_to_string((O2status) stat));
     assert(stat == O2_BRIDGE);
 
     // send an untimed message
-    o2_send("/bridge/test", 0, "i", 56); // clock, sync
-    // check receipt of the untimed message to BRIDGE_SYNCED bridge
+    o2_send("/demobridge1/test", 0, "i", 56); // clock, sync
+    // check receipt of the untimed message to SYNCED bridge
     assert(message_int == 56);
     message_int = -1;
 
-    // send a timed message to BRIDGE_SYNCED
+    // send a timed message to SYNCED bridge
+    demo_info->tag |= O2TAG_SYNCED;
     now = o2_time_get();
-    o2_send("/bridge/test", now + 0.2, "i", 67); // clock, future, sync
+    o2_send("/demobridge1/test", now + 0.2, "i", 67); // clock, future, sync
 
-    // check receipt of the timed message to BRIDGE_SYNCED bridge
+    // check receipt of the timed message to SYNCED bridge
     while (o2_time_get() < now + 0.4 && message_int != 67) {
         o2_poll();
         usleep(2000); // 2 ms
@@ -170,12 +212,11 @@ int main(int argc, const char * argv[])
     message_int = -1;
 
     // close the bridge
-    err = o2_bridge_remove("Demo");
-    assert(err == O2_SUCCESS);
-    
+    delete demo_protocol;
+    assert(demo_protocol_destructed);
+    assert(demo_info_destructed);
+   
     printf("calling o2_finish()\n");
     o2_finish();
     printf("BRIDGEAPI\nDONE\n");
 }
-
-

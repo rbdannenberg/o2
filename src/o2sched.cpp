@@ -1,4 +1,4 @@
-/* o2_sched.c -- scheduling
+/* O2sched.c -- scheduling
  */
 
 /* Overview:
@@ -58,8 +58,8 @@
 #define SCHED_BIN_TO_INDEX(b) ((b) & (O2_SCHED_TABLE_LEN - 1))  // Get modulo
 #define SCHED_INDEX(t) (SCHED_BIN_TO_INDEX(SCHED_BIN(t) ))
 
-o2_sched o2_gtsched, o2_ltsched;
-o2_sched_ptr o2_active_sched = &o2_gtsched;
+O2sched o2_gtsched, o2_ltsched;
+O2sched_ptr o2_active_sched = &o2_gtsched;
 int o2_gtsched_started = false;  // cannot use o2_gtsched until clock is in sync
 
 /* KEEP THIS FOR DEBUGGING
@@ -68,7 +68,7 @@ int o2_gtsched_started = false;  // cannot use o2_gtsched until clock is in sync
  printf("sched_debug_print from %s: s %p, last_bin %lld, last_time %g\n",
  msg, s, s->last_bin, s->last_time);
  for (int i = 0; i < SCHED_TABLE_LEN; i++) {
- for (o2_message_ptr m = s->table[i]; m; m = m->next) {
+ for (O2message_ptr m = s->table[i]; m; m = m->next) {
  printf("    %d: %p %s\n", i, m, m->path);
  }
  }
@@ -77,16 +77,16 @@ int o2_gtsched_started = false;  // cannot use o2_gtsched until clock is in sync
  */
 
 
-void o2_sched_finish(o2_sched_ptr s)
+void o2_sched_finish(O2sched_ptr s)
 {
     for (int i = 0; i < O2_SCHED_TABLE_LEN; i++) {
-        o2_message_list_free(s->table[i]);
+        O2message_list_free(s->table[i]);
     }
     o2_gtsched_started = false;
 }
 
 
-void o2_sched_start(o2_sched_ptr s, o2_time start_time)
+void o2_sched_start(O2sched_ptr s, O2time start_time)
 {
     memset(s->table, 0, sizeof s->table);
     s->last_bin = SCHED_BIN(start_time);
@@ -108,10 +108,10 @@ void o2_sched_initialize()
 // provides the service.) Use o2_message_send() if you do not know if the
 // service is local or not.
 //
-o2_err_t o2_schedule(o2_sched_ptr s)
+O2err o2_schedule(O2sched_ptr s)
 {
-    o2_message_ptr msg = o2_ctx->msgs;
-    o2_time mt = msg->data.timestamp;
+    O2message_ptr msg = o2_current_message();
+    O2time mt = msg->data.timestamp;
     if (mt <= 0 || mt < s->last_time) {
         // it was probably a mistake to schedule the message when the timestamp
         // is not in the future, but we'll try a local delivery anyway
@@ -121,12 +121,11 @@ o2_err_t o2_schedule(o2_sched_ptr s)
     o2_postpone_delivery(); // transfer ownership from o2_ctx->msgs
     if (s == &o2_gtsched && !o2_gtsched_started) {
         // cannot schedule in the future until there is a valid clock
-        o2_drop_message("there is no clock and a non-zero timestamp", msg);
-        O2_FREE(msg);
+        o2_drop_message("there is no clock and a non-zero timestamp", true);
         return O2_NO_CLOCK;
     }
     int64_t index = SCHED_INDEX(mt);
-    o2_message_ptr *m_ptr = &s->table[index];
+    O2message_ptr *m_ptr = &s->table[index];
     
     // find insertion point in list so that messages are sorted
     while (*m_ptr && ((*m_ptr)->data.timestamp <= mt)) {
@@ -142,7 +141,7 @@ o2_err_t o2_schedule(o2_sched_ptr s)
 
 // This is the "public" scheduler - assume ownership of msg, then
 //     call o2_schedule().
-int o2_schedule_msg(o2_sched_ptr scheduler, o2_message_ptr msg)
+int o2_schedule_msg(O2sched_ptr scheduler, O2message_ptr msg)
 {
     o2_prepare_to_deliver(msg);
     return o2_schedule(scheduler);
@@ -151,7 +150,7 @@ int o2_schedule_msg(o2_sched_ptr scheduler, o2_message_ptr msg)
 
 // This looks for messages <= now and delivers them
 //
-static void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
+static void sched_dispatch(O2sched_ptr s, O2time run_until_time)
 {
     // examine slots between last_bin and bin, inclusive
     // this is tricky: if time has advanced more than SCHED_TABLE_LEN,
@@ -166,9 +165,9 @@ static void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
     // now we know that we have less than 1s to go to catch up, so the
     // table will not wrap around
     while (s->last_bin <= bin) {
-        o2_message_ptr *msg_ptr = &s->table[SCHED_BIN_TO_INDEX(s->last_bin)];
+        O2message_ptr *msg_ptr = &s->table[SCHED_BIN_TO_INDEX(s->last_bin)];
         while (*msg_ptr && ((*msg_ptr)->data.timestamp <= run_until_time)) {
-            o2_message_ptr msg = *msg_ptr;
+            O2message_ptr msg = *msg_ptr;
             *msg_ptr = msg->next; // unlink message msg
             o2_active_sched = s; // if we recursively schedule another message,
             // use this same scheduler.
@@ -176,8 +175,8 @@ static void sched_dispatch(o2_sched_ptr s, o2_time run_until_time)
             O2_DB((msg->data.address[1] == '_' || msg->data.address[1] == '@') ?
                   O2_DBT_FLAG : O2_DBt_FLAG,
                   o2_dbg_msg("sched_dispatch", msg, &msg->data, NULL, NULL));
-            o2_prepare_to_deliver(msg); // transfer ownership to o2_ctx->msgs
-            o2_message_send_sched(false); // don't assume local and call
+            o2_prepare_to_deliver(msg);
+            o2_msg_send_now(); // don't assume local and call
             // o2_msg_deliver; maybe this is an OSC message
         }
         s->last_bin++;

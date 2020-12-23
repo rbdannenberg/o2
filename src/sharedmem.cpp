@@ -1,4 +1,4 @@
-// sharedmem.c -- a brige to shared memory O2 service
+// sharedmem.cpp -- a brige to shared memory O2 service
 //
 // Roger B. Dannenberg
 // August 2020
@@ -8,23 +8,24 @@ Supports multiple connections to shared memory processes.
 All shared memory processes use the same heap, and O2_MALLOC
 is lock-free and thread-safe.
 
-Therefore, o2_message types can be transferred directly to
+Therefore, O2message types can be transferred directly to
 shared memory queues without byte-swapping, copying, or 
 changing format.
 
-The implementation is based on o2lite. Instead of o2lite_inst
-containing a net_info_ptr (for the TCP connection) and the
-udp_address, the o2sm_inst contains an outgoing message queue.
+The implementation is based on o2lite. Instead of O2lite_info
+containing a Fds_info pointer (for the TCP connection) and the
+udp_address, the O2sm_info contains an outgoing message queue.
 
-Services provided by a shared memory process appear locally in
-the services array entry as a bridge_inst_ptr whose info points
-to an o2sm_inst, where messages can be directly enqueued, making
-delivery quite fast and simple.
+Services provided by a shared memory process appear locally in the
+services array entry as an O2sm_info, where messages can be directly
+enqueued, making delivery quite fast and simple.
 
-Received messages are all enqueued on a global o2sm_incoming
-queue, which is checked by o2sm_poll. If messages are found, the
-entire queue is atomically copied to a delivery queue, reversed,
-and then messages are delivered to O2 in the correct order.
+Received messages are all enqueued on a global o2sm_incoming queue,
+which is checked by o2sm_poll. If messages are found, the entire queue
+is atomically copied to a delivery queue, reversed, and then messages
+are delivered to O2 in the correct order. Thus, O2sm_info do not
+receive or deliver incoming messages to O2 -- it's handled by the
+O2sm_protocol object.
 
 Clock local time can be used from shared memory processes except
 during a narrow window during o2_clock_set(), but this should 
@@ -49,8 +50,8 @@ global values o2_local_now and o2_global_now, but since o2_poll()
 may not be called as frequently as needed, it's better to recompute
 as needed in each shared memory process.
 
-Timing in shared memory process is simpler and more limited that in
-O2. In coming messages with timestamps must arrive in time order.  A
+Timing in shared memory process is simpler and more limited than in
+O2. Incoming messages with timestamps must arrive in time order.  A
 timestamp out of order will be considered to be at the time just after
 the previous timestamped message. Messages without timestamps,
 however, are considered to be in a separate stream and their
@@ -82,34 +83,45 @@ will be called the O2SM thread in this section. The steps below are
 marked with either "(O2 thread)" or "(O2SM thread)" to indicate which
 thread should run the operation.
 
-o2_shmem_initialize() - Initially, an array of bridge_inst_ptr is
+o2_shmem_initialize() - Initially, an array of O2sm_info* is
     created, a new bridge protocol for "o2sm" is created, and a
     handler is created for /_o2/o2sm/sv and /_o2/o2sm/fin. (O2 thread)
 
-o2_shmem_inst_new() - creates a new bridge_inst that points to a new
-    o2sm_inst. The bridge_inst must be passed to the O2SM thread. It
-    is also stored in the o2sm_bridges array. (O2 thread)
+o2_shmem_inst_new() - creates a new O2sm_info. The O2sm_info must be
+    passed to the O2SM thread. It is also stored in the o2sm_bridges
+    array. (O2 thread)
 
-o2sm_initialize() - installs an o2_ctx_t for the O2SM thread and
-    retains the bridge_inst_ptr which contains a message queue for
-    messages from O2SM to O2. The o2_ctx_t contains mappings from
+o2sm_initialize() - installs an O2_context for the O2SM thread and
+    retains the Bridge_info* which contains a message queue for
+    messages from O2SM to O2*. The O2_context contains mappings from
     addresses to handlers in path_tree and full_path_table.  (O2SM
     thread)
+
+o2sm_get_id() - returns a unique ID for this bridged process. This
+    might be useful if you want to create a unique service that does
+    not conflict with any host services or services by other shared
+    memory or other bridged processes using other protocols,
+    e.g. o2lite. Note that *all* bridged processes and their host
+    share must have non-conflicting service names. While other full O2
+    processes can offer duplicated service names (and messages are
+    directed to the service provider with the highest pip:iip:port
+    name), duplicates are not allowed between hosts and their bridged
+    processes.  (O2SM thread)
 
 o2sm_service_new() - creates handlers on the O2 side via /_o2/o2sm/sv
     messages. (O2SM thread)
 
-o2sm_method_new() - inserts handlers into the o2_ctx_t mappings.
+o2sm_method_new() - inserts handlers into the O2_context mappings.
     (O2SM thread)
 
 o2sm_finish() - To shut down cleanly, first the O2SM thread should
     stop calling o2sm_poll() and call o2sm_finish(), which frees the
-    O2SM o2_ctx_t structures (but not the bridge_inst), and calls
+    O2SM O2_context structures (but not the O2sm_info), and calls
     /_o2/o2sm/fin with the id as parameter.
 
 o2_shmem_inst_finish() - called by /_o2/o2sm/fin handler (and also a
-    callback for deleting a bridge_inst). Removes outgoing messages
-    from o2sm_inst. Similar to o2lite_inst_finish, this removes every
+    callback for deleting an O2sm_info). Removes outgoing messages
+    from O2sm_info. Similar to o2lite_inst_finish, this removes every
     service that delegates to this bridge if this is the "master"
     instance (each service has a non-master copy of this instance).
     The instance is removed from the o2sm_bridges array.
@@ -131,9 +143,9 @@ o2_shmem_finish() - shuts down the entire "o2sm" protocol. First,
 
 Typical shared memory process organization is as follows:
 
-#include "o2internal.h"  // o2_ctx_t is not defined in o2.h, so use this
+#include "o2internal.h"  // O2_context is not defined in o2.h, so use this
 #include "sharedmem.h"
-bridge_inst_ptr smbridge = NULL; // global variable accessed by both threads
+Bridge_info *smbridge = NULL; // global variable accessed by both threads
 
 int main()
 {
@@ -154,7 +166,7 @@ int main()
 
 void *shared_memory_thread(void *ignore) // the thread entry point
 {
-    o2_ctx_t ctx;
+    O2_context ctx;
     o2sm_initialize(&ctx, smbridge); // connects us to bridge
     ... run the thread ...
     o2sm_finish();
@@ -164,78 +176,127 @@ void *shared_memory_thread(void *ignore) // the thread entry point
 
 #ifndef O2_NO_SHAREDMEM
 #include "o2internal.h"
-#include "atomic.h"
+#include "o2atomic.h"
 #include "services.h"
 #include "message.h"
 #include "msgsend.h"
 #include "pathtree.h"
 #include "o2mem.h"
-#include "bridge.h"
 #include "sharedmem.h"
 
-#define O2SM_BRIDGE(i) DA_GET(o2sm_bridges, bridge_inst_ptr, i)
+static O2queue o2sm_incoming;
 
-// we do 16-byte alignment explicitly because I don't think the compiler
-// can do it since our structures are allocated on 8-byte boundaries
-#define OUTGOING(o2sm) ((o2_queue_ptr) \
-        (((intptr_t) &(o2sm)->outgoing) & ~0xF))
+static O2message_ptr get_messages_reversed(O2queue *head);
 
-bridge_protocol_ptr o2sm_bridge = NULL;
-static dyn_array o2sm_bridges;
+class O2sm_protocol : public Bridge_protocol {
+public:
+O2sm_protocol() : Bridge_protocol("O2sm") { }
+    virtual ~O2sm_protocol() { assert(false); } // implement me
 
-static o2_queue o2sm_incoming;
+    /// o2sm needs no polling function since it shares the o2n_ API?
+    virtual O2err bridge_poll() {
+        O2err rslt = O2_SUCCESS;
+        O2message_ptr msgs = get_messages_reversed(&o2sm_incoming);
+        while (msgs) {
+            O2message_ptr next = msgs->next;
+            msgs->next = NULL; // remove pointer before it becomes dangling
+            O2err err = o2_message_send(msgs);
+            // return the first non-success error code if any
+            if (rslt) rslt = err;
+            msgs = next;
+        }
+        return rslt;
+    }
 
-// o2sm_inst is allocated once and stored on the bridge_inst that is
-// referenced by the o2sm_bridges dynamic array. It is also
-// referenced by every bridge_inst created as a service.
-//
-// If clock sync is obtained by O2, we have to search all services 
-// provided by a shared memory process and change their tags to
-// BRIDGE_SYNCED.
-//
-typedef struct o2sm_inst {
-    int64_t padding; // outgoing must be on a 16-byte boundary, but our
-    // memory allocation aligns to 8-byte boundaries, so we always "AND"
-    // the outgoing address with ~0xF to force 16-btye alignment. This
-    // might locate it 8-bytes lower, so we insert 8 bytes of padding to
-    // make sure the shifted address is allocated and usable.
-    o2_queue outgoing;
-    int bridged_process_index;
-} o2sm_inst, *o2sm_inst_ptr;
+};
+
+Bridge_protocol *o2sm_protocol = NULL;
+
+class O2sm_info : public Bridge_info {
+public:
+    O2queue outgoing;
+
+    O2sm_info() : Bridge_info() {
+        tag |= O2TAG_SYNCED;
+    }
+
+    virtual ~O2sm_info() {
+        if (!this) return;
+        // remove all sockets serviced by this connection
+        proto()->remove_services(this);
+        free_outgoing();
+    }
+
+    virtual Bridge_protocol *proto() { return o2sm_protocol; }
+
+    // O2sm is always "synchronized" with the Host because it uses the
+    // host's clock. Also, since 3rd party processes do not distinguish
+    // between O2sm services and Host services at this IP address, they
+    // see the service status according to the Host status. Once the Host
+    // is synchronized with the 3rd party, the 3rd party expects that
+    // timestamps will work. Thus, we always report that the O2sm
+    // process is synchronized.
+    virtual bool local_is_synchronized() { return true; }
+
+    // O2sm does scheduling, but only for increasing timestamps.
+    virtual bool schedule_before_send() { return false; }
+
+    virtual O2err send(bool block) {
+        int tcp_flag;
+        O2message_ptr msg = pre_send(&tcp_flag);
+        // we have a message to send to the service via shared
+        // memory -- find queue and add the message there atomically
+        outgoing.push((O2list_elem_ptr) msg);
+        o2_message_source = NULL;  // clean up to help debugging
+        return O2_SUCCESS;
+    }
+    
+    void poll_outgoing();
+   
+    void free_outgoing() {
+        O2message_ptr all = (O2message_ptr) outgoing.grab();
+        while (all) {
+            O2message_ptr msg = all;
+            all = msg->next;
+            O2_FREE(msg);
+        }
+    }
+
+
+#ifndef O2_NO_DEBUG
+    virtual void show(int indent) {
+        Bridge_info::show(indent);
+        printf("\n");
+    }
+#endif
+    // virtual O2status status(const char **process);  -- see Bridge_info
+
+    // Net_interface:
+    O2err accepted(Fds_info *conn) { return O2_FAIL; } // we are not a server
+    O2err connected() { return O2_FAIL; } // we are not a TCP client
+};
+
+
 
 
 // Call to establish a connection from a shared memory process to 
 // O2. This runs in the O2 thread.
 // 
-bridge_inst_ptr o2_shmem_inst_new()
+Bridge_info *o2_shmem_inst_new()
 {
-    o2sm_inst_ptr o2sm;
-    // assumes o2sm is initialized
-    int id = 0;
-    // find place to put it and sequence number
-    while (id < o2sm_bridges.length) {
-        if (!O2SM_BRIDGE(id)) goto got_id;
-        id++;
-    }
-    DA_EXPAND(o2sm_bridges, bridge_inst_ptr);
-  got_id:
-    o2sm = O2_CALLOCT(o2sm_inst);
-    o2sm->bridged_process_index = id;
-    bridge_inst_ptr bridge = o2_bridge_inst_new(o2sm_bridge, o2sm);
-    DA_SET(o2sm_bridges, bridge_inst_ptr, id, bridge);
-    return bridge;
+    return new O2sm_info();
 }
 
 
 // retrieve all messages from head atomically. Then reverse the list.
 //
-static o2_message_ptr get_messages_reversed(o2_queue_ptr head)
+static O2message_ptr get_messages_reversed(O2queue *head)
 {
     // store a zero if nothing has changed
-    o2_message_ptr all = (o2_message_ptr) o2_queue_grab(head);
+    O2message_ptr all = (O2message_ptr) head->grab();
     
-    o2_message_ptr msgs = NULL;
-    o2_message_ptr next = NULL;
+    O2message_ptr msgs = NULL;
+    O2message_ptr next = NULL;
     while (all) {
         next = all->next;
         all->next = msgs;
@@ -246,209 +307,71 @@ static o2_message_ptr get_messages_reversed(o2_queue_ptr head)
 }
 
 
-// poll callback from O2 to look for incoming messages
-o2_err_t shmem_bridge_poll(bridge_inst_ptr inst)
-{
-    o2_err_t rslt = O2_SUCCESS;
-    o2_message_ptr msgs = get_messages_reversed(&o2sm_incoming);
-    while (msgs) {
-        o2_message_ptr next = msgs->next;
-        msgs->next = NULL; // remove pointer before it becomes dangling
-        o2_err_t err = o2_message_send(msgs);
-        // return the first non-success error code if any
-        if (rslt == O2_SUCCESS) rslt = err;
-        msgs = next;
-    }
-    return O2_SUCCESS;
-}
-
-
-// callback from bridge code to send from O2 to shared mem process
-o2_err_t shmem_bridge_send(bridge_inst_ptr inst)
-{
-    if (!inst) {
-        inst = o2_ctx->binst;
-    }
-    o2_message_ptr msg = o2_postpone_delivery();
-    // we have a message to send to shmmthe service via shared memory -- find
-    // queue and add the message there atomically
-    o2sm_inst_ptr o2sm = (o2sm_inst_ptr) inst->info;
-    o2_queue_push(OUTGOING(o2sm), (o2_obj_ptr) msg);
-    return O2_SUCCESS;
-}
-
-
-static void free_outgoing(o2sm_inst_ptr o2sm)
-{
-    o2_message_ptr outgoing = (o2_message_ptr) o2_queue_pop(OUTGOING(o2sm));
-    while (outgoing) {
-        o2_message_ptr msg = outgoing;
-        outgoing = msg->next;
-        O2_FREE(msg);
-    }
-}
-
-
-// o2_shmem_inst_finish -- finalize a shared memory bridge_inst_ptr
-//
-// inst could be an o2sm_bridge pointer from the o2sm_bridges array or
-//      from a service. If it's from the o2sm_bridges array, there must
-//      be no reference from the shared process -- if it tries to check
-//      for messages and the memory is reallocated as something else, 
-//      O2 will likely crash. We must also search all services
-//      to remove every service entry that uses this bridge.
-//
-o2_err_t o2_shmem_inst_finish(bridge_inst_ptr inst)
-{
-    o2sm_inst_ptr o2sm = (o2sm_inst_ptr) (inst->info);
-    if (o2sm) {
-        // are we in o2sm_bridges? If so, bridged process is ending
-        // so we need to search all services using the connection and
-        // remove them.
-        if (O2SM_BRIDGE(o2sm->bridged_process_index) == inst) {
-            // remove all services offered by this bridged process
-            o2_bridge_remove_services(inst->proto, o2sm);
-            inst->info = NULL; // prevent from calling again
-            DA_SET(o2sm_bridges, bridge_inst_ptr,
-                   o2sm->bridged_process_index, NULL);
-            free_outgoing(o2sm);
-            O2_FREE(o2sm);
-        } // otherwise, this is just the removal of a service,
-    }     // so we just need to free inst, which is done by caller
-    return O2_SUCCESS;
-}
-
-
-o2_err_t o2_shmem_finish(bridge_inst_ptr inst)
-{
-    // first free all o2sm_inst using o2sm_bridges to find them
-    for (int i = 0; i < o2sm_bridges.length; i++) {
-        bridge_inst_ptr bi = O2SM_BRIDGE(i);
-        if (!bi) {
-            continue;  // connections may be closed already
-        }
-        o2sm_inst_ptr o2sm = (o2sm_inst_ptr) (bi->info);
-        // services using this bridge have already been removed because
-        // this is a callback that is called after o2_bridge_remove_services
-        assert(o2sm);
-        free_outgoing(o2sm);
-        O2_FREE(o2sm);
-        DA_SET(o2sm_bridges, bridge_inst_ptr, i, NULL); // just to be safe
-        O2_FREE(bi);
-    }
-    o2sm_bridge = NULL;
-    DA_FINISH(o2sm_bridges);
-    return O2_SUCCESS;
-}
-
-
 // Handler for !_o2/o2sm/sv message. This is to create/modify a
-// service/tapper for o2sm client. Parameters are: id, service-name,
+// service/tapper for o2sm client. Parameters are: service-name,
 // exists-flag, service-flag, and tapper-or-properties string.
-// This is almost identical to o2lite_sv_handler, but the message
-// source is not o2n_message_source->application so it must be
-// derived from id.
+// This is almost identical to o2lite_sv_handler.
 //
 void o2sm_sv_handler(o2_msg_data_ptr msgdata, const char *types,
-                        o2_arg_ptr *argv, int argc, const void *user_data)
+                        O2arg_ptr *argv, int argc, const void *user_data)
 {
-    o2_err_t err = O2_SUCCESS;
-    bridge_inst_ptr inst;
-    o2sm_inst_ptr o2sm;
+    O2err rslt = O2_SUCCESS;
 
     O2_DBd(o2_dbg_msg("o2sm_sv_handler gets", NULL, msgdata, NULL, NULL));
     // get the arguments: shared mem bridge id, service name, 
     //     add-or-remove flag, is-service-or-tap flag, property string
     // assumes o2sm is initialized, but it must be
     // because the handler is installed
-    int id = argv[0]->i32;
-    const char *serv = argv[1]->s;
-    bool add = argv[2]->i;
-    bool is_service = argv[3]->i;
-    const char *prtp = argv[4]->s;
+    const char *serv = argv[0]->s;
+    bool add = argv[1]->i;
+    bool is_service = argv[2]->i;
+    const char *prtp = argv[3]->s;
 
-    if (id < 0 || id >= o2sm_bridges.length) {
-        goto bad_id;
-    }
-    inst = O2SM_BRIDGE(id);
-    o2sm = (o2sm_inst_ptr) (inst->info);        
-    if (!o2sm) {
-        goto bad_id;
-    }
     if (add) { // add a new service or tap
         if (is_service) {
-            // copy the bridge inst and share o2sm info:
-            bridge_inst_ptr bi = o2_bridge_inst_new(inst->proto, o2sm);
-            // We claim shared mem clock is synchronized even if it is
-            // not. This would result in timed messages being sent to 
-            // an unsynchronized process, but that could only happen if
-            // the local O2 process has clock synchronization, but if
-            // that's true, then the shared mem process really IS 
-            // synchronized, so it's not a problem.
-            bi->tag = BRIDGE_SYNCED;
-            err = o2_service_provider_new(serv, prtp, (o2_node_ptr) bi,
-                                          o2_ctx->proc);
-            if (err) { // oops, didn't work, so free allocations
-                O2_FREE(bi);
-            }
+            rslt = Services_entry::service_provider_new(
+                    serv, prtp, o2_message_source, o2_ctx->proc);
         } else { // add tap
-            err = o2_tap_new(serv, o2_ctx->proc, prtp);
+            rslt = o2_tap_new(serv, o2_ctx->proc, prtp);
         }
     } else {
         if (is_service) { // remove a service
-            err = o2_service_remove(serv, o2_ctx->proc, NULL, -1);
+            rslt = Services_entry::proc_service_remove(
+                          serv, o2_ctx->proc, NULL, -1);
         } else { // remove a tap
-            err = o2_tap_remove(serv, o2_ctx->proc, prtp);
+            rslt = o2_tap_remove(serv, o2_ctx->proc, prtp);
         }
     }
-    if (err) {
+    if (rslt) {
         char errmsg[100];
         snprintf(errmsg, 100, "o2sm/sv handler got %s for service %s",
-                 o2_error_to_string(err), serv);
+                 o2_error_to_string(rslt), serv);
         o2_drop_msg_data(errmsg, msgdata);
     }
     return;
-  bad_id:
-    printf("o2sm_sv_handler got bad id: %d, message ignored\n", id);
 }
 
 
+// Handler for "/_o2/o2sm/fin" message
 void o2sm_fin_handler(o2_msg_data_ptr msgdata, const char *types,
-                      o2_arg_ptr *argv, int argc, const void *user_data)
+                      O2arg_ptr *argv, int argc, const void *user_data)
 {
-    bridge_inst_ptr inst;
-    o2sm_inst_ptr o2sm;
-    
     O2_DBd(o2_dbg_msg("o2sm_fin_handler gets", NULL, msgdata, NULL, NULL));
-    int id = argv[0]->i32;
-    if (id < 0 || id >= o2sm_bridges.length) {
-        goto bad_id;
-    }
-    inst = O2SM_BRIDGE(id);
-    o2sm = (o2sm_inst_ptr) (inst->info);
-    if (!o2sm) {
-        goto bad_id;
-    }
-    o2_bridge_inst_free(inst);
+    delete o2_message_source;
     return;
-  bad_id:
-    printf("o2sm_fin_handler got bad id: %d, message ignored\n", id);
 }
 
 
-o2_err_t o2_shmem_initialize()
+O2err o2_shmem_initialize()
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
-    if (o2sm_bridge) return O2_ALREADY_RUNNING; // already initialized
-    DA_INIT(o2sm_bridges, bridge_inst_ptr, 1);
-    o2sm_bridge = o2_bridge_new("o2sm", &shmem_bridge_poll, &shmem_bridge_send,
-                                NULL /* recv */,
-                                &o2_shmem_inst_finish, &o2_shmem_finish);
-    o2_method_new_internal("/_o2/o2sm/sv", "isiis", &o2sm_sv_handler,
+    if (o2sm_protocol) return O2_ALREADY_RUNNING; // already initialized
+    o2sm_protocol = new O2sm_protocol();
+    o2_method_new_internal("/_o2/o2sm/sv", "siis", &o2sm_sv_handler,
                            NULL, false, true);
-    o2_method_new_internal("/_o2/o2sm/fin", "i", &o2sm_fin_handler,
+    o2_method_new_internal("/_o2/o2sm/fin", "", &o2sm_fin_handler,
                            NULL, false, true);
     return O2_SUCCESS;
 }
@@ -458,36 +381,29 @@ o2_err_t o2_shmem_initialize()
 
 #include "sharedmemclient.h"
 
-thread_local o2_message_ptr schedule_head;
-thread_local o2_message_ptr schedule_tail;
+thread_local O2message_ptr schedule_head;
+thread_local O2message_ptr schedule_tail;
 
-o2_time o2sm_time_get()
+O2time o2sm_time_get()
 {
     return (o2_clock_is_synchronized ?
             o2_local_time() + o2_global_offset : -1);
 }
 
 
-static int o2sm_get_id()
-{
-    bridge_inst_ptr bridge = o2_ctx->binst;
-    o2sm_inst_ptr o2sm = (o2sm_inst_ptr) (bridge->info);
-    return o2sm->bridged_process_index;
-}
-
-
-o2_err_t o2sm_service_new(const char *service, const char *properties)
+O2err o2sm_service_new(const char *service, const char *properties)
 {
     if (!properties) {
         properties = "";
     }
-    return o2sm_send_cmd("!_o2/o2sm/sv", 0.0, "isiis", o2sm_get_id(),
+    return o2sm_send_cmd("!_o2/o2sm/sv", 0.0, "siis", 666,
                          service, true, true, properties);
 }
 
 
-int o2sm_method_new(const char *path, const char *typespec,
-                    o2_method_handler h, void *user_data, 
+/*
+O2err o2sm_method_new(const char *path, const char *typespec,
+                    O2method_handler h, void *user_data, 
                     bool coerce, bool parse)
 {
     // o2_heapify result is declared as const, but if we don't share it, there's
@@ -498,13 +414,13 @@ int o2sm_method_new(const char *path, const char *typespec,
     // "/" with EOS and o2_heapify to copy it, then restore the "/"
     int ret = O2_NO_SERVICE;
 #ifdef O2SM_PATTERNS
-    handler_entry_ptr full_path_handler;
+    Handler_entry *full_path_handler;
     char *remaining = key + 1;
     char name[NAME_BUF_LEN];
 
     char *slash = strchr(remaining, '/');
     if (slash) *slash = 0;
-    services_entry_ptr services = *o2_services_find(remaining);
+    Services_entry *services = *Services_entry::find(remaining);
     // note that slash has not been restored (see o2_service_replace below)
     // services now is the existing services_entry node if it exists.
     // slash points to end of the service name in the path.
@@ -520,25 +436,22 @@ int o2sm_method_new(const char *path, const char *typespec,
         O2_FREE(key);
         return O2_NO_SERVICE;
     }
-    o2_node_ptr node = spp->service;
+    O2node *node = spp->service;
     assert(node);    // we must have a local offering of the service
 #endif
 
-    handler_entry_ptr handler = O2_MALLOCT(handler_entry);
-    handler->tag = NODE_HANDLER;
-    handler->key = NULL; // gets set below with the final node of the address
-    handler->handler = h;
-    handler->user_data = user_data;
-    handler->full_path = key;
     o2string types_copy = NULL;
     int types_len = 0;
     if (typespec) {
         types_copy = o2_heapify(typespec);
-        if (!types_copy) goto error_return_2;
+        if (!types_copy) goto free_key_return;
         // coerce to int to avoid compiler warning -- this could overflow but
         // only in cases where it would be impossible to construct a message
         types_len = (int) strlen(typespec);
     }
+    Handler_entry *handler = new Handler_entry(NULL,
+            // key gets set below with the final node of the address 
+            h, user_data, key, types_copy, types_len, coerce, parse);
     handler->type_string = types_copy;
     handler->types_len = types_len;
     handler->coerce_flag = coerce;
@@ -547,15 +460,15 @@ int o2sm_method_new(const char *path, const char *typespec,
 #ifdef O2SM_PATTERNS
 
     // case 1: method is global handler for entire service replacing a
-    //         NODE_HASH with specific handlers: remove the NODE_HASH
-    //         and insert a new NODE_HANDLER as local service.
+    //         Hash_node with specific handlers: remove the Hash_node
+    //         and insert a new O2TAG_HANDLER as local service.
     // case 2: method is a global handler, replacing an existing global handler:
     //         same as case 1 so we can use o2_service_replace to clean up the
     //         old handler rather than duplicate that code.
     // case 3: method is a specific handler and a global handler exists:
-    //         replace the global handler with a NODE_HASH and continue to 
+    //         replace the global handler with a Hash_node and continue to
     //         case 4
-    // case 4: method is a specific handler and a NODE_HASH exists as the
+    // case 4: method is a specific handler and a Hash_node exists as the
     //         local service: build the path in the tree according to the
     //         the remaining address string
 
@@ -563,20 +476,20 @@ int o2sm_method_new(const char *path, const char *typespec,
     if (!slash) { // (cases 1 and 2: install new global handler)
         handler->key = NULL;
         handler->full_path = NULL;
-        ret = o2_service_provider_replace(key + 1, &spp->service,
-                                          (o2_node_ptr) handler);
+        ret = Services_entry::service_provider_replace(key + 1, &spp->service,
+                                                       (o2_node_ptr) handler);
         goto free_key_return; // do not need full path for global handler
     }
 
-    // cases 3 and 4: path has nodes. If service is a NODE_HANDLER, 
-    //   replace with NODE_HASH
-    hash_node_ptr hnode = (hash_node_ptr) node;
-    if (hnode->tag == NODE_HANDLER) {
+    // cases 3 and 4: path has nodes. If service is a Handler_entry,
+    //   replace with Hash_node
+    Hash_node *hnode = (Hash_node *) node;
+    if (ISA_HANDLER(hnode)) {
         // change global handler to an empty hash_node
         hnode = o2_hash_node_new(NULL); // top-level key is NULL
         if (!hnode) goto error_return_3;
-        if ((ret = o2_service_provider_replace(key + 1, &spp->service,
-                                               (o2_node_ptr) hnode))) {
+        if ((ret = Services_entry::service_provider_replace(key + 1,
+                                                &spp->service, hnode))) {
             goto error_return_3;
         }
     }
@@ -620,7 +533,6 @@ int o2sm_method_new(const char *path, const char *typespec,
   error_return_3:
     if (types_copy) O2_FREE((void *) types_copy);
 #endif
-  error_return_2:
     O2_FREE(handler);
 #ifdef O2SM_PATTERNS
   free_key_return: // not necessarily an error (case 1 & 2)
@@ -629,9 +541,9 @@ int o2sm_method_new(const char *path, const char *typespec,
   just_return:
     return ret;
 }
+*/
 
-
-static void append_to_schedule(o2_message_ptr msg)
+static void append_to_schedule(O2message_ptr msg)
 {
     if (schedule_head == NULL) {
         schedule_head = schedule_tail = msg;
@@ -643,29 +555,29 @@ static void append_to_schedule(o2_message_ptr msg)
 }
 
 
-o2_err_t o2sm_message_send(o2_message_ptr msg)
+O2err o2sm_message_send(O2message_ptr msg)
 {
-    o2_queue_push(&o2sm_incoming, (o2_obj_ptr) msg);
+    o2sm_incoming.push((O2list_elem_ptr) msg);
     return O2_SUCCESS;
 }
 
 
-o2_err_t o2sm_send_finish(o2_time time, const char *address, int tcp_flag)
+O2err o2sm_send_finish(O2time time, const char *address, int tcp_flag)
 {
-    o2_message_ptr msg = o2_message_finish(time, address, tcp_flag);
+    O2message_ptr msg = o2_message_finish(time, address, tcp_flag);
     if (!msg) return O2_FAIL;
     return o2sm_message_send(msg);
 }
 
 
-o2_err_t o2sm_send_marker(const char *path, double time, int tcp_flag,
+O2err o2sm_send_marker(const char *path, double time, int tcp_flag,
                           const char *typestring, ...)
 {
     va_list ap;
     va_start(ap, typestring);
 
-    o2_message_ptr msg;
-    o2_err_t rslt = o2_message_build(&msg, time, NULL, path,
+    O2message_ptr msg;
+    O2err rslt = O2message_build(&msg, time, NULL, path,
                                        typestring, tcp_flag, ap);
     if (rslt != O2_SUCCESS) {
         return rslt; // could not allocate a message!
@@ -674,10 +586,10 @@ o2_err_t o2sm_send_marker(const char *path, double time, int tcp_flag,
 }
 
 
-int o2sm_dispatch(o2_message_ptr msg)
+int o2sm_dispatch(O2message_ptr msg)
 {
 #ifdef O2SM_PATTERNS
-    o2_node_ptr service = o2_msg_service(&msg->data, &services);
+    O2node *service = o2_msg_service(&msg->data, &services);
     if (service) {
 #endif
         char *address = msg->data.address;
@@ -687,25 +599,22 @@ int o2sm_dispatch(o2_message_ptr msg)
 
 #ifdef O2SM_PATTERNS
         // STEP 3: If service is a Handler, call the handler directly
-        if (service->tag == NODE_HANDLER) {
+        if (ISA_HANDLER(service)) {
             o2_call_handler((handler_entry_ptr) service, &msg->data, types);
 
         // STEP 4: If path begins with '!', or O2_NO_PATTERNS, full path lookup
-        } else if (service->tag == NODE_HASH
-                    && (address[0] == '!')
-                   ) {
+        } else if (ISA_HASH(service) && (address[0] == '!')) {
 #endif
-            o2_node_ptr handler;
+            O2node *handler;
             address[0] = '/'; // must start with '/' to get consistent hash
-            handler = *o2_lookup(&o2_ctx->full_path_table, address);
-            if (handler && handler->tag == NODE_HANDLER) {
-                o2_call_handler((handler_entry_ptr) handler,
-                                &msg->data, types);
+            handler = *o2_ctx->full_path_table.lookup(address);
+            if (handler && ISA_HANDLER(handler)) {
+                TO_HANDLER_ENTRY(handler)->invoke(&msg->data, types);
             }
 #ifdef O2SM_PATTERNS
         }
         // STEP 5: Use path tree to find handler
-        else if (service->tag == NODE_HASH) {
+        else if (ISA_HASH(service)) {
             char name[NAME_BUF_LEN];
             address = strchr(address + 1, '/'); // search for end of service name
             if (address) {
@@ -724,13 +633,18 @@ int o2sm_dispatch(o2_message_ptr msg)
 // shared memory process thread
 void o2sm_poll()
 {
-    o2_time now = o2sm_time_get();
-    o2sm_inst_ptr o2sm = (o2sm_inst_ptr) (o2_ctx->binst->info);
-    extern bridge_inst_ptr smbridge;
-    o2_message_ptr msgs = get_messages_reversed(OUTGOING(o2sm));
-    o2_message_ptr next;
+    O2sm_info *o2sm = (O2sm_info *) (o2_ctx->binst);
+    o2sm->poll_outgoing();
+}
+
+void O2sm_info::poll_outgoing()
+{
+    O2time now = o2sm_time_get();
+    extern Bridge_info *smbridge;
+    O2message_ptr msgs = get_messages_reversed(&outgoing);
+    O2message_ptr next;
     // sort msgs into immediate and schedule
-    o2_message_ptr *prevptr = &msgs;
+    O2message_ptr *prevptr = &msgs;
     while (*prevptr) {
         if ((*prevptr)->data.timestamp != 0) {
             next = (*prevptr)->next;
@@ -762,7 +676,7 @@ void o2sm_poll()
 }
 
 
-void o2sm_initialize(o2_ctx_ptr ctx, bridge_inst_ptr inst)
+void o2sm_initialize(O2_context *ctx, Bridge_info *inst)
 {
     // local memory allocation will use malloc() to get a chunk on the
     // first call to O2_MALLOC by the shared memory thread. If
@@ -770,7 +684,16 @@ void o2sm_initialize(o2_ctx_ptr ctx, bridge_inst_ptr inst)
     // will fail to allocate any memory, so mallocp must be true (default).
     ctx->chunk = NULL;
     ctx->chunk_remaining = 0;
-    o2_ctx_init(ctx);
+    // I'm not sure this is necessary. If any call in the shared memory thread
+    // checks to see if our Bridge_info, which is our proxy for the local O2
+    // process, is the "local process" as opposed to a remote process, then
+    // we want "proxy == o2_ctx->proc" to be true. On the other hand, this is
+    // a type violation, so anything other than pointer equality (or some other
+    // Proxy_info method) or maybe even the assumption that o2_ctx->proc->key
+    // exists is going to fail. A better solution might be to add another
+    // member of type Proxy_info to o2_ctx and replace all expressions like
+    // "proxy = o2_ctx->proc" with "proxy == o2_ctx->local_proxy".
+    o2_ctx->proc = (Proc_info *) inst;
     o2_ctx->binst = inst;
 
     schedule_head = NULL;
@@ -782,12 +705,9 @@ void o2sm_finish()
 {
     // make message before we free the message construction area
     o2_send_start();
-    o2_add_int32(o2sm_get_id());
-    o2_message_ptr msg = o2_message_finish(0.0, "/_o2/o2sm/fin", true);
+    O2message_ptr msg = o2_message_finish(0.0, "/_o2/o2sm/fin", true);
     // free the o2_ctx data
-    o2_hash_node_finish(&o2_ctx->path_tree);
-    o2_hash_node_finish(&o2_ctx->full_path_table);
-    o2_argv_finish();
+    o2_ctx->finish();
     o2_ctx = NULL;
     // notify O2 to remove bridge: does not require o2_ctx
     o2sm_message_send(msg);

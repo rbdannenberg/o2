@@ -25,7 +25,7 @@
 #include "string.h"
 #include "assert.h"
 
-o2_message_ptr make_message(o2_time time, const char *address, int i, char *s)
+O2message_ptr make_message(O2time time, const char *address, int i, char *s)
 {
     o2_send_start();
     o2_add_int32(i);
@@ -35,7 +35,7 @@ o2_message_ptr make_message(o2_time time, const char *address, int i, char *s)
 }
 
 
-o2_message_ptr bundle2(o2_time time, o2_message_ptr m1, o2_message_ptr m2)
+O2message_ptr bundle2(O2time time, O2message_ptr m1, O2message_ptr m2)
 {
     o2_send_start();
     o2_add_message(m1);
@@ -46,29 +46,29 @@ o2_message_ptr bundle2(o2_time time, o2_message_ptr m1, o2_message_ptr m2)
 }
 
 
-void send_nested(o2_time now, o2_time touter, o2_time tinner, int base)
+void send_nested(O2time now, O2time touter, O2time tinner, int base)
 {
     char s[128];
 
     // make first message
     sprintf(s, "first string at %g", touter);
-    o2_message_ptr out1 = make_message(now + touter, "/oscsend/first",
+    O2message_ptr out1 = make_message(now + touter, "/oscsend/first",
                                        base + 1, s);
     // make first inner message
     sprintf(s, "msg1 string at %g", tinner);
-    o2_message_ptr in1 = make_message(now + tinner, "/oscsend/xyz/msg1",
+    O2message_ptr in1 = make_message(now + tinner, "/oscsend/xyz/msg1",
                                       base + 2, s);
     // make second inner message
     // use timestamp of 0, should deliver at max(touter, tinner) because
     // of containing bundle
     sprintf(s, "msg2 string at %g", tinner);
-    o2_message_ptr in2 = make_message(0.0, "/oscsend/abcdefg/msg2",
+    O2message_ptr in2 = make_message(0.0, "/oscsend/abcdefg/msg2",
                                       base + 3, s);
 
     // make inner bundle
-    o2_message_ptr inner = bundle2(now + tinner, in1, in2);
+    O2message_ptr inner = bundle2(now + tinner, in1, in2);
     // make outer bundle
-    o2_message_ptr outer = bundle2(now + touter, out1, inner);
+    O2message_ptr outer = bundle2(now + touter, out1, inner);
 
     // send it
     o2_message_send(outer);
@@ -112,7 +112,7 @@ int main(int argc, const char * argv[])
     assert(err == O2_SUCCESS);
     printf("connected to port 8100\n");
     
-    o2_time now = o2_time_get();
+    O2time now = o2_time_get();
     
     printf("Sending simple message\n");
     // note: You can send messages with o2_send() or os_send_cmd() -- the
@@ -135,12 +135,12 @@ int main(int argc, const char * argv[])
 
         // make first message
         sprintf(s, "an arbitrary string at 2.%d", i);
-        o2_message_ptr msg1 = make_message(0.0, "/oscsend/xyz/msg1", 
+        O2message_ptr msg1 = make_message(0.0, "/oscsend/xyz/msg1", 
                                            1000 + i, s);
 
         // make second message
         sprintf(s, "another arbitrary string at 2.%d", i);
-        o2_message_ptr msg2 = make_message(0.0, "/oscsend/abcdefg/msg2", 
+        O2message_ptr msg2 = make_message(0.0, "/oscsend/abcdefg/msg2", 
                                            2000 + i, s);
 
         // add the messages to the bundle
@@ -149,7 +149,7 @@ int main(int argc, const char * argv[])
         O2_FREE(msg1);
         o2_add_message(msg2);
         O2_FREE(msg2);
-        o2_message_ptr msg = o2_service_message_finish(now + 2 + i * 0.1,
+        O2message_ptr msg = o2_service_message_finish(now + 2 + i * 0.1,
                                                        "oscsend", "", true);
         printf("Sending bundle with %d \"...2.%d\" and %d \"...2.%d\"\n",
                1000 + i, i, 2000 + i, i);

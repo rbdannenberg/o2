@@ -10,7 +10,7 @@
 #include "assert.h"
 
 int message_count = 0;
-o2_time timed_start = 0;
+O2time timed_start = 0;
 int timed_count = 0;
 
 // note: this failed with 0.02 error bound. I ran it again
@@ -23,7 +23,7 @@ int approx(double x) { return (x > -0.03) && (x < 0.03); }
 
 
 void osc_i_handler(o2_msg_data_ptr data, const char *types,
-                   o2_arg_ptr *argv, int argc, const void *user_data)
+                   O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argv);
     assert(argc == 1);
@@ -41,7 +41,7 @@ void osc_i_handler(o2_msg_data_ptr data, const char *types,
         i -= 2000;
         assert(i == timed_count);
 #ifndef NDEBUG
-        o2_time now = o2_time_get(); // only needed in assert()
+        O2time now = o2_time_get(); // only needed in assert()
 #endif
         assert(approx(timed_start + i * 0.1 - now));
         timed_count++;

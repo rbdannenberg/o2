@@ -13,7 +13,7 @@ int expected = 0;  // expected encodes the expected order of invoking services
 
 
 void service_one(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     assert(argv[0]->i == 1234);
@@ -24,7 +24,7 @@ void service_one(o2_msg_data_ptr data, const char *types,
 
 
 void service_two(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     assert(argv[0]->i == 2345);
@@ -55,11 +55,11 @@ int main(int argc, const char * argv[])
     // make a bundle, starting with two messages
     o2_send_start();
     o2_add_int32(1234);
-    o2_message_ptr one = o2_message_finish(0.0, "/one/i", true);
+    O2message_ptr one = o2_message_finish(0.0, "/one/i", true);
 
     o2_send_start();
     o2_add_int32(2345);
-    o2_message_ptr two = o2_message_finish(0.0, "/two/i", true);
+    O2message_ptr two = o2_message_finish(0.0, "/two/i", true);
 
     expected = 21;
     o2_send_start();
@@ -87,7 +87,7 @@ int main(int argc, const char * argv[])
     o2_send_start();
     o2_add_message(one);
     o2_add_message(two);
-    o2_message_ptr bdl = o2_message_finish(0.0, "#one", true);
+    O2message_ptr bdl = o2_message_finish(0.0, "#one", true);
     O2_FREE(one);
     O2_FREE(two);
 

@@ -64,24 +64,24 @@ const char *strings[] = {
     "msg2 string at 3.2",
     "not a valid string"};
 
-o2_time times[] = {2.5, 2.5, 2.6, 2.6, 2.7, 2.7, 2.8, 2.8, 2.9, 2.9,
+O2time times[] = {2.5, 2.5, 2.6, 2.6, 2.7, 2.7, 2.8, 2.8, 2.9, 2.9,
                    3.0, 3.0, 3.0, 3.1, 3.2, 3.2, 999};
 
 
 int msg_count = 0;
 bool test_called = false;
-o2_time start_time = 0.0;
+O2time start_time = 0.0;
 
 
 // test if x and y are within 30ms (Note: 10ms was too tight under
 // Windows, but I'm not sure why.
-int approximate(o2_time x, o2_time y)
+int approximate(O2time x, O2time y)
 {
     return (x < y + 0.03) && (y < x + 0.03);
 }
 
 
-void meta_handler(const char *name, o2_arg_ptr *argv, int argc,
+void meta_handler(const char *name, O2arg_ptr *argv, int argc,
                   o2_msg_data_ptr msg)
 {
     if (msg_count == 0) { // assume first message is delivered at the right time
@@ -101,7 +101,7 @@ void meta_handler(const char *name, o2_arg_ptr *argv, int argc,
 }
 
 #define ARGS o2_msg_data_ptr msg, const char *types, \
-             o2_arg_ptr *argv, int argc, const void *user_data
+             O2arg_ptr *argv, int argc, const void *user_data
 void first_handler(ARGS) { meta_handler("first_handler", argv, argc, msg); }
 void msg1_handler (ARGS) { meta_handler("msg1_handler",  argv, argc, msg); }
 void msg2_handler (ARGS) { meta_handler("msg2_handler",  argv, argc, msg); }

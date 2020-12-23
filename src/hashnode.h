@@ -7,10 +7,6 @@
 #ifndef HASHNODE_H
 #define HASHNODE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define NODE_HASH 10         // tag for hash_node
 #define NODE_HANDLER 11      // tag for handler_entry
 #define NODE_SERVICES 12     // tag for services_entry
@@ -45,7 +41,7 @@ typedef struct hash_node { // "subclass" of o2_node
     o2string key; // key is "owned" by this hash_node struct
     o2_node_ptr next;
     int num_children;
-    dyn_array children; // children is a dynamic array of o2_node_ptr.
+    Vec<O2node *> children;
     // At the top level, all children are services_entry_ptrs (tag
     // NODE_SERVICES). Below that level children can have tags NODE_HASH
     // or NODE_HANDLER.
@@ -170,11 +166,6 @@ o2_node_ptr *o2_lookup(hash_node_ptr dict, o2string key);
 void o2_handler_entry_finish(handler_entry_ptr handler);
 #ifndef O2_NO_DEBUG
 void o2_handler_entry_show(handler_entry_ptr handler);
-#endif
-
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif /* HASHNODE_H */

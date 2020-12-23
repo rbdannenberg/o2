@@ -24,7 +24,7 @@ bool running = true;
 // delivered in order and shuts down when we get the last one.
 //
 void server_test(o2_msg_data_ptr msg, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 2);
     assert(strcmp(types, "iB") == 0);

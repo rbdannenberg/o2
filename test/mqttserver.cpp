@@ -43,7 +43,7 @@ bool running = true;
 // back to one of the client addresses
 //
 void server_fn(o2_msg_data_ptr msg, const char *types,
-               o2_arg_ptr *argv, int argc, const void *user_data)
+               O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     msg_count++;
@@ -55,7 +55,7 @@ void server_fn(o2_msg_data_ptr msg, const char *types,
 
 
 void server_done_fn(o2_msg_data_ptr msg, const char *types,
-                    o2_arg_ptr *argv, int argc, const void *user_data)
+                    O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("server received \"goodbye\" message.\n");
     running = false;

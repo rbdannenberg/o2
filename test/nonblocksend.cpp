@@ -28,7 +28,7 @@ bool running = true;
 
 // at the end, we get a message to /sender/done
 void sender_done(o2_msg_data_ptr msg, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 0);
     assert(strlen(types) == 0);

@@ -14,7 +14,7 @@ bool running = true;
 
 
 void stop_handler(o2_msg_data_ptr data, const char *types,
-                  o2_arg_ptr *argv, int argc, const void *user_data)
+                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("client received stop message. Bye.\n");
     running = false;
@@ -64,7 +64,7 @@ int main(int argc, const char * argv[])
     const char *pipaddr;
     const char *iipaddr;
     int tcp_port;
-    o2_err_t err = o2_get_addresses(&pipaddr, &iipaddr, &tcp_port);
+    O2err err = o2_get_addresses(&pipaddr, &iipaddr, &tcp_port);
     assert(err == O2_SUCCESS);
     printf("My address is %s:%s:%x\n", pipaddr, iipaddr, tcp_port);
     

@@ -16,11 +16,12 @@ This test:
 #include <stdlib.h>
 #include <pthread.h>
 #include "o2internal.h"
+#include "pathtree.h"
 #include "sharedmem.h"
 
 #define streql(a, b) (strcmp(a, b) == 0)
 
-bridge_inst_ptr smbridge = NULL;
+Bridge_info *smbridge = NULL;
 
 int n_addrs = 20;
 bool running = true;
@@ -73,7 +74,7 @@ int main(int argc, const char * argv[])
     o2_run(500);
     printf("** shmemserv main returned from o2_run\n");
     // wait 0.1s for thread to finish
-    o2_time now = o2_time_get();
+    O2time now = o2_time_get();
     while (o2_time_get() < now + 0.1) {
         o2_poll();
         usleep(2000); // 2ms
@@ -94,11 +95,11 @@ int main(int argc, const char * argv[])
 // back to one of the client addresses
 //
 void server_test(o2_msg_data_ptr msg, const char *types, 
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     o2_extract_start(msg);
-    o2_arg_ptr i_arg = o2_get_next(O2_INT32);
+    O2arg_ptr i_arg = o2_get_next(O2_INT32);
     assert(i_arg);
     int got_i = i_arg->i;
 
@@ -126,9 +127,9 @@ bool sift_called = false;
 
 // handles types "ist"
 void sift_han(o2_msg_data_ptr msg, const char *types,
-              o2_arg_ptr *argv, int argc, const void *user_data)
+              O2arg_ptr *argv, int argc, const void *user_data)
 {
-    o2_arg_ptr as, ai, af, at;
+    O2arg_ptr as, ai, af, at;
     o2_extract_start(msg);
     if (!(as = o2sm_get_next(O2_STRING)) || !(ai = o2sm_get_next(O2_INT32)) ||
         !(af = o2sm_get_next(O2_FLOAT)) || !(at = o2sm_get_next(O2_TIME))) {
@@ -147,7 +148,7 @@ void sift_han(o2_msg_data_ptr msg, const char *types,
 
 void *sharedmem(void *ignore)
 {
-    o2_ctx_t ctx;
+    O2_context ctx;
     o2sm_initialize(&ctx, smbridge);
 
     o2sm_service_new("sift", NULL);
@@ -169,7 +170,7 @@ void *sharedmem(void *ignore)
     }
     printf("shmemthread detected clock sync\n");
 
-    o2_time start_wait = o2sm_time_get();
+    O2time start_wait = o2sm_time_get();
     while (start_wait + 1 > o2sm_time_get() && !sift_called) {
         o2sm_poll();
         usleep(2000);

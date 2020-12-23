@@ -6,45 +6,59 @@
 
 #ifndef O2_NO_OSC
 
-#define OSC_UDP_SERVER     30 // local proc provides an OSC-over-UDP service
-#define OSC_TCP_SERVER     31 // local proc provides an OSC-over-TCP service
-#define OSC_UDP_CLIENT     32 // local forwards to OSC-over-UDP 
-#define OSC_TCP_CLIENT     33 // local forwards to OSC-over-TCP socket
-#define OSC_TCP_CONNECTION 34 // accepted connection for OSC-over-TCP service
-
-// is this an osc_info structure?
-#define ISA_OSC(o) ((((o)->tag) >= OSC_UDP_SERVER) && \
-                    (((o)->tag) <= OSC_TCP_CONNECTION))
+#define ISA_OSC(node) ((node)->tag & (O2TAG_OSC_UDP_SERVER | \
+        O2TAG_OSC_TCP_SERVER | O2TAG_OSC_UDP_CLIENT | \
+        O2TAG_OSC_TCP_CLIENT | O2TAG_OSC_TCP_CONNECTION))
 
 #ifdef O2_NO_DEBUG
-#define TO_OSC_INFO(node) ((osc_info_ptr) (node))
+#define TO_OSC_INFO(node) ((Osc_info *) (node))
 #else
-#define TO_OSC_INFO(node) (assert(ISA_OSC(((osc_info_ptr) (node)))),\
-                           ((osc_info_ptr) (node)))
+#define TO_OSC_INFO(node) (assert(ISA_OSC(((Osc_info *) (node)))),\
+                           ((Osc_info *) (node)))
 #endif
 
 // See o2osc.c for details of osc_info creation, destruction, usage.
-typedef struct osc_info {
-    int tag;
-    o2n_info_ptr net_info; // this will be NULL for OSC over UDP
-    o2string service_name; // this string is owned by this struct
-    o2n_address udp_address;
+class Osc_info : public Proxy_info {
+  public:
+    // the key is used by Osc_info as the service name
+    Net_address udp_address;
     int port; // the port could be either TCP port or UDP port, so we
         // keep a host-order copy here rather than use the port field
         // of udp_address.
-} osc_info, *osc_info_ptr;
 
+    // zero out udp_address by allocating with CALLOC:
+    Osc_info(const char *key, int port_, Fds_info *info, int tag) :
+        Proxy_info(key, tag) {
+            memset(&udp_address, 0, sizeof udp_address);
+            port = port_; fds_info = info; }
+    virtual ~Osc_info();
 
-o2_err_t o2_deliver_osc(osc_info_ptr info);
+    // OSC services are considered synchronized with the Host because
+    // they either use Host scheduling or NTP timestamps (which
+    // are unlikely to be accurate enough except when sending to
+    // localhost).
+    bool local_is_synchronized() { return true; }
+    bool schedule_before_send();
 
-o2_err_t o2_send_osc(osc_info_ptr service, services_entry_ptr services);
+    // Implement the Net_interface:
+    O2err accepted(Fds_info *conn);
+    O2err connected();
+    O2err deliver(o2n_message_ptr msg);
 
-void o2_osc_info_free(osc_info_ptr osc);
+#ifndef O2_NO_DEBUG
+    void show(int indent);
+#endif
 
-void o2_osc_info_show(osc_info_ptr oi);
+    O2status status(const char **process) {
+        if (process) {
+            *process = get_proc_name();
+        }
+        return o2_clock_is_synchronized ? O2_TO_OSC : O2_TO_OSC_NOTIME;
+    }
+    O2err msg_data_to_osc_data(o2_msg_data_ptr msg, O2time min_time);
 
-o2_err_t o2_osc_accepted(osc_info_ptr server, o2n_info_ptr conn);
+    O2err send(bool block);
+};
 
-o2_err_t o2_osc_connected(osc_info_ptr info);
 
 #endif

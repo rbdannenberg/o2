@@ -7,7 +7,6 @@
 #include "o2internal.h"
 #include "services.h" // for o2osc.h
 #include "o2osc.h" // for tags
-#include "bridge.h"
 #include "message.h"
 
 #ifndef O2_NO_DEBUG
@@ -34,7 +33,7 @@ void o2_debug_flags(const char *flags)
     if (strchr(flags, 'N')) o2n_network_enabled = false;
 }
 
-void o2_dbg_msg(const char *src, o2_message_ptr msg, o2_msg_data_ptr data,
+void o2_dbg_msg(const char *src, O2message_ptr msg, o2_msg_data_ptr data,
                 const char *extra_label, const char *extra_data)
 {
     printf("%s %s ", o2_debug_prefix, src);
@@ -49,44 +48,28 @@ void o2_dbg_msg(const char *src, o2_message_ptr msg, o2_msg_data_ptr data,
     printf("\n");
 }
 
-static const char *entry_tags[6] = { "NODE_HASH", "NODE_HANDLER",
-        "NODE_SERVICES", "NODE_OSC_REMOTE_SERVICE", "NODE_BRIDGE_SERVICE",
-        "NODE_EMPTY"
-};
-
-static const char *proc_tags[5] = { "PROC_TCP_SERVER", "PROC_NOMSGYET",
-                            "PROC_NOCLOCK", "PROC_SYNCED", "PROC_TEMP" };
-
-#ifndef O2_NO_OSC
-static const char *osc_tags[5] = { "OSC_UDP_SERVER", "OSC_TCP_SERVER",
-                                   "OSC_UDP_CLIENT", "OSC_TCP_CLIENT",
-                                   "OSC_TCP_CONNECTION" };
-#endif
-#ifndef O2_NO_BRIDGES
-static const char *bridge_tags[2]  = { "BRIDGE_NOCLOCK", "BRIDGE_SYNCED" };
-#endif
 
 const char *o2_tag_to_string(int tag)
 {
-    if (tag >= NODE_HASH && tag <= NODE_EMPTY)
-        return entry_tags[tag - NODE_HASH];
-    if (tag >= PROC_TCP_SERVER && tag <= PROC_TEMP)
-        return proc_tags[tag - PROC_TCP_SERVER];
-#ifndef O2_NO_OSC
-    if (tag >= OSC_UDP_SERVER && tag <= OSC_TCP_CONNECTION)
-        return osc_tags[tag - OSC_UDP_SERVER];
-#endif
-#ifndef O2_NO_BRIDGES
-    if (tag >= BRIDGE_NOCLOCK && tag <= BRIDGE_SYNCED)
-        return bridge_tags[tag - BRIDGE_NOCLOCK];
-#endif
-#ifndef O2_NO_MQTT
-    if (tag == STUN_CLIENT) return "STUN_CLIENT";
-    if (tag == MQTT_CLIENT) return "MQTT_CLIENT";
-    if (tag == MQTT_NOCLOCK) return "MQTT_NOCLOCK";
-    if (tag == MQTT_SYNCED) return "MQTT_SYNCED";
-#endif
-    else return o2n_tag_to_string(tag);
+    switch (tag & O2TAG_TYPE_BITS) {
+        case O2TAG_EMPTY:              return "EMPTY";
+        case O2TAG_HASH:               return "HASH";
+        case O2TAG_HANDLER:            return "HANDLER";
+        case O2TAG_SERVICES:           return "SERVICES";
+        case O2TAG_PROC_TCP_SERVER:    return "PROC_TCP_SERVER";
+        case O2TAG_PROC_NOMSGYET:      return "PROC_NOMSGYET";
+        case O2TAG_PROC:               return "PROC";
+        case O2TAG_PROC_TEMP:          return "PROC_TEMP";
+        case O2TAG_MQTT:               return "MQTT";
+        case O2TAG_OSC_UDP_SERVER:     return "OSC_UDP_SERVER";
+        case O2TAG_OSC_TCP_SERVER:     return "OSC_TCP_SERVER";
+        case O2TAG_OSC_UDP_CLIENT:     return "OSC_UDP_CLIENT";
+        case O2TAG_OSC_TCP_CLIENT:     return "OSC_TCP_CLIENT";
+        case O2TAG_OSC_TCP_CONNECTION: return "OSC_TCP_CONNECTION";
+        case O2TAG_BRIDGE:             return "BRIDGE";
+        case O2TAG_STUN:               return "STUN";
+        default:                       return Fds_info::tag_to_string(tag);
+    }
 }
 
 static const char *status_strings[] = {
@@ -99,7 +82,7 @@ static const char *status_strings[] = {
     "O2_BRIDGE",
     "O2_TO_OSC" };
 
-const char *o2_status_to_string(o2_status_t status)
+const char *o2_status_to_string(O2status status)
 {
     static char unknown[32];
     if (status >= 0 && status <= 7) {

@@ -9,41 +9,6 @@
 #ifndef O2INTERNAL_H
 #define O2INTERNAL_H
 
-/**
- *  Common head for both Windows and Unix.
- */
-#include <stdio.h>
-#include <stddef.h>
-#include <string.h>
-#include <stdarg.h>
-#include <math.h>
-#include <assert.h>
-
-// hash keys are processed in 32-bit chunks so we declare a special
-// string type. These are used in messages as well.
-typedef const char *o2string; // string padded to 4-byte boundary
-
-#include "o2.h"
-#include "debug.h"
-#include "dynarray.h"
-#include "hashnode.h"
-#include "network.h"
-#include "processes.h"
-#include "stun.h"
-#include "mqtt.h"
-#include "mqttcomm.h"
-#include "bridge.h"
-
-/*
- typedef struct {
-    o2_queue_head incoming; // messages are inserted here
-    o2_message_ptr pending;  // messages in correct order are here
-} o2_msg_queue, *o2_msg_queue_ptr;
-*/
-
-void o2_mem_finish(void); // implemented by o2mem.c, called to free
-// any memory managed by o2mem module.
-
 /* gcc doesn't know _Thread_local from C11 yet */
 #ifdef __GNUC__
 # define thread_local __thread
@@ -54,6 +19,123 @@ void o2_mem_finish(void); // implemented by o2mem.c, called to free
 #else
 # error Cannot define thread_local
 #endif
+
+/**
+ *  Common head for both Windows and Unix.
+ */
+#include <stdio.h>
+#include <stddef.h>
+#include <string.h>
+#include <stdarg.h>
+#include <math.h>
+#include <assert.h>
+
+#include "o2.h"
+
+
+#include "o2obj.h"
+#include "debug.h"
+#include "vec.h"
+
+// Now, we need o2_ctx before including processes.h, and we need some
+// classes before that:
+
+// hash keys are processed in 32-bit chunks so we declare a special
+// string type. These are used in messages as well.
+typedef const char *o2string; // string padded to 4-byte boundary
+
+#include "network.h"
+#include "o2node.h"
+
+class Proc_info;
+class Bridge_info;
+
+class O2_context {
+public:
+    // msg_types is used to hold type codes as message args are accumulated
+    Vec<char> msg_types;
+    // msg_data is used to hold data as message args are accumulated
+    Vec<char> msg_data;
+    O2arg_ptr *argv; // arg vector extracted by calls to o2_get_next()
+
+    int argc; // length of argv
+
+    // O2argv_data is used to create the argv for handlers. It is expanded as
+    // needed to handle the largest message and is reused.
+    Vec<O2arg_ptr> argv_data;
+
+    // O2arg_data holds parameters that are coerced from message data
+    // It is referenced by O2argv_data and expanded as needed.
+    Vec<char> arg_data;
+
+    Hash_node full_path_table;
+    Hash_node path_tree;
+
+    // support for o2mem:
+    char *chunk; // where to allocate bytes when freelist is empty
+    int64_t chunk_remaining; // how many bytes left in chunk
+        
+    // one and only one of the following 2 addresses should be NULL:
+    Proc_info *proc; ///< the process descriptor for this process
+
+    Bridge_info *binst; ///< the bridge descriptor for this
+                        /// shared memory process
+
+    // This is a stack of messages we are delivering implemented using
+    // the next fields to make a list. If the user receiving a message
+    // decides to exit(), we will find un-freed messages here and free
+    // them, avoiding a(n apparent) memory leak. When a message is not
+    // in a data structure (e.g. pending queue, schedule, network send
+    // queue, the message should be on this list).
+    O2message_ptr msgs; ///< the message being delivered
+
+    // warning callback for dropped messages
+    void (*warning)(const char *warn, o2_msg_data_ptr msg);
+
+    O2_context() {
+        msgs = NULL;
+        warning = &O2message_drop_warning;
+        binst = NULL;
+    }
+
+    // deallocate everything that may have been allocated and attached
+    // to o2_ctx:
+    void finish() {
+        O2_DBG(printf("before o2_hash_node_finish of path_tree:\n"); \
+               path_tree.show(2));
+        path_tree.finish();
+        full_path_table.finish();
+        argv_data.finish();
+        arg_data.finish();
+        msg_types.finish();
+        msg_data.finish();
+    }
+};
+
+/* O2 should not be called from multiple threads. One exception
+ * is the shared memory bridged processes call functions designed
+ * to run in a high-priority thread
+ * (such as an audio callback) that exchanges messages with a full O2
+ * process. There is a small problem that O2 message construction and
+ * decoding functions use some static, preallocated storage, so sharing
+ * across threads is not allowed. To avoid this, we put shared storage
+ * in an O2_context structure. One structure must be allocated per
+ * thread, and we use a thread-local variable o2_ctx to locate
+ * the context.
+ */
+extern thread_local O2_context *o2_ctx;
+
+
+#include "clock.h"
+#include "processes.h"
+#include "stun.h"
+#include "mqtt.h"
+#include "mqttcomm.h"
+#include "bridge.h"
+
+void o2_mem_finish(void); // implemented by o2mem.c, called to free
+// any memory managed by o2mem module.
+
 
 /** Note: No struct literals in MSVC. */
 #ifdef _MSC_VER
@@ -83,7 +165,7 @@ void o2_mem_finish(void); // implemented by o2mem.c, called to free
 #endif   // _MSC_VER
 
 
-#define RETURN_IF_ERROR(expr) { o2_err_t err = (expr); \
+#define RETURN_IF_ERROR(expr) { O2err err = (expr); \
             if (err != O2_SUCCESS) return err; }
 
 // define IS_BIG_ENDIAN, IS_LITTLE_ENDIAN, and swap64(i),
@@ -110,7 +192,7 @@ void o2_mem_finish(void); // implemented by o2mem.c, called to free
 #define O2_DEF_TYPE_SIZE 8
 #define O2_DEF_DATA_SIZE 8
 
-#define ROUNDUP_TO_32BIT(i) (((i) + 3) & ~3)
+#define ROUNDUP_TO_32BIT(i) ((((size_t) i) + 3) & ~3)
 
 #define streql(a, b) (strcmp(a, b) == 0)
 
@@ -126,9 +208,9 @@ void o2strcpy(char * restrict dst, const char * restrict src,
               size_t dstsize);
 #endif
 
-extern o2_time o2_local_now;
-extern o2_time o2_global_now;
-extern o2_time o2_global_offset; // o2_global_now - o2_local_now
+extern O2time o2_local_now;
+extern O2time o2_global_now;
+extern O2time o2_global_offset; // o2_global_now - o2_local_now
 extern int o2_gtsched_started;
 
 #define O2_ARGS_END O2_MARKER_A, O2_MARKER_B
@@ -150,74 +232,13 @@ void o2_notify_others(const char *service_name, int added,
                       const char *tappee, const char *properties);
 
 
-o2_err_t o2_tap_new(o2string tappee, proc_info_ptr process,
-                      const char *tapper);
+O2err o2_tap_new(o2string tappee, Proxy_info *process,
+                    const char *tapper);
 
-o2_err_t o2_tap_remove(o2string tappee, proc_info_ptr process,
-                  const char *tapper);
-
-
-typedef struct {
-    // msg_types is used to hold type codes as message args are accumulated
-    dyn_array msg_types;
-    // msg_data is used to hold data as message args are accumulated
-    dyn_array msg_data;
-    o2_arg_ptr *argv; // arg vector extracted by calls to o2_get_next()
-
-    int argc; // length of argv
-
-    // o2_argv_data is used to create the argv for handlers. It is expanded as
-    // needed to handle the largest message and is reused.
-    dyn_array argv_data;
-
-    // o2_arg_data holds parameters that are coerced from message data
-    // It is referenced by o2_argv_data and expanded as needed.
-    dyn_array arg_data;
-
-    hash_node full_path_table;
-    hash_node path_tree;
-
-    // support for o2mem:
-    char *chunk; // where to allocate bytes when freelist is empty
-    int64_t chunk_remaining; // how many bytes left in chunk
-        
-    // one and only one of the following 2 addresses should be NULL:
-    proc_info_ptr proc; ///< the process descriptor for this process
-
-    bridge_inst_ptr binst; ///< the bridge descriptor for this 
-                           /// shared memory process
-
-    // This is a stack of messages we are delivering implemented using
-    // the next fields to make a list. If the user receiving a message
-    // decides to exit(), we will find un-freed messages here and free
-    // them, avoiding a(n apparent) memory leak. When a message is not
-    // in a data structure (e.g. pending queue, schedule, network send
-    // queue, the message should be on this list).
-    o2_message_ptr msgs; ///< the message being delivered
-
-    // warning callback for dropped messages
-    void (*warning)(const char *warn, o2_msg_data_ptr msg);
-
-} o2_ctx_t, *o2_ctx_ptr;
-
-
-void o2_ctx_init(o2_ctx_ptr context);
+O2err o2_tap_remove(o2string tappee, Proxy_info *process,
+                       const char *tapper);
 
 void o2_init_phase2();
-
-
-/* O2 should not be called from multiple threads. One exception
- * is the shared memory bridged processes call functions designed
- * to run in a high-priority thread
- * (such as an audio callback) that exchanges messages with a full O2
- * process. There is a small problem that O2 message construction and
- * decoding functions use some static, preallocated storage, so sharing
- * across threads is not allowed. To avoid this, we put shared storage
- * in an o2_ctx_t structure. One structure must be allocated per
- * thread, and we use a thread-local variable o2_ctx to locate
- * the context.
- */
-extern thread_local o2_ctx_ptr o2_ctx;
 
 #endif /* O2INTERNAL_H */
 /// \endcond

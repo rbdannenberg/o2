@@ -10,7 +10,6 @@
 #include "o2sched.h"
 #include "msgsend.h"
 #include "pathtree.h"
-#include "mqtt.h"
 
 // get the reference clock - clock time is estimated as
 //   global_time_base + elapsed_time * clock_rate, where
@@ -20,17 +19,17 @@
     (global_time_base + ((t) - local_time_base) * clock_rate)
 
 
-static o2_time local_time_base;
-static o2_time global_time_base;
+static O2time local_time_base;
+static O2time global_time_base;
 static double clock_rate;
 
 bool o2_clock_is_synchronized = false; // can we read the time?
 
 static bool is_refclk; // initially false, set true by o2_clock_set()
 static int found_clock_service = false; // set when service appears
-static o2_time start_sync_time; // local time when we start syncing
+static O2time start_sync_time; // local time when we start syncing
 static int clock_sync_id = 0;
-static o2_time clock_sync_send_time;
+static O2time clock_sync_send_time;
 static o2string clock_sync_reply_to = NULL;
 static o2_time_callback time_callback = NULL;
 static void *time_callback_data = NULL;
@@ -40,10 +39,10 @@ static int clock_rate_id = 0;
 // stored at ping_reply_count % CLOCK_SYNC_HISTORY_LEN
 #define CLOCK_SYNC_HISTORY_LEN 5
 static int ping_reply_count = 0;
-static o2_time round_trip_time[CLOCK_SYNC_HISTORY_LEN];
-static o2_time ref_minus_local[CLOCK_SYNC_HISTORY_LEN];
+static O2time round_trip_time[CLOCK_SYNC_HISTORY_LEN];
+static O2time ref_minus_local[CLOCK_SYNC_HISTORY_LEN];
 
-static o2_time time_offset = 0.0; // added to time_callback()
+static O2time time_offset = 0.0; // added to time_callback()
 
 #ifdef __APPLE__
 #include "sys/time.h"
@@ -57,18 +56,17 @@ static long start_time;
 #endif
 
 static void announce_synchronized(void);
-static void clock_status_change(o2_node_ptr info, const char *name,
-                                o2_status_t status);
-static void compute_osc_time_offset(o2_time now);
+static void compute_osc_time_offset(O2time now);
 
 // call this with the local and reference time when clock sync is obtained
 //
-static void o2_clock_synchronized(o2_time local_time, o2_time ref_time)
+static void o2_clock_synchronized(O2time local_time, O2time ref_time)
 {
     if (o2_clock_is_synchronized) {
         return;
     }
     o2_clock_is_synchronized = true;
+    o2_ctx->proc->tag |= O2TAG_SYNCED;
     o2_sched_start(&o2_gtsched, ref_time);
     if (!is_refclk) {
         // do not set local_now or global_now because we could be inside
@@ -79,7 +77,7 @@ static void o2_clock_synchronized(o2_time local_time, o2_time ref_time)
         clock_rate = 1.0;
     }
     // tell all other processes that this one's status is synchronized;
-    // also gets clock_status_change() to send !_o2/si for any active
+    // also gets o2_clock_status_change() to send !_o2/si for any active
     // service that is now synchronized
     announce_synchronized();
 #ifndef O2_NO_OSC
@@ -96,7 +94,7 @@ static void o2_clock_synchronized(o2_time local_time, o2_time ref_time)
 //    the clock rate to 1.0 because we should be synchronized
 //
 static void catch_up_handler(o2_msg_data_ptr msg, const char *types,
-                      o2_arg_ptr *argv, int argc, const void *user_data)
+                      O2arg_ptr *argv, int argc, const void *user_data)
 {
     int rate_id = argv[0]->i32;
     if (rate_id != clock_rate_id) return; // this task is cancelled
@@ -114,9 +112,8 @@ static void will_catch_up_after(double delay)
         o2_add_int32(clock_rate_id))
         return;
     
-    o2_prepare_to_deliver(o2_message_finish(local_time_base + delay,
-                                            "!_o2/cs/cu", false));
-    o2_schedule(&o2_ltsched);
+    o2_schedule_msg(&o2_ltsched, o2_message_finish(local_time_base + delay,
+                                                   "!_o2/cs/cu", false));
 }
 
 
@@ -162,20 +159,20 @@ static void set_clock(double local_time, double new_ref)
 }
 
 
-o2_err_t o2_send_clocksync_proc(proc_info_ptr proc)
+O2err o2_send_clocksync_proc(Proxy_info *proc)
 {
     if (!o2_clock_is_synchronized)
         return O2_SUCCESS;
     if (o2_send_start()) return O2_FAIL;
-    assert(o2_ctx->proc->name);
-    o2_add_string(o2_ctx->proc->name);
+    assert(o2_ctx->proc->key);
+    o2_add_string(o2_ctx->proc->key);
     o2_prepare_to_deliver(o2_message_finish(0.0, "!_o2/cs/cs", O2_TCP_FLAG));
-    o2_send_remote(proc, false);
+    proc->send(false);
     return O2_SUCCESS;
 }
     
 #ifndef O2_NO_OSC
-static void compute_osc_time_offset(o2_time now)
+static void compute_osc_time_offset(O2time now)
 {
     // osc_time_offset is initialized using system clock, but you
     // can call o2_osc_time_offset() to change it, e.g. periodically
@@ -210,41 +207,32 @@ static void compute_osc_time_offset(o2_time now)
 }
 #endif
 
-// when clock becomes synchronized, we must tell all other
-// processes about it. To find all other processes, use the o2_ctx->fds_info
-// table since all but a few of the entries are connections to processes
-//
-// additionally, call clock_status_change for every synchronized remote process,
-// because we need to send !_o2/si messages for their newly synchronized
-// services
+// when clock becomes synchronized, we must tell all other interested
+// Proxies: Proc_info, Bridge_info, MQTT_info.  To find them, use the
+// o2_ctx->fds_info table since most of the entries lead us to the
+// proxy. For MQTT_info's, we have a table of MQTT_info since they
+// are not in o2_ctx->fds_info.
 //
 static void announce_synchronized()
 {
-    int i = 0;
-    o2n_info_ptr info;
-    while ((info = o2n_get_info(i++))) {
-        proc_info_ptr proc = (proc_info_ptr) info->application;
-        if (proc && IS_REMOTE_PROC(proc)) {
-            o2_send_clocksync_proc(proc);
-            // if info is synchronized, call clock_status_change()
-            if (proc->tag == PROC_SYNCED) { // remote proc is also synchronized
-                clock_status_change((o2_node_ptr) proc, proc->name, O2_REMOTE);
+    for (int i = 0; i < o2n_fds_info.size(); i++) {
+        Proxy_info *proxy = (Proxy_info *) o2n_fds_info[i]->owner;
+        if (proxy && ISA_PROXY(proxy)) {
+            if (proxy->local_is_synchronized()) {
+                o2_clock_status_change(proxy);
             }
         }
     }
 #ifndef O2_NO_MQTT
-    for (int i = 0; i < o2_mqtt_procs.length; i++) {
-        proc_info_ptr mqtt_proc = DA_GET(o2_mqtt_procs, proc_info_ptr, i);
-        o2_send_clocksync_proc(mqtt_proc);
-        // see if it is synchronized
-        if (mqtt_proc->tag == MQTT_SYNCED) {
-            clock_status_change((o2_node_ptr) mqtt_proc,
-                                mqtt_proc->name, O2_REMOTE);
+    for (int i = 0; i < o2_mqtt_procs.size(); i++) {
+        MQTT_info *mqtt_proc = o2_mqtt_procs[i];
+        if (mqtt_proc->local_is_synchronized()) {
+            o2_clock_status_change(mqtt_proc);
         }
     }
 #endif
     // name is "_o2"
-    clock_status_change((o2_node_ptr) o2_ctx->proc, NULL, O2_LOCAL);
+    o2_clock_status_change(o2_ctx->proc);
 }
 
 
@@ -266,8 +254,7 @@ static void announce_synchronized()
 //                elif the status is O2_REMOTE and
 //                     the service is offered by proc:
 //                    send !_o2/si with service_name, status, remote proc name
-static void clock_status_change(o2_node_ptr proc, const char *name,
-                                o2_status_t status)
+void o2_clock_status_change(Proxy_info *proxy)
 {
     // status can only change if the local process
     // is synchronized (note also that once synchronized, the local
@@ -277,39 +264,32 @@ static void clock_status_change(o2_node_ptr proc, const char *name,
     if (!o2_clock_is_synchronized) {
         return;
     }
+    O2status status = proxy->status(NULL);
     o2_do_not_reenter++;
-    // find all active services offered by proc and send /si message
-    enumerate enumerator;
-    o2_enumerate_begin(&enumerator, &o2_ctx->path_tree.children);
-    o2_node_ptr entry;
-    while ((entry = o2_enumerate_next(&enumerator))) {
-        services_entry_ptr services = TO_SERVICES_ENTRY(entry);
-        if (services->services.length > 0) {
-            service_provider_ptr spp =
-                    GET_SERVICE_PROVIDER(services->services, 0);
-            if (status == O2_LOCAL) { // local proc and HASH or HANDLER
-                if (spp->service->tag == NODE_HASH ||
-                    spp->service->tag == NODE_HANDLER) {
-                    O2_DBk(printf("%s clock_status_change sends /si \"%s\" "
-                                  "%s(%d) proc \"_o2\" properties \"%s\"\n",
-                                  o2_debug_prefix, services->key,
-                                  o2_status_to_string(status), status,
-                                  spp->properties ? spp->properties + 1 : ""));
-                    o2_send_cmd("!_o2/si", 0.0, "siss", services->key, status,
+    // find all active services offered by proxy and send /si message
+    Enumerate enumerator(&o2_ctx->path_tree);
+    O2node *entry;
+    while ((entry = enumerator.next())) {
+        Services_entry *services = TO_SERVICES_ENTRY(entry);
+        if (services->services.size() > 0) {
+            Service_provider *spp = &services->services[0];
+            if (status == O2_LOCAL) {
+                if (HANDLER_IS_LOCAL(spp->service)) {
+                    O2_DBk(printf("%s o2_clock_status_change sends /si \"%s\" "
+                            "O2_LOCAL(%d) proc \"_o2\" properties \"%s\"\n",
+                            o2_debug_prefix, services->key, O2_LOCAL,
+                            spp->properties ? spp->properties + 1 : ""));
+                    o2_send_cmd("!_o2/si", 0.0, "siss", services->key, O2_LOCAL,
                             "_o2", spp->properties ? spp->properties + 1 : "");
                 }
-            } else if (status == O2_REMOTE && (proc->tag == PROC_SYNCED
-#ifndef O2_NO_MQTT
-                                               || proc->tag == MQTT_SYNCED
-#endif
-                                              ) && spp->service == proc) {
-                O2_DBk(printf("%s clock_status_change sends /si \"%s\" "
-                        "%s(%d) proc \"%s\" properties \"%s\"\n",
+            } else if (status == O2_REMOTE && spp->service == proxy) {
+                O2_DBk(printf("%s o2_clock_status_change sends /si \"%s\" "
+                        "%s(%d) proxy \"%s\" properties \"%s\"\n",
                         o2_debug_prefix, services->key,
-                        o2_status_to_string(status), status, name,
+                        o2_status_to_string(status), status, proxy->key,
                         spp->properties ? spp->properties + 1 : ""));
                 o2_send_cmd("!_o2/si", 0.0, "siss", services->key, status,
-                        name, spp->properties ? spp->properties + 1 : "");
+                        proxy->key, spp->properties ? spp->properties + 1 : "");
             }
         }
     }
@@ -320,38 +300,36 @@ static void clock_status_change(o2_node_ptr proc, const char *name,
 // handle messages to /_o2/cs/cs that announce when clock sync is obtained
 //
 void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
-                            o2_arg_ptr *argv, int argc, const void *user_data)
+                            O2arg_ptr *argv, int argc, const void *user_data)
 {
     // guard against a bridged process sending !_o2/cs/cs:
-    if (ISA_BRIDGE((bridge_inst_ptr)
-                    (o2n_message_source->application))) return;
+    if (ISA_BRIDGE(o2_message_source)) return;
     o2string name = argv[0]->s;
-    services_entry_ptr services;
-    o2_node_ptr entry = o2_service_find(name, &services);
+    Services_entry *services;
+    O2node *entry = Services_entry::service_find(name, &services);
     if (entry) {
-        if (entry->tag == PROC_NOCLOCK) {
-            o2n_info_ptr info = TO_PROC_INFO(entry)->net_info;
+        if (IS_SYNCED(entry)) return;
+        else if (ISA_PROC(entry)) {
+            Fds_info *info = TO_PROC_INFO(entry)->fds_info;
             if (info->net_tag != NET_TCP_CLIENT &&
                 info->net_tag != NET_TCP_CONNECTION) {
-                printf("ERROR: unexpected net_tag %d on entry %p in "
-                       "o2_clocksynced handler\n", info->net_tag, info);
+                printf("ERROR: unexpected net_tag %x (%s) on entry %p in "
+                       "o2_clocksynced handler\n", info->net_tag,
+                       o2_tag_to_string(info->net_tag), info);
                 return;
             }
-            entry->tag = PROC_SYNCED;
-        } else if (entry->tag == PROC_SYNCED) {
-            return;
+            entry->tag |= O2TAG_SYNCED;
 #ifndef O2_NO_MQTT
-        } else if (entry->tag == MQTT_NOCLOCK) {
-            entry->tag = MQTT_SYNCED;
-        } else if (entry->tag == MQTT_SYNCED) {
-            return;
+        } else if (ISA_MQTT(entry)) {
+            entry->tag |= O2TAG_SYNCED;
 #endif
         } else {
             printf("ERROR: unexpected tag for %s in !_o2/cs/cs message\n",
                    name);
             return;
         }
-        clock_status_change(entry, name, O2_REMOTE);
+        // entry must be either Proc_info or MQTT_info, os it's a Proxy_info
+        o2_clock_status_change((Proxy_info *) entry);
         return;
     }
     O2_DBG(printf("%s ### ERROR in o2_clocksynced_handler, bad service %s\n",
@@ -364,31 +342,31 @@ static double min_rtt = 0;
 
 
 void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
-             o2_arg_ptr *argv, int argc, const void *user_data)
+             O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(msg);
-    o2_arg_ptr reply_to_arg = o2_get_next(O2_STRING);
+    O2arg_ptr reply_to_arg = o2_get_next(O2_STRING);
     if (!reply_to_arg) return;
     char *replyto = reply_to_arg->s;
-    assert(o2_ctx->proc->name);
-    o2_send(replyto, 0, "sff", o2_ctx->proc->name, mean_rtt, min_rtt);
+    assert(o2_ctx->proc->key);
+    o2_send(replyto, 0, "sff", o2_ctx->proc->key, mean_rtt, min_rtt);
 }
 
 
 // handler for cs/put, which is a reply to cs/get:
 //
 static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
-                       o2_arg_ptr *argv, int argc, const void *user_data)
+                       O2arg_ptr *argv, int argc, const void *user_data)
 {
-    o2_arg_ptr arg;
+    O2arg_ptr arg;
     o2_extract_start(msg);
     if (!(arg = o2_get_next(O2_INT32))) return;
     // if this is not a reply to the most recent message, ignore it
     if (arg->i32 != clock_sync_id) return;
     if (!(arg = o2_get_next(O2_TIME))) return;
-    o2_time ref_time = arg->t;
-    o2_time now = o2_local_time();
-    o2_time rtt = now - clock_sync_send_time;
+    O2time ref_time = arg->t;
+    O2time now = o2_local_time();
+    O2time rtt = now - clock_sync_send_time;
     // estimate current reference time by adding 1/2 round trip time:
     ref_time += rtt * 0.5;
     int i = ping_reply_count % CLOCK_SYNC_HISTORY_LEN;
@@ -436,7 +414,7 @@ static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
         // best estimate of ref_minus_local is stored at i
         //printf("*    %s: time adjust %g\n", o2_debug_prefix,
         //       now + ref_minus_local[best_i] - o2_time_get());
-        o2_time new_ref = now + ref_minus_local[best_i];
+        O2time new_ref = now + ref_minus_local[best_i];
         if (!o2_clock_is_synchronized) {
             o2_clock_synchronized(now, new_ref);
         } else {
@@ -461,7 +439,7 @@ int o2_roundtrip(double *mean, double *min)
 //   then every 0.5s for 5s, then every 10s
 //
 void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
-                          o2_arg_ptr *argv, int argc, const void *user_data)
+                          O2arg_ptr *argv, int argc, const void *user_data)
 {
     // this function gets called periodically to drive the clock sync
     // protocol, but if the process calls o2_clock_set(), then we
@@ -476,28 +454,26 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
     int status = o2_status("_cs");
     if (!found_clock_service) {
         found_clock_service = (status >= 0);
-        if (found_clock_service) {
+        if (found_clock_service) {  // first time we discover clock service:
             O2_DBc(printf("%s ** found clock service, is_refclk=%d\n",
                           o2_debug_prefix, is_refclk));
-            if (status == O2_LOCAL || status == O2_LOCAL_NOTIME) {
-                assert(is_refclk);
-            } else { // record when we started to send clock sync messages
-                start_sync_time = clock_sync_send_time;
-                o2_method_new_internal("/_o2/cs/put", "it",
-                        &cs_ping_reply_handler, NULL, false, false);
-                o2_method_new_internal("/_o2/cs/rt", "s", &o2_clockrt_handler,
-                        NULL, false, false);
-                char path[O2_MAX_PROCNAME_LEN + 16];
-                assert(o2_ctx->proc->name);
-                snprintf(path, O2_MAX_PROCNAME_LEN + 16, "!%s/cs/put",
-                         o2_ctx->proc->name);
-                clock_sync_reply_to = o2_heapify(path);
-            }
+            assert(status != O2_LOCAL && status != O2_LOCAL_NOTIME);
+            // record when we started to send clock sync messages
+            start_sync_time = clock_sync_send_time;
+            o2_method_new_internal("/_o2/cs/put", "it",
+                    &cs_ping_reply_handler, NULL, false, false);
+            o2_method_new_internal("/_o2/cs/rt", "s", &o2_clockrt_handler,
+                    NULL, false, false);
+            char path[O2_MAX_PROCNAME_LEN + 16];
+            assert(o2_ctx->proc->key);
+            snprintf(path, O2_MAX_PROCNAME_LEN + 16, "!%s/cs/put",
+                     o2_ctx->proc->key);
+            clock_sync_reply_to = o2_heapify(path);
         }
     }
     // earliest time to call this action again is clock_sync_send_time + 0.1s:
-    o2_time when = clock_sync_send_time + 0.1;
-    if (found_clock_service) { // found service, but it's non-local
+    O2time when = clock_sync_send_time + 0.1;
+    if (found_clock_service) { // found service, and it's non-local
         if (status < 0) { // we lost the clock service, resume looking for it
             found_clock_service = false;
         } else {
@@ -511,7 +487,7 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
             // run every 0.1 second until at least CLOCK_SYNC_HISTORY_LEN
             // pings have been sent to get a fast start, then ping every
             // 0.5s until 5s, then every 10s.
-            o2_time t1 = CLOCK_SYNC_HISTORY_LEN * 0.1 - 0.01;
+            O2time t1 = CLOCK_SYNC_HISTORY_LEN * 0.1 - 0.01;
             if (clock_sync_send_time - start_sync_time > t1) when += 0.4;
             if (clock_sync_send_time - start_sync_time > 5.0) when += 9.5;
             O2_DBk(printf("%s clock request sent at %g\n",
@@ -522,11 +498,10 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
     o2_clock_ping_at(when);
 }
 
-void o2_clock_ping_at(o2_time when)
+void o2_clock_ping_at(O2time when)
 {
     o2_send_start();
-    o2_prepare_to_deliver(o2_message_finish(when, "!_o2/cs/ps", false));
-    o2_schedule(&o2_ltsched);
+    o2_schedule_msg(&o2_ltsched, o2_message_finish(when, "!_o2/cs/ps", false));
 }
 
 static bool clock_initialized = false;
@@ -597,9 +572,9 @@ void o2_clock_finish()
 //   return the reference clock time. Arguments are serial_no and reply_to.
 //   send serial_no and current time to reply_to
 static void cs_ping_handler(o2_msg_data_ptr msg, const char *types,
-                     o2_arg_ptr *argv, int argc, const void *user_data)
+                     O2arg_ptr *argv, int argc, const void *user_data)
 {
-    o2_arg_ptr serial_no_arg, reply_to_arg;
+    O2arg_ptr serial_no_arg, reply_to_arg;
     o2_extract_start(msg);
     if (!(serial_no_arg = o2_get_next(O2_INT32)) ||
         !(reply_to_arg = o2_get_next(O2_STRING))) {
@@ -623,11 +598,11 @@ int o2_clock_set(o2_time_callback callback, void *data)
     // user to change the time source):
     //   new_local_time - new_time_offset == old_local_time - old_time_offset
     //   new_time_offset = new_local_time - (old_local_time - old_time_offset)
-    o2_time old_local_time = o2_local_time(); // (includes -old_time_offset)
+    O2time old_local_time = o2_local_time(); // (includes -old_time_offset)
     time_callback = callback;
     time_callback_data = data;
     time_offset = 0.0; // get the time without any offset
-    o2_time new_local_time = o2_local_time();
+    O2time new_local_time = o2_local_time();
     time_offset = new_local_time - old_local_time;
 
     // if we are already the reference, then there is nothing more to do.
@@ -638,7 +613,7 @@ int o2_clock_set(o2_time_callback callback, void *data)
     // start the scheduler, record that we are synchronized now:
     o2_clock_synchronized(new_local_time, new_local_time);
     
-    o2_service_new2("_cs\000\000");
+    Services_entry::service_new("_cs\000\000");
     o2_method_new_internal("/_cs/get", "is", &cs_ping_handler,
                            NULL, false, false);
     O2_DBG(printf("%s ** reference clock established, time is now %g\n",
@@ -649,7 +624,7 @@ int o2_clock_set(o2_time_callback callback, void *data)
 }
 
 
-o2_time o2_local_time()
+O2time o2_local_time()
 {
     if (time_callback) {
         return (*time_callback)(time_callback_data) - time_offset;
@@ -658,7 +633,7 @@ o2_time o2_local_time()
     uint64_t clock_time, nsec_time;
     clock_time = AudioGetCurrentHostTime() - start_time;
     nsec_time = AudioConvertHostTimeToNanos(clock_time);
-    return ((o2_time) (nsec_time * 1.0E-9)) - time_offset;
+    return ((O2time) (nsec_time * 1.0E-9)) - time_offset;
 #elif __linux__
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -671,14 +646,14 @@ o2_time o2_local_time()
 }
 
 
-o2_time o2_local_to_global(double lt)
+O2time o2_local_to_global(double lt)
 {
     return (is_refclk ? lt : LOCAL_TO_GLOBAL(lt));
 }
 
 
-o2_time o2_time_get()
+O2time o2_time_get()
 {
-    o2_time t = o2_local_time();
+    O2time t = o2_local_time();
     return (is_refclk ? t : LOCAL_TO_GLOBAL(t));
 }

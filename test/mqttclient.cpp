@@ -15,7 +15,7 @@ int msg_count = 0;
 bool running = true;
 
 void client_recv_reply(o2_msg_data_ptr data, const char *types,
-                       o2_arg_ptr *argv, int argc, const void *user_data)
+                       O2arg_ptr *argv, int argc, const void *user_data)
 {
     msg_count++;
     int i = argv[0]->i32;

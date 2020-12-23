@@ -15,7 +15,7 @@
 
 void o2_drop_msg_data(const char *warn, o2_msg_data_ptr data);
 
-void o2_prepare_to_deliver(o2_message_ptr msg);
+void o2_prepare_to_deliver(O2message_ptr msg);
 
 extern int o2_do_not_reenter; // counter to allow nesting
 
@@ -34,27 +34,19 @@ void o2_free_pending_msgs(void);
  * @param service is the service to which the message is addressed.
  *                If the service is unknown, pass NULL.
  */
-void o2_msg_deliver(o2_node_ptr service, services_entry_ptr services);
+void o2_msg_deliver(O2node *service, Services_entry *services);
 
-// callback from o2n (network abstraction) layer
-o2_err_t o2_message_deliver(o2n_info_ptr info);
+O2err o2_msg_send_now();
 
-void o2_call_handler(handler_entry_ptr handler, o2_msg_data_ptr msg,
+void o2_call_handler(Handler_entry *handler, o2_msg_data_ptr msg,
                      const char *types);
 
-services_entry_ptr *o2_services_find(const char *service_name);
+O2node *o2_msg_service(o2_msg_data_ptr msg, Services_entry **services);
 
-o2_node_ptr o2_msg_service(o2_msg_data_ptr msg, services_entry_ptr *services);
+// int o2_send_message(Fds_info *proc, int blocking);
 
+void o2_send_local(O2node *service, Services_entry *ss);
 
-o2_err_t o2_message_send_sched(int schedulable);
-
-// int o2_send_message(o2n_info_ptr proc, int blocking);
-
-void o2_send_local(o2_node_ptr service, services_entry_ptr ss);
-
-o2_err_t o2_send_remote(proc_info_ptr proc, int block);
-
-// void o2_queue_message(o2_message_ptr msg, o2n_info_ptr proc);
+// void o2_queue_message(O2message_ptr msg, Fds_info *proc);
 
 #endif /* o2_send_h */

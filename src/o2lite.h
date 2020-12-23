@@ -21,7 +21,7 @@ typedef float o2l_time; // could be double, but this gives 1ms accuracy
 typedef struct o2l_msg {
     int32_t length; // length of flags, timestamp, address, and the rest
     int32_t flags;
-    double timestamp; // regardless of o2l_time, this is o2_time = double
+    double timestamp; // regardless of o2l_time, this is O2time = double
     char address[4];
 } o2l_msg, *o2l_msg_ptr;
 

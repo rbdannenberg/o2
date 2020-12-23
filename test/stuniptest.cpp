@@ -7,7 +7,6 @@
 #include "stdio.h"
 #include "o2.h"
 #include "o2internal.h"
-#include "mqtt.h"
 
 int main(int argc, const char * argv[])
 {
@@ -15,7 +14,7 @@ int main(int argc, const char * argv[])
         o2_debug_flags(argv[1]);
     }
     o2_initialize("test");
-    o2_err_t err = o2_mqtt_enable(NULL, 0);
+    O2err err = o2_mqtt_enable(NULL, 0);
     if (o2n_network_found && err) {
         printf("Error from o2_mqtt_enable: %d\n", err);
         assert(!err);
@@ -23,13 +22,18 @@ int main(int argc, const char * argv[])
         printf("Unexpected return value %s (%d) when not o2n_network_found\n",
                o2_error_to_string(err), err);
     }
-    o2_initialize("test");
-    for (int i = 0; i < 1000; i++) { // run for 2 seconds
+    // test for reinitialization attempt:
+    assert(o2_initialize("test") == O2_ALREADY_RUNNING);
+    for (int i = 0; i < 5000; i++) { // run for up to 10 seconds
         o2_poll();
+        if (o2n_public_ip[0]) break;
         usleep(2000); // 2ms
+        if (i % 500 == 0) printf("- polling @ %g\n", o2_local_time());
     }
     if (o2n_public_ip[0]) {
-        printf("Public IP: %s\n", o2n_public_ip);
+        char pip_dot[O2_IP_LEN];
+        o2_hex_to_dot(o2n_public_ip, pip_dot);
+        printf("Public IP: %s (%s)\n", o2n_public_ip, pip_dot);
         printf("Full name: %s\n", o2_get_proc_name()); 
         if (o2n_network_found && !streql(o2n_public_ip, "00000000")) {
             printf("DONE\n");

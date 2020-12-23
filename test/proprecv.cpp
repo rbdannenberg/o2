@@ -78,7 +78,7 @@ const char *status_to_string(int status)
 
 
 void service_two(o2_msg_data_ptr data, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data)
+                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "i") == 0);
     sync_value = argv[0]->i;
@@ -123,7 +123,7 @@ void lookup()
 int si_msg_count = 0;
 
 void service_info_handler(o2_msg_data_ptr data, const char *types,
-                          o2_arg_ptr *argv, int argc, const void *user_data)
+                          O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
     int status = argv[1]->i32;
@@ -267,7 +267,7 @@ int main(int argc, const char * argv[])
     const char *iip;
     char procname[O2_MAX_PROCNAME_LEN];
     int port;
-    o2_err_t err = o2_get_addresses(&pip, &iip, &port);
+    O2err err = o2_get_addresses(&pip, &iip, &port);
     assert(err == O2_SUCCESS);
     sprintf(procname, "%s:%s:%x", pip, iip, port);
     printf("%s == %s?\n", o2_service_process(two), procname);

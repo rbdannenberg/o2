@@ -14,7 +14,7 @@
 
 bool running = true;
 
-o2_message_ptr make_message()
+O2message_ptr make_message()
 {
     assert(o2_send_start() == O2_SUCCESS);
     return o2_message_finish(0.0, "/This_is_from_make_message.", true);
@@ -60,7 +60,7 @@ int main(int argc, const char * argv[])
     const char *my_pip;
     const char *my_iip;
     int tcp_port;
-    o2_err_t err = o2_get_addresses(&my_pip, &my_iip, &tcp_port);
+    O2err err = o2_get_addresses(&my_pip, &my_iip, &tcp_port);
     assert(err == O2_SUCCESS);
     printf("Before stun: address is %s:%s:%x\n", my_pip, my_iip, tcp_port);
 
@@ -99,7 +99,7 @@ int main(int argc, const char * argv[])
         printf("SERVER DONE\n");
     } else {
         printf("FAIL: client service status is %d\n", o2_status("client"));
-        o2_node_show((o2_node_ptr) &o2_ctx->path_tree, 2);
+        o2_ctx->path_tree.show(2);
     }
     o2_finish();
     sleep(1); // clean up sockets

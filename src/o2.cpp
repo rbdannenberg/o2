@@ -105,76 +105,155 @@ More detail on bridges and o2lite bridges:
          |                                                  |
          +--------------------------------------------------+
 
-Each process has:
-o2_ctx->path_tree - a dictionary mapping service names to a
-    services_entry, which keeps a list of who offers the service.
-    Only the highest IP:port string (lexicographically) is valid.
-    Generally, trying to offer identical service names from 
-    multiple processes is a bad idea, and note that until the 
-    true provider with the highest IP:port string is discovered,
-    messages may be sent to a different service with the same name.
+Class and abstractions overview:
+--------------------------------
 
-    Each services_entry has an array (not a hash table) of entries 
-    of the following types:
-        hash_node: a local service. This is the root of a tree
-            of hash tables where leaves are handler_entry's.
-            If O2_NO_PATTERNS, there are no hash_nodes here; instead,
-            an o2_node with tag NODE_HASH serves to redirect the
+* Base Layer:
+
+o2base, o2obj, atomic provide common runtime functions and real-time memory
+allocate and free functions, atomic lock-free queues and classes.
+
+* Network Layer:
+
+network provides an asynchronous socket library with abstractions for sending and receiving messages. Defines o2n_message and Net_interface class
+
+* O2 Layer:
+
+Most other files implement the core of O2.
+
+O2node (an O2obj) is a node in an address path tree or hash table,
+thus it has a hash key member. Every O2node also has a tag member that
+can be used to identify the class and status. E.g. there are a
+handfull of Proc_info tags depending on the clock sync status and type
+of connection (TCP, UDP, etc.) O2node is subclassed to create:
+    Services_entry - a list of services and taps associated with a 
+        service name.
+    Handler_entry - an O2 message handler
+    Hash_node - a top-level dictionary of Services or an internal node
+        of the path tree.
+
+    Proxy_info - analagous to a Handler_entry, but this message
+        handler is only found as a service provider (it is never an
+        entry in a Hash_node) and forwards messages to a remote
+        entity. If a Proxy_info instance provides multiple services,
+        it can be pointed to by multiple Service_provider entries.
+        Since Subclasses are:
+
+        Proc_info - a remote O2 process
+        MQTT_info - a remote O2 process reached by MQTT protocol
+        OSC_info - forwards messages to an OSC server
+        Bridge_info - forwards messages through a "bridge". A subclass is:
+            O2lite_info - forwards messages using O2lite protocol
+            SM_info - forwards message to a shared memory thread
+
+        A Proxy_info inherits the interface class Net_interface, so
+        it can also be designated as the "owner" of an Fds_info, which
+        represents a socket and network connection or
+        address. Remote_info's have "fds_info" pointers to the
+        Fds_info object.  To handle network events, a Proxy_info, by
+        inheriting Net_interface, implements:
+
+        accepted() - called when a TCP server accepts a connection
+        connected() - called when an (asynchronous) connect() completes
+        deliver() - called when a full message arrives, or for "raw"
+            connections, when any bytes arrive.
+        remove() - called when a socket is closed. To allow closing to
+            be initiated by either the O2 application or network
+            errors, the deconstructor for Proxy_info, if fds_info is
+            non-NULL, sets fds_info->owner = NULL and then deletes
+            fds_info. The deconstructor for Fds_info, if non-NULL,
+            sets owner->fds_info = NULL and deletes owner. Thus,
+            deleting either a Proxy_info or an Fds_info will delete
+            the partner as well.
+
+
+
+The object initiating the closure first sets the fds_info and owner pointers to NULL so the objects are not cross-linked. Then, the other object is deleted. If the pointer to the other o
+
+* Bridge Layer
+
+The shared-memory and o2lite bridge protocols are implemented above
+the O2 layer and they are optional.
+
+
+An O2 process has a thread-local context called o2_ctx.
+
+o2_ctx->path_tree - a Hash_node mapping service names to a
+    Services_entry, which keeps a list of who offers the service and
+    what taps exist.  Only the highest IP:port string
+    (lexicographically) is valid.  Generally, trying to offer
+    identical service names from multiple processes is a bad idea, and
+    note that until the true provider with the highest IP:port string
+    is discovered, messages may be sent to a different service with
+    the same name.
+
+    Each Services_entry has an array (not a hash table) of entries 
+    of class O2node (not including the subclass Services_entry):
+        Hash_node: a local service. This is the root of a tree
+            of hash tables where leaves are Handler_entry's.
+            If O2_NO_PATTERNS, there are no Hash_nodes here; instead,
+            an empty Hash_node serves to redirect the
             search to the global hash table of full method addresses.
-        handler_entry: a local service. If there is a 
+        Handler_entry: a local service. If there is a 
             handler_entry at this level, it is the single handler
             for all messages to this local service.
-        remote_service_entry: includes index of the socket and 
-            IP:port name of the service provider
-        osc_entry: delegates to an OSC server. For the purposes of
-            finding the highest IP:port string, this is considered
+        Proc_info: includes index of the socket and 
+            pip:iip:port name of the service provider
+        MQTT_info: includes pip:iip:port name of the service provider
+        OSC_info: delegates to an OSC server. For the purposes of
+            finding the highest pip:iip:port string, this is considered
             to be a local service. A services_entry can have at 
-            most one of hash_node, handler_entry, osc_entry, but
-            any number of remote_service_entry's.
-        bridge_inst: service is remote but reached by an alternate
-            transport (not the O2 IP protocol, but could be IP)
+            most one of Hash_node, Handler_entry, Osc_entry, but
+            any number of Remote_info's.
+        Bridge_info: service is remote but reached by an alternate
+            transport (not the O2 IP protocol, but could still be IP)
 
-    The first element in the array of entries in a service_entry 
-    is the "active" service -- the one with the highest IP:port
+    The first element in the array of entries in a Services_info
+    is the "active" service -- the one with the highest pip:iip:port
     string. Other elements are not sorted, so when a service is 
     removed, a linear search to find the largest remaining offering
-    (if any) is performed.
+    (if any) is performed and the new active service is moved to the top.
 
     The o2_ctx->path_tree also maps IP addresses + ports (as strings
-    that begin with a digit and have the form 128.2.100.120:4000) 
-    to a services_entry that contains one remote_service_entry.
+    that begin with '@' and have the form @7f026472:7f026472:4000) 
+    to a Services_entry that contains one Proxy_info.
 
-o2_ctx->full_path_table is a dictionary for full paths, permitting a 
-    single hash table lookup for addresses of the form !synth/lfo/freq.
-    In practice an additional lookup of just the service name is 
-    required to determine if the service is local and if there is a 
-    single handler for all messages to that service.
+o2_ctx->full_path_table is a dictionary for full paths, permitting a
+    single hash table lookup for addresses of the form
+    !synth/lfo/freq.  In practice, an additional lookup of just the
+    service name is required to determine if the service is remote or
+    if there is a single handler for all messages to that service. If
+    not, then a second hash lookup on the entire path is used to find
+    the handler in full_path_table.
 
 Each handler object is referenced by some node in the o2_ctx->path_tree
     and by the o2_ctx->full_path_table dictionary, except for handlers
     that handle all service messages. These are only referenced by the 
     o2_ctx->path_tree.
 
-o2_ctx->fds is a dynamic array of sockets for poll
-o2_ctx->fds_info is a parallel dynamic array of pointers to o2n_info
- o2n_info includes a net_tag, and points to a proc_info or osc_info with
- a tag (see processes.h for more detail and connection life-cycles):
+o2_ctx->fds is a Vec (dynamic array) of sockets for poll
+o2_ctx->fds_info is a parallel Vec of pointers to Fds_info.
+    An Fds_info includes a net_tag (see processes.h for more detail 
+    and connection life-cycles):
+
     NET_UDP_SERVER         -- a socket for receiving UDP
     NET_TCP_SERVER         -- the local process
     NET_TCP_CLIENT         -- tcp client
-    NET_TCP_CONNECTED      -- accepted by tcp server
+    NET_TCP_CONNECTING     -- client side TCP socket during async connect
+    NET_TCP_CONNECTION     -- accepted by tcp server
+    NET_TCP_CLOSED         -- socket has been closed, about to be deleted
     NET_UDP_SERVER         -- UDP receive socket for this process
-    All process info records contain an index into o2_ctx->fds (and
+    All Proxy_info records contain an index into o2_ctx->fds (and
       o2_ctx->fds_info and the index must be updated if a socket is moved.)
-    If the net_tag is NET_TCP_* or NET_UDP_*, the application pointer 
-        is a proc_info_ptr
-    If the tag is NET_OSC_*, the application pointer is an osc_info_ptr
 
+    An Fds_info has a pointer called owner that points to a
+    Proxy_info. Incoming messages, connections, accept requests, and
+    socket close events are delegated to the owner.
 
 O2 Process Names
 ----------------
-A full process name has the form <public_ip>:<internal_ip>:<local_port_num>,
-e.g. 76.54.32.10:192.1.0.17:64541 (The port will always be one of the 16 
+A full process name has the form @<public_ip>:<internal_ip>:<local_port_num>,
+e.g. @76543210:a2010011:64541 (The port will always be one of the 16 
 "discovery" ports defined by O2.) This gives a unique name to every
 process (assuming two LANS do not share the same public IP, which is
 possible but unusual).
@@ -184,19 +263,20 @@ query. Before discovery begins, we wait for the public IP. The discovery
 protocol is started by the handler for the STUN reply message.
 
 If no STUN reply is received in 5 tries (which takes 10 seconds), we 
-assume there is no public IP connection and zero is used (0.0.0.0) as
+assume there is no public IP connection and zero is used (00000000)
 to signify no Internet connection.
 
-If there is no network at all, the internal ip is 127.0.0.1 (localhost),
-and discovery still works to connect to other processes on the same
-host.
+If there is no network at all, the internal ip is 7f000001 (127.0.0.1
+or localhost), and discovery still works to connect to other processes
+on the same host.
 
 Also note that if the local host is using VPN, the internal IP address
 detected by O2 may not actually be reachable.
 
 On startup, the public ip is not known, and the local process has no
 name (other than the alias "_o2"). When the public ip is resolved, the
-name is installed as o2_ctx->proc->name.
+name is installed as o2_ctx->proc->key.  ("key" refers to hash key. The
+key gives the "name" of processes.)
 
 Initialization
 --------------
@@ -229,11 +309,11 @@ status of other processes happens asynchronously.
 Circular Dependencies or Not
 ----------------------------
 
-To create a service, normally, we provide the proc->name for that
+To create a service, normally, we provide the proc->key for that
 service.  There can be multiple processes (called service providers in
 this context) for a service, and messages are sent to the provider
-with the highest proc->name (according to strcmp). To create the _o2
-service, we need the local proc->name, which depends on the public_ip,
+with the highest proc->key (according to strcmp). To create the _o2
+service, we need the local proc->key, which depends on the public_ip,
 which depends on running the stun protocol, which depends scheduling
 retries, which requires a handler, which needs to be installed at
 /_o2/ipq, which requires the _o2 service. Thus, we have a circularity.
@@ -247,7 +327,7 @@ We can either give the task of getting the public IP address to the O2
 layer and start this after network initialization, or we can break the
 circularity somewhere to allow the network to start using the
 scheduler before the local process's proc_info is available and
-without having a proc->name.
+without having a proc->key.
 
 Since network.c is already fairly isolated from higher levels of
 discovery and O2 messages, we avoid making network.c depend upon
@@ -287,9 +367,9 @@ problem. The application must also wait for services to be discovered,
 so some amount of asynchrony and synchronization is a given. There are
 some careful internal checks so that generally the local process is
 named by "_o2" instead of the full @public:internal:port name. In some
-places, before using the name field of a proc_info structure, we
+places, before using the key field of a proc_info structure, we
 compare the proc_info address to o2_ctx->proc (the local process's
-proc_info_ptr). If equal, we use "_o2" instead of proc->name.
+proc_info_ptr). If equal, we use "_o2" instead of proc->key.
 
 
 Sockets
@@ -556,47 +636,24 @@ Some message flows are:
 
 Non-blocking Behaviors
 ----------------------
-We assume UDP does not block but rather drops packets. 
-TCP sockets are set not to block so that send can fail
-with EWOULDBLOCK (message not sent). When that happens,
-the message is linked to the proc structure's pending_msg
-field. It is sent as soon as the socket becomes writable.
-While a message is pending, o2_can_send() will return
-O2_BLOCKED. If the user does not check o2_can_send() and
-attempts to send a message while another message is 
-already pending, then o2_send() performs a blocking
-send of the pending message, then performs a non-blocking
-send of the current message.
+We assume UDP does not block but rather drops packets.  TCP sockets
+are set not to block so that send can fail with EWOULDBLOCK (message
+not sent). When that happens, the message is linked to the proc
+structure's pending_msg field. It is sent as soon as the socket
+becomes writable.  While a message is pending, o2_can_send() will
+return O2_BLOCKED. If the user does not check o2_can_send() and
+attempts to send a message while another message is already pending,
+then o2_send() performs a blocking send of the pending message, then
+performs a non-blocking send of the current message.
 
-To facilitate sending multiple messages (discovery and
-service information for example), o2_net code allows you
-to queue up multiple messages to send. This feature is
-only available to internal O2 functions and is only used
-when a connection is created. If the user process tries
-to send a message when there are already message(s) in
-the queue, the messages are sent synchronously and the
-user blocks until all pending messages are sent (or at 
-least they are accepted by the kernel for delivery).
-
-Services and Processes
-----------------------
-A process includes a list of services (strings). Each 
-of these services is mapped by o2_ctx->path_tree to a 
-services_entry that contains a remote_service_entry,
-which has an integer index of the corresponding 
-remote process (both the socket in the fds 
-array and the process info in the fds_info array).
-
-When sockets are closed, the last socket in fds is moved
-to fill the void and fds is shortened. The corresponding
-fds_info element has to be copied as well, which means
-that remote_service_entry's now index the wrong location.
-However, each process has an array of service names, so 
-we look up each service name, find the remote_service_entry,
-and update the index to fds (and fds_info).
-
-The list of service names is also used to remove services
-when the socket connecting to the process is closed.
+To facilitate sending multiple messages (discovery and service
+information for example), o2_net code allows you to queue up multiple
+messages to send. This feature is only available to internal O2
+functions and is only used when a connection is created. If the user
+process tries to send a message when there are already message(s) in
+the queue, the messages are sent synchronously and the user blocks
+until all pending messages are sent (or at least they are accepted by
+the kernel for delivery).
 
 Taps
 ----
@@ -608,93 +665,80 @@ delivered to that process, EVEN IF the service is not the active
 one. For example, if the tap directs message copies to "s1" of process
 P1, message copies will be sent there even if a message directly to
 service "s1" would go to process P2 (because "s1" is offered by both
-P1 and P2, but the IP:port name of P2 is greater than that of P1. The
-main reason for this policy is that it allows taps to be removed when
-the process dies.  Without the process specification, it would be
-ambiguous who the tap belongs to.
+P1 and P2, but the pip:iip:port name of P2 is greater than that of
+P1. The main reason for this policy is that it allows taps to be
+removed when the process dies.  Without the process specification, it
+would be ambiguous who the tap belongs to.
 
 
 Remote Process Name: Allocation, References, Freeing
 ---------------------------------------------------- 
-Each remote process has a name, e.g. "72.100.0.50:128.2.1.100:55765"
+Each remote process has a name (key), e.g. "@ac640032:80020164:55765"
 that can be used as a service name in an O2 address, e.g.  to announce
 a new local service to that remote process.  The name is on the heap
-and is "owned" by the proc_info record associated with the NET_TCP_*
+and is "owned" by the Proc_info record associated with the NET_TCP_*
 socket for remote processes. Also, the local process has its name
-owned by context->proc.
+owned by o2_ctx->proc.
 
 The process name is *copied* and used as the key for a
-service_entry_ptr to represent the service in the o2_ctx->path_tree.
+Service_info to represent the service in the o2_ctx->path_tree.
 
 The process name is freed by o2_info_remove().
 
 
 OSC Service Name: Allocation, References, Freeing
 -------------------------------------------------
-o2_osc_port_new() creates a tcp service or incoming udp port
-for OSC messages that are redirected to an O2 service. The
-service_entry record "owns" the servier name which is on the 
-heap. This name is shared by osc.service_name in the osc_info
-record.  For UDP, there are no other references, and the
-osc.service_name is not freed when the UDP socket is removed
-(unless this is the last provider of the service, in which
-case the service_entry record and is removed and its key is
-freed). For TCP, the osc.service_name is *copied* to the 
-OSC_TCP_SERVER and copied to any OSC_TCP_CONNECTION
-that was accepted from the server socket.  These sockets 
-and their osc service name are freed when their sockets are
-deleted.
+o2_osc_port_new() creates a tcp service or incoming udp port for OSC
+messages that are redirected to an O2 service. The Services_entry key
+"owns" the service name which is on the heap. This name is *copied* to
+the osc.key in the Osc_info record.  For TCP, this name is also
+*copied* to each OSC_TCP_CONNECTION that is created when an OSC client
+connects to an OSC_TCP_SERVER.  These sockets and their osc service
+name are freed when their sockets are deleted. Notice that services
+can be removed without closing referencing OSC_info's and OSC_info's
+can be removed without removing the service they reference.
 
-NODE_HASH and NODE_HANDLER keys at top level
+On the other hand, OSC_TCP_CLIENTs and OSC_UDP_CLIENTs are similar to
+Hash_nodes and Handler_entries in that they do not need a key field --
+the service name that redirects to OSC is owned by a Services_entry
+and used to find the Osc_node. The Osc_node for clients has a NULL
+key field.
+
+O2TAG_HASH and O2TAG_HANDLER keys are NULL at top level
 ----------------------------------------------------
-If a hash_node (tag == NODE_HASH) or handler_entry
-(tag == NODE_HANDLER) exists as a service provider, i.e.
-in the services list of a services_entry record, the key 
-field is not really needed because the service lookup takes
-you to the services list, and the first element there offers
-the service. E.g. if there's a (local) handler for 
-/service1/bar, then we lookup "service1" in the o2_ctx->path_tree,
-which takes us to a services_entry, the first element on its
-services list should be a hash_node. There, we do a hash lookup
-of "bar" to get to a handler_entry. The key is set to NULL for
-hash_node and handler_entry records that represent services and
-are directly pointed to from a services list.
+If a Hash_node (tag & O2TAG_HASH) or Handler_entry (tag ==
+O2TAG_HANDLER) exists as a service provider, i.e.  in the services list
+of a Services_entry record, the key field is not really needed because
+the service lookup takes you to the services list, and the first
+element there offers the service. E.g. if there's a (local) handler
+for /service1/bar, then we lookup "service1" in the o2_ctx->path_tree,
+which takes us to a Services_entry, the first element on its services
+list should be a hash_node. There, we do a hash lookup of "bar" to get
+to a Handler_entry. The key is set to NULL for Hash_node and
+Handler_entry records that represent services and are directly pointed
+to from a services list.
 
 Bridge and O2lite: Allocation, References, Freeing
 -------------------------------------------------
-Structures can be deleted in many ways, creating a challenge
-to avoid memory leaks. Each path for deletion is considered:
+Structures can be deleted in many ways, creating a challenge to avoid
+memory leaks. Each path for deletion is considered:
 
 Service Deletion. (Specifically, the removal of a service provider
-from a services list.) Since a bridge_inst is allocated per service,
-just delete the service's bridge_inst. This done by o2_node_free,
-which calls the bridge_protocol's bridge_inst_finish method. For
-o2lite, this points to o2lite_inst_finish, which checks if this
-bridge_inst is the one that belongs to the TCP socket. (Refer to the
-diagram above, this is tricky.) Follow the bridge_inst->info pointer
-to an o2lite_inst; follow the o2lite_inst->net_info to the TCP
-socket's net_info. Follow net_info->application to a bridge_inst. If
-we come back to the same bridge_inst, then this is the one owned by
-the TCP connection. But since we are deleting a service provider, we
-will NOT come back to the same bridge_inst, and we do nothing. Let
-o2_node_free free the bridge_inst which is the servicde provider.
+from a services list.) For O2lite_info, there is one Bridge_info per
+connection which is shared across services provided by the Bridge_info
+connection, so do not delete the Bridge_info. Even if no services
+reference the Bridge_info, the connection can stay open.
 
-net_info Deletion. If a connection is lost, we must delete the
-net_info->application which is a bridge_inst. This is performed by
-net_info_free. The previous paragraph describes how, assuming an
-o2lite bridge, this calls o2lite_inst_finish, and how it determines
-this bridge_inst belongs to the net_info.  Every service provider with
-a matching bridge_protocol (proto) and info is removed. The net_info represents the connection to the remote o2lite process, so the socket is closed,
-the o2lite_inst is freed and the entry in o2lite_bridges is set to
-NULL (but not compacted: the index of each o2lite_inst in
-o2lite_bridges represent the o2lite unique ID number.)
+Fds_info Deletion. If a connection is lost, we must delete the
+owner. If owner is a Bridge_info, set owner->net_info to NULL and
+delete owner. The Bridge_info destructor is invoked but it does not
+recursively delete the Fds_info because the back-pointer is NULL.
 
-bridge Deletion. An entire bridge protocol can be deleted. To do this,
-we use o2_bridge_remove_services to remove every service offering by
+O2lite_protocol Deletion. An entire O2lite protocol can be deleted. To
+do this, we use #remove_services to remove every service offering by
 this protocol.  Then call the protocol's bridge_finish to finalize any
-structures in use by the bridge; e.g. o2lite must find and close TCP
-ports with bridge connections by using o2lite_bridges. Finally, free
-the bridge_protocol and remove it from bridges.
+structures in use by the bridge. Finally, free the bridge_protocol and
+remove it from bridges.
 
 bridges Deletion. When o2_finish is called, we need to delete all
 bridges. Delete each bridge_protocol in bridges. Then free the bridges
@@ -702,20 +746,20 @@ array.
 
 Byte Order
 ----------
-Messages are constructed and delivered in local host byte order.
-When messages are sent to another process, the bytes are swapped
-if necessary to be in network byte order. Messages arriving by
-TCP or UDP are therefore in network byte order and are converted
-to host byte order if necessary.
+Messages are constructed and delivered in local host byte order.  When
+messages are sent to another process, the bytes are swapped if
+necessary to be in network byte order. Messages arriving by TCP or UDP
+are therefore in network byte order and are converted to host byte
+order if necessary.
 
 Memory Leaks
 ------------
 Since the user can exit in the middle of message delivery, and
 possibly even in the middle of nested message delivery because of
-duplicate messages being sent to taps, we can have in-flight
-messages that are not freed even when o2_finish() frees all the
-data structures. To complete the cleanup, we keep all in-flight
-messages not in some other structure in the list o2_ctx->msgs.
+duplicate messages being sent to taps, we can have in-flight messages
+that are not freed even when o2_finish() frees all the data
+structures. To complete the cleanup, we keep all in-flight messages
+not in some other structure in the list o2_ctx->msgs.
 
 Since this is global, we often treat o2_ctx->msgs as the "active"
 message and consider it to be an implied parameter for many delivery
@@ -741,7 +785,6 @@ functions.
 #include "o2mem.h"
 #include "services.h"
 #include "o2osc.h"
-#include "bridge.h"
 #include "message.h"
 #include "msgsend.h"
 #include "o2sched.h"
@@ -755,26 +798,13 @@ functions.
 #endif
 
 const char *o2_ensemble_name = NULL;
-o2_ctx_t main_context;
 char o2_hub_addr[O2_MAX_PROCNAME_LEN];
 
 // these times are set when poll is called to avoid the need to
 //   call o2_time_get() repeatedly
-o2_time o2_local_now = 0.0;
-o2_time o2_global_now = 0.0;
-o2_time o2_global_offset = 0.0;
-
-
-void o2_ctx_init(o2_ctx_ptr context)
-{
-    o2_ctx = context;
-    o2_argv_initialize();
-    o2_node_initialize(&o2_ctx->full_path_table, NULL);
-    // Initialize the hash tables
-    o2_node_initialize(&o2_ctx->path_tree, NULL);
-    o2_ctx->msgs = NULL;
-    o2_ctx->warning = &o2_message_drop_warning;
-}
+O2time o2_local_now = 0.0;
+O2time o2_global_now = 0.0;
+O2time o2_global_offset = 0.0;
 
 
 static void o2_int_handler(int s)
@@ -786,7 +816,7 @@ static void o2_int_handler(int s)
 }
 
 
-o2_err_t o2_network_enable(bool enable)
+O2err o2_network_enable(bool enable)
 {
     if (o2_ensemble_name) {
         return O2_ALREADY_RUNNING;
@@ -796,32 +826,31 @@ o2_err_t o2_network_enable(bool enable)
 }
 
 
-o2_err_t o2_initialize(const char *ensemble_name)
+O2err o2_initialize(const char *ensemble_name)
 {
-    o2_err_t err;
+    static O2_context main_context;
+    O2err err;
+    if (o2_ensemble_name) return O2_ALREADY_RUNNING;
 
     // if the compiler does not lay out the message structure according
     // to the actual message bytes, we are in big trouble, so this is a
     // basic sanity check on the compiler (and we assume the optimizing
     // compiler will follow suit):
     assert(offsetof(o2n_message, payload) == offsetof(o2n_message, length) + 4);
-    assert(offsetof(o2_msg_data, flags) == offsetof(o2_msg_data, length) + 4);
-    assert(offsetof(o2_msg_data, timestamp) ==
-           offsetof(o2_msg_data, length) + 8);
-    assert(offsetof(o2_msg_data, address) ==
-           offsetof(o2_msg_data, length) + 16);
-    assert(offsetof(o2n_message, length) == offsetof(o2_message, data));
+    assert(offsetof(O2msg_data, flags) == offsetof(O2msg_data, length) + 4);
+    assert(offsetof(O2msg_data, timestamp) ==
+           offsetof(O2msg_data, length) + 8);
+    assert(offsetof(O2msg_data, address) ==
+           offsetof(O2msg_data, length) + 16);
+    assert(offsetof(o2n_message, length) == offsetof(O2message, data));
     
     o2_stun_query_running = false;
     
-    // this is a bit tricky: o2_mem_init depends upon o2_ctx, but
-    // o2_ctx_init() calls on O2_MALLOC. The next line is enough to
-    // allow o2_mem_init() to run, and we call o2_ctx_init() for
-    // the full initialization later:
+    // note: new O2_context would require O2MALLOC, which we don't have yet,
+    // so we use a static variable and carefully design O2_context so that
+    // it does no allocation.
     o2_ctx = &main_context;
-    // this does nothing if o2_memory() was called previously:
     o2_mem_init(NULL, 0);
-    if (o2_ensemble_name) return O2_ALREADY_RUNNING;
     if (!ensemble_name) return O2_BAD_NAME;
     if (strlen(ensemble_name) > O2_MAX_NAME_LEN) {
         return O2_BAD_NAME;
@@ -832,7 +861,6 @@ o2_err_t o2_initialize(const char *ensemble_name)
         err = O2_NO_MEMORY;
         goto cleanup;
     }
-    o2_ctx_init(&main_context);
     
     // before sockets, set up signal handler to try to clean up ports
     // in the event of a Control-C shutdown. This seems to leave ports
@@ -847,8 +875,7 @@ o2_err_t o2_initialize(const char *ensemble_name)
     atexit((void (*)(void)) &o2_finish);
 
 
-    if ((err = o2n_initialize(o2_message_deliver, o2_net_accepted,
-                              o2_net_connected, o2_net_info_remove))) {
+    if ((err = o2n_initialize())) {
         goto cleanup;
     }
     // Initialize discovery, which depends on clock and scheduler
@@ -858,9 +885,9 @@ o2_err_t o2_initialize(const char *ensemble_name)
 
     o2_clock_initialize();
     o2_sched_initialize();
-    o2_service_new2("_o2\000\000");
-    
-    if (o2n_public_ip[0]) {  // we already have a (pseudo) public ip
+    Services_entry::service_new("_o2");
+
+     if (o2n_public_ip[0]) {  // we already have a (pseudo) public ip
         assert(streql(o2n_public_ip, "00000000"));
         o2_init_phase2();    // continue with Phase 2
     } else if ((err = o2_get_public_ip())) {
@@ -889,7 +916,7 @@ void o2_init_phase2()
 }
 
 
-o2_err_t o2_get_addresses(const char **public_ip, const char **internal_ip,
+O2err o2_get_addresses(const char **public_ip, const char **internal_ip,
                           int *port)
 {
     if (!o2_ctx || !o2_ctx->proc) {
@@ -897,7 +924,7 @@ o2_err_t o2_get_addresses(const char **public_ip, const char **internal_ip,
     }
     *public_ip = (const char *) o2n_public_ip;
     *internal_ip = (const char *) o2n_internal_ip;
-    *port = o2_ctx->proc->net_info->port;
+    *port = o2_ctx->proc->fds_info->port;
     return O2_SUCCESS;
 }
 
@@ -906,15 +933,15 @@ const char *o2_get_proc_name()
 {
     if (!o2_ctx || !o2_ctx->proc)
         return NULL;
-    return o2_ctx->proc->name;
+    return o2_ctx->proc->key;
 }
 
-static void send_one_sv_msg(proc_info_ptr proc, const char *service_name,
+static void send_one_sv_msg(Proxy_info *proc, const char *service_name,
                    int added, const char *tapper, const char *properties)
 {
     o2_send_start();
-    assert(o2_ctx->proc->name);
-    o2_add_string(o2_ctx->proc->name);
+    assert(o2_ctx->proc->key);
+    o2_add_string(o2_ctx->proc->key);
     o2_add_string(service_name);
     o2_add_tf(added);
     // last field in message is either the tapper or properties
@@ -925,13 +952,13 @@ static void send_one_sv_msg(proc_info_ptr proc, const char *service_name,
         o2_add_false();
         o2_add_string(tapper);
     }
-    o2_message_ptr msg = o2_message_finish(0.0, "!_o2/sv", true);
+    O2message_ptr msg = o2_message_finish(0.0, "!_o2/sv", true);
     if (!msg) return; // must be out of memory, no error is reported
     o2_prepare_to_deliver(msg);
-    o2_send_remote(proc, false);
+    proc->send(false);
     O2_DBd(printf("%s o2_notify_others sent %s to %s (%s) "
                   "tapper %s properties %s\n",
-                  o2_debug_prefix, service_name, proc->name,
+                  o2_debug_prefix, service_name, proc->key,
                   added ? "added" : "removed", tapper, properties));
 }
 
@@ -942,7 +969,7 @@ static void send_one_sv_msg(proc_info_ptr proc, const char *service_name,
 void o2_notify_others(const char *service_name, int added,
                       const char *tapper, const char *properties)
 {
-    if (!o2_ctx->proc->name) {
+    if (!o2_ctx->proc->key) {
         return;  // no notifications until we have a name
     }
     if (!tapper) tapper = ""; // Make sure we have a strings to send.
@@ -951,65 +978,64 @@ void o2_notify_others(const char *service_name, int added,
     // processes about it. To find all other processes, use the
     // o2_ctx->fds_info table since all but a few of the
     // entries are connections to processes
-    int i = 0;
-    o2n_info_ptr info;
-    while ((info = o2n_get_info(i++))) {
-        proc_info_ptr proc = (proc_info_ptr) (info->application);
-        if (proc && IS_REMOTE_PROC(proc)) {
+    for (int i = 0; i < o2n_fds_info.size(); i++) {
+        Fds_info *info = o2n_fds_info[i];
+        Proxy_info *proc = (Proxy_info *) (info->owner);
+        if (proc && ISA_REMOTE_PROC(proc)) {
             send_one_sv_msg(proc, service_name, added, tapper, properties);
         }
     }
 #ifndef O2_NO_MQTT
-    for (i = 0; i < o2_mqtt_procs.length; i++) {
-        send_one_sv_msg(DA_GET(o2_mqtt_procs, proc_info_ptr, i),
+    for (int i = 0; i < o2_mqtt_procs.size(); i++) {
+        send_one_sv_msg(o2_mqtt_procs[i],
                         service_name, added, tapper, properties);
     }
 #endif
 }
 
 
-/* adds a tap -
+/* adds a tap - implements o2_tap()
  */
-o2_err_t o2_tap_new(o2string tappee, proc_info_ptr proc, const char *tapper)
+O2err o2_tap_new(o2string tappee, Proxy_info *proxy, const char *tapper)
 {
     O2_DBd(printf("%s o2_tap_new adding tapper %s in %s to %s\n",
-                  o2_debug_prefix, tapper, proc->name, tappee));
-    services_entry_ptr ss = o2_must_get_services(tappee);
+                  o2_debug_prefix, tapper, proxy->key, tappee));
+    Services_entry *ss = Services_entry::must_get_services(tappee);
 
     // services exists, does the tap already exist?
     // search the service's list of taps:
     int i;
-    for (i = 0; i < ss->taps.length; i++) {
-        service_tap_ptr tap = GET_TAP_PTR(ss->taps, i);
+    for (i = 0; i < ss->taps.size(); i++) {
+        Service_tap *tap = &ss->taps[i];
         if (streql(tap->tapper, tapper) &&
-            tap->proc == proc) {
+            tap->proc == proxy) {
             return O2_SERVICE_EXISTS;
         }
     }
 
     // no matching tap found, so we should create one; taps are unordered
     tapper = o2_heapify(tapper);
-    return o2_services_insert_tap(ss, tapper, proc);
+    return ss->insert_tap(tapper, proxy);
 }
 
 
 // search services list of tappee for matching tap info and remove it.
 //
-o2_err_t o2_tap_remove(o2string tappee, proc_info_ptr proc,
-                         const char *tapper)
+O2err o2_tap_remove(o2string tappee, Proxy_info *proc,
+                       const char *tapper)
 {
     O2_DBd(printf("%s o2_tap_remove tapper %s in %s tappee %s\n",
-                  o2_debug_prefix, tapper, proc->name, tappee));
+                  o2_debug_prefix, tapper, proc->key, tappee));
 
-    services_entry_ptr ss = (services_entry_ptr)
-            *o2_lookup(&o2_ctx->path_tree, tappee);
+    Services_entry *ss = (Services_entry *)
+            o2_ctx->path_tree.lookup(tappee);
     if (!ss) return O2_FAIL;
 
-    return o2_tap_remove_from(ss, proc, tapper);
+    return ss->tap_remove(proc, tapper);
 }
 
 
-o2_err_t o2_service_new(const char *service_name)
+O2err o2_service_new(const char *service_name)
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
@@ -1020,11 +1046,11 @@ o2_err_t o2_service_new(const char *service_name)
     }
     char padded_name[NAME_BUF_LEN];
     o2_string_pad(padded_name, service_name);
-    return o2_service_new2(padded_name);
+    return Services_entry::service_new(padded_name);
 }
 
 
-void o2_message_drop_warning(const char *warn, o2_msg_data_ptr msg)
+void O2message_drop_warning(const char *warn, o2_msg_data_ptr msg)
 {
     printf("Warning: %s,\n    message is ", warn);
 #ifdef O2_NO_DEBUG
@@ -1036,15 +1062,15 @@ void o2_message_drop_warning(const char *warn, o2_msg_data_ptr msg)
 }
 
 
-void o2_message_warnings(
+void O2message_warnings(
         void (*warning)(const char *warn, o2_msg_data_ptr msg))
 {
     o2_ctx->warning = warning;
 }
 
 
-o2_err_t o2_method_new(const char *path, const char *typespec,
-                       o2_method_handler h, const void *user_data,
+O2err o2_method_new(const char *path, const char *typespec,
+                       O2method_handler h, const void *user_data,
                        bool coerce, bool parse)
 {
     if (!o2_ensemble_name) {
@@ -1058,14 +1084,14 @@ o2_err_t o2_method_new(const char *path, const char *typespec,
 }
 
 
-o2_err_t o2_tap(const char *tappee, const char *tapper)
+O2err o2_tap(const char *tappee, const char *tapper)
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
     char padded_tappee[NAME_BUF_LEN];
     o2_string_pad(padded_tappee, tappee);
-    o2_err_t err = o2_tap_new(padded_tappee, o2_ctx->proc, tapper);
+    O2err err = o2_tap_new(padded_tappee, o2_ctx->proc, tapper);
     if (err == O2_SUCCESS) {
         o2_notify_others(padded_tappee, true, tapper, NULL);
     }
@@ -1073,14 +1099,14 @@ o2_err_t o2_tap(const char *tappee, const char *tapper)
 }
 
 
-o2_err_t o2_untap(const char *tappee, const char *tapper)
+O2err o2_untap(const char *tappee, const char *tapper)
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
     char padded_tappee[NAME_BUF_LEN];
     o2_string_pad(padded_tappee, tappee);
-    o2_err_t err = o2_tap_remove(padded_tappee, o2_ctx->proc, tapper);
+    O2err err = o2_tap_remove(padded_tappee, o2_ctx->proc, tapper);
     if (err == O2_SUCCESS) {
         o2_notify_others(padded_tappee, false, tapper, NULL);
     }
@@ -1091,14 +1117,14 @@ o2_err_t o2_untap(const char *tappee, const char *tapper)
 static void check_messages()
 {
     for (int i = 0; i < O2_SCHED_TABLE_LEN; i++) {
-        for (o2_message_ptr msg = o2_ltsched.table[i]; msg; msg = msg->next) {
+        for (O2message_ptr msg = o2_ltsched.table[i]; msg; msg = msg->next) {
             assert(msg->allocated >= msg->length);
         }
     }
 }
 */
 
-o2_err_t o2_poll()
+O2err o2_poll()
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
@@ -1144,41 +1170,34 @@ int o2_status(const char *service)
     }
     if (!service || !*service || strchr(service, '/') || strchr(service, '!'))
         return O2_BAD_NAME;
-    services_entry_ptr services;
-    o2_node_ptr entry = o2_service_find(service, &services);
-    return o2_status_from_proc(entry, NULL);
+    Services_entry *services;
+    O2node *entry = Services_entry::service_find(service, &services);
+    return (entry ? entry->status(NULL) : O2_UNKNOWN);
 }
 
 
-o2_err_t o2_can_send(const char *service)
+O2err o2_can_send(const char *service)
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
     if (!service || !*service || strchr(service, '/') || strchr(service, '!'))
         return O2_BAD_NAME;
-    services_entry_ptr services;
-    o2_node_ptr entry = o2_service_find(service, &services);
+    Services_entry *services;
+    O2node *entry = Services_entry::service_find(service, &services);
     if (entry) {
-        if (IS_REMOTE_PROC(entry)) {
-            o2n_info_ptr net_info = TO_PROC_INFO(entry)->net_info;
-            if (net_info) {
-                return (net_info->out_message ? O2_BLOCKED : O2_SUCCESS);
-            }
 #ifndef O2_NO_OSC
-        } else if (ISA_OSC(entry)) {
-            o2n_info_ptr net_info = TO_OSC_INFO(entry)->net_info;
-            if (net_info) {
-                return (net_info->out_message ? O2_BLOCKED : O2_SUCCESS);
-            }
-#endif
-#ifndef O2_NO_MQTT
-        } else if (IS_MQTT_PROC(entry)) {
-            return o2_mqtt_can_send();
-#endif
-        } else {
-            return O2_SUCCESS;
+        if (ISA_OSC_UDP_CLIENT(entry)) {
+            return O2_SUCCESS;  // UDP is considered non-blocking
         }
+#endif
+        if (ISA_PROXY(entry))  {  // also handles ISA_OSC_TCP_CLIENT
+            Fds_info *fds_info = TO_OSC_INFO(entry)->fds_info;
+            return (fds_info ? (fds_info->out_message ? O2_BLOCKED :
+                                                        O2_SUCCESS) :
+                    O2_FAIL);
+        }
+        return O2_SUCCESS;   // maybe this is never reached
     }
     return O2_FAIL;
 }
@@ -1234,7 +1253,7 @@ static const char *error_strings[] = {
 };
     
 
-const char *o2_error_to_string(o2_err_t i)
+const char *o2_error_to_string(O2err i)
 {
     if (i < 1 && i >= O2_NO_NETWORK) {
         sprintf(o2_error_msg, "O2 error %s", error_strings[-i]);
@@ -1246,7 +1265,7 @@ const char *o2_error_to_string(o2_err_t i)
 
 
 
-o2_err_t o2_finish()
+O2err o2_finish()
 {
     if (!o2_ensemble_name) { // see if we're running
         return O2_NOT_INITIALIZED;
@@ -1256,43 +1275,36 @@ o2_err_t o2_finish()
 #ifndef O2_NO_BRIDGES
     o2_bridges_finish();
 #endif
+    // before closing sockets, one special case is the main udp server
+    // socket AND the tcp server sockets point to o2_ctx->proc, and both
+    // will try to delete o2_ctx->proc. There's no reference counting, so
+    // remove one reference before proceeding:
+    o2_discovery_udp_server->owner = NULL;
 
     // Close all the sockets.
     if (o2_ctx) {
-        int i = 0;
-        o2n_info_ptr info;
-        while ((info = o2n_get_info(i))) {
-            proc_info_ptr proc = (proc_info_ptr) (info->application);
-            O2_DBo(if (proc) \
+        for (int i = 0; i < o2n_fds_info.size(); i++) {
+            Fds_info *info = o2n_fds_info[i];
+            Proxy_info *proxy = (Proxy_info *) (info->owner);
+            O2_DBo(if (proxy) \
                        printf("%s o2_finish calls o2n_close_socket at "     \
-                              "index %d tag %d %s net_tag %d %s port %d\n", \
-                              o2_debug_prefix, i, proc->tag,                \
-                              o2_tag_to_string(proc->tag), info->net_tag,   \
-                              o2n_tag_to_string(info->net_tag), info->port);\
+                              "index %d tag %d %s net_tag %x (%s) port %d\n", \
+                              o2_debug_prefix, i, proxy->tag,                \
+                              o2_tag_to_string(proxy->tag), info->net_tag,   \
+                              Fds_info::tag_to_string(info->net_tag), \
+                              info->port);\
                    else \
                        printf("%s o2_finish calls o2n_close_socket at index " \
-                              "%d net_tag %d %s port %d no application\n",  \
+                              "%d net_tag %x (%s) port %d no application\n",  \
                               o2_debug_prefix, i, info->net_tag,            \
-                              o2n_tag_to_string(info->net_tag), info->port));
-            o2n_close_socket(info);
-            i++;
+                              Fds_info::tag_to_string(info->net_tag), \
+                              info->port));
+            info->close_socket();
         }
         o2n_free_deleted_sockets(); // deletes process_info structs
         // now that there are no more sockets, we can free local process,
         // which multiple sockets had a reference to
-        o2_proc_info_free(o2_ctx->proc);
         o2_ctx->proc = NULL;
-
-        O2_DBG(printf("before o2_hash_node_finish of path_tree:\n");\
-               o2_node_show((o2_node_ptr) (&o2_ctx->path_tree), 2);)
-
-        o2_hash_node_finish(&o2_ctx->path_tree);
-
-        // printf("after o2_hash_node_finish of path_tree:\n");
-        // o2_node_show((o2_node_ptr) (&o2_ctx->path_tree), 2);
-
-        o2_hash_node_finish(&o2_ctx->full_path_table);
-        o2_argv_finish();
     }
     o2n_finish();
 
@@ -1305,8 +1317,9 @@ o2_err_t o2_finish()
 
     O2_FREE((void *) o2_ensemble_name);
     o2_ensemble_name = NULL;
-    o2_mem_finish();
     // we assume that o2_ctx is statically allocated, not on heap
+    o2_ctx->finish();
+    o2_mem_finish();  // free memory heap before removing o2_ctx
     o2_ctx = NULL;
     return O2_SUCCESS;
 }

@@ -22,7 +22,7 @@
 // the worst case based on the total message length. The worst case
 // number of arguments is message length / 4 assuming parameters
 // take at least 4 bytes. Thus, the size for argv must be:
-//   (length/4) * sizeof(o2_arg_ptr)
+//   (length/4) * sizeof(O2arg_ptr)
 // However, vectors could have zero length yet have an arg
 // vector element. This could be represented in the message as
 // "[]..." so we should allocate 4 times the message length for
@@ -59,8 +59,6 @@
 #include "message.h"
 #include "msgsend.h"
 #include "o2osc.h"
-#include "bridge.h"
-#include "mqttcomm.h"
 
 
 // --------- PART 1 : SCRATCH AREAS FOR MESSAGE CONSTRUCTION --------
@@ -81,33 +79,12 @@
 // dispatch the message.
 
 
-// make sure enough memory is allocated to add an element to msg_data
-//
-void o2_message_check_length(int needed)
-{
-    while (o2_ctx->msg_data.length + needed > o2_ctx->msg_data.allocated) {
-        o2_da_expand(&o2_ctx->msg_data, sizeof(char));
-    }
-}
-
-
-static void add_type(o2_type type_code)
-{
-    DA_APPEND(o2_ctx->msg_types, char, type_code);
-}
-
-
-#define ADD_DATA(data_type, code, data)                  \
-    o2_message_check_length(sizeof(data_type));             \
-    *((data_type *) (o2_ctx->msg_data.array +            \
-                     o2_ctx->msg_data.length)) = (data); \
-    o2_ctx->msg_data.length += sizeof(data_type);        \
-    DA_APPEND(o2_ctx->msg_types, char, code);
+#define add_type(type_code) o2_ctx->msg_types.push_back(type_code);
 
 
 // -------- PART 2 : SCRATCH AREA FOR MESSAGE EXTRACTION
 // Messages are unpacked into an argv of pointer to union type
-// o2_arg_ptr, to allow access according to type codes. There 
+// O2arg_ptr, to allow access according to type codes. There 
 // is also storage pointed to by the argv pointers. When types
 // are converted, we often need to copy from the message into
 // this storage, but if possible we avoid copies by pointing
@@ -119,41 +96,24 @@ static void add_type(o2_type type_code)
 // and the length of the message data, and we expand the 
 // dynamic arrays to accommodate the worst case scenario.
 
-// make sure enough memory is allocated and initialize argv and argc
-//
+// When we build argv, it contains pointers that would be invalid if
+// we reallocated the dynamic vector, so here we pre-allocate as much
+// space as we could possibly need. 
 static void need_argv(int argv_needed, int arg_needed)
 {
-    while (o2_ctx->argv_data.allocated < argv_needed) {
-        o2_da_expand(&o2_ctx->argv_data, 1);
+    int size = o2_ctx->argv_data.size();
+    if (size < argv_needed) {
+        o2_ctx->argv_data.append_space(argv_needed - size);
     }
-    while (o2_ctx->arg_data.allocated < arg_needed) {
-        o2_da_expand(&o2_ctx->arg_data, 1);
+    size = o2_ctx->arg_data.size();
+    if (size < arg_needed) {
+        o2_ctx->arg_data.append_space(arg_needed - size);
     }
-    o2_ctx->argv_data.length = 0; // initialize arrays to empty
-    o2_ctx->arg_data.length = 0;
-    o2_ctx->argv = (o2_arg_ptr *) (o2_ctx->argv_data.array);
-    o2_ctx->argc = 0;
+    o2_ctx->argv_data.clear();
+    o2_ctx->arg_data.clear();
 }
 
 
-// call this once when o2 is initialized
-void o2_argv_initialize()
-{
-    DA_INIT(o2_ctx->argv_data, o2_arg_ptr, 16);
-    DA_INIT(o2_ctx->arg_data, char, 96);
-    DA_INIT(o2_ctx->msg_types, char, 16);
-    DA_INIT(o2_ctx->msg_data, char, 96);
-}
-
-
-// call this when o2 is finalized
-void o2_argv_finish()
-{
-    DA_FINISH(o2_ctx->argv_data);
-    DA_FINISH(o2_ctx->arg_data);
-    DA_FINISH(o2_ctx->msg_types);
-    DA_FINISH(o2_ctx->msg_data);
-}
 
 
 // update o2_ctx->arg_data to indicate the something has been appended
@@ -165,7 +125,7 @@ void o2_argv_finish()
     ARG_DATA_USED(data_type);
 
 #define ARG_NEXT \
-        ((o2_arg_ptr) (o2_ctx->arg_data.array + o2_ctx->arg_data.length))
+        ((O2arg_ptr) (o2_ctx->arg_data.array + o2_ctx->arg_data.length))
 
 
 /// end of message must be zero to prevent strlen from running off the
@@ -180,15 +140,21 @@ static bool is_bundle = false;
 static bool is_normal = false;
 #endif
 
+static const char zeros[4] = {0, 0, 0, 0};
+#define ADD_PADDING(data) { int size = (data).size(); \
+    int pad_len = ROUNDUP_TO_32BIT(size) - size; \
+    (data).append(zeros, pad_len); }
+
+
 int o2_send_start()
 {
-    o2_ctx->msg_types.length = 0;
-    o2_ctx->msg_data.length = 0;
+    o2_ctx->msg_types.clear();
+    o2_ctx->msg_data.clear();
 #ifndef O2_NO_BUNDLES
     is_bundle = false;
     is_normal = false;
 #endif
-    add_type((o2_type) ',');
+    add_type((O2type) ',');
     return O2_SUCCESS;
 }
 
@@ -198,7 +164,8 @@ int o2_add_float(float f)
     if (is_bundle) return O2_FAIL;
     is_normal = true;
 #endif
-    ADD_DATA(float, 'f', f);
+    o2_ctx->msg_data.append((char *) &f, sizeof(float));
+    add_type('f');
     return O2_SUCCESS;
 }
 
@@ -209,46 +176,48 @@ int o2_add_int64(int64_t i)
     if (is_bundle) return O2_FAIL;
     is_normal = true;
 #endif
-    ADD_DATA(int64_t, 'h', i);
+    o2_ctx->msg_data.append((char *) &i, sizeof(int64_t));
+    add_type('h');
     return O2_SUCCESS;
 }
 
 
-int o2_add_int32_or_char(o2_type code, int32_t i)
+int o2_add_int32_or_char(O2type code, int32_t i)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
     is_normal = true;
 #endif
-    ADD_DATA(int32_t, code, i);
+    o2_ctx->msg_data.append((char *) &i, sizeof(int32_t));
+    add_type(code);
     return O2_SUCCESS;
 }
 
 
-int o2_add_double_or_time(o2_type code, double d)
+int o2_add_double_or_time(O2type code, double d)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
     is_normal = true;
 #endif
-    ADD_DATA(double, code, d);
+    o2_ctx->msg_data.append((char *) &d, sizeof(double));
+    o2_ctx->msg_types.push_back(code);
     return O2_SUCCESS;
 }
 
 
-int o2_add_only_typecode(o2_type code)
+int o2_add_only_typecode(O2type code)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
     is_normal = true;
 #endif
-    o2_message_check_length(0);
-    DA_APPEND(o2_ctx->msg_types, char, code);
+    o2_ctx->msg_types.push_back(code);
     return O2_SUCCESS;
 }
 
 
-int o2_add_string_or_symbol(o2_type code, const char *s)
+int o2_add_string_or_symbol(O2type code, const char *s)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
@@ -259,14 +228,9 @@ int o2_add_string_or_symbol(o2_type code, const char *s)
     // but then the string would be arbitrarily truncated. The
     // message could then still be huge, so I'm not sure what would happen.
     int s_len = (int) strlen(s);
-    o2_message_check_length(s_len + 4); // add 4 in case of padding
-    char *dst = o2_ctx->msg_data.array + o2_ctx->msg_data.length;
-    char *last = dst + s_len;
-    size_t ilast = (((size_t) last + 4)) & ~3;
-    *((int32_t *) (PTR(ilast) - 4)) = 0;
-    memcpy(dst, s, s_len);
-    o2_ctx->msg_data.length += (s_len + 4) & ~3;
-    DA_APPEND(o2_ctx->msg_types, char, code);
+    o2_ctx->msg_data.append(s, s_len + 1);
+    ADD_PADDING(o2_ctx->msg_data);
+    o2_ctx->msg_types.push_back(code);
     return O2_SUCCESS;
 }    
 
@@ -277,21 +241,14 @@ int o2_add_blob_data(uint32_t size, void *data)
     if (is_bundle) return O2_FAIL;
     is_normal = true;
 #endif
-    o2_message_check_length(size + 8); // add 8 for length and padding
     o2_add_int32_or_char(O2_BLOB, size);
-    char *dst = o2_ctx->msg_data.array + o2_ctx->msg_data.length;
-    char *last = dst + size;
-    size_t ilast = (((size_t) last + 3)) & ~3;
-    if (size > 0) {
-        *((int32_t *) (PTR(ilast) - 4)) = 0;
-    }
-    memcpy(dst, data, size);
-    o2_ctx->msg_data.length += (size + 3) & ~3;
+    o2_ctx->msg_data.append((const char *) data, size);
+    ADD_PADDING(o2_ctx->msg_data);
     return O2_SUCCESS;
 }
 
 
-int o2_add_blob(o2_blob *b)
+int o2_add_blob(O2blob *b)
 {
     return o2_add_blob_data(b->size, b->data);
 }
@@ -303,7 +260,7 @@ int o2_add_midi(uint32_t m)
 }
 
 
-int o2_add_vector(o2_type element_type, int32_t length, void *data)
+int o2_add_vector(O2type element_type, int32_t length, void *data)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
@@ -316,18 +273,15 @@ int o2_add_vector(o2_type element_type, int32_t length, void *data)
                sizeof(double) : sizeof(int32_t);
     length *= size; // length is now the vector length in bytes
     // the message contains the number of bytes in the vector data
-    o2_message_check_length(sizeof(int32_t) + length);
     o2_add_int32_or_char(O2_VECTOR, length);
     add_type(element_type);
-    char *dst = o2_ctx->msg_data.array + o2_ctx->msg_data.length;
-    memcpy(dst, data, length);
-    o2_ctx->msg_data.length += length;
+    o2_ctx->msg_data.append((const char *) data, length);
     return O2_SUCCESS;
 }
 
 
 // add a message to a bundle
-int o2_add_message(o2_message_ptr msg)
+int o2_add_message(O2message_ptr msg)
 {
 #ifndef O2_NO_BUNDLES
     if (is_normal) return O2_FAIL;
@@ -340,7 +294,7 @@ int o2_add_message(o2_message_ptr msg)
 }
 
 
-o2_message_ptr o2_message_finish(o2_time time, const char *address,
+O2message_ptr o2_message_finish(O2time time, const char *address,
                                  int tcp_flag)
 {
     return o2_service_message_finish(time, NULL, address,
@@ -352,15 +306,15 @@ o2_message_ptr o2_message_finish(o2_time time, const char *address,
 // finish building message, sending to service with address appended.
 // to create a bundle, o2_service_message_finish(time, service, "", flags)
 //
-o2_message_ptr o2_service_message_finish(
-        o2_time time, const char *service, const char *address, int flags)
+O2message_ptr o2_service_message_finish(
+        O2time time, const char *service, const char *address, int flags)
 {
     int addr_len = (int) strlen(address);
     // if service is provided, we'll prepend '/', so add 1 to string length
     int service_len = (service ? (int) strlen(service) + 1 : 0);
     // total service + address length with zero padding
     int addr_size = ROUNDUP_TO_32BIT(service_len + addr_len + 1);
-    int types_len = o2_ctx->msg_types.length;
+    int types_len = o2_ctx->msg_types.size();
 #ifdef O2_NO_BUNDLES
     int types_size = ROUNDUP_TO_32BIT(types_len + 1);
     int prefix = '/';
@@ -368,10 +322,10 @@ o2_message_ptr o2_service_message_finish(
     int types_size = (is_bundle ? 0 : ROUNDUP_TO_32BIT(types_len + 1));
     int prefix = (is_bundle ? '#' : '/');
 #endif
-    o2_message_ptr msg = NULL;
-    int msg_size = offsetof(o2_msg_data, address) - sizeof(msg->data.length) +
-                   addr_size + types_size + o2_ctx->msg_data.length;
-     msg = o2_message_new(msg_size); // sets length for us
+    O2message_ptr msg = NULL;
+    int msg_size = offsetof(O2msg_data, address) - sizeof(msg->data.length) +
+                   addr_size + types_size + o2_ctx->msg_data.size();
+     msg = O2message_new(msg_size); // sets length for us
     if (!msg) return NULL;
 
     msg->next = NULL;
@@ -397,9 +351,9 @@ o2_message_ptr o2_service_message_finish(
         dst = PTR(end);
         end = (int32_t *) (dst + types_size);
         end[-1] = 0; // fill last 32-bit word with zeros
-        memcpy(dst, o2_ctx->msg_types.array, types_len);
+        memcpy(dst, &o2_ctx->msg_types[0], types_len);
     }
-    memcpy(end, o2_ctx->msg_data.array, o2_ctx->msg_data.length);
+    memcpy(end, &o2_ctx->msg_data[0], o2_ctx->msg_data.size());
     o2_mem_check(msg);
     return msg;
 }
@@ -409,14 +363,11 @@ o2_message_ptr o2_service_message_finish(
 #ifndef O2_NO_BUNDLES
 int o2_add_bundle_head(int64_t time)
 {
-    o2_message_check_length(16);
-    dyn_array_ptr mdata = &o2_ctx->msg_data;
-    memcpy(mdata->array + mdata->length, "#bundle", 8);
-#if IS_LITTLE_ENDIAN
-    time = swap64(time);
-#endif
-    *((int64_t *) (mdata->array + mdata->length + 8)) = time;
-    mdata->length += 16;
+    o2_ctx->msg_data.append("#bundle", 8);
+    #if IS_LITTLE_ENDIAN
+        time = swap64(time);
+    #endif
+    o2_ctx->msg_data.append((char *) & time, sizeof(double));
     return O2_SUCCESS;
 }
 #endif
@@ -424,18 +375,14 @@ int o2_add_bundle_head(int64_t time)
 // append space for a length pointer and return it's address
 int *o2_msg_len_ptr()
 {
-    o2_message_check_length(sizeof(int32_t));
-    dyn_array_ptr mdata = &o2_ctx->msg_data;
-    mdata->length += sizeof(int32_t);
-    return (int *) (mdata->array + mdata->length - sizeof(int32_t));
+    return (int *) o2_ctx->msg_data.append_space(sizeof(int32_t));
 }
 
 // set the previously allocated length to the length of everything
 // after it, using network byte order for length
 int o2_set_msg_length(int32_t *msg_len_ptr)
 {
-    dyn_array_ptr mdata = &o2_ctx->msg_data;
-    int32_t len = (int32_t) ((mdata->array + mdata->length) -
+    int32_t len = (int32_t) (o2_ctx->msg_data.append_space(0) -
                              PTR(msg_len_ptr + 1));
 #if IS_LITTLE_ENDIAN
     len = swap32(len);
@@ -447,18 +394,17 @@ int o2_set_msg_length(int32_t *msg_len_ptr)
 
 int o2_add_raw_bytes(int32_t len, char *bytes)
 {
-    o2_message_check_length(len);
-    memcpy(o2_ctx->msg_data.array + o2_ctx->msg_data.length, bytes, len);
+    o2_ctx->msg_data.append(bytes, len);
     // if not a multiple of 4 bytes, we round up length to word boundary
-    o2_ctx->msg_data.length += (len + 3) & ~3;
+    ADD_PADDING(o2_ctx->msg_data);
     return O2_SUCCESS;
 }
 
 
 char *o2_msg_data_get(int32_t *len_ptr)
 {
-    *len_ptr = o2_ctx->msg_data.length;
-    return PTR(o2_ctx->msg_data.array);
+    *len_ptr = o2_ctx->msg_data.size();
+    return PTR(&o2_ctx->msg_data[0]);
 }
 
 
@@ -479,7 +425,7 @@ char *o2_msg_data_get(int32_t *len_ptr)
 // the worst case based on the total message length. The worst case
 // number of arguments is message length / 4 assuming parameters
 // take at least 4 bytes. Thus, the size for argv must be:
-//   (length/4) * sizeof(o2_arg_ptr)
+//   (length/4) * sizeof(O2arg_ptr)
 // However, vectors could have zero length yet have an arg
 // vector element. This could be represented in the message as
 // "[]..." so we should allocate 4 times the message length for
@@ -512,14 +458,14 @@ char *o2_msg_data_get(int32_t *len_ptr)
 // allocation and bookkeeping.
 
 // State and macros for extracting data. A vector is requested by
-// passing 'v' to o2_get_next(), an o2_arg_ptr with the vector
+// passing 'v' to o2_get_next(), an O2arg_ptr with the vector
 // length is returned. Then pass an element type code, one of "ihfd"
-// to o2_get_next(). The same o2_arg_ptr will be returned, but this
+// to o2_get_next(). The same O2arg_ptr will be returned, but this
 // time the pointer will be valid (if the length is non-zero).
 //
 // For arrays, pass in '[', which returns o2_got_start_array if an
 // array can be returned. Then pass in type codes for each element
-// and an o2_arg_ptr for that element will be returned. Finally,
+// and an O2arg_ptr for that element will be returned. Finally,
 // pass in ']' and o2_get_end_array will be returned if you are at
 // the end of an array or vector (otherwise NULL is returned to
 // indicate error, as usual).
@@ -567,10 +513,10 @@ MX_TYPE(rd_int64, int64_t)
 
 // ------- PART 5 : GENERAL MESSAGE FUNCTIONS -------
 
-void o2_message_list_free(o2_message_ptr msg)
+void O2message_list_free(O2message_ptr msg)
 {
     while (msg) {
-        o2_message_ptr next = msg->next;
+        O2message_ptr next = msg->next;
         O2_FREE(msg);
         msg = next;
     }
@@ -579,7 +525,7 @@ void o2_message_list_free(o2_message_ptr msg)
 
 // o2_blob_new - allocate a blob
 //
-o2_blob_ptr o2_blob_new(uint32_t size)
+O2blob_ptr o2_blob_new(uint32_t size)
 {
     // allocate space for length and extend to word boundary:
     int64_t needed = ROUNDUP_TO_32BIT(sizeof(uint32_t) + size);
@@ -587,7 +533,7 @@ o2_blob_ptr o2_blob_new(uint32_t size)
         return NULL; // but leave a little extra room
     }
     // int64_t could be bigger than size_t. Avoid compiler warning by coercing:
-    o2_blob_ptr blob = (o2_blob_ptr) O2_MALLOC((size_t) needed);
+    O2blob_ptr blob = (O2blob_ptr) O2_MALLOC((size_t) needed);
     blob->size = (int) needed;
     return blob;
 }
@@ -699,12 +645,12 @@ ssize_t o2_validate_bundle(void *data, ssize_t size)
     if (end > end_of_msg) return O2_INVALID_MSG;
 
 /* convert endianness of a message */
-o2_err_t o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
+O2err o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
 {
     msg->flags = swap32(msg->flags);
     int64_t i64_time = *(int64_t *) &msg->timestamp;
     i64_time = swap64(i64_time);
-    msg->timestamp = *(o2_time *) &i64_time;
+    msg->timestamp = *(O2time *) &i64_time;
     
 #ifndef O2_NO_BUNDLES
     if (IS_BUNDLE(msg)) {
@@ -791,7 +737,7 @@ o2_err_t o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
                 if (end > end_of_msg) return O2_INVALID_MSG;
                 // swap each vector element
                 len /= 4; // assuming 32-bit elements
-                o2_type vtype = (o2_type) (*types++);
+                O2type vtype = (O2type) (*types++);
                 if (vtype == O2_DOUBLE || vtype == O2_INT64) {
                     len /= 2; // half as many elements if they are 64-bits
                 }
@@ -820,7 +766,7 @@ o2_err_t o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
 }
 
 
-o2_err_t o2_message_build(o2_message_ptr *msg, o2_time timestamp,
+O2err O2message_build(O2message_ptr *msg, O2time timestamp,
                           const char *service_name, const char *path,
                           const char *typestring, int tcp_flag, va_list ap)
 {
@@ -847,7 +793,7 @@ o2_err_t o2_message_build(o2_message_ptr *msg, o2_time timestamp,
 #ifndef USE_ANSI_C
                 if (string == (char *) O2_MARKER_A) {
                     fprintf(stderr,
-                            "O2 error: o2_send or o2_message_add called with "
+                            "O2 error: o2_send or O2message_add called with "
                             "invalid string pointer, probably arg mismatch.\n");
                 }
 #endif
@@ -855,8 +801,8 @@ o2_err_t o2_message_build(o2_message_ptr *msg, o2_time timestamp,
             }
                 
             case O2_BLOB:
-                // argument should be a pointer to an o2_blob!
-                o2_add_blob(va_arg(ap, o2_blob_ptr));
+                // argument should be a pointer to an O2blob!
+                o2_add_blob(va_arg(ap, O2blob_ptr));
                 break;
                 
             case O2_INT64:
@@ -887,7 +833,7 @@ o2_err_t o2_message_build(o2_message_ptr *msg, o2_time timestamp,
             case O2_FALSE:
             case O2_NIL:
             case O2_INFINITUM:
-                add_type((o2_type) typestring[-1]);
+                add_type((O2type) typestring[-1]);
                 break;
                 
                 // fall through to unknown type
@@ -926,12 +872,11 @@ o2_err_t o2_message_build(o2_message_ptr *msg, o2_time timestamp,
 }
 
 
-o2_err_t o2_send_finish(o2_time time, const char *address, int tcp_flag)
+O2err o2_send_finish(O2time time, const char *address, int tcp_flag)
 {
-    o2_message_ptr msg = o2_message_finish(time, address, tcp_flag);
+    O2message_ptr msg = o2_message_finish(time, address, tcp_flag);
     if (!msg) return O2_FAIL;
-    o2_prepare_to_deliver(msg);
-    return o2_message_send_sched(true);
+    return o2_message_send(msg);
 }
 
 
@@ -975,32 +920,40 @@ int o2_extract_start(o2_msg_data_ptr msg)
 }
 
 
-static o2_arg_ptr convert_int(o2_type to_type, int64_t i, int siz)
+static O2arg_ptr convert_int(O2type to_type, int64_t i)
 {
-    o2_arg_ptr rslt = ARG_NEXT;
+    O2arg_ptr rslt = (O2arg_ptr) o2_ctx->arg_data.append_space(0);
     switch (to_type) {
-        case O2_INT32:
+        case O2_INT32: {
             // coerce to int to avoid compiler warning; O2 can in fact lose
             // data coercing from type O2_INT64 to O2_INT32
-            ARG_DATA(rslt, int32_t, (int32_t) i);
+            int32_t i32 = i;
+            o2_ctx->arg_data.append((char *) &i32, sizeof(int32_t));
             break;
+        }
         case O2_INT64:
-            ARG_DATA(rslt, int64_t, i);
+            o2_ctx->arg_data.append((char *) &i, sizeof(int64_t));
             break;
-        case O2_FLOAT:
+        case O2_FLOAT: {
             // coerce to float to avoid compiler warning; O2 can in fact lose
             // data coercing from type O2_INT64 to O2_FLOAT
-            ARG_DATA(rslt, float, (float) i);
+            float f = i;
+            o2_ctx->arg_data.append((char *) &f, sizeof(float));
             break;
+        }
         case O2_DOUBLE:
-        case O2_TIME:
+        case O2_TIME: {
             // coerce to double to avoid compiler warning; O2 can in fact lose
             // data coercing from type O2_INT64 to O2_DOUBLE:
-            ARG_DATA(rslt, double, (double) i);
+            double d = i;
+            o2_ctx->arg_data.append((char *) &d, sizeof(double));
             break;
-        case O2_BOOL:
-            ARG_DATA(rslt, int32_t, i != 0);
+        }
+        case O2_BOOL: {
+            int32_t i32 = (i != 0);
+            o2_ctx->arg_data.append((char *) &i32, sizeof(int32_t));
             break;
+        }
         case O2_TRUE:
             if (!i) rslt = NULL;
             break;
@@ -1014,33 +967,40 @@ static o2_arg_ptr convert_int(o2_type to_type, int64_t i, int siz)
 }
 
 
-static o2_arg_ptr convert_float(o2_type to_type, double d, int siz)
+static O2arg_ptr convert_float(O2type to_type, double d)
 {
-    dyn_array_ptr arg_data = &o2_ctx->arg_data;
-    o2_arg_ptr rslt = (o2_arg_ptr) (arg_data->array + arg_data->length);
+    O2arg_ptr rslt = (O2arg_ptr) o2_ctx->arg_data.append_space(0);
     switch (to_type) {
-        case O2_INT32:
+        case O2_INT32: {
             // coerce to int32_t to avoid compiler warning; O2 can in fact lose
             // data coercing from type O2_DOUBLE to O2_INT32
-            ARG_DATA(rslt, int32_t, (int32_t) d);
+            int32_t i32 = (int32_t) d;
+            o2_ctx->arg_data.append((char *) &i32, sizeof(int32_t));
             break;
-        case O2_INT64:
+        }
+        case O2_INT64: {
             // coerce to int64_t to avoid compiler warning; O2 can in fact lose
             // data coercing from type O2_DOUBLE to O2_INT64
-            ARG_DATA(rslt, int64_t, (int64_t) d);
+            int64_t i64 = (int64_t) d;
+            o2_ctx->arg_data.append((char *) &i64, sizeof(int64_t));
             break;
-        case O2_FLOAT:
+        }
+        case O2_FLOAT: {
             // coerce to float to avoid compiler warning; O2 can in fact lose
             // data coercing from type O2_DOUBLE to O2_FLOAT
-            ARG_DATA(rslt, float, (float) d);
+            float f = (float) d;
+            o2_ctx->arg_data.append((char *) &f, sizeof(float));
             break;
+        }
         case O2_DOUBLE:
         case O2_TIME:
-            ARG_DATA(rslt, double, d);
+            o2_ctx->arg_data.append((char *) &d, sizeof(double));
             break;
-        case O2_BOOL:
-            ARG_DATA(rslt, int32_t, d != 0.0);
+        case O2_BOOL: {
+            int32_t i32 = (d != 0.0);
+            o2_ctx->arg_data.append((char *) &i32, sizeof(int32_t));
             break;
+        }
         case O2_TRUE:
             if (d == 0.0) rslt = NULL;
             break;
@@ -1054,14 +1014,14 @@ static o2_arg_ptr convert_float(o2_type to_type, double d, int siz)
 }
 
 
-static o2_arg ea, sa;
-o2_arg_ptr o2_got_end_array = &ea;
-o2_arg_ptr o2_got_start_array = &sa;
+static O2arg ea, sa;
+O2arg_ptr o2_got_end_array = &ea;
+O2arg_ptr o2_got_start_array = &sa;
 
 
 /// get the next argument from the message. If the to_type
 /// does not match the actual type in the message, convert
-/// if possible; otherwise, return NULL for the o2_arg_ptr.
+/// if possible; otherwise, return NULL for the O2arg_ptr.
 /// Note that if coerce_flag was false, the type checking
 /// will have compared types for an exact match, so if we
 /// make it this far and we are constructing argv, then
@@ -1072,9 +1032,9 @@ o2_arg_ptr o2_got_start_array = &sa;
 /// desired to_type to the character in the actual type
 /// string and if there is no match, do not call o2_get_next().
 ///
-o2_arg_ptr o2_get_next(o2_type to_type)
+O2arg_ptr o2_get_next(O2type to_type)
 {
-    o2_arg_ptr rslt = (o2_arg_ptr) mx_data_next;
+    O2arg_ptr rslt = (O2arg_ptr) mx_data_next;
     if (mx_type_next >= mx_barrier) return NULL; // overrun
     if (*mx_type_next == 0) return NULL; // no more args, end of type string
     if (mx_vector_to_vector_pending) {
@@ -1083,14 +1043,19 @@ o2_arg_ptr o2_get_next(o2_type to_type)
         //   address; this descriptor is always allocated in o2_ctx->arg_data
         // mx_data_next points to vector in message
         // allowed types for target are i, h, f, t, d
-        rslt = ARG_NEXT;
-        ARG_DATA_USED(o2_arg);
+        // get location of next arg which is at end of arg_data.
+        // When we found 'v', we appended an O2arg to arg_data; now we
+        // want it again. append_space(0) points to the *next* location,
+        // but it's a character address, so we cast it into an O2arg_ptr
+        // and take index -1 to get back to the result we want, but we
+        // just want a pointer to the result, so prefix all with "&":
+        rslt = &((O2arg_ptr) o2_ctx->arg_data.append_space(0))[-1];
         // get pointer to the vector (pointed to type doesn't actually matter)
         // so this code is common to all the different type cases
         if (to_type == *mx_type_next) {
             rslt->v.vi = (int32_t *) mx_data_next;
         } else {
-            rslt->v.vi = (int32_t *) ARG_NEXT;
+            rslt->v.vi = (int32_t *) (o2_ctx->arg_data.append_space(0));
         }
         if (mx_data_next + rslt->v.len > mx_barrier) {
             mx_vector_to_vector_pending = false;
@@ -1101,7 +1066,7 @@ o2_arg_ptr o2_get_next(o2_type to_type)
                 rslt->v.len >>= 2; // byte count / 4
                 if (to_type != O2_INT32) {
                     for (int i = 0; i < rslt->v.len; i++) {
-                        if (!convert_int(to_type, MX_INT32, sizeof(int32_t)))
+                        if (!convert_int(to_type, MX_INT32))
                             return NULL;
                         mx_data_next += sizeof(int32_t);
                     }
@@ -1114,7 +1079,7 @@ o2_arg_ptr o2_get_next(o2_type to_type)
                 if (to_type != O2_INT64) {
                     // we'll need len int64s of free space
                     for (int i = 0; i < rslt->v.len; i++) {
-                        if (!convert_int(to_type, MX_INT64, sizeof(int32_t)))
+                        if (!convert_int(to_type, MX_INT64))
                             return NULL;
                         mx_data_next += sizeof(int64_t);
                     }
@@ -1126,7 +1091,7 @@ o2_arg_ptr o2_get_next(o2_type to_type)
                 rslt->v.len >>= 2; // byte count / 4
                 if (to_type != O2_FLOAT) {
                     for (int i = 0; i < rslt->v.len; i++) {
-                        if (!convert_float(to_type, MX_FLOAT, sizeof(float)))
+                        if (!convert_float(to_type, MX_FLOAT))
                             return NULL;
                         mx_data_next += sizeof(float);
                     }
@@ -1138,7 +1103,7 @@ o2_arg_ptr o2_get_next(o2_type to_type)
                 rslt->v.len >>= 3; // byte count / 8
                 if (to_type != O2_DOUBLE) {
                     for (int i = 0; i < rslt->v.len; i++) {
-                        if (!convert_float(to_type, MX_DOUBLE, sizeof(double)))
+                        if (!convert_float(to_type, MX_DOUBLE))
                             return NULL;
                         mx_data_next += sizeof(double);
                     }
@@ -1150,7 +1115,6 @@ o2_arg_ptr o2_get_next(o2_type to_type)
                 return NULL;
                 break;
         }
-        o2_ctx->argc--; // argv already has pointer to vector
     } else if (mx_vector_to_array) {
         // return vector elements as array elements
         if (to_type == O2_ARRAY_END) {
@@ -1171,25 +1135,25 @@ o2_arg_ptr o2_get_next(o2_type to_type)
         switch (mx_vector_to_array) {
             case O2_INT32:
                 if (to_type != O2_INT32) {
-                    rslt = convert_int(to_type, MX_INT32, sizeof(int32_t));
+                    rslt = convert_int(to_type, MX_INT32);
                 }
                 mx_data_next += sizeof(int32_t);
                 break;
             case O2_INT64:
                 if (to_type != O2_INT64) {
-                    rslt = convert_int(to_type, MX_INT64, sizeof(int64_t));
+                    rslt = convert_int(to_type, MX_INT64);
                 }
                 mx_data_next += sizeof(int64_t);
                 break;
             case O2_FLOAT:
                 if (to_type != O2_FLOAT) {
-                    rslt = convert_float(to_type, MX_FLOAT, sizeof(float));
+                    rslt = convert_float(to_type, MX_FLOAT);
                 }
                 mx_data_next += sizeof(float);
                 break;
             case O2_DOUBLE:
                 if (to_type != O2_DOUBLE) {
-                    rslt = convert_float(to_type, MX_DOUBLE, sizeof(double));
+                    rslt = convert_float(to_type, MX_DOUBLE);
                 }
                 mx_data_next += sizeof(double);
                 break;
@@ -1202,30 +1166,30 @@ o2_arg_ptr o2_get_next(o2_type to_type)
         }
     } else if (mx_array_to_vector_pending) { // to_type is desired vector type
         // array types are in mx_type_next
-        rslt = ((o2_arg_ptr) ARG_NEXT) - 1; // already allocated vector header
+        // already allocated vector header:
+        rslt = ((O2arg_ptr) o2_ctx->arg_data.append_space(0)) - 1;
         // "vi" should get just one element in the arg vector.
         // We already added one and will add another (below), so decrement
-        // length so that rslt will not be written to a new location of size
-        // sizeof(o2_arg), so -1 gets us back to the address of the header:
-        o2_ctx->argv_data.length--; 
-        rslt->v.vi = (int32_t *) ARG_NEXT;
+        // length so that rslt will not be written to a new location:
+        o2_ctx->argv_data.pop_back();
+        rslt->v.vi = (int32_t *) o2_ctx->arg_data.append_space(0);
         rslt->v.typ = to_type; // now we know what the element type will be
         while (*mx_type_next != O2_ARRAY_END) {
             switch (*mx_type_next++) {
                 case O2_INT32:
-                    convert_int(to_type, MX_INT32, sizeof(int32_t));
+                    convert_int(to_type, MX_INT32);
                     mx_data_next += sizeof(int32_t);
                     break;
                 case O2_INT64:
-                    convert_int(to_type, MX_INT64, sizeof(int64_t));
+                    convert_int(to_type, MX_INT64);
                     mx_data_next += sizeof(int64_t);
                     break;
                 case O2_FLOAT:
-                    convert_float(to_type, MX_FLOAT, sizeof(float));
+                    convert_float(to_type, MX_FLOAT);
                     mx_data_next += sizeof(float);
                     break;
                 case O2_DOUBLE:
-                    convert_float(to_type, MX_DOUBLE, sizeof(double));
+                    convert_float(to_type, MX_DOUBLE);
                     mx_data_next += sizeof(double);
                     break;
                 default:
@@ -1239,33 +1203,33 @@ o2_arg_ptr o2_get_next(o2_type to_type)
         }
         mx_array_to_vector_pending = false;
     } else {
-        o2_type type_code = (o2_type) (*mx_type_next++);
+        O2type type_code = (O2type) (*mx_type_next++);
         switch (type_code) {
             case O2_INT32:
                 if (to_type != O2_INT32) {
-                    rslt = convert_int(to_type, MX_INT32, sizeof(int32_t));
+                    rslt = convert_int(to_type, MX_INT32);
                 }
                 mx_data_next += sizeof(int32_t);
                 break;
             case O2_TRUE:
                 if (to_type != O2_TRUE) {
-                    rslt = convert_int(to_type, 1, sizeof(int32_t));
+                    rslt = convert_int(to_type, 1);
                 }
                 break;
             case O2_FALSE:
                 if (to_type != O2_TRUE) {
-                    rslt = convert_int(to_type, 0, sizeof(int32_t));
+                    rslt = convert_int(to_type, 0);
                 }
                 break;
             case O2_BOOL:
                 if (to_type != O2_BOOL) {
-                    rslt = convert_int(to_type, MX_INT32, sizeof(int32_t));
+                    rslt = convert_int(to_type, MX_INT32);
                 }
                 mx_data_next += sizeof(int32_t);
                 break;
             case O2_FLOAT:
                 if (to_type != O2_FLOAT) {
-                    rslt = convert_float(to_type, MX_FLOAT, sizeof(float));
+                    rslt = convert_float(to_type, MX_FLOAT);
                 }
                 mx_data_next += sizeof(float);
                 break;
@@ -1291,14 +1255,14 @@ o2_arg_ptr o2_get_next(o2_type to_type)
                 break;
             case O2_INT64:
                 if (to_type != O2_INT64) {
-                    rslt = convert_int(to_type, MX_INT64, sizeof(int64_t));
+                    rslt = convert_int(to_type, MX_INT64);
                 }
                 mx_data_next += sizeof(int64_t);
                 break;
             case O2_DOUBLE:
             case O2_TIME:
                 if (to_type != O2_DOUBLE && to_type != O2_TIME) {
-                    rslt = convert_float(to_type, MX_DOUBLE, sizeof(double));
+                    rslt = convert_float(to_type, MX_DOUBLE);
                 } // otherwise the requested type is suitable
                 mx_data_next += sizeof(double);
                 break;
@@ -1321,8 +1285,8 @@ o2_arg_ptr o2_get_next(o2_type to_type)
                     // see if we can extract a vector next time
                     // when we get an element type
                     mx_array_to_vector_pending = true;
-                    rslt = (o2_arg_ptr) ARG_NEXT;
-                    ARG_DATA_USED(o2_arg);
+                    rslt = (O2arg_ptr)
+                           o2_ctx->arg_data.append_space(sizeof(O2arg));
                     // initially, the vector type is the type of the first
                     // element in the array, or double if the array is empty
                     rslt->v.typ = *mx_type_next;
@@ -1350,9 +1314,8 @@ o2_arg_ptr o2_get_next(o2_type to_type)
                 } else if (to_type == O2_VECTOR) {
                     // next call to o2_get_next() will get special processing
                     mx_vector_to_vector_pending = true;
-                    rslt = (o2_arg_ptr) ARG_NEXT;
-                    // do not call ARG_DATA_USED() because we will get
-                    //    this address again on next call to o2_get_next()
+                    rslt = (O2arg_ptr)
+                           o2_ctx->arg_data.append_space(sizeof(O2arg));
                     rslt->v.typ = *mx_type_next;
                     // do not increment mx_type_next because we will use
                     //    it again (and increment on next call to o2_get_next()
@@ -1372,90 +1335,7 @@ o2_arg_ptr o2_get_next(o2_type to_type)
             return NULL;         // of the message
         }
     }
-    // This is equivalent to DA_APPEND, but since we've already allocated the
-    // space, we don't need to check for space, and it would be an error if
-    // we did expand the space because pointers would be wrong
-    o2_ctx->argv_data.length++;
-    // o2_ctx->argv is o2_ctx->argv_data.array as o2_arg_ptr:
-    o2_ctx->argv[o2_ctx->argc++] = rslt; 
+    // o2_ctx->argv is o2_ctx->argv_data.array as O2arg_ptr:
+    o2_ctx->argv_data.push_back(rslt); 
     return rslt;
-}
-
-
-// ------- PART 6 : MESSAGE DELIVERY AND DISPATCH -------
-//
-// info->in_message is an incoming message; route it to destination
-// o2_message_deliver acquires in_message and frees it (always)
-// return O2_SUCCESS normally
-// return O2_FAIL to ask caller to remove info and socket
-// This is a callback from network.c
-//
-o2_err_t o2_message_deliver(o2n_info_ptr info)
-{
-    o2_message_ptr msg = (o2_message_ptr) (info->in_message);
-    info->in_message = NULL; // make sure it doesn't get freed again
-    o2_prepare_to_deliver(msg);
-    if (!info->application) { // no deliverer (maybe somehow a message
-        // was sent before a local process was ready to receive it)
-        // This is allowed for NET_UDP_SERVER, which might receive a
-        // /dy message before the process is created and attached to it
-        // to start up discovery. In that case, return SUCCESS so we don't
-        // close the socket. Otherwise, something is really bad, so FAIL
-        // and close the socket.
-        o2_complete_delivery();
-        return (info->net_tag == NET_UDP_SERVER ? O2_SUCCESS : O2_FAIL);
-    }
-    // application could point to proc_info or osc_info. We don't know
-    // which, but both have an initial int tag field. It's tempting to call
-    // the nice macro TO_PROC_INFO(info->application), but in debug mode this
-    // asserts that it really *is* a proc_info_ptr, which will abort for osc.
-    switch (((proc_info_ptr)(info->application))->tag) {
-        case PROC_NOCLOCK:
-        case PROC_SYNCED:
-        case PROC_TCP_SERVER: // incoming UDP comes here too
-            // make sure endian is compatible
-#if IS_LITTLE_ENDIAN
-            o2_msg_swap_endian(&msg->data, false);
-#endif
-            O2_DB((msg->data.address[1] == '_' || msg->data.address[1] == '@') ?
-                  O2_DBR_FLAG : O2_DBr_FLAG,
-                  o2_dbg_msg("msg received", msg, &msg->data, "by",
-                      o2_tag_to_string(TO_PROC_INFO(info->application)->tag)));
-            o2_message_send_sched(true);
-            break;
-#ifndef O2_NO_OSC
-        case OSC_TCP_CONNECTION:
-        case OSC_UDP_SERVER:
-            return o2_deliver_osc(TO_OSC_INFO(info->application));
-        case OSC_TCP_CLIENT:
-            // if we are connected to a server, the server should not send us
-            // messages. Just delete the message. Maybe we should print an error
-            // here, but do not assert(false) because then an evil OSC server
-            // (or just a confused one) could shut us down mysteriously.
-            o2_complete_delivery();
-            break;
-#endif
-#ifndef O2_NO_BRIDGES
-        case BRIDGE_NOCLOCK:
-        case BRIDGE_SYNCED: {
-            // make sure endian is compatible
-#if IS_LITTLE_ENDIAN
-            o2_msg_swap_endian(&msg->data, false);
-#endif
-            bridge_inst_ptr bridge = TO_BRIDGE_INST(info->application);
-            return (*bridge->proto->bridge_recv)(bridge);
-        }
-#endif
-#ifndef O2_NO_MQTT
-        case STUN_CLIENT:
-            o2_stun_reply_handler(info->application);
-            break;
-        case MQTT_CLIENT:
-            o2_mqtt_received((o2n_info_ptr) info->application);
-            break;
-#endif
-        default: // bad tag indicates internal error
-            assert(false);
-    }
-    return O2_SUCCESS;
 }

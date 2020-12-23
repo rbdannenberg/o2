@@ -2,10 +2,6 @@
 #ifndef dynarray_h
 #define dynarray_h
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct dyn_array {
     int32_t allocated;
     int32_t length;
@@ -84,9 +80,5 @@ typedef struct dyn_array {
         if ((a).array) O2_FREE((a).array); (a).array = NULL; }
 
 void *o2_da_expand(dyn_array_ptr array, int siz);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* dynarray_h */

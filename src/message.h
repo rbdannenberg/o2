@@ -7,7 +7,7 @@
 #ifndef message_h
 #define message_h
 
-extern thread_local o2_ctx_ptr o2_ctx;
+extern thread_local O2_context *o2_ctx;
 
 // you can OR these together to make message flags
 #define O2_UDP_FLAG 0   // UDP, not TCP
@@ -20,13 +20,8 @@ extern thread_local o2_ctx_ptr o2_ctx;
 #define ssize_t long long
 #endif
 
-/* MESSAGE EXTRACTION */
-void o2_argv_initialize(void);
-
-void o2_argv_finish(void);
 
 /* MESSAGE CONSTRUCTION */
-void o2_message_check_length(int needed);
 
 #ifndef O2_NO_BUNDLES
 int o2_add_bundle_head(int64_t time);
@@ -64,9 +59,9 @@ void o2_msg_data_print_2(o2_msg_data_ptr msg);
 #endif
 
 /* allocate message structure with at least size bytes in the data portion */
-#define o2_message_new(size) ((o2_message_ptr) o2n_message_new(size))
+#define O2message_new(size) ((O2message_ptr) o2n_message_new(size))
 
-void o2_message_list_free(o2_message_ptr msg);
+void O2message_list_free(O2message_ptr msg);
 
 /**
  * Convert endianness of a message
@@ -75,9 +70,9 @@ void o2_message_list_free(o2_message_ptr msg);
  *
  * @return O2_SUCCESS unless the message is malformed
  */
-o2_err_t o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order);
+O2err o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order);
 
-o2_err_t o2_message_build(o2_message_ptr *msg, o2_time timestamp,
+O2err O2message_build(O2message_ptr *msg, O2time timestamp,
                           const char *service_name,
                           const char *path, const char *typestring,
                           int tcp_flag, va_list ap);

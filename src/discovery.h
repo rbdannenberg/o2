@@ -17,10 +17,10 @@
 // how many ports to search.
 #define PORT_MAX  16
 
-extern o2_message_ptr o2_discovery_msg;
+extern O2message_ptr o2_discovery_msg;
 
 extern SOCKET o2_discovery_socket;
-extern o2n_info_ptr o2_discovery_udp_server;
+extern Fds_info *o2_discovery_udp_server;
 
 #ifndef O2_NO_HUB
 extern char o2_hub_addr[O2_MAX_PROCNAME_LEN]; // @public:internal:port of hub
@@ -32,10 +32,10 @@ extern char o2_hub_addr[O2_MAX_PROCNAME_LEN]; // @public:internal:port of hub
  *
  *  @return O2_SUCCESS (0) if succeed, O2_FAIL (-1) if not.
  */
-o2_err_t o2_discovery_initialize(void);
+O2err o2_discovery_initialize(void);
 void o2_discovery_init_phase2();
 
-o2_err_t o2_discovery_finish(void);
+O2err o2_discovery_finish(void);
 
 /**
  *  Discover function will send the discover messages and deal with all the discover
@@ -46,29 +46,29 @@ o2_err_t o2_discovery_finish(void);
  *
  */
 void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
-                    o2_arg_ptr *argv, int argc, const void *user_data);
+                    O2arg_ptr *argv, int argc, const void *user_data);
 
-void o2_send_discovery_at(o2_time when);
+void o2_send_discovery_at(O2time when);
 
-o2_err_t o2_send_services(proc_info_ptr proc);
+O2err o2_send_services(Proxy_info *proc);
 
 void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
-               o2_arg_ptr *argv, int argc, const void *user_data);
+               O2arg_ptr *argv, int argc, const void *user_data);
 
 void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
-                    o2_arg_ptr *argv, int argc, const void *user_data);
+                    O2arg_ptr *argv, int argc, const void *user_data);
 
 
 void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
-         o2_arg_ptr *argv, int argc, const void *user_data);
+         O2arg_ptr *argv, int argc, const void *user_data);
 
 void o2_services_handler(o2_msg_data_ptr msg, const char *types,
-              o2_arg_ptr *argv, int argc, const void *user_data);
+              O2arg_ptr *argv, int argc, const void *user_data);
 
-o2_err_t o2_discovered_a_remote_process(const char *public_ip,
+O2err o2_discovered_a_remote_process(const char *public_ip,
                     const char *internal_ip, int port, int dy);
 
-o2_message_ptr o2_make_dy_msg(proc_info_ptr proc, int tcp_flag,
+O2message_ptr o2_make_dy_msg(Proc_info *proc, int tcp_flag,
                               int dy_flag);
 
 #endif /* DISCOVERY_H */

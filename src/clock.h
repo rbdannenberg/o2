@@ -3,21 +3,24 @@
 void o2_time_initialize(void);
 
 void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
-                 o2_arg_ptr *argv, int argc, const void *user_data);
+                 O2arg_ptr *argv, int argc, const void *user_data);
 
 void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
-               o2_arg_ptr *argv, int argc, const void *user_data);
+               O2arg_ptr *argv, int argc, const void *user_data);
 
 void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
-             o2_arg_ptr *argv, int argc, const void *user_data);
+             O2arg_ptr *argv, int argc, const void *user_data);
 
 void o2_clock_initialize(void);
 void o2_clock_init_phase2(void);
 
 void o2_clock_finish(void); // used when shutting down O2
 
-o2_time o2_local_to_global(o2_time local);
+O2time o2_local_to_global(O2time local);
 
-void o2_clock_ping_at(o2_time when);
+void o2_clock_ping_at(O2time when);
 
-o2_err_t o2_send_clocksync_proc(proc_info_ptr proc);
+O2err o2_send_clocksync_proc(Proxy_info *proc);
+
+void o2_clock_status_change(Proxy_info *info);
+
