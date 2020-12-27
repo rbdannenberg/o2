@@ -560,7 +560,7 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
     if (!proc || (!ISA_REMOTE_PROC(proc))) {
         O2_DBG(printf("%s ### ERROR: o2_services_handler did not find %s\n", 
                       o2_debug_prefix, name);
-               o2_ctx->path_tree.show(2));
+               o2_ctx->show_tree());
         
         return; // message is bogus (should we report this?)
     }

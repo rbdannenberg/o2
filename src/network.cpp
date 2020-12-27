@@ -245,6 +245,21 @@ void o2n_send_udp_local(int port, o2n_message_ptr msg)
     O2_FREE(msg);
 }
 
+O2err Fds_info::can_send()
+{
+    // O2_SUCCESS if TCP socket and !out_message
+    // otherwise O2_BLOCKED
+    if ((net_tag & NET_TCP_MASK) != 0) {
+        return (out_message == NULL) ? O2_SUCCESS : O2_BLOCKED;
+    } else if (net_tag & NET_TCP_CONNECTING) {
+        return O2_BLOCKED;
+    }
+    // all the TCP cases are handled above. If this is UDP it
+    // could be a server port, but you cannot send or block on
+    // that, so we return O2_FAIL.
+    return O2_FAIL;
+}
+
 // This function takes ownership of msg
 O2err Fds_info::send_tcp(bool block, o2n_message_ptr msg)
 {

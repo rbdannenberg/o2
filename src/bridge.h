@@ -40,6 +40,18 @@
  * associated with the bridge. Let ~Bridge_protocol locate and remove
  * all corresponding Bridge_info instances.
  *
+ * A Bridge_info constructor should initialize its tag with or without
+ * the O2TAG_OWNED_BY_TREE bit. If set, then if a 
+ * Service_provider is removed and its service member is the Bridge_info,
+ * then the Bridge_info will be deleted. If you allocate an instance of
+ * a Bridge_info subclass for each service offered by the bridged process,
+ * then set the bit. If the Bridge_info instance is shared by multiple
+ * services, then do not set the bit, but make sure some other means is
+ * provided to delete the Bridge_info when its protocol is removed. E.g.
+ * if the Bridge_info corresponds to a socket (Fds_info), you can search
+ * the sockets for owner members that are Bridge_info's and implement
+ * the protocol.
+ *
  * A Bridge_info represents a remote process or processes that provide
  * services.  Each subclass implements #send, #show,#proto,
  * #local_is_synchronized and the deconstructor.
@@ -105,23 +117,48 @@ public:
     char protocol[8];
     Bridge_protocol(const char *name);
 
+    // Bridge_info that share this protocol.
+    Vec<Bridge_info *> instances;
+
     // TODO: implement me  /// close transport:
     virtual ~Bridge_protocol();
 
     virtual O2err bridge_poll() { return O2_SUCCESS; }
 
     O2err remove_services(Bridge_info *bi);
+
+    int find_loc(int id);
+    
+    Bridge_info *find(int id) {
+        int i = find_loc(id);
+        return (i < 0 ? NULL : instances[i]);
+    }
+
+    void remove_instance(int id) {
+        int loc = find_loc(id);
+        if (loc >= 0) {
+            instances.remove(loc);
+        }
+    }
+
 };
 
 
 class Bridge_info : public Proxy_info {
 public:
     int id;  // a unique id for the bridged process
-
-    Bridge_info() : Proxy_info(NULL, O2TAG_BRIDGE) { id = o2_bridge_next_id++; }
-    virtual ~Bridge_info() { }
-
-    virtual Bridge_protocol *proto() = 0;  // returns the protocol for this info
+    Bridge_protocol *proto;  // this could almost be information returned
+    // by a virtual method rather than allocating a pointer in every
+    // instance, but we need it for the destructor, where you cannot
+    // call virtual methods.
+    
+    Bridge_info(Bridge_protocol *proto_) :
+            Proxy_info(NULL, O2TAG_BRIDGE) {
+        proto = proto_;
+        id = o2_bridge_next_id++;
+        proto->instances.push_back(this);
+    }
+    virtual ~Bridge_info() { proto->remove_instance(id); }
   
     virtual O2err send(bool block) = 0;
 #ifndef O2_NO_DEBUG
@@ -135,7 +172,9 @@ public:
         return (o2_clock_is_synchronized && IS_SYNCED(this)) ?
                O2_BRIDGE : O2_BRIDGE_NOTIME;
     }
+
 };    
+
 
 /// \brief print a representation of the bridge for debugging.
 void o2_bridge_show(Bridge_info *bridge);

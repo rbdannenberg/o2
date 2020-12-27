@@ -54,6 +54,13 @@
 #include "msgsend.h"
 
 
+// we use a bin for every 10ms, but this is arbitrary: too small and you
+// have to examine many bins to advance time (if polling is not frequent);
+// too large and you get more collisions, which means linear list insertion
+// time to make sure messages in the same bin are sorted in time order.
+// Also, the table size should be greater than 1 second because if time
+// between polling is >1s, we simulate polling every 1s until we catch up.
+// Otherwise we could dispatch messages out of order due to wrap-around.
 #define SCHED_BIN(time) ((int64_t) ((time) * 100))
 #define SCHED_BIN_TO_INDEX(b) ((b) & (O2_SCHED_TABLE_LEN - 1))  // Get modulo
 #define SCHED_INDEX(t) (SCHED_BIN_TO_INDEX(SCHED_BIN(t) ))
@@ -118,12 +125,12 @@ O2err o2_schedule(O2sched_ptr s)
         o2_msg_deliver(NULL, NULL);
         return O2_SUCCESS;
     }
-    o2_postpone_delivery(); // transfer ownership from o2_ctx->msgs
     if (s == &o2_gtsched && !o2_gtsched_started) {
         // cannot schedule in the future until there is a valid clock
         o2_drop_message("there is no clock and a non-zero timestamp", true);
         return O2_NO_CLOCK;
     }
+    o2_postpone_delivery(); // transfer ownership from o2_ctx->msgs
     int64_t index = SCHED_INDEX(mt);
     O2message_ptr *m_ptr = &s->table[index];
     
@@ -169,19 +176,23 @@ static void sched_dispatch(O2sched_ptr s, O2time run_until_time)
         while (*msg_ptr && ((*msg_ptr)->data.timestamp <= run_until_time)) {
             O2message_ptr msg = *msg_ptr;
             *msg_ptr = msg->next; // unlink message msg
-            o2_active_sched = s; // if we recursively schedule another message,
-            // use this same scheduler.
-            // careful: this can call schedule and change the table
+            // if we recursively schedule another message, use same scheduler:
+            o2_active_sched = s;
+            // anything after this msg time should be scheduled;
+            // anything equal or earlier should run immediately:
+            s->last_time = msg->data.timestamp;
             O2_DB((msg->data.address[1] == '_' || msg->data.address[1] == '@') ?
                   O2_DBT_FLAG : O2_DBt_FLAG,
                   o2_dbg_msg("sched_dispatch", msg, &msg->data, NULL, NULL));
             o2_prepare_to_deliver(msg);
+            // careful: this can call schedule and change the table
             o2_msg_send_now(); // don't assume local and call
             // o2_msg_deliver; maybe this is an OSC message
         }
         s->last_bin++;
     }
     s->last_bin--; // we should revisit this bin next time
+    // everything up to and including run_until_time has been scheduled:
     s->last_time = run_until_time;
 }
 

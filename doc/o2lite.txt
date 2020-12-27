@@ -37,30 +37,92 @@ abstraction in a light-weight implementation.
 
 5. Some form of clock sync should be supported as an option.
 
+Terminology
+----
+
+Since O2lite is not just for ESP32, we refer to the processes as:  
+
+  - Host or host process: A full O2 implementation that can "host" and  
+    O2lite connection  
+
+  - O2lite process: Another process (microcontroller or whatever)  
+    running the O2lite protocol to connect to O2 through a host process.  
+
+Service Names and Processes  
+---- 
+
+O2lite processes do not have the status of a full O2 process. While
+multiple O2 processes can offer the same service name (and messages
+are sent to the process with the highest IP address), an O2lite
+service is considered to belong to the O2 host process. The O2 host
+process acts as a "proxy" for the O2lite process. Some implications
+are:
+    1. Messages to a service offered by an O2lite process are directed
+       to the host and forwarded to the O2lite process.
+    2. An O2lite service is "global" and reachable by any process
+       (perhaps indirectly) in the O2 ensemble. 
+    3. If an O2lite process creates an already existing service, the
+       new service will not be created. (Currently, no error is sent
+       back to the O2lite process.)
+    4. Similarly, if an O2 host tries to create a service offered by a
+       connected O2lite process, the attempt fails and an error is
+       returned.
+    5. The priority of an O2lite process service is determined by the
+       IP address of the host, not that of the O2lite process. The
+       priority could depend on which host the O2lite process connects
+       to if there are multiple hosts available on the local area network.
+
 The Protocol
 ----
 
 First, we need to find an O2 host (e.g. the laptop running a full O2
-implementation). This can be done using a special broadcast discovery
-message similar to the O2 discovery message. Similar to the "!_o2/dy"
-address, we introduce a new address: "!_o2/dyl" (for
-discovery-light). The parameters are:
-    ensemble name (string) -- the O2 ensemble name
-    local ip (string) -- the ESP32 IP address
-    udp port (int32) -- the ESP32 port number
-    service name (string) -- the ESP32 service name
-
-For simplicity, the ESP32 supports only one service other than "_o2".
+implementation). Discovery messages can be broadcast from o2lite to
+!_o2/o2lite/dy to search for any host implementing o2lite. Optionally,
+the o2lite process can skip broadcasting and simply listen for !_o2/dy
+messages from hosts. However, since the frequency of broadcasts
+decreases once a host has been running for awhile, discovery can be
+faster if the O2lite process broadcasts to hosts when it is
+initialized.  Similar to "!_o2/dy", the "!_o2/o2lite/dy" consists of:
+    ensemble name (string) -- the O2 ensemble name 
+    local ip (hex string) -- the O2lite process local IP address  
+    udp port (int32) -- the O2lite process receive port number  
+    O2_DY_INFO (int32) -- a dy_flag constant
+Note that o2lite processes can only connect to hosts that are
+reachable by broadcast (including localhost). Alternatively, the
+O2lite process with a known host IP can send !_o2/o2lite/dy to that
+IP address to achieve the same effect as broadcast, but this is not
+implemented in O2lite code, so you have to make and send your own.
 
 The message is sent to discovery ports via UDP broadcast. When
 received, the O2 host replies with an acknowledgement message to
-"!_o2/dyr" (for discovery-reply). The parameters are:
-    host ip (string) -- the O2 host IP address
-    host tcp (int32) -- the O2 host TCP server address
-    host udp (int32) -- the O2 host UDP message address
+"!_o2/dy". The message is a standard dy message:
+    ensemble name (string) -- the O2 ensemble name 
+    public ip (hex string) -- the O2lite process public IP address 
+    local ip (hex string) -- the O2lite process local IP address 
+    port (int32) -- the O2lite process udp and tcp port number 
+    O2_DY_INFO (int32) -- a message type tag
 
-The ESP32 can then (optionally), as a client, create a TCP connection
-for reliable message transmission.
+To attach to an O2 ensemble, the O2lite process (as client) makes a
+TCP connection to an O2host.
+
+As soon as the O2lite process connects, it sends "!_o2/o2lite/con":
+    local ip (hex string) -- the O2lite process local IP address 
+    port (int32) -- the O2lite process udp and tcp port number 
+    
+When the host receives "!_o2/o2lite/con", it replies with "!_o2/id"
+with an integer ID number that gives the O2lite process a unique
+identity when combined with the host name. Normally, &&&&
+
+Once the ID is received, the O2lite process sends "!_o2/o2lite/sv"
+with a service description for each service (services can be created
+before the connection is made, and they are retained in a simple data
+structure):
+    service_name (string) -- the service name
+    exists (int32) -- 1 if the service exists, 0 if the service is
+        removed
+    is_service (int32) -- 1 for service, 0 for tap (should always be
+        1)
+    properties (string) -- service properties (currently always empty)
 
 A small library is used to construct messages, supporting int32,
 float, and string types. (Other types might be supported in the future
@@ -69,23 +131,25 @@ or with library options.)
 To receive messages, the receiver handler uses a table mapping
 addresses to handler functions, and linear search is used, based on
 the assumption that the total number of addresses will be minimal and
-known at compile time. The handler function will use low-level
+known at compile time. The handler function uses low-level
 functions to fetch parameters sequentially from the message, again to
 simplify the implementation and reduce the need for dynamic memory
 allocation. Only int32, float, and strings are supported.
 
-Clock sync is accomplished by sending "/_cs/get" to the host with the
-usual parameters:
-    serial_no (int32) -- a serial number generated by ESP32
+Clock sync is accomplished by sending "!_o2/o2lite/cs/get" to the host
+with these parameters:
+    bridge_id (int32) -- the ID number for this bridge instance
+    serial_no (int32) -- a serial number generated by O2lite process
     reply_to (string) -- address for reply, which will be
-        !SERVICE/_cs (note that this address uses the ESP32's
-        service name, but it should not interfere with normal
-        service addresses because of the initial underscore in _cs.)
+        "!_o2/cs/put"
 
-The reply message to !SERVICE/_cs (via UDP) will contain:
-    serial_no (int32) -- serial number sent by ESP32
+The reply message to "!_o2/cs/put" (via UDP) will contain:
+    serial_no (int32) -- serial number sent by O2lite process
     time -- the host's O2 time
 
-The ESP32 will send a /_cs/get message periodically and compute the
-mapping from ESP32 clock to O2 time in a similar fashion to O2's clock
+The O2lite process will send a /_cs/get message periodically and compute the
+mapping from O2lite process clock to O2 time in a similar fashion to O2's clock
 sync.
+
+When clock sync is obtained, O2lite process sends "!_o2/o2lite/cs/cs"
+with no parameters.

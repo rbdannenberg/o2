@@ -62,7 +62,7 @@ Bridge_protocol *demo_protocol = NULL;
 class Demo_info : public Bridge_info {
 public:
     bool no_scheduling_here;
-    Demo_info() : Bridge_info() {
+    Demo_info() : Bridge_info(demo_protocol) {
         tag |= O2TAG_SYNCED;
         no_scheduling_here = true;
     }
@@ -70,11 +70,9 @@ public:
     virtual ~Demo_info() {
         if (!this) return;
         // remove all sockets serviced by this connection
-        proto()->remove_services(this);
+        proto->remove_services(this);
         demo_info_destructed = true;
     }
-
-    virtual Bridge_protocol *proto() { return demo_protocol; }
 
     // Demo is always "synchronized" with the Host because it uses the
     // host's clock. Also, since 3rd party processes do not distinguish

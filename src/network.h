@@ -90,6 +90,9 @@ typedef struct o2n_message {
 // o2n_close_socket() has been called on this socket: (0x400000)
 #define NET_INFO_CLOSED (O2TAG_HIGH << 6)
 
+// Any open, sendable TCP socket:
+#define NET_TCP_MASK (NET_TCP_SERVER | NET_TCP_CLIENT | NET_TCP_CONNECTION)
+
 class Net_address {
 public:
     struct sockaddr_in sa; // address includes port number in network order
@@ -165,6 +168,7 @@ class Fds_info : public O2obj {
 
     static Fds_info *create_tcp_server(int port);
     O2err connect(const char *ip, int tcp_port);
+    O2err can_send();
     O2err send_tcp(bool block, o2n_message_ptr msg);
 
     // Send a message. Named "enqueue" to emphasize that this is asynchronous.

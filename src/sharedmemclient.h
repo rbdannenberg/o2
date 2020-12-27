@@ -62,13 +62,16 @@ O2err o2_shmem_inst_finish(Bridge_info *inst);
 void o2sm_initialize(O2_context *ctx, Bridge_info *inst);
 O2err o2_shmem_finish();
 O2message_ptr o2sm_get_message(Bridge_info *inst);
+// o2sm_service_new announces services to the O2 process.
 O2err o2sm_service_new(const char *service, const char *properties);
-#define o2sm_method_new(path, typespec, h, user_data, coerce, parse) \
-    o2_method_new_internal(path, typespec, h, user_data, coerce, parse)
-/*
-int o2sm_method_new(const char *path, const char *typespec,
-                    O2method_handler h, void *user_data, 
-                    bool coerce, bool parse);
-*/
+
+// o2sm_method_new attaches a handler to a path. Unless O2SM_PATTERNS
+// is defined, this function does not require a service to have been
+// created, saving a check for the service when a message arrives.
+// But without a call to o2sm_service_new, no messages will be sent to
+// this path.
+O2err o2sm_method_new(const char *path, const char *typespec,
+                      O2method_handler h, void *user_data,
+                      bool coerce, bool parse);
 void o2sm_finish();
 

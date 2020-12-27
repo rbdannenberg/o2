@@ -180,6 +180,7 @@ O2err o2_osc_port_new(const char *service_name, int port, int tcp_flag)
         O2_FREE(osc);
         return O2_FAIL;
     }
+    osc->fds_info->owner = osc;
     return O2_SUCCESS;
 }
 
@@ -205,14 +206,13 @@ O2err Osc_info::connected()
 
 Osc_info::~Osc_info()
 {
-    O2_DBc(printf("%s delete Osc_info tag %s name %s\n",
-            o2_debug_prefix, Fds_info::tag_to_string(fds_info->net_tag), key));
+    O2_DBc(printf("%s delete Osc_info name %s\n", o2_debug_prefix, key));
     O2_DBo(o2_fds_info_debug_predelete(fds_info));
     if (key && (tag & (O2TAG_OSC_TCP_CLIENT | O2TAG_OSC_UDP_CLIENT))) {
         // if we are a client, we offer a service that's going away:
         Services_entry::proc_service_remove(key, o2_ctx->proc, NULL, -1);
     }
-    delete_key_and_fds_info();
+    delete_fds_info();
 }
 
 
@@ -266,18 +266,19 @@ O2err o2_osc_delegate(const char *service_name, const char *ip,
         strchr(service_name, '/')) {
         return O2_BAD_NAME;
     }
-    Osc_info *osc = new Osc_info(NULL, port_num, NULL,
-            tcp_flag ? O2TAG_OSC_TCP_CLIENT : O2TAG_OSC_UDP_CLIENT);
+    Osc_info *osc = new Osc_info(o2_heapify(service_name), port_num, NULL,
+            tcp_flag ? O2TAG_OSC_TCP_CLIENT :
+                       (O2TAG_OSC_UDP_CLIENT | O2TAG_OWNED_BY_TREE));
     O2err rslt;
     if (tcp_flag) {
         osc->fds_info = Fds_info::create_tcp_client(ip, port_num);
+        osc->fds_info->owner = osc;
         rslt = osc->fds_info ? O2_SUCCESS : O2_FAIL;
     } else {
         rslt = osc->udp_address.init(ip, port_num, false);
     }
     if (rslt == O2_SUCCESS) {
-        // note: o2_service_provider_new sets osc->service_name to the
-        // same service_name that is the key on the service_entry_ptr
+        // note: key is the service that delegates to the OSC server
         rslt = Services_entry::service_provider_new(osc->key, NULL,
                                                     osc, o2_ctx->proc);
         if (rslt != O2_SUCCESS && tcp_flag) {

@@ -25,7 +25,7 @@ static Vec<Bridge_protocol *> bridges;
 void Bridge_info::show(int indent)
 {
     O2node::show(indent);
-    printf(" bridge protocol %s id %d", proto()->protocol, id);
+    printf(" bridge protocol %s id %d", proto->protocol, id);
 }
 #endif
 
@@ -97,7 +97,7 @@ O2err Bridge_protocol::remove_services(Bridge_info *bi)
             O2node *service = spp->service;
             if (service && ISA_BRIDGE(service) &&
                 (!bi || bi == (Bridge_info *) service) &&
-                ((Bridge_info *) service)->proto() == this) {
+                ((Bridge_info *) service)->proto == this) {
                 if (services->proc_service_remove(services->key, o2_ctx->proc,
                                                   services, k)) {
                     result = O2_FAIL; // this should never happen
@@ -124,6 +124,21 @@ int o2_poll_bridges(void)
 }
 
 
+// given a Bridge instance ID, find the location of the instance in
+// the protocol's instances array. Return -1 if not found.
+//
+int Bridge_protocol::find_loc(int id)
+{
+    for (int i = 0; i < instances.size(); i++) {
+        if (instances[i]->id == id) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+
+
 /************* IMPLEMENTATION OF O2-SIDE O2LITE PROTOCOL **************/
 
 /*
@@ -136,8 +151,7 @@ tag BRIDGE_SERVER.
 class O2lite_protocol : public Bridge_protocol {
 public:
     O2lite_protocol() : Bridge_protocol("O2lite") { }
-    virtual ~O2lite_protocol() { assert(false); } // implement me
-
+    virtual ~O2lite_protocol();
     /// bridge_poll() - o2lite needs no polling function since it
     ///     shares the o2n_ API
 };
@@ -146,7 +160,7 @@ public:
 Bridge_protocol *o2lite_protocol = NULL; // indicates we are active
 
 #define ISA_O2LITE(node) (ISA_BRIDGE(node) && \
-                          ((Bridge_info *) node)->proto() == o2lite_protocol)
+                          ((Bridge_info *) node)->proto == o2lite_protocol)
 
 #ifdef O2_NO_DEBUG
 #define TO_O2LITE_INFO(node) ((O2lite_info *) (node))
@@ -160,21 +174,20 @@ class O2lite_info : public Bridge_info {
 public:
     Net_address udp_address; // where to send o2lite udp msg
     
-    O2lite_info(const char *ip, int udp) : Bridge_info() {
+    O2lite_info(const char *ip, int udp) : Bridge_info(o2lite_protocol) {
         udp_address.init_hex(ip, udp, false);
     }
 
     virtual ~O2lite_info() {
         if (!this) return;
         // remove all sockets serviced by this connection
-        proto()->remove_services(this);
+        proto->remove_services(this);
         if (fds_info) {
             fds_info->owner = NULL; // prevent recursion, stale pointer
             fds_info->close_socket();
         }
     }
 
-    virtual Bridge_protocol *proto() { return o2lite_protocol; }
 
     // O2lite is always "synchronized" with the Host because it uses the
     // host's scheduler. Also, since 3rd party processes do not distinguish
@@ -224,7 +237,21 @@ public:
     }
     O2err connected() { return O2_FAIL; } // we are not a TCP client
 };
-  
+
+
+O2lite_protocol::~O2lite_protocol()
+{
+    o2_method_free("/_o2/o2lite");
+    // also free all O2lite connections
+    for (int i = 0; i < o2n_fds_info.size(); i++) {
+        O2lite_info *o2lite = (O2lite_info *) o2n_fds_info[i]->owner;
+        // o2lite could be anything: Proc_info, Osc_info, Bridge_info, etc.
+        if (o2lite && ISA_O2LITE(o2lite)) {  // only remove an O2lite_info
+            delete o2lite;
+        }
+    }
+}
+
 
 // o2lite_dy_handler - generic bridge discovery handler for !_o2/o2lite/dy
 //   message parameters are ensemble, port
@@ -288,11 +315,8 @@ void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
     O2message_ptr msg = o2_message_finish(0.0, "!_o2/id", true);
     O2_DBd(o2_dbg_msg("o2lite_con_handler sending", msg, &msg->data,
                       NULL, NULL));
-#if IS_LITTLE_ENDIAN
-    o2_msg_swap_endian(&msg->data, true);
-#endif
     o2_prepare_to_deliver(msg);
-    O2err err = info->send(false);
+    O2err err = info->send(false); // byte swapping is done here
     if (err) {
         char errmsg[80];
         snprintf(errmsg, 80, "o2lite_con_handler sending id %s",
@@ -323,7 +347,7 @@ void o2lite_sv_handler(o2_msg_data_ptr msgdata, const char *types,
     O2lite_info *o2lite = (O2lite_info *) o2_message_source;
     // make sure o2lite is really an O2lite_info: check tag and proto:
     if (!ISA_BRIDGE(o2lite) ||
-        TO_BRIDGE_INFO(o2lite)->proto() != o2lite_protocol) {
+        TO_BRIDGE_INFO(o2lite)->proto != o2lite_protocol) {
         return;  // some non-O2lite sender invoked /_o2/o2lite/sv!
     }
     O2err err = O2_SUCCESS;
@@ -358,16 +382,21 @@ void o2lite_csget_handler(o2_msg_data_ptr msgdata, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBk(o2_dbg_msg("o2lite_csget_handler gets", NULL, msgdata, NULL, NULL));
-    // get the arguments: ensemble name, protocol name,
-    // if this is "O2lite" protocol, get ip as string,
-    //  tcp port, discovery port.
     // assumes o2lite is initialized, but it must be
     // because the handler is installed
-    int seqno = argv[0]->i32;
-    const char *replyto = argv[1]->s;
-    // make sure o2lite is really an O2lite_info: check tag and proto:
-    if (!ISA_O2LITE(o2_message_source)) {
-        return;  // some non-O2lite sender invoked /_o2/o2lite/sv!
+    int id = argv[0]->i32;
+    int seqno = argv[1]->i32;
+    const char *replyto = argv[2]->s;
+    // since this comes by UDP to the local Proc_info, we don't know who
+    // the sender is. But sender includes their id, so we look them up.
+    // (Maybe it would be better to just send their UDP port or have
+    // network.cpp stash the UDP reply port, but maybe this is a little
+    // more secure -- you can't send a bogus message to cause this
+    // process to send a random message to a random UDP port!)
+    o2_message_source = o2lite_protocol->find(id);
+    if (!o2_message_source || !ISA_O2LITE(o2_message_source)) {
+        o2_drop_message("bad ID in o2lite/cs/get message", msgdata);
+        return;  // some non-O2lite sender invoked /_o2/o2lite/get!
     }
     if (!o2_clock_is_synchronized) {  // can't reply with time
         o2_drop_msg_data("no global time yet for o2lite/cs/get message",
@@ -399,13 +428,14 @@ void o2lite_cscs_handler(o2_msg_data_ptr msgdata, const char *types,
     O2_DBd(o2_dbg_msg("o2lite_cscs_handler gets", NULL, msgdata, NULL, NULL));
     // make sure o2lite is really an O2lite_info: check tag and proto:
     if (!ISA_BRIDGE(o2_message_source) ||
-        TO_BRIDGE_INFO(o2_message_source)->proto() != o2lite_protocol) {
+        TO_BRIDGE_INFO(o2_message_source)->proto != o2lite_protocol) {
         return;  // some non-O2lite sender invoked /_o2/o2lite/sv!
     }
     if (IS_SYNCED(o2_message_source)) {
         o2_drop_msg_data("o2lite/cs/cs is from synced process", msgdata);
         return;
     }
+    o2_message_source->tag |= O2TAG_SYNCED;
     o2_clock_status_change(o2_message_source);
 }
 
@@ -414,17 +444,18 @@ O2err o2lite_initialize()
 {
     if (o2lite_protocol) return O2_ALREADY_RUNNING; // already initialized
     o2lite_protocol = new O2lite_protocol();
-    o2_method_new_internal("/_o2/o2lite/dy", "ssi", &o2lite_dy_handler,
-                           NULL, false, true);
-    o2_method_new_internal("/_o2/o2lite/con", "si", &o2lite_con_handler,
-                           NULL, false, true);
-    o2_method_new_internal("/_o2/o2lite/sv", "isiis", &o2lite_sv_handler,
-                           NULL, false, true);
-    o2_method_new_internal("/_o2/o2lite/cs/get", "is", &o2lite_csget_handler,
-                           NULL, false, true);
-    o2_method_new_internal("/_o2/o2lite/cs/cs", "", &o2lite_cscs_handler,
-                           NULL, false, true);
-    return O2_SUCCESS;
+    o2_method_new_internal("/_o2/o2lite/dy", "ssii",
+                           &o2lite_dy_handler, NULL, false, true);
+    o2_method_new_internal("/_o2/o2lite/con", "si",
+                           &o2lite_con_handler, NULL, false, true);
+    o2_method_new_internal("/_o2/o2lite/sv", "siis",
+                           &o2lite_sv_handler, NULL, false, true);
+    o2_method_new_internal("/_o2/o2lite/cs/get", "iis",
+                           &o2lite_csget_handler, NULL, false, true);
+    // in principle, we should test return values on all of the above,
+    // but in practice, they will all succeed unless we are in deep trouble.
+    return o2_method_new_internal("/_o2/o2lite/cs/cs", "",
+                                  &o2lite_cscs_handler, NULL, false, true);
 }
 
 #endif

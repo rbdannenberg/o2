@@ -765,6 +765,11 @@ Since this is global, we often treat o2_ctx->msgs as the "active"
 message and consider it to be an implied parameter for many delivery
 functions.
 
+O2lite Implementation
+---------------------
+O2lite is implemented as a specialization of the Bridge protocol.
+See ../doc/o2lite.txt for details.
+
 */
 
 
@@ -962,6 +967,7 @@ static void send_one_sv_msg(Proxy_info *proc, const char *service_name,
                   added ? "added" : "removed", tapper, properties));
 }
 
+
 /** notify all known processes that a service has been added or
  * deleted. If adding a service and tapper is not empty or null,
  * then the new service is tapper, which is tapping service_name.
@@ -1027,8 +1033,7 @@ O2err o2_tap_remove(o2string tappee, Proxy_info *proc,
     O2_DBd(printf("%s o2_tap_remove tapper %s in %s tappee %s\n",
                   o2_debug_prefix, tapper, proc->key, tappee));
 
-    Services_entry *ss = (Services_entry *)
-            o2_ctx->path_tree.lookup(tappee);
+    Services_entry *ss = (Services_entry *) *o2_ctx->path_tree.lookup(tappee);
     if (!ss) return O2_FAIL;
 
     return ss->tap_remove(proc, tapper);
@@ -1185,19 +1190,13 @@ O2err o2_can_send(const char *service)
         return O2_BAD_NAME;
     Services_entry *services;
     O2node *entry = Services_entry::service_find(service, &services);
-    if (entry) {
-#ifndef O2_NO_OSC
-        if (ISA_OSC_UDP_CLIENT(entry)) {
-            return O2_SUCCESS;  // UDP is considered non-blocking
+    if (entry && ISA_PROXY(entry)) {
+        Fds_info *fds = ((Proxy_info *) entry)->fds_info;
+        if (fds) {
+            return fds->can_send();
         }
-#endif
-        if (ISA_PROXY(entry))  {  // also handles ISA_OSC_TCP_CLIENT
-            Fds_info *fds_info = TO_OSC_INFO(entry)->fds_info;
-            return (fds_info ? (fds_info->out_message ? O2_BLOCKED :
-                                                        O2_SUCCESS) :
-                    O2_FAIL);
-        }
-        return O2_SUCCESS;   // maybe this is never reached
+    } else if (entry) {
+        return O2_SUCCESS;
     }
     return O2_FAIL;
 }

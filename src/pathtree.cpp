@@ -129,10 +129,8 @@ O2err o2_method_new_internal(const char *path, const char *typespec,
     // the method should be attached to our local offering of the service
     spp = services->proc_service_find(o2_ctx->proc);
     // if we have no service local, this fails with O2_NO_SERVICE
-    if (!spp) {
-        O2_FREE(key);
-        return O2_NO_SERVICE;
-    }
+    if (!spp) goto free_key_return;
+
     node = spp->service;
     assert(node);    // we must have a local offering of the service
 
@@ -446,31 +444,44 @@ static bool o2_pattern_match(const char *str, const char *p)
 }
 #endif // O2_NO_PATTERNS
 
-/**
- * \brief remove a path -- find the leaf node in the tree and remove it.
- *
- * When the method is no longer exist, or the method conflict with a new one.
- * we need to call this function to delete the old one. The full path table
- * entry will be removed as a side effect. If a parent node becomes empty, the 
- * parent is removed. Thus we use a recursive algorithm so we can examine 
- * parents after visiting the children.
- *
- *  @param path The path of the method
- *
- *  @return If succeed, return O2_SUCCESS. If not, return O2_FAIL.
+/* Remove an entry in the path tree. The full path table entry will be
+ * removed as a side effect. If a parent node becomes empty, the
+ * parent is removed. Thus we use a recursive algorithm so we can
+ * examine parents after visiting the children.
  */
-int o2_remove_method(const char *path)
+O2err o2_method_free(const char *path)
 {
-    // this is one of the few times where we need the result of o2_heapify
-    // to be writeable, so coerce from o2string to (char *)
-    char *path_copy = (char *) o2_heapify(path);
-    if (!path_copy) return O2_FAIL;
+    if (!o2_ensemble_name) {
+        return O2_NOT_INITIALIZED;
+    }
+    if (!path || path[0] == 0 || path[1] == 0 || path[0] != '/') {
+        return O2_BAD_NAME;
+    }
     char name[NAME_BUF_LEN];
-    
+    o2strcpy(name, path, NAME_BUF_LEN);
     // search path elements as tree nodes -- to get the keys, replace each
     // "/" with EOS and o2_heapify to copy it, then restore the "/"
-    char *remaining = path_copy + 1; // skip the initial "/"
-    return remove_method_from_tree(remaining, name, &o2_ctx->path_tree);
+    char *remaining = name + 1; // skip the initial "/"
+    char *slash = strchr(remaining, '/');
+    if (slash) *slash = 0;
+    Services_entry *service = *Services_entry::find(remaining);
+    if (slash) *slash = '/';
+    if (!service) {
+        return O2_NO_SERVICE;
+    }
+    Service_provider *spp = service->proc_service_find(o2_ctx->proc);
+    if (ISA_HANDLER(spp->service) || !slash) {
+        // all we have to do is replace the service with an empty Hash_entry
+        delete spp->service;
+        spp->service = new Hash_node(NULL);
+        // note that there is no change in service, so no /_o2/si is sent
+        return O2_SUCCESS;
+    } else if (ISA_HASH(spp->service)) {
+        char temp[NAME_BUF_LEN];
+        return remove_method_from_tree(slash + 1, temp,
+                                       (Hash_node *) spp->service);
+    }
+    return O2_FAIL;
 }
 
 
@@ -478,45 +489,37 @@ int o2_remove_method(const char *path)
 // node, remove it, then as the stack unwinds, remove empty nodes.
 // remaining is the full path, which is manipulated to isolate node names.
 // name is storage to copy and pad node names.
-// table is the current node.
 //
-// returns O2_FAIL if path is not found in tree (should not happen)
+// returns O2_FAIL if path is not found in tree, even if nodes are
+// removed. (This removes any handler encountered along the path.)
 //
 static O2err remove_method_from_tree(char *remaining, char *name,
                                         Hash_node *node)
 {
+    O2err rslt = O2_SUCCESS;
     char *slash = strchr(remaining, '/');
     O2node **entry_ptr; // another return value from o2_lookup
-    if (slash) { // we have an internal node name
-        *slash = 0; // terminate the string at the "/"
-        o2_string_pad(name, remaining);
-        *slash = '/'; // restore the string
-        entry_ptr = node->lookup(name);
-        if ((!*entry_ptr) || (ISA_HASH(*entry_ptr))) {
-            printf("could not find method\n");
-            return O2_FAIL;
-        }
-        // *entry addresses a node entry
-        node = TO_HASH_NODE(*entry_ptr);
-        remove_method_from_tree(slash + 1, name, node);
-        if (node->empty()) {
-            // remove the empty table
-            return node->entry_remove(entry_ptr, true);
-        }
-        return O2_SUCCESS;
-    }
-    // now table is where we find the final path name with the handler
-    // remaining points to the final segment of the path
+    if (slash) *slash = 0; // terminate the string at the "/"
     o2_string_pad(name, remaining);
+    if (slash) *slash = '/'; // restore the string
     entry_ptr = node->lookup(name);
-    // there should be an entry, remove it
-    if (*entry_ptr) {
+    if (!*entry_ptr) {
+        rslt = O2_FAIL;
+    } else if (!slash) {
         node->entry_remove(entry_ptr, true);
-        return O2_SUCCESS;
+        rslt = O2_SUCCESS;
+    } else if (ISA_HANDLER(*entry_ptr)) {
+        rslt = O2_FAIL;  // did not find match to path
+    } else {  // *entry_ptr addresses a HASH entry; recurse to subtree
+        Hash_node *hn = TO_HASH_NODE(*entry_ptr);
+        rslt = remove_method_from_tree(slash + 1, name, hn);
+        if (hn->empty()) {
+            // remove the empty table
+            node->entry_remove(entry_ptr, true);
+        }
     }
-    return O2_FAIL;
+    return rslt;
 }
-
 
 
 // o2_string_pad -- copy src to dst, adding zero padding to word boundary

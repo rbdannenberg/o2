@@ -78,7 +78,7 @@ public:
     // one and only one of the following 2 addresses should be NULL:
     Proc_info *proc; ///< the process descriptor for this process
 
-    Bridge_info *binst; ///< the bridge descriptor for this
+    Bridge_info *binst; ///< the bridge descriptor if this is a
                         /// shared memory process
 
     // This is a stack of messages we are delivering implemented using
@@ -93,16 +93,21 @@ public:
     void (*warning)(const char *warn, o2_msg_data_ptr msg);
 
     O2_context() {
+        argv = NULL;
+        argc = 0;
+        chunk = NULL;
+        chunk_remaining = 0;
+        proc = NULL;
+        binst = NULL;
         msgs = NULL;
         warning = &O2message_drop_warning;
-        binst = NULL;
     }
 
     // deallocate everything that may have been allocated and attached
     // to o2_ctx:
     void finish() {
         O2_DBG(printf("before o2_hash_node_finish of path_tree:\n"); \
-               path_tree.show(2));
+               show_tree());
         path_tree.finish();
         full_path_table.finish();
         argv_data.finish();
@@ -110,6 +115,12 @@ public:
         msg_types.finish();
         msg_data.finish();
     }
+#ifndef O2_DEBUG
+    void show_tree() {
+        printf("%s -------- PATH TREE --------\n", o2_debug_prefix);
+        path_tree.show(2);
+    }
+#endif
 };
 
 /* O2 should not be called from multiple threads. One exception
@@ -217,7 +228,7 @@ extern int o2_gtsched_started;
 /** Default max send and recieve buffer. */
 #define MAX_BUFFER 1024
 
-/** \brief Maximum length of address node names
+/** \brief Maximum length of address node names and full path
  */
 #define O2_MAX_NODE_NAME_LEN 1020
 #define NAME_BUF_LEN ((O2_MAX_NODE_NAME_LEN) + 4)

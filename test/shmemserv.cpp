@@ -163,6 +163,7 @@ void *sharedmem(void *ignore)
     o2_add_float(123.4);
     o2_add_time(567.89);
     o2sm_send_finish(0, "/sift", true);
+    printf("sent sift msg\n");
 
     while (o2sm_time_get() < 0) { // not synchronized
         o2sm_poll();
@@ -175,6 +176,7 @@ void *sharedmem(void *ignore)
         o2sm_poll();
         usleep(2000);
     }
+    assert(sift_called);
     printf("shmemthread received loop-back message\n");
 
     // we are ready for the client, so announce the server services

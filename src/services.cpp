@@ -150,7 +150,7 @@ O2err Services_entry::service_provider_new(o2string service_name,
         O2_DBG(printf("%s ** new service %s is %p (%s) active %d\n",
                       o2_debug_prefix, ss->key, service,
                       o2_tag_to_string(service->tag), active);
-               o2_ctx->path_tree.show(2));
+               o2_ctx->show_tree());
     }
     if (active) {
         // we have an update in the active service, so report it to the local
@@ -258,22 +258,22 @@ Services_entry **Services_entry::find_from_msg(O2message_ptr msg)
  *  result can be an OSC or BRIDGE node, since these are proxies for
  *  the local process.
  */
-Service_provider *Services_entry::proc_service_find(Proxy_info *proc)
+int Services_entry::proc_service_index(Proxy_info *proc)
 {
     if (!this) return NULL;
     for (int i = 0; i < services.size(); i++) {
         Service_provider *spp = &services[i];
         O2node *a_prvdr = spp->service;
         if (a_prvdr == proc) {
-            return spp;
+            return i;
         } else if ((a_prvdr->tag & (O2TAG_HASH | O2TAG_HANDLER | O2TAG_EMPTY |
                                     O2TAG_BRIDGE | O2TAG_OSC_UDP_CLIENT |
                                     O2TAG_OSC_TCP_CLIENT)) &&
                    proc == o2_ctx->proc) {
-            return spp; // local service already exists
+            return i; // local service already exists
         }
     }
-    return NULL;
+    return -1;
 }
 
 
@@ -361,38 +361,43 @@ void Services_entry::remove_if_empty()
 
 
 O2err Services_entry::service_remove(const char *srv_name,
-                                        int index, Proxy_info *proc)
+                                     int index, Proxy_info *proc)
 {
-    Service_provider *spp;
+    Service_provider *spp = NULL;
     if (index < 0) {
-        spp = proc_service_find(proc);
-        if (spp) {
-            // proc_service_find returned an index instead of a pointer
-            delete spp->service;
-        }
-    } else {
-        spp = &services[index];
+        index = proc_service_index(proc);
     }
-    // if we did not find what we wanted to remove, stop here
-    if (!spp) {
+    if (index >= 0) {
+        spp = &services[index];
+    } else {
         O2_DBG(printf("%s o2_service_remove(%s, %s, ...) did not find "
                       "service offered by this process\n",
                       o2_debug_prefix, key,
                       ISA_REMOTE_PROC(proc) ? proc->key : "local"));
         return O2_FAIL;
     }
-    // ASSERT: index is now the index of the service we are deleting or
-    //         replacing, spp == &services[index]
-    //
-    // we found the service to replace; finalized the info depending on the
-    // type, so now we have a dangling pointer in the services list
+    // Now spp == &services[index]
     char *properties = spp->properties;
     if (properties) {
         O2_FREE(properties);
     }
-    
-    services.remove(index);
 
+    // There is a cycle: A proxy could be deleted because a socket closes.
+    // So delete calls service_remove to remove back pointers to the proxy.
+    // But if we directly remove the service, i.e. o2_service_free(), then
+    // we must delete the proxy. To break the cycle, we remove the
+    // service-to-proxy pointer first, then delete the proxy. It might look
+    // up the service again, but that's a far as it will get.
+    O2node *service = spp->service;
+    services.remove(index);
+    // some service providers are "owned" by the service, e.g. a
+    // Handler_entry, while others are owned by an associated
+    // Fds_info, e.g. a remote Proc_info. Only delete nodes that
+    // are owned by the service:
+    if (service->tag & O2TAG_OWNED_BY_TREE) {
+        delete service;
+    }
+    // we removed the service at index; let the world know
     o2_do_not_reenter++; // protect data structures
     // send notification message
     o2_send_cmd("!_o2/si", 0.0, "siss", srv_name, O2_FAIL,
@@ -629,8 +634,13 @@ void Services_entry::show(int indent)
     O2node::show(indent);
     printf("\n");
     indent++;
-    for (int j = 0; j < services.size(); j++) {
-        services[j].service->show(indent);
+    for (int i = 0; i < services.size(); i++) {
+        services[i].service->show(indent);
+    }
+    for (int i = 0; i < taps.size(); i++) {
+        for (int j = 0; j < indent; j++) printf("  ");
+        Service_tap *tap = &taps[i];
+        printf("TAP@%p %s by %s\n", tap, tap->tapper, tap->proc->key);
     }
 }
 #endif

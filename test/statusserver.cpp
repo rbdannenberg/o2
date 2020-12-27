@@ -99,7 +99,7 @@ int main(int argc, const char * argv[])
         printf("SERVER DONE\n");
     } else {
         printf("FAIL: client service status is %d\n", o2_status("client"));
-        o2_ctx->path_tree.show(2);
+        o2_ctx->show_tree();
     }
     o2_finish();
     sleep(1); // clean up sockets

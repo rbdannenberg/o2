@@ -43,7 +43,11 @@ class Services_entry : public O2node {
 #ifndef O2_NO_DEBUG
     void show(int indent);
 #endif
-    Service_provider *proc_service_find(Proxy_info *proc);
+    int proc_service_index(Proxy_info *proc);
+    Service_provider *proc_service_find(Proxy_info *proc) {
+        int index = proc_service_index(proc);
+        return index >= 0 ? &services[index] : NULL;
+    }
     bool add_service(o2string our_ip_port, O2node *service, char *properties);
     O2err service_remove(const char *srv_name, int index, Proxy_info *proc);
     O2err insert_tap(o2string tapper, Proxy_info *proxy);

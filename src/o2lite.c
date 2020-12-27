@@ -771,7 +771,8 @@ static void o2l_clock_finish()
     clock_initialized = false;
 }    
 
-
+// handler for "!_o2/cs/put"
+//
 static void ping_reply_handler(o2l_msg_ptr msg, const char *types,
                                    void *data, void *info)
 {
@@ -878,7 +879,8 @@ static void clock_ping()
 {
     clock_ping_send_time = o2l_local_now;
     clock_sync_id++;
-    o2l_send_start("!_o2/o2lite/cs/get", 0, "is", false);
+    o2l_send_start("!_o2/o2lite/cs/get", 0, "iis", false);
+    o2l_add_int32(o2l_bridge_id);
     o2l_add_int32(clock_sync_id);
     o2l_add_string("!_o2/cs/put");
     o2l_send();
@@ -1010,6 +1012,9 @@ static void find_my_ip_address()
     return;
 }
 
+
+// handler for "!_o2/dy" messages from O2 hosts
+//
 static void o2l_dy_handler(o2l_msg_ptr msg, const char *types,
                            void *data, void *info)
 {

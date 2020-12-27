@@ -5,3 +5,4 @@
 
 
 Bridge_info *o2_shmem_inst_new();
+

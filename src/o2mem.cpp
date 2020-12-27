@@ -116,8 +116,8 @@ typedef struct chunk_struct {
 #define O2MEM_CHUNK_SIZE (1 << 13) // 13 is much bigger than 9
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
-static bool o2mem_initialized = false;
-static bool using_o2mem = true;
+static enum { UNINITIALIZED, NOT_USED, INITIALIZED }
+        o2mem_state = UNINITIALIZED;
 static bool malloc_ok = true;
 static int total_allocated = 0;
 static O2queue allocated_chunk_list;
@@ -311,16 +311,32 @@ bool o2_mem_check_all(int report_leaks)
 }
 #endif
 
+// The o2mem state machine:
+// Initial state = UNINITIALIZED
+//     o2_memory() is called: state -> NOT_USED, return O2_SUCCESS
+//     o2_mem_init() is called: state -> INITIALIZED
+//     o2_mem_finish() is called: state unchanged
+// NOT_USED
+//     o2_memory() is called: state unchanged, return O2_FAIL
+//     o2_mem_init() is called: state unchanged
+//     o2_mem_finish(): is called: state -> UNINITIALIZED
+//
+// INITIALIZED
+//     o2_memory() is called: state unchanged, return O2_FAIL
+//     o2_mem_init() is called: state unchanged
+//     o2_mem_finish() is called: state -> UNINITIALIZED
+
+
 // configure memory before o2_initialize(). first_chunk is never freed -
 //    it is owned by the caller and may be freed after o2_finish().
 int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)),
               char *first_chunk, int64_t size, bool mallocp)
 {
-    if (o2mem_initialized || !using_o2mem) { // error to change configuration!
+    if (o2mem_state != UNINITIALIZED) { // error to change configuration!
         return O2_FAIL;
     }
     if (malloc && free) {
-        using_o2mem = false;
+        o2mem_state = NOT_USED;
         o2_malloc_ptr = malloc;
         o2_free_ptr = free;
     } else if (!malloc && !free) {
@@ -333,6 +349,12 @@ int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)),
 
 void o2_mem_init(char *chunk, int64_t size)
 {
+    if (o2mem_state == NOT_USED) {
+        return;
+    }
+    // whether we are INITIALIZED or not, we clean up when called, so this
+    // *must* only be called by o2_initialize() or o2_finish() (which calls
+    // o2_mem_finish().
     for (int i = 0; i < MAX_LINEAR_BYTES / O2MEM_ALIGN; i++) {
         linear_free[i].clear();
     }
@@ -340,10 +362,10 @@ void o2_mem_init(char *chunk, int64_t size)
          i < LOG2_MAX_EXPONENTIAL_BYTES / LOG2_MAX_LINEAR_BYTES; i++) {
         exponential_free[i].clear();
     }
-    if (o2mem_initialized || !using_o2mem) {
+    if (o2mem_state == INITIALIZED) {  // we were called by o2_mem_finish()
         return;
     }
-    o2mem_initialized = true;
+    o2mem_state = INITIALIZED;
     o2_ctx->chunk = chunk;
     o2_ctx->chunk_remaining = size;
 }
@@ -351,7 +373,7 @@ void o2_mem_init(char *chunk, int64_t size)
 
 void o2_mem_finish()
 {
-    if (using_o2mem) {
+    if (o2mem_state == INITIALIZED) {
 #if O2MEM_DEBUG
         // this is expensive, but so is shutting down, so why not...
         // o2_mem_check_all has the side effect of emptying allocated_chunk_list
@@ -365,10 +387,8 @@ void o2_mem_finish()
             chunk = (chunk_ptr) allocated_chunk_list.pop();
         }
 #endif
-        o2mem_initialized = false;  // pretend not to allow zeroing lists
         o2_mem_init(NULL, 0); // remove free lists
-        o2mem_initialized = false;  // we are not initialized
-        using_o2mem = false;  // enables switching memory managers
+        o2mem_state = UNINITIALIZED;
     }
 }
 
@@ -527,7 +547,7 @@ void *o2_malloc(size_t size)
     }
     postlude->end_sentinal = 0xBADCAFE8DEADBEEF;
     if (result == o2_mem_watch) {
-        fprintf(stderr, "o2_mem_watch %p allocated at seqno %ld\n",
+        fprintf(stderr, "o2_mem_watch %p allocated at seqno %ld\n",
                 result, o2_mem_seqno);
     }
 #endif

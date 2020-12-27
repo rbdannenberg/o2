@@ -120,7 +120,7 @@ O2err Stun_info::deliver(o2n_message_ptr msg)
 Stun_info::~Stun_info()
 {
     O2_DBo(o2_fds_info_debug_predelete(fds_info));
-    delete_key_and_fds_info();
+    delete_fds_info();
 }
 
     

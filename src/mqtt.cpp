@@ -143,16 +143,14 @@ O2err MQTT_info::send(bool block)
 MQTT_info::~MQTT_info()
 {
     O2_DBo(o2_fds_info_debug_predelete(fds_info));
-    if (key) {  // represents a remote process
-        O2_FREE(key);
-    } else {  // represents entire MQTT protocol
+    if (!key) {  // represents entire MQTT protocol
         while (o2_mqtt_procs.size() > 0) {
             // free the last one to avoid N^2 algorithm
             delete o2_mqtt_procs.pop_back();
         }
         o2_mqtt_procs.finish();  // deallocate storage too
-        delete_key_and_fds_info();
-    }
+        delete_fds_info();
+    } // else represents a remote MQTT process
 }
 
 
@@ -170,7 +168,7 @@ O2err create_mqtt_connection(const char *name, bool from_disc)
     if (services) {
         return O2_SUCCESS;
     }
-    MQTT_info *mqtt = new MQTT_info(name, O2TAG_MQTT);
+    MQTT_info *mqtt = new MQTT_info(name, O2TAG_MQTT | O2TAG_OWNED_BY_TREE);
     Services_entry::service_provider_new(mqtt->key, NULL, mqtt, mqtt);
     // add this process name to the list of mqtt processes
     o2_mqtt_procs.push_back(mqtt);

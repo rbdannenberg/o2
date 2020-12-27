@@ -1372,8 +1372,24 @@ O2err o2_service_free(const char *service_name);
  * i.e. to install a handler for just the service.
  */
 O2err o2_method_new(const char *path, const char *typespec,
-                  O2method_handler h, const void *user_data,
-                  bool coerce, bool parse);
+                    O2method_handler h, const void *user_data,
+                    bool coerce, bool parse);
+
+
+/**
+ * \brief remove a path -- remove a path and associated handler
+ *
+ * To remove a handler, call this function to remove it from the
+ * handler lookup structure. You can also remove a subtree of
+ * handlers, e.g. if path is /W/X, it will remove any handlers on
+ * paths starting with /W/X, e.g. /W/X/Y and /W/X/Z.
+ *
+ *  @param path The path of the method
+ *
+ *  @return If success, return O2_SUCCESS. If not, return O2_FAIL.
+ */
+O2err o2_method_free(const char *path);
+
 
 /**
  * \brief Default dropped message alert.

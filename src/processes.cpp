@@ -133,7 +133,7 @@ Proc_info::~Proc_info()
                       o2_debug_prefix, o2_tag_to_string(tag),
                       key));
     }
-    delete_key_and_fds_info();
+    delete_fds_info();
 }
 
 

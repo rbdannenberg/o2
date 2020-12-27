@@ -27,7 +27,6 @@ int msg_count = 0;
 char **client_addresses = NULL;
 char **server_addresses = NULL;
 
-
 bool about_equal(double a, double b)
 {
     return a / b > 0.999999 && a / b < 1.000001;
@@ -79,7 +78,7 @@ void sift_han(o2l_msg_ptr msg, const char *types, void *data, void *info)
 
 int main(int argc, const char * argv[])
 {
-    printf("Usage: o2liteserv [tcp]\n"
+    printf("Usage: o2liteserv [tcp] [debug]\n"
            "    pass t to test with TCP, u (default) for UDP\n");
     if (argc >= 2) {
         if (strchr(argv[1], 't' )) {

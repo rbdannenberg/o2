@@ -491,7 +491,7 @@ void o2_msg_deliver(O2node *service, Services_entry *ss)
   done:
     if (!delivered) {
         o2_drop_message("no handler was found", false);
-        O2_DBsS(o2_ctx->path_tree.show(2));
+        O2_DBsS(o2_ctx->show_tree());
     }
     o2_complete_delivery();
 }
