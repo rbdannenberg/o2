@@ -99,7 +99,7 @@ int o2_strsize(const char *s);
 
 void o2_string_pad(char *dst, const char *src);
 
-o2string o2_heapify(const char *path);
+O2string o2_heapify(const char *path);
 
 /**
  *  Structures for hash look up.
@@ -118,7 +118,7 @@ o2string o2_heapify(const char *path);
 class O2node : public O2obj {
   public:
     int tag;
-    o2string key; // key is "owned" by this generic entry struct
+    O2string key; // key is "owned" by this generic entry struct
     O2node *next;
     O2node(const char *key_, int tag_) {
         tag = tag_;
@@ -171,7 +171,7 @@ class Hash_node : public O2node { // "subclass" of o2_node
 #ifndef O2_NO_DEBUG
     void show(int indent);
 #endif
-    O2node **lookup(o2string key);
+    O2node **lookup(O2string key);
 
     // At the top level, all children are services_entry_ptrs (tag
     // O2TAG_SERVICES). Below that level children can have tags O2TAG_HASH
@@ -179,8 +179,8 @@ class Hash_node : public O2node { // "subclass" of o2_node
     O2err entry_insert_at(O2node **loc,  O2node *entry);
     /// add an entry to a hash table
     O2err insert(O2node *entry);
-    Hash_node *tree_insert_node(o2string key);
-    O2err entry_remove_by_name(o2string key);
+    Hash_node *tree_insert_node(O2string key);
+    O2err entry_remove_by_name(O2string key);
     O2err entry_remove(O2node **child, bool resize);
   protected:
     void table_init(int locations) {
@@ -233,13 +233,13 @@ class Handler_entry : public O2node {  // "subclass" of o2_node
 public:
     O2method_handler handler;
     const void *user_data;
-    o2string full_path; // this is the key for this entry in the
+    O2string full_path; // this is the key for this entry in the
     // o2_ctx->full_path_table; it is a copy of the key in the
 
     // path_tree table entry, so you should never free this pointer
     // -- it will be freed when the path_tree table entry is freed.
     // (Exception: if O2_NO_PATTERNS, there is no path_tree.)
-    o2string type_string; ///< types expected by handler, or NULL to ignore
+    O2string type_string; ///< types expected by handler, or NULL to ignore
     int types_len;     ///< the length of type_string
     int coerce_flag;   ///< boolean - coerce types to match type_string?
                        ///<   The message is not altered, but args will point
@@ -248,7 +248,7 @@ public:
     int parse_args;    ///< boolean - send argc and argv to handler?
   public:
     Handler_entry(const char *key, O2method_handler h, const void *user_data_,
-                  o2string full_path_, o2string type_string_, int types_len_,
+                  O2string full_path_, O2string type_string_, int types_len_,
                   bool coerce_flag_, bool parse_args_) :
             O2node(key, O2TAG_HANDLER | O2TAG_OWNED_BY_TREE) {
         handler = h; user_data = user_data_; full_path = full_path_;

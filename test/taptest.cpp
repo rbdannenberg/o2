@@ -1064,11 +1064,11 @@ int main(int argc, const char * argv[])
     o2_service_new("twotap");
 
 
-    o2_tap("test", "testtap");
-    o2_tap("one", "onetap");
-    o2_tap("two", "twotap");
-    o2_tap("three", "threetap");
-    o2_tap("four", "fourtap");
+    o2_tap("test", "testtap", TAP_RELIABLE);
+    o2_tap("one", "onetap", TAP_RELIABLE);
+    o2_tap("two", "twotap", TAP_RELIABLE);
+    o2_tap("three", "threetap", TAP_RELIABLE);
+    o2_tap("four", "fourtap", TAP_RELIABLE);
 
     // should be ok to make tapper AFTER the o2_tap call...
     o2_service_new("threetap");

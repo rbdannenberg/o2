@@ -177,7 +177,9 @@ O2message_ptr o2_make_dy_msg(Proc_info *proc, int tcp_flag,
     int port;
     assert(o2n_public_ip);
     assert(o2n_internal_ip);
-    if (proc == o2_ctx->proc) {
+    // careful: if our TCP socket is closed, proc->fds_info->port will
+    // not exist. Instead, we just return NULL
+    if (proc == o2_ctx->proc && proc->fds_info) {
         public_ip = o2n_public_ip;
         internal_ip = o2n_internal_ip;
         port = proc->fds_info->port;
@@ -418,10 +420,11 @@ O2err o2_discovered_a_remote_process(const char *public_ip,
 
 // send local services info to remote process. The address is !_o2/sv
 // The parameters are this process name, e.g. @pip:iip:port (as a string),
-// followed by (for each service): service_name, true, "", where true means
-// the service exists (not deleted), and "" is a placeholder for a tappee
+// followed by (for each service): service_name, added_flag (true),
+// service_or_tapper (true), properties, send_mode (0, ignored).
 //
-// Send taps as well.
+// Send taps as well: service_name, added_flag (true), service_or_tapper
+// (false), tapper, send_mode (for tap messages).
 //
 // called by o2_discovery_handler in response to /_o2/dy
 // the first service is the process itself, which contains important
@@ -432,7 +435,7 @@ O2err o2_send_services(Proxy_info *proc)
     o2_send_start();
     assert(o2_ctx->proc->key);
     o2_add_string(o2_ctx->proc->key);
-    o2string dest = proc->key;
+    O2string dest = proc->key;
     Enumerate enumerator(&o2_ctx->path_tree);
     O2node *entry;
     while ((entry = enumerator.next())) {
@@ -447,6 +450,7 @@ O2err o2_send_services(Proxy_info *proc)
                     o2_add_true();
                     o2_add_true();
                     o2_add_string(spp->properties ? spp->properties : ";");
+                    o2_add_int32(0);  // send_mode is ignored for services
                     O2_DBd(printf("%s o2_send_services sending %s to %s\n",
                                   o2_debug_prefix, entry->key, dest));
                 }
@@ -460,6 +464,7 @@ O2err o2_send_services(Proxy_info *proc)
             o2_add_true();
             o2_add_false();
             o2_add_string(stp->tapper);
+            o2_add_int32(stp->send_mode);
             O2_DBd(printf("%s o2_send_services sending tappee %s tapper %s"
                           "to %s\n",
                           o2_debug_prefix, entry->key, stp->tapper, dest));
@@ -536,8 +541,8 @@ void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
 // /_o2/sv handler: called when services become available or are removed.
 // Arguments are
 //     proc name,
-//     service1, added_flag, service_or_tapper, properties_or_tapper,
-//     service2, added_flag, service_or_tapper, properties_or_tapper,
+//     service1, added_flag, service_or_tapper, properties_or_tapper, send_mode
+//     service2, added_flag, service_or_tapper, properties_or_tapper, send_mode
 //     ...
 //
 // Message was sent by o2_send_services()
@@ -567,12 +572,15 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
     O2arg_ptr addarg;     // boolean - adding a service or deleting one?
     O2arg_ptr isservicearg; // boolean - service (true) or tap (false)?
     O2arg_ptr prop_tap_arg;  // string - properties string or tapper name
+    O2arg_ptr send_mode_arg;  // O2tap_send_mode - for taps
     while ((arg = o2_get_next(O2_STRING)) &&
            (addarg = o2_get_next(O2_BOOL)) &&
            (isservicearg = o2_get_next(O2_BOOL)) &&
-           (prop_tap_arg = o2_get_next(O2_STRING))) {
+           (prop_tap_arg = o2_get_next(O2_STRING)) &&
+           (send_mode_arg = o2_get_next(O2_INT32))) {
         char *service = arg->s;
         char *prop_tap = prop_tap_arg->s;
+        O2tap_send_mode send_mode = (O2tap_send_mode) send_mode_arg->i32;
         if (strchr(service, '/')) {
             O2_DBG(printf("%s ### ERROR: o2_services_handler got bad service "
                           "name - %s\n", o2_debug_prefix, service));
@@ -584,7 +592,7 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
                 Services_entry::service_provider_new(service, prop_tap,
                                                      proc, proc);
             } else {
-                o2_tap_new(service, proc, prop_tap);
+                o2_tap_new(service, proc, prop_tap, send_mode);
             }
         } else { // remove a service - it is no longer offered by proc
             if (isservicearg->B) {

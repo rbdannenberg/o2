@@ -49,7 +49,7 @@ Services entry is destroyed when:
 // service name with zero padding. The assumption is there will
 // be methods with paths on this service, so the service is
 // created as a Hash_node.
-O2err Services_entry::service_new(o2string padded_name)
+O2err Services_entry::service_new(O2string padded_name)
 {
     // find services_node if any
     Hash_node *node = new Hash_node(NULL);
@@ -63,7 +63,7 @@ O2err Services_entry::service_new(o2string padded_name)
     // Note that when the local @public:internal:port service is created,
     // there are no remote connections yet, so o2_notify_others()
     // will not send any messages.
-    o2_notify_others(padded_name, true, NULL, NULL);
+    o2_notify_others(padded_name, true, NULL, NULL, 0);
 
     return O2_SUCCESS;
 }
@@ -103,7 +103,7 @@ O2err Services_entry::service_new(o2string padded_name)
  *  - otherwise, add the proc by creating a new service_provider entry
  *  - if the proc is the active service provider, send an /_o2/si message.
  */
-O2err Services_entry::service_provider_new(o2string service_name,
+O2err Services_entry::service_provider_new(O2string service_name,
             const char *properties, O2node *service, Proxy_info *proc)
 {
     bool active = false;
@@ -149,8 +149,7 @@ O2err Services_entry::service_provider_new(o2string service_name,
         active = ss->add_service(proc->key, service, (char *) properties);
         O2_DBG(printf("%s ** new service %s is %p (%s) active %d\n",
                       o2_debug_prefix, ss->key, service,
-                      o2_tag_to_string(service->tag), active);
-               o2_ctx->show_tree());
+                      o2_tag_to_string(service->tag), active));
     }
     if (active) {
         // we have an update in the active service, so report it to the local
@@ -195,7 +194,7 @@ O2node *o2_msg_service(o2_msg_data_ptr msg, Services_entry **services)
     // and delivered to a specific tapper process. So if O2_TAP_FLAG is set,
     // we need to find the service offered by this local process even if it
     // is not the active service, so we cannot use Service_entry::find:
-    if (msg->flags & O2_TAP_FLAG) {
+    if (msg->misc & O2_TAP_FLAG) {
         *services = *Services_entry::find(service_name);
         Service_provider *spp = (*services)->proc_service_find(o2_ctx->proc);
         if (spp) rslt = spp->service;
@@ -233,11 +232,13 @@ O2node *Services_entry::service_find(const char *service_name,
 }
 
 
-O2err Services_entry::insert_tap(o2string tapper, Proxy_info *proc)
+O2err Services_entry::insert_tap(O2string tapper, Proxy_info *proc,
+                                 O2tap_send_mode send_mode)
 {
     Service_tap *tap = taps.append_space(1);
     tap->tapper = tapper;
     tap->proc = proc;
+    tap->send_mode = send_mode;
     return O2_SUCCESS;
 }
 
@@ -432,7 +433,7 @@ O2err Services_entry::service_remove(const char *srv_name,
         || ISA_BRIDGE(proc)
 #endif
        ) {
-        o2_notify_others(name, false, NULL, NULL);
+        o2_notify_others(name, false, NULL, NULL, 0);
     }
     o2_do_not_reenter--;
     return O2_SUCCESS;
@@ -514,7 +515,7 @@ O2err Services_entry::tap_remove(Proxy_info *proc, const char *tapper)
 // find existing services_entry or create an empty services_entry
 // for service_name
 //
-Services_entry *Services_entry::must_get_services(o2string service_name)
+Services_entry *Services_entry::must_get_services(O2string service_name)
 {
     Services_entry **services = (Services_entry **)
             o2_ctx->path_tree.lookup(service_name);
@@ -645,7 +646,7 @@ void Services_entry::show(int indent)
 }
 #endif
 
-bool Services_entry::add_service(o2string our_ip_port,
+bool Services_entry::add_service(O2string our_ip_port,
                                  O2node *service, char *properties)
 {
     // find insert location: either at front or at back of services->services
@@ -655,7 +656,7 @@ bool Services_entry::add_service(o2string our_ip_port,
     if (index > 0) { // see if we should go first
         // find the top entry
         Service_provider *top_entry = &services[0];
-        o2string top_ipport = top_entry->service->get_proc_name();
+        O2string top_ipport = top_entry->service->get_proc_name();
         if (strcmp(our_ip_port, top_ipport) > 0) {
             // move top entry from location 0 to end of array at index
             services[index] = *top_entry;

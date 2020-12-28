@@ -50,7 +50,7 @@ O2err o2_mqtt_enable(const char *broker, int port_num)
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
-    if (!broker) broker = "mqtt.eclipse.org";
+    if (!broker) broker = "mqtt.eclipseprojects.io";
     if (port_num == 0) port_num = 1883; // default for MQTT
     // look up the server to get the IP address. That way, we can get the
     // blocking call out of the way when the process starts up, and we
@@ -83,6 +83,7 @@ O2err o2_mqtt_initialize()
     // make MQTT broker connection
     mqtt_info = new MQTT_info(NULL, MQTT_CLIENT);
     mqtt_info->fds_info = Fds_info::create_tcp_client(&mqtt_address);
+    mqtt_info->fds_info->owner = mqtt_info;
     mqtt_info->fds_info->raw_flag = true;
 
     mqtt_comm.initialize(mqtt_broker_ip, mqtt_address.get_port());
@@ -125,7 +126,7 @@ O2err MQTT_info::send(bool block)
         rslt = O2_NO_SERVICE;
     } else {
         int payload_len = msg->data.length;
-        const uint8_t *payload = (const uint8_t *) &msg->data.flags;
+        const uint8_t *payload = (const uint8_t *) &msg->data.misc;
         // O2_DBq(o2_dbg_msg("MQTT_send", msg, &msg->data, NULL, NULL));
         O2_DBq(printf("MQTT_send payload_len (msg len) %d\n", payload_len));
         rslt = mqtt_comm.publish(key, payload, payload_len, 0);
@@ -344,7 +345,7 @@ void O2_MQTTcomm::deliver_mqtt_msg(const char *topic, int topic_len,
             // last check insures topic contains all of proc->key:
             o2_ens_len + 1 + strlen(o2_ctx->proc->key) == topic_len)  {
             // match, so send the message.
-            O2message_ptr msg = O2message_new(payload_len);
+            O2message_ptr msg = o2_message_new(payload_len);
             memcpy(O2_MSG_PAYLOAD(msg), payload, payload_len);
 #if IS_LITTLE_ENDIAN
             o2_msg_swap_endian(&msg->data, false);
@@ -368,7 +369,7 @@ void O2_MQTTcomm::deliver_mqtt_msg(const char *topic, int topic_len,
 O2err MQTT_info::deliver(o2n_message_ptr o2n_msg)
 {
     O2message_ptr msg = (O2message_ptr) o2n_msg;
-    char *data = (char *) &msg->data.flags;
+    char *data = (char *) &msg->data.misc;
     int len = msg->data.length;
     mqtt_comm.deliver(data, len);
     O2_FREE(msg);

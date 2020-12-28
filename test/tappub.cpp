@@ -153,7 +153,7 @@ int main(int argc, const char *argv[])
         o2_method_new(path, "i", &server_test, NULL, false, true);
     }
 
-    assert(o2_tap("publish0", "copy0") == O2_SUCCESS);
+    assert(o2_tap("publish0", "copy0", TAP_RELIABLE) == O2_SUCCESS);
     assert(o2_service_new("copy0") == O2_SUCCESS);
     assert(o2_method_new("/copy0/i", "i", &copy_i,
                          NULL, false, true) == O2_SUCCESS);

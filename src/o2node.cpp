@@ -188,7 +188,7 @@ void Handler_entry::invoke(o2_msg_data_ptr msg, const char *types)
 
     if (parse_args) {
         o2_extract_start(msg);
-        o2string typ = type_string;
+        O2string typ = type_string;
         if (!typ) { // if handler type_string is NULL, use message types
             typ = types;
         }
@@ -227,10 +227,10 @@ void O2node::show(int indent)
 // ((5 * 5) << 16 + ..., so it is similar to doing the multiplies
 // and adds all in parallel for 4 bytes at a time.
 //
-// In O2, o2string means "const char *" with zero padding to a
+// In O2, O2string means "const char *" with zero padding to a
 // 32-bit word boundary.
 //
-static int64_t get_hash(o2string key)
+static int64_t get_hash(O2string key)
 {
     int32_t *ikey = (int32_t *) key;
     uint64_t hash = 0;
@@ -253,7 +253,7 @@ static int64_t get_hash(o2string key)
 // copy a string to the heap, result is 32-bit word aligned, has
 //   at least one zero end-of-string byte and is
 //   zero-padded to the next word boundary
-o2string o2_heapify(const char *path)
+O2string o2_heapify(const char *path)
 {
     long len = o2_strsize(path);
     char *rslt = O2_MALLOCNT(len, char);
@@ -267,7 +267,7 @@ o2string o2_heapify(const char *path)
 // The hash table uses linked lists for collisions to make
 // deletion simple. key must be aligned on a 32-bit word boundary
 // and must be padded with zeros to a 32-bit boundary
-O2node **Hash_node::lookup(o2string key)
+O2node **Hash_node::lookup(O2string key)
 {
     int n = children.size();
     // since a Hash_node can be initialized with no table, we might have to
@@ -323,7 +323,7 @@ O2err Hash_node::entry_remove(O2node **child, bool resize)
 //
 // key is "owned" by caller and must be aligned to 4-byte word boundary
 //
-Hash_node *Hash_node::tree_insert_node(o2string key)
+Hash_node *Hash_node::tree_insert_node(O2string key)
 {
     assert(children.size() > 0);
     O2node **entry_ptr = lookup(key);
@@ -388,7 +388,7 @@ O2err Hash_node::entry_insert_at(O2node **loc, O2node *entry)
 // in which case node->children.table is written with a pointer to
 // the new table and the old table is freed
 //
-O2err Hash_node::entry_remove_by_name(o2string key)
+O2err Hash_node::entry_remove_by_name(O2string key)
 {
     O2node **ptr = lookup(key);
     if (*ptr) {
@@ -410,12 +410,12 @@ O2message_ptr Proxy_info::pre_send(int *tcp_flag)
         o2_msg_data_ptr mdp = &msg->data;
         bool sysmsg = mdp->address[1] == '_' || mdp->address[1] == '@';
         O2_DB(sysmsg ? O2_DBS_FLAG : O2_DBs_FLAG,
-              const char *desc = (mdp->flags & O2_TCP_FLAG ?
+              const char *desc = (mdp->misc & O2_TCP_FLAG ?
                                   "queueing/sending TCP" : "sending UDP");
               o2_dbg_msg(desc, msg, mdp, "to", key));
     }
 #endif
-    *tcp_flag = msg->data.flags & O2_TCP_FLAG; // before byte swap
+    *tcp_flag = msg->data.misc & O2_TCP_FLAG; // before byte swap
 #if IS_LITTLE_ENDIAN
     if (fds_info) {  // non-null indicates connection needs network order
         o2_msg_swap_endian(&msg->data, true);

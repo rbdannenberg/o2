@@ -19,7 +19,7 @@ def main()
     if len(command_line_arguments) > 1:
         if find(command_line_arguments[1], "v"):
             MQTT_DBG = true
-    mqtt = Mqtt_subtest()
+    mqtt = Mqtt_subtest(server = "mqtt.eclipseprojects.io")
     mqtt.subscribe("serpent/test")
 //    mqtt.subscribe("#")
     while mqtt.poll()

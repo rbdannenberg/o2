@@ -245,6 +245,7 @@ void o2n_send_udp_local(int port, o2n_message_ptr msg)
     O2_FREE(msg);
 }
 
+
 O2err Fds_info::can_send()
 {
     // O2_SUCCESS if TCP socket and !out_message
@@ -259,6 +260,7 @@ O2err Fds_info::can_send()
     // that, so we return O2_FAIL.
     return O2_FAIL;
 }
+
 
 // This function takes ownership of msg
 O2err Fds_info::send_tcp(bool block, o2n_message_ptr msg)
@@ -385,6 +387,8 @@ Fds_info::Fds_info(SOCKET sock, int net_tag_, int port_)
     assert(sock != INVALID_SOCKET);
     pfd->events = POLLIN;
     pfd->revents = 0;
+    O2_DBo(printf("%s new Fds_info %p socket %ld index %d\n", o2_debug_prefix,
+                  this, (long) sock, fds_index));
 #if CLOSE_SOCKET_DEBUG
     printf("**Fds_info constructor:\n");
     for (int i = 0; i < o2n_fds.size(); i++) {
@@ -622,15 +626,19 @@ Fds_info::~Fds_info()
     struct pollfd *pfd = &o2n_fds[fds_index];
 
     O2_DBo(printf("%s o2n_socket_remove: net_tag %s port %d closing "
-                  "socket %lld index %d\n",
+                  "socket %ld index %d\n",
                   o2_debug_prefix, Fds_info::tag_to_string(net_tag),
-                  port, (long long) pfd->fd, fds_index));
+                  port, (long) pfd->fd, fds_index));
     if (o2n_fds.size() > fds_index + 1) { // move last to i
         struct pollfd *lastfd = &o2n_fds.last();
         memcpy(pfd, lastfd, sizeof *lastfd);
         Fds_info *replace = o2n_fds_info.last();
         o2n_fds_info[fds_index] = replace; // move to new index
         replace->fds_index = fds_index;
+        O2_DBo(printf("%s o2n_socket_remove: net_tag %s port %d moved "
+                      "socket %ld to index %d\n", o2_debug_prefix,
+                      Fds_info::tag_to_string(replace->net_tag), replace->port,
+                      (long) pfd->fd, fds_index));
     }
     o2n_fds.pop_back();
     o2n_fds_info.pop_back();
@@ -833,7 +841,7 @@ void Fds_info::enqueue(o2n_message_ptr msg)
     // if nothing pending yet, no send in progress;
     //    set up to send this message
     msg->next = NULL; // make sure this will be the end of list
-    if (!out_message && net_tag != NET_TCP_CONNECTING) {
+    if (!out_message && !(net_tag & NET_TCP_CONNECTING)) {
         // nothing to block sending the message
         out_message = msg;
         out_msg_sent = 0;
@@ -844,11 +852,16 @@ void Fds_info::enqueue(o2n_message_ptr msg)
         while (*pending) pending = &(*pending)->next;
         // now *pending is where to put the new message
         *pending = msg;
+        O2_DBo(printf("%s blocked message %p queued for fds_info %p (%s) "
+                      "socket %ld\n", o2_debug_prefix, msg, this,
+                      Fds_info::tag_to_string(net_tag),
+                      (long) o2n_fds[fds_index].fd));
     }
 }
+    
 
-
-void Fds_info::close_socket()
+// remove messages (if any), but do not close. Called after error.
+void Fds_info::reset()
 {
     if (in_message) O2_FREE(in_message);
     in_message = NULL; // in case we're closed again
@@ -858,6 +871,12 @@ void Fds_info::close_socket()
         O2_FREE(p);
     }
     out_message = NULL;
+}
+
+
+void Fds_info::close_socket()
+{
+    reset();
     struct pollfd *pfd = &o2n_fds[fds_index];
     SOCKET sock = pfd->fd;
     O2_DBo(printf("%s close_socket called on fds_info %p (%s) socket %ld\n",
@@ -910,15 +929,16 @@ O2err o2n_recv()
         return O2_SUCCESS;
     }
     for (int i = 0; i < o2n_fds.length; i++) {
-        if (FD_ISSET(o2n_fds[i].fd, &o2_read_set)) {
+        SOCKET socket = o2n_fds[i].fd;
+        if (FD_ISSET(socket, &o2_read_set)) {
             Net_interface *interf = &o2n_fds_info[i];
-            if ((read_event_handler(o2n_fds[i].fd, interf)) == O2_TCP_HUP) {
+            if ((interf->read_event_handler()) == O2_TCP_HUP) {
                 O2_DBo(printf("%s removing remote process after O2_TCP_HUP to "
                          "socket %ld", o2_debug_prefix, (long) o2n_fds[i].fd));
                 interf->close_socket();
             }
         }
-        if (FD_ISSET(pfd->fd, &o2_write_set)) {
+        if (FD_ISSET(socket, &o2_write_set)) {
             Net_interface *interf = &o2n_fds_info[i];
             O2message_ptr msg = interf->proc.pending_msg; // unlink pending msg
             interf->proc.pending_msg = NULL;
@@ -967,7 +987,7 @@ O2err o2n_recv()
         // PROCESS_CONNECTED when socket becomes writable
         } else if (pfd->revents & POLLOUT) {
             fi = o2n_fds_info[i]; // find socket info
-            if (fi->net_tag == NET_TCP_CONNECTING) { // connect() completed
+            if (fi->net_tag & NET_TCP_CONNECTING) { // connect() completed
                 fi->net_tag = NET_TCP_CLIENT;
                 O2_DBo(printf("%s connection completed, socket %ld index %d\n",
                               o2_debug_prefix, (long) (pfd->fd), i));
@@ -987,7 +1007,7 @@ O2err o2n_recv()
         } else if (pfd->revents & POLLIN) {
             fi = o2n_fds_info[i];
             assert(fi->in_length_got < 5);
-            if (fi->read_event_handler(pfd->fd)) {
+            if (fi->read_event_handler()) {
                 O2_DBo(printf("%s removing remote process after handler "
                               "reported error on socket %ld", o2_debug_prefix, 
                               (long) (pfd->fd)));
@@ -1098,8 +1118,9 @@ O2err Fds_info::read_whole_message(SOCKET sock)
 }
 
 
-int Fds_info::read_event_handler(SOCKET sock)
+int Fds_info::read_event_handler()
 {
+    SOCKET sock = o2n_fds[fds_index].fd;
     if (net_tag == NET_TCP_CONNECTION ||
         net_tag == NET_TCP_CLIENT) {
         int n = read_whole_message(sock);
@@ -1175,14 +1196,19 @@ int Fds_info::read_event_handler(SOCKET sock)
         if (owner) owner->accepted(conn);
         else conn->close_socket();  // not sure if this could happen
         return O2_SUCCESS;
-    } else {
-        assert(false);
+    } else {  // socket has a read error, but this could be our local proc
+        // TCP server socket, so don't close it; just clean up.
+        reset();
+        return O2_SUCCESS;  // any error returned will close socket, so don't
     }
     // COMMON CODE for TCP and UDP receive message:
     // endian corrections are done in handler
     o2n_message_ptr msg = in_message;
     message_cleanup();  // get ready for next incoming message
     O2err err = O2_FAIL;
+    O2_DBo(printf("%s delivering message from net_tag %s socket %ld index %d "
+                  "to %p\n", o2_debug_prefix, tag_to_string(net_tag),
+                  (long) sock, fds_index, owner));
     if (owner) {
         err = owner->deliver(msg);
     } else {

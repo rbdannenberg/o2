@@ -300,6 +300,14 @@ void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
     // because the handler is installed
     const char *ip = argv[0]->s;
     int port = argv[1]->i32;
+    // make sure o2_message_source is an O2TAG_TCP_PROC. If o2lite mistakenly
+    // sends via UDP, we'll get the message, but o2_message_source will be
+    // our local O2TAG_PROC_TCP_SERVER
+    if (!(o2_message_source->tag & O2TAG_PROC)) {
+        o2_drop_msg_data("/_o2/o2lite/con not received from O2TAG_TCP_PROC",
+                         msgdata);
+        return;
+    }
     // replace o2_message_source with a bridge_info:
     O2lite_info *info = new O2lite_info(ip, port);
     info->fds_info = o2_message_source->fds_info;
@@ -328,7 +336,8 @@ void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
 
 // Handler for !_o2/o2lite/sv message. This is to create/modify a
 // service/tapper for o2lite client. Parameters are: service-name,
-// exists-flag, service-flag, and tapper-or-properties string.
+// exists-flag, service-flag, and tapper-or-properties string, send_mode
+// (for taps).
 //
 void o2lite_sv_handler(o2_msg_data_ptr msgdata, const char *types,
                         O2arg_ptr *argv, int argc, const void *user_data)
@@ -344,6 +353,7 @@ void o2lite_sv_handler(o2_msg_data_ptr msgdata, const char *types,
     bool add = argv[1]->i;
     bool is_service = argv[2]->i;
     const char *prtp = argv[3]->s;
+    O2tap_send_mode send_mode = (O2tap_send_mode) (argv[4]->i);
     O2lite_info *o2lite = (O2lite_info *) o2_message_source;
     // make sure o2lite is really an O2lite_info: check tag and proto:
     if (!ISA_BRIDGE(o2lite) ||
@@ -356,7 +366,7 @@ void o2lite_sv_handler(o2_msg_data_ptr msgdata, const char *types,
              err = Services_entry::service_provider_new(serv, prtp, o2lite,
                                                         o2_ctx->proc);
        } else { // add tap
-            err = o2_tap_new(serv, o2_ctx->proc, prtp);
+            err = o2_tap_new(serv, o2_ctx->proc, prtp, send_mode);
         }
     } else {
         if (is_service) { // remove a service
@@ -429,7 +439,7 @@ void o2lite_cscs_handler(o2_msg_data_ptr msgdata, const char *types,
     // make sure o2lite is really an O2lite_info: check tag and proto:
     if (!ISA_BRIDGE(o2_message_source) ||
         TO_BRIDGE_INFO(o2_message_source)->proto != o2lite_protocol) {
-        return;  // some non-O2lite sender invoked /_o2/o2lite/sv!
+        return;  // some non-O2lite sender invoked /_o2/o2lite/cs/cs!
     }
     if (IS_SYNCED(o2_message_source)) {
         o2_drop_msg_data("o2lite/cs/cs is from synced process", msgdata);
@@ -448,7 +458,7 @@ O2err o2lite_initialize()
                            &o2lite_dy_handler, NULL, false, true);
     o2_method_new_internal("/_o2/o2lite/con", "si",
                            &o2lite_con_handler, NULL, false, true);
-    o2_method_new_internal("/_o2/o2lite/sv", "siis",
+    o2_method_new_internal("/_o2/o2lite/sv", "siisi",
                            &o2lite_sv_handler, NULL, false, true);
     o2_method_new_internal("/_o2/o2lite/cs/get", "iis",
                            &o2lite_csget_handler, NULL, false, true);
