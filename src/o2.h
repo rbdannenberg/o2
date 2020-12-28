@@ -189,15 +189,15 @@ is used with a timestamp to schedule periodic discovery message sending.
 parameter is the full address for the reply. The reply contains the type
 string "it" and the parameters are the *serial-no* and the current time.
 
-`/_o2/sv "ssbbs..."` *process-name* *service-name* *add-flag*
-*service-flag* *tapper-or-properties* ... - reports service creation 
+`/_o2/sv "ssbbsi..."` *process-name* *service-name* *add-flag*
+*service-flag* *tapper-or-properties* *send_mode*... - reports service creation
 or deletion. Each service is described by name, true, and either true
-followed by a properties string or false followed by the tapper 
-name. If a service is deleted, then false is sent rather than true,
+followed by a properties string and zero or false followed by the tapper
+name and tapper send_mode. If a service is deleted, then false is sent rather than true,
 and if this is not a tap, the properties string is empty. The "..." 
 notation here indicates that there can be any number of services 
-described in this message, each service consisting of another "sbbs"
-(string, Boolean, Boolean, string) sequence. Properties strings are
+described in this message, each service consisting of another "sbbsi"
+(string, Boolean, Boolean, string, int32) sequence. Properties strings are
 sent with escaped values, a leading ';' and a trailing ';'. This is
 the first message sent when a process-to-process connection is made.
 
@@ -537,7 +537,12 @@ typedef double O2time;
  */
 typedef struct O2msg_data {
     int32_t length; // msg length, not including this length field
-    int32_t flags; // O2_TAP_FLAG and O2_TCP_FLAG
+    // we could put a nice structure here, but alignment and network vs host
+    // byte ordering is confusing, so we use and int: flags are low-order bits,
+    // and ttl is (misc >> 8). Note: ttl starts at zero and is incremented
+    // each time the message is copied and forwarded to a tap. The message
+    // is not forwarded if the count exceeds 3 (O2_MAX_TAP_FORWARDING).
+    int32_t misc; // flags and ttl
     O2time timestamp;   ///< the message delivery time (0 for immediate)
     /** \brief the message address string
      *
@@ -559,7 +564,7 @@ typedef struct O2msg_data {
 #define O2MEM_ALIGNUP(s) ( ((s)+(O2MEM_ALIGN-1)) & ~(O2MEM_ALIGN-1) )
 #define O2MEM_BIT32_ALIGN_PTR(p) ((char *) (((size_t) (p)) & ~3))
 // returns the address of the byte AFTER the message
-#define O2_MSG_DATA_END(data) (PTR(&(data)->flags) + (data)->length)
+#define O2_MSG_DATA_END(data) (PTR(&(data)->misc) + (data)->length)
 
 // find the next word-aligned string after str in a message:
 const char *o2_next_o2string(const char *str);
@@ -591,7 +596,7 @@ typedef struct O2message {
 } O2message, *O2message_ptr;
 
 /// The address of the actual message, not including the length field:
-#define O2_MSG_PAYLOAD(msg) PTR(&(msg)->data.flags)
+#define O2_MSG_PAYLOAD(msg) PTR(&(msg)->data.misc)
 
 
 /**
@@ -1247,6 +1252,7 @@ int o2_service_set_property(const char *service, const char *attr,
  */
 int o2_service_property_free(const char *service, const char *attr);
 
+typedef enum {TAP_KEEP, TAP_RELIABLE, TAP_BEST_EFFORT} O2tap_send_mode;
 
 /**
  * \brief install tap to copy messages from one service to another
@@ -1254,6 +1260,10 @@ int o2_service_property_free(const char *service, const char *attr);
  * @param tappee the service to be tapped
  *
  * @param tapper the existing local service to which copies are sent
+ *
+ * @param send_mode Send the tap message using the same method as the original
+ *    message  with TAP_KEEP, by reliable (TCP) method with TAP_RELIABLE, or by
+ *    best effort (UDP) method with TAP_BEST_EFFORT.
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if a tap is not installed.
  *
@@ -1309,7 +1319,7 @@ int o2_service_property_free(const char *service, const char *attr);
  * the tap's process, and if the tappper service is (re)created, these
  * tap messages will be delivered to the new tapper service.
  */
-O2err o2_tap(const char *tappee, const char *tapper);
+O2err o2_tap(const char *tappee, const char *tapper, O2tap_send_mode send_mode);
 
 
 /**

@@ -253,7 +253,9 @@ void o2_processes_initialize()
     snprintf(name, O2_MAX_PROCNAME_LEN,
              "@%s:%s:%x", o2n_public_ip, o2n_internal_ip, port);
     o2_ctx->proc->key = o2_heapify(name);
-    O2_DBG(printf("%s Local Process Name is %s\n",
+    O2_DBG(printf("\n====================================================\n"
+                  "%s Local Process Name is %s\n"
+                  "====================================================\n\n",
                   o2_debug_prefix, o2_ctx->proc->key));
     o2_discovery_udp_server->owner = o2_ctx->proc;
     o2_ctx->proc->udp_address.set_port(o2_discovery_udp_server->port);

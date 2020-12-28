@@ -10,10 +10,10 @@
 #include "msgsend.h"
 
 typedef struct service_info {
-    o2string name;
+    O2string name;
     O2status service_type;
-    o2string process; // the port:ip of process offering the service
-    o2string properties; // service properties or the tapper of tappee
+    O2string process; // the port:ip of process offering the service
+    O2string properties; // service properties or the tapper of tappee
 } service_info, *service_info_ptr;
 
 
@@ -318,7 +318,7 @@ int o2_service_set_property(const char *service, const char *attr,
             service_property_free(spp, attr);
             // this test allows us to free attr by passing in value == NULL:
             if (value) service_property_add(spp, attr, value);
-            o2_notify_others(service, true, NULL, spp->properties);
+            o2_notify_others(service, true, NULL, spp->properties, 0);
             if (o2_ctx->proc->key) {  // no notice until we have a name
                 o2_send_cmd("!_o2/si", 0.0, "siss", service, O2_FAIL,
                             o2_ctx->proc->key,

@@ -15,8 +15,9 @@ class Service_provider : O2obj {
 
 class Service_tap : O2obj {
   public:
-    o2string tapper;  // redirect copy of message to this service
+    O2string tapper;  // redirect copy of message to this service
     Proxy_info *proc;  // send the message copy to this process
+    O2tap_send_mode send_mode;
 };
 
 
@@ -48,9 +49,10 @@ class Services_entry : public O2node {
         int index = proc_service_index(proc);
         return index >= 0 ? &services[index] : NULL;
     }
-    bool add_service(o2string our_ip_port, O2node *service, char *properties);
+    bool add_service(O2string our_ip_port, O2node *service, char *properties);
     O2err service_remove(const char *srv_name, int index, Proxy_info *proc);
-    O2err insert_tap(o2string tapper, Proxy_info *proxy);
+    O2err insert_tap(O2string tapper, Proxy_info *proxy,
+                     O2tap_send_mode send_mode);
     O2err tap_remove(Proxy_info *proc, const char *tapper);
     void pick_service_provider();
     void remove_if_empty();
@@ -70,9 +72,9 @@ class Services_entry : public O2node {
     static O2node *service_find(const char *service_name,
                                 Services_entry **services);
     static Services_entry **find_from_msg(O2message_ptr msg);
-    static Services_entry *must_get_services(o2string service_name);
-    static O2err service_new(o2string padded_name);
-    static O2err service_provider_new(o2string name, const char *properties,
+    static Services_entry *must_get_services(O2string service_name);
+    static O2err service_new(O2string padded_name);
+    static O2err service_provider_new(O2string name, const char *properties,
                                          O2node *service, Proxy_info *proc);
     static O2err service_provider_replace(const char *service_name,
                                O2node **node_ptr, O2node *new_service);

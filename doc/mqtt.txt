@@ -196,7 +196,7 @@ feature. The API is:
                      const char *broker, int hub_flag);
     Initialize O2 with ensemble_name and discovery disabled. address
     is the domain name or ip address of an MQTT broker. If NULL, then
-    the default broker "mqtt.eclipse.org" is used. If hub_flag is
+    the default broker "mqtt.eclipseprojects.io" is used. If hub_flag is
     true, this process is the hub, so it publishes its IP:port address
     to the MQTT broker, using topic O2-<ensemble_name>/hub. The call
     may block to make a TCP connect, but it will not block waiting for

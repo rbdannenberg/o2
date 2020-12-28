@@ -126,7 +126,7 @@ Destruction of servers:
 
 #include "errno.h"
 
-static O2message_ptr osc_to_o2(int32_t len, char *oscmsg, o2string service);
+static O2message_ptr osc_to_o2(int32_t len, char *oscmsg, O2string service);
 
 static uint64_t osc_time_offset = 0;
 
@@ -294,7 +294,7 @@ O2err o2_osc_delegate(const char *service_name, const char *ip,
 #ifndef O2_NO_BUNDLES
 // convert network byte order bundle to host order O2 message
 static O2message_ptr osc_bundle_to_o2(int32_t len, char *oscmsg,
-                                       o2string service)
+                                       O2string service)
 {
     // osc bundle has the form #bundle, timestamp, messages
     // It is assumed that all embedded messages in an OSC bundle
@@ -317,7 +317,7 @@ static O2message_ptr osc_bundle_to_o2(int32_t len, char *oscmsg,
             o2msg = osc_to_o2(embedded_len, embedded, service);
         }
         if (!o2msg) {
-            O2message_list_free(msg_list);
+            o2_message_list_free(msg_list);
             return NULL;
         }
         o2msg->next = NULL; // make sure link is initialized
@@ -344,7 +344,7 @@ static O2message_ptr osc_bundle_to_o2(int32_t len, char *oscmsg,
 #endif
 
 // convert an osc message in network byte order to o2 message in host order
-static O2message_ptr osc_to_o2(int32_t len, char *oscmsg, o2string service)
+static O2message_ptr osc_to_o2(int32_t len, char *oscmsg, O2string service)
 {
     // osc message has the form: address, types, data
     // o2 message has the form: timestamp, address, types, data
@@ -360,7 +360,8 @@ static O2message_ptr osc_to_o2(int32_t len, char *oscmsg, o2string service)
         // length in data part will be timestamp + slash (1) + service name +
         //    o2 data; add another 7 bytes for padding after address
         int o2len = sizeof(double) + 8 + service_len + len;
-        O2message_ptr o2msg = O2message_new(o2len);
+        O2message_ptr o2msg = o2_message_new(o2len);
+        o2msg->data.misc = O2_TCP_FLAG;  // zero all but TCP
         o2msg->data.timestamp = 0.0;  // deliver immediately
         o2msg->data.address[0] = '/'; // slash before service name
         strcpy(o2msg->data.address + 1, service);
@@ -483,7 +484,7 @@ O2err Osc_info::send(bool block)
     }
     // deliver the message now
     o2_send_start();
-    bool msg_tcp_flag = msg->data.flags & O2_TCP_FLAG;
+    bool msg_tcp_flag = msg->data.misc & O2_TCP_FLAG;
     O2err rslt = msg_data_to_osc_data(&msg->data, 0.0);
     if (rslt != O2_SUCCESS) {
         o2_complete_delivery();

@@ -87,7 +87,7 @@ int o2_gtsched_started = false;  // cannot use o2_gtsched until clock is in sync
 void o2_sched_finish(O2sched_ptr s)
 {
     for (int i = 0; i < O2_SCHED_TABLE_LEN; i++) {
-        O2message_list_free(s->table[i]);
+        o2_message_list_free(s->table[i]);
     }
     o2_gtsched_started = false;
 }

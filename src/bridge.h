@@ -88,7 +88,7 @@
  * #o2_service_provider_new with the bridge as the `service` parameter
  * and the local process, `o2_ctx->proc` as the `proc` parameter.  The
  * properties parameter can be any property string, but typically is NULL.
- * Note that the service name is an #o2string, which means it is zero 
+ * Note that the service name is an #O2string, which means it is zero 
  * padded to a 32-bit boundary to support rapid hash function computation.
  * This is not a normal C string, which has no such padding.
  * 

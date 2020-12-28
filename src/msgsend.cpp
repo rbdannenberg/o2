@@ -115,6 +115,7 @@
 #include "ctype.h"
 #include "o2.h"
 #include "o2internal.h"
+#include "debug.h"
 #include "services.h"
 #include "msgsend.h"
 #include "message.h"
@@ -216,8 +217,10 @@ void o2_send_local(O2node *service, Services_entry *ss)
 {
     if (o2_do_not_reenter) {
         O2message_ptr msg = o2_postpone_delivery();
-        pending_ptr p = ((msg->data.flags | O2_TAP_FLAG) ? &pending_local :
-                                                           &pending_anywhere);
+        pending_ptr p = ((msg->data.misc & O2_TAP_FLAG) ? &pending_local :
+                                                          &pending_anywhere);
+        O2_DBl(o2_dbg_msg("o2_send_local defer", msg, &msg->data, "from",
+                             (p == &pending_anywhere) ? "anywhere" : "local"));
         if (p->tail) {
             p->tail->next = msg;
             p->tail = msg;
@@ -245,6 +248,8 @@ static O2message_ptr pending_dequeue(pending_ptr p)
         printf("pending_dequeue has dequeued %p == o2_mem_watch\n", msg);
     }
 #endif
+    O2_DBl(o2_dbg_msg("pending_dequeue", msg, &msg->data, "from",
+                      (p == &pending_anywhere) ? "anywhere" : "local"));
     return msg;
 }
 
@@ -291,11 +296,11 @@ static O2err o2_embedded_msgs_deliver(o2_msg_data_ptr msg)
     while (PTR(embedded) < end_of_msg) {
         // need to copy each embedded message before sending
         int len = embedded->length;
-        O2message_ptr message = O2message_new(len);
+        O2message_ptr message = o2_message_new(len);
         memcpy((char *) &message->data, (char *) embedded,
                len + sizeof(embedded->length));
         message->next = NULL;
-        message->data.flags |= O2_TCP_FLAG;
+        message->data.misc |= O2_TCP_FLAG;
         o2_message_send(message);
         embedded = (o2_msg_data_ptr) O2_MSG_DATA_END(embedded);
     }
@@ -336,8 +341,14 @@ void msg_send_to_tap(Service_tap *tap)
     int extra = newaddrall - curaddrall;
 
     // allocate a new message
-    O2message_ptr newmsg = O2message_new(msg->data.length + extra);
+    O2message_ptr newmsg = o2_message_new(msg->data.length + extra);
     newmsg->data.length = msg->data.length + extra;
+    // determine whether to send by TCP or UDP, and retain TAP flag and ttl:
+    newmsg->data.misc = ((tap->send_mode == TAP_KEEP ? msg->data.misc :
+                           (tap->send_mode == TAP_RELIABLE ? O2_TCP_FLAG :
+                            O2_UDP_FLAG)) |
+                          O2_TAP_FLAG);
+    newmsg->data.misc |= (msg->data.misc & 0xFF00); // copy TTL field
     newmsg->data.timestamp = msg->data.timestamp;
     // fill end of address with zeros before creating address string
     int32_t *end = (int32_t *) (newmsg->data.address + newaddrall);
@@ -353,7 +364,6 @@ void msg_send_to_tap(Service_tap *tap)
                     sizeof(msg->data.length) - &msg->data.address[curaddrall];
     memcpy((char *) (newmsg->data.address + newaddrall),
            msg->data.address + curaddrall, len);
-    newmsg->data.flags = O2_TCP_FLAG | O2_TAP_FLAG;
     o2_prepare_to_deliver(newmsg); // transfer ownership to o2_ctx->msgs
     // must send message to tap->proc
     if (ISA_REMOTE_PROC(tap->proc)) {  // send to remote process
@@ -442,7 +452,7 @@ void o2_msg_deliver(O2node *service, Services_entry *ss)
             // leave 4 bytes of extra room at the end to fill with zeros by
             // setting n to size - 8 instead of size - 4:
             o2strcpy(tmp_addr + 4, slash_ptr, O2_MAX_PROCNAME_LEN - 8);
-            // make sure address is padded to 32-bit word to make o2string:
+            // make sure address is padded to 32-bit word to make O2string:
             // first, find pointer to the byte AFTER the EOS character:
             char *endptr = tmp_addr + 6 + strlen(tmp_addr + 5);
             *endptr++ = 0; *endptr++ = 0; *endptr++ = 0;  // extra fill
@@ -479,9 +489,11 @@ void o2_msg_deliver(O2node *service, Services_entry *ss)
         delivered = true;
     }
 
+    msg->data.misc |= O2_TAP_FLAG;
+    msg->data.misc += (1 << 8);  // increment TTL field
     // STEP 6: if there are tappers, send the message to them as well
     //         (can't tap a tap msg)
-    if (!(msg->data.flags & O2_TAP_FLAG)) {
+    if ((msg->data.misc >> 8) <= O2_MAX_TAP_FORWARDING) {
         for (int i = 0; i < ss->taps.size(); i++) {
             msg_send_to_tap(&ss->taps[i]);
         }

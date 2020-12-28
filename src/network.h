@@ -72,22 +72,22 @@ typedef struct o2n_message {
         ((o2n_message_ptr) O2_MALLOC(O2N_MESSAGE_SIZE_FROM_DATA_SIZE(len)))
 
 // net_tag values
-// server socket to receive UDP messages: (0x20000)
+// server socket to receive UDP messages: (0x40000)
 #define NET_UDP_SERVER (O2TAG_HIGH << 1)
 
-// server port for accepting TCP connections: (0x40000)
+// server port for accepting TCP connections: (0x80000)
 #define NET_TCP_SERVER (O2TAG_HIGH << 2)
 
-// client side socket during async connection: (0x80000)
+// client side socket during async connection: (0x100000)
 #define NET_TCP_CONNECTING (O2TAG_HIGH << 3)
 
-// client side of a TCP connection: (0x100000)
+// client side of a TCP connection: (0x200000)
 #define NET_TCP_CLIENT (O2TAG_HIGH << 4)
 
-// server side accepted TCP connection: (0x200000)
+// server side accepted TCP connection: (0x400000)
 #define NET_TCP_CONNECTION (O2TAG_HIGH << 5)
 
-// o2n_close_socket() has been called on this socket: (0x400000)
+// o2n_close_socket() has been called on this socket: (0x800000)
 #define NET_INFO_CLOSED (O2TAG_HIGH << 6)
 
 // Any open, sendable TCP socket:
@@ -187,15 +187,15 @@ class Fds_info : public O2obj {
     // when a message is already pending and o2_send is called again.
     O2err send(bool block);
 
-    int read_event_handler(SOCKET sock);
+    int read_event_handler();
     O2err read_whole_message(SOCKET sock);
     void message_cleanup();
     Fds_info *cleanup(const char *error, SOCKET sock);
+    void reset();
     void close_socket();
 
 #ifndef O2_NO_DEBUG
     static const char *tag_to_string(int tag);
-    const char *net_tag_string() { return tag_to_string(net_tag); }
     int get_socket();
 };
 #endif

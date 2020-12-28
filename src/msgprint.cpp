@@ -22,7 +22,7 @@ void o2_msg_data_print(o2_msg_data_ptr msg)
 {
     int i;
     printf("%s @ %g", msg->address, msg->timestamp);
-    printf(" by %s", msg->flags & O2_TCP_FLAG ? "TCP" : "UDP");
+    printf(" by %s", msg->misc & O2_TCP_FLAG ? "TCP" : "UDP");
     if (msg->timestamp > 0.0) {
         if (msg->timestamp > o2_global_now) {
             printf(" (now+%gs)", msg->timestamp - o2_global_now);

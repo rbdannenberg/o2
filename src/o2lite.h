@@ -18,9 +18,13 @@
 
 typedef float o2l_time; // could be double, but this gives 1ms accuracy
                         // for 2.3 hours, or 10ms accuracy for 23 hours
+
+#define O2_UDP_FLAG 0
+#define O2_TCP_FLAG 1
+
 typedef struct o2l_msg {
     int32_t length; // length of flags, timestamp, address, and the rest
-    int32_t flags;
+    int32_t misc;   // flags and ttl (see O2msg_data)
     double timestamp; // regardless of o2l_time, this is O2time = double
     char address[4];
 } o2l_msg, *o2l_msg_ptr;

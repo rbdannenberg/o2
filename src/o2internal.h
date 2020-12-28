@@ -42,7 +42,7 @@
 
 // hash keys are processed in 32-bit chunks so we declare a special
 // string type. These are used in messages as well.
-typedef const char *o2string; // string padded to 4-byte boundary
+typedef const char *O2string; // string padded to 4-byte boundary
 
 #include "network.h"
 #include "o2node.h"
@@ -239,14 +239,14 @@ extern int o2_gtsched_started;
 
 
 // shared internal functions
-void o2_notify_others(const char *service_name, int added,
-                      const char *tappee, const char *properties);
+void o2_notify_others(const char *service_name, int added, const char *tappee,
+                      const char *properties, int send_mode);
 
 
-O2err o2_tap_new(o2string tappee, Proxy_info *process,
-                    const char *tapper);
+O2err o2_tap_new(O2string tappee, Proxy_info *process,
+                    const char *tapper, O2tap_send_mode send_mode);
 
-O2err o2_tap_remove(o2string tappee, Proxy_info *process,
+O2err o2_tap_remove(O2string tappee, Proxy_info *process,
                        const char *tapper);
 
 void o2_init_phase2();

@@ -129,7 +129,7 @@ int main(int argc, const char *argv[])
     }
     
     // make one tap before the service
-    assert(o2_tap("publish0", "copy0") == O2_SUCCESS);
+    assert(o2_tap("publish0", "copy0", TAP_RELIABLE) == O2_SUCCESS);
     assert(o2_service_new("copy0") == O2_SUCCESS);
     assert(o2_method_new("/copy0/i", "i", &copy_i, NULL, false, true) ==
            O2_SUCCESS);
@@ -156,7 +156,7 @@ int main(int argc, const char *argv[])
         char tapper[32];
         sprintf(tappee, "publish%d", i);
         sprintf(tapper, "subscribe%d", i);
-        assert(o2_tap(tappee, tapper) == O2_SUCCESS);
+        assert(o2_tap(tappee, tapper, TAP_RELIABLE) == O2_SUCCESS);
     }
     // another second to deliver/install taps
     run_for_awhile(1);

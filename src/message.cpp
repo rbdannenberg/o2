@@ -325,11 +325,11 @@ O2message_ptr o2_service_message_finish(
     O2message_ptr msg = NULL;
     int msg_size = offsetof(O2msg_data, address) - sizeof(msg->data.length) +
                    addr_size + types_size + o2_ctx->msg_data.size();
-     msg = O2message_new(msg_size); // sets length for us
+     msg = o2_message_new(msg_size); // sets length for us
     if (!msg) return NULL;
 
     msg->next = NULL;
-    msg->data.flags = flags;
+    msg->data.misc = flags;
     msg->data.timestamp = time;
     char *dst = msg->data.address;
     int32_t *end = (int32_t *) (dst + addr_size);
@@ -513,7 +513,7 @@ MX_TYPE(rd_int64, int64_t)
 
 // ------- PART 5 : GENERAL MESSAGE FUNCTIONS -------
 
-void O2message_list_free(O2message_ptr msg)
+void o2_message_list_free(O2message_ptr msg)
 {
     while (msg) {
         O2message_ptr next = msg->next;
@@ -647,7 +647,7 @@ ssize_t o2_validate_bundle(void *data, ssize_t size)
 /* convert endianness of a message */
 O2err o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
 {
-    msg->flags = swap32(msg->flags);
+    msg->misc = swap32(msg->misc);
     int64_t i64_time = *(int64_t *) &msg->timestamp;
     i64_time = swap64(i64_time);
     msg->timestamp = *(O2time *) &i64_time;

@@ -9,6 +9,16 @@
 
 extern thread_local O2_context *o2_ctx;
 
+// prevent infinite tap loops using a "time too live" algorithm:
+// The value of 3 allows using a tap to implement "publish/subscribe"
+// and then a debugger tapping the subscriber and then one more tap
+// indirection for good measure. The problem with these arbitrary limits
+// is anticipating and allowing for all applications. Since this value is
+// stored in a char, the value can be as high as 127, but the risk of high
+// values is that a cycle will actually cause messages to be forwarded
+// all O2_MAX_TAP_FORWARDING times.
+#define O2_MAX_TAP_FORWARDING 3
+
 // you can OR these together to make message flags
 #define O2_UDP_FLAG 0   // UDP, not TCP
 #define O2_TCP_FLAG 1   // TCP, not UDP
@@ -59,9 +69,9 @@ void o2_msg_data_print_2(o2_msg_data_ptr msg);
 #endif
 
 /* allocate message structure with at least size bytes in the data portion */
-#define O2message_new(size) ((O2message_ptr) o2n_message_new(size))
+#define o2_message_new(size) ((O2message_ptr) o2n_message_new(size))
 
-void O2message_list_free(O2message_ptr msg);
+void o2_message_list_free(O2message_ptr msg);
 
 /**
  * Convert endianness of a message

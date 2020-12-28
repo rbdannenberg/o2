@@ -358,7 +358,7 @@ void o2sm_sv_handler(o2_msg_data_ptr msgdata, const char *types,
     bool add = argv[2]->i;
     bool is_service = argv[3]->i;
     const char *prtp = argv[4]->s;
-
+    O2tap_send_mode send_mode = (O2tap_send_mode) (argv[5]->i32);
     o2_message_source = o2sm_protocol->find(id);
     if (!o2_message_source) {
         o2_drop_msg_data("o2sm_sv_handler could not locate O2sm_info", msgdata);
@@ -370,7 +370,7 @@ void o2sm_sv_handler(o2_msg_data_ptr msgdata, const char *types,
             rslt = Services_entry::service_provider_new(
                     serv, prtp, o2_message_source, o2_ctx->proc);
         } else { // add tap
-            rslt = o2_tap_new(serv, o2_ctx->proc, prtp);
+            rslt = o2_tap_new(serv, o2_ctx->proc, prtp, send_mode);
         }
     } else {
         if (is_service) { // remove a service
@@ -407,7 +407,7 @@ O2err o2_shmem_initialize()
     }
     if (o2sm_protocol) return O2_ALREADY_RUNNING; // already initialized
     o2sm_protocol = new O2sm_protocol();
-    o2_method_new_internal("/_o2/o2sm/sv", "isiis", &o2sm_sv_handler,
+    o2_method_new_internal("/_o2/o2sm/sv", "isiisi", &o2sm_sv_handler,
                            NULL, false, true);
     o2_method_new_internal("/_o2/o2sm/fin", "", &o2sm_fin_handler,
                            NULL, false, true);
@@ -434,8 +434,8 @@ O2err o2sm_service_new(const char *service, const char *properties)
     if (!properties) {
         properties = "";
     }
-    return o2sm_send_cmd("!_o2/o2sm/sv", 0.0, "isiis", o2_ctx->binst->id,
-                         service, true, true, properties);
+    return o2sm_send_cmd("!_o2/o2sm/sv", 0.0, "isiisi", o2_ctx->binst->id,
+                         service, true, true, properties, 0);
 }
 
 
@@ -468,7 +468,7 @@ O2err o2sm_method_new(const char *path, const char *typespec,
     if (!node) goto free_key_return; // cleanup and return
 #endif
 
-    o2string types_copy = NULL;
+    O2string types_copy = NULL;
     int types_len = 0;
     if (typespec) {
         types_copy = o2_heapify(typespec);
@@ -535,7 +535,6 @@ O2err o2sm_method_new(const char *path, const char *typespec,
     O2_FREE(handler);
   free_key_return: // not necessarily an error (case 1 & 2)
     O2_FREE(key);
-  just_return:
     return ret;
 }
 

@@ -122,6 +122,7 @@ int main(int argc, const char * argv[])
     if (argc == 2) {
         o2_debug_flags(argv[1]);
         tcpflag = (strchr(argv[1], 'u') == NULL);
+        printf("   flags found: %s\n", argv[1]);
     }
     if (argc > 2) {
         printf("WARNING: o2server ignoring extra command line argments\n");

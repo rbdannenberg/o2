@@ -6,8 +6,7 @@
 // a sequence of transitions resulting in groups of status messages as listed.
 //
 // Based on clockmaster.c
-//
-// Sequence is:
+
 
 #include <stdio.h>
 #include "o2.h"
@@ -160,6 +159,7 @@ int check_service(const char *service, const char *ip_port, int status)
     // when we first hear about a remote process, store the name here
     if (!remote_ip_port[0] && !streql(ip_port, "_o2")) {
         strcpy(remote_ip_port, ip_port);
+        printf("remote_ip_port is %s\n", remote_ip_port);
     }
     // search group for expected service/status
     int i = 0;

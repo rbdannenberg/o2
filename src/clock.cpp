@@ -30,7 +30,7 @@ static int found_clock_service = false; // set when service appears
 static O2time start_sync_time; // local time when we start syncing
 static int clock_sync_id = 0;
 static O2time clock_sync_send_time;
-static o2string clock_sync_reply_to = NULL;
+static O2string clock_sync_reply_to = NULL;
 static o2_time_callback time_callback = NULL;
 static void *time_callback_data = NULL;
 static int clock_rate_id = 0;
@@ -304,7 +304,7 @@ void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
 {
     // guard against a bridged process sending !_o2/cs/cs:
     if (ISA_BRIDGE(o2_message_source)) return;
-    o2string name = argv[0]->s;
+    O2string name = argv[0]->s;
     Services_entry *services;
     O2node *entry = Services_entry::service_find(name, &services);
     if (entry) {

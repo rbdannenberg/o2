@@ -95,7 +95,7 @@ O2err o2_method_new_internal(const char *path, const char *typespec,
     // to avoid compiler warnings related to jumping over initializations
     // (this seems to be a GNU C++ compiler problem)
     Handler_entry *full_path_handler; 
-    o2string types_copy;
+    O2string types_copy;
     Handler_entry *handler;
     O2node *node;
     Service_provider *spp;

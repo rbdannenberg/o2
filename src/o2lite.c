@@ -313,7 +313,7 @@ void o2l_send_start(const char *address, o2l_time time,
 {
     parse_error = false;
     out_msg_cnt = sizeof out_msg->length;
-    o2l_add_int32(tcp);
+    o2l_add_int32(tcp ? O2_TCP_FLAG : O2_UDP_FLAG);
     o2l_add_time(time);
     o2l_add_string(address);
     outbuf[out_msg_cnt++] = ','; // type strings have a leading ','
@@ -478,11 +478,12 @@ void o2l_send_services()
         // invariant: s points after service, nptr points to end of name
         *nptr = 0;
         if (nptr == name) continue; // skip comma
-        o2l_send_start("!_o2/o2lite/sv", 0, "siis", true);
+        o2l_send_start("!_o2/o2lite/sv", 0, "siisi", true);
         o2l_add_string(name);
         o2l_add_int32(1); // exists
         o2l_add_int32(1); // this is a service
         o2l_add_string(""); // no properties
+        o2l_add_int32(0); // send_mode is ignored for services
         o2l_send();
         if (*s == ',') { // establish the invariant at top of loop
             s++;
@@ -553,7 +554,7 @@ void read_from_tcp()
                 while (tcp_msg_got < tcp_in_msg->length) {
                     int togo = tcp_in_msg->length - tcp_msg_got;
                     if (togo > capacity) togo = capacity;
-                    n = read(tcp_sock, PTR(&tcp_in_msg->flags), togo);
+                    n = read(tcp_sock, PTR(&tcp_in_msg->misc), togo);
                     if (n <= 0) {
                         goto error_exit;
                     }
@@ -565,7 +566,7 @@ void read_from_tcp()
         }
     }
     if (tcp_msg_got < tcp_in_msg->length) {
-        n = (int) recvfrom(tcp_sock, PTR(&tcp_in_msg->flags) + tcp_msg_got,
+        n = (int) recvfrom(tcp_sock, PTR(&tcp_in_msg->misc) + tcp_msg_got,
                            tcp_in_msg->length - tcp_msg_got, 0, NULL, NULL);
         if (n <= 0) { 
             goto error_exit;
@@ -653,8 +654,9 @@ void o2l_send()
     if (parse_error || tcp_sock == INVALID_SOCKET) {
         return;
     }
+    // grap the tcp flag before byte-swapping
     out_msg->length = o2lswap32(out_msg_cnt - sizeof out_msg->length);
-    if (out_msg->flags) { // tcp?
+    if (out_msg->misc & o2lswap32(O2_TCP_FLAG)) {
         write(tcp_sock, outbuf, out_msg_cnt);
     } else {
         if (sendto(udp_send_sock, outbuf + sizeof out_msg->length,
