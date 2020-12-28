@@ -215,7 +215,7 @@ void o2_mem_finish(void); // implemented by o2mem.c, called to free
 #ifdef __APPLE__
 #define o2strcpy(d, s, n) ((void) strlcpy(d, s, n))
 #else
-void o2strcpy(char * restrict dst, const char * restrict src,
+void o2strcpy(char *__restrict dst, const char *__restrict src,
               size_t dstsize);
 #endif
 

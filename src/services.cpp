@@ -260,7 +260,7 @@ Services_entry **Services_entry::find_from_msg(O2message_ptr msg)
  */
 int Services_entry::proc_service_index(Proxy_info *proc)
 {
-    if (!this) return NULL;
+    if (!this) return -1;
     for (int i = 0; i < services.size(); i++) {
         Service_provider *spp = &services[i];
         O2node *a_prvdr = spp->service;

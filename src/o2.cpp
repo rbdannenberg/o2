@@ -1325,7 +1325,7 @@ O2err o2_finish()
 
 
 #ifndef __APPLE__
-void o2strcpy(char * restrict dst, const char * restrict src,
+void o2strcpy(char *__restrict dst, const char *__restrict src,
               size_t dstsize)
 {
     strncpy(dst, src, dstsize);

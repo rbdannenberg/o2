@@ -3,7 +3,12 @@
 // Roger B. Dannenberg
 // Oct, 2020
 
-#include <stdatomic.h>
+#ifndef __cplusplus
+#  include <stdatomic.h>
+#else
+#  include <atomic>
+#  define _Atomic(X) std::atomic< X >
+#endif
 
 // O2list_elem is a generic linked list element. Although we could use
 // templates to make a generic atomic list, the "C++" way would 
@@ -40,11 +45,14 @@ typedef struct O2queue_na {
 } O2queue_na;
 
 typedef _Atomic(O2queue_na) o2_queue;
-typedef _Atomic O2queue_na *o2_queue_ptr;
+typedef _Atomic(O2queue_na) *o2_queue_ptr;
 
 #define O2_QUEUE_INIT {0, NULL}
 
-#pragma GCC diagnostic ignored "-Wunused-private-field"
+#if defined(__clang__)
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wunused-private-field"
+#endif
 
 // An atomic queue must be 16-byte aligned, but malloc and O2MALLOC (new)
 // only align to 8 bytes, so the atomic queue here has some padding and 
@@ -72,4 +80,6 @@ class O2queue {
     O2list_elem *grab();
 };
 
- #pragma GCC diagnostic warning "-Wunused-private-field"
+#if defined(__clang__)
+  #pragma clang diagnostic pop
+#endif
