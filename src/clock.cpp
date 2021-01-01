@@ -223,11 +223,15 @@ static void announce_synchronized()
         }
     }
 #ifndef O2_NO_MQTT
-    o2_mqtt_send_disc();
-    for (int i = 0; i < o2_mqtt_procs.size(); i++) {
-        MQTT_info *mqtt_proc = o2_mqtt_procs[i];
-        if (mqtt_proc->local_is_synchronized()) {
-            o2_clock_status_change(mqtt_proc);
+    // if we do not have a public IP yet, this will fail, but then we will
+    // get a public IP later and send an MQTT discovery message, so the clock
+    // sync status will get to all subscribers as soon as possible either way.
+    if (o2_mqtt_send_disc() == O2_SUCCESS) {
+        for (int i = 0; i < o2_mqtt_procs.size(); i++) {
+            MQTT_info *mqtt_proc = o2_mqtt_procs[i];
+            if (mqtt_proc->local_is_synchronized()) {
+                o2_clock_status_change(mqtt_proc);
+            }
         }
     }
 #endif
@@ -303,7 +307,7 @@ void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
                             O2arg_ptr *argv, int argc, const void *user_data)
 {
     // guard against a bridged process sending !_o2/cs/cs:
-    if (ISA_BRIDGE(o2_message_source)) return;
+    if (o2_message_source && ISA_BRIDGE(o2_message_source)) return;
     O2string name = argv[0]->s;
     Services_entry *services;
     O2node *entry = Services_entry::service_find(name, &services);

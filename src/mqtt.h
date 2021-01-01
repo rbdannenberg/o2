@@ -15,8 +15,10 @@ public:
     ~MQTT_info();
     
     // Implement the Net_interface:
-    O2err accepted(Fds_info *conn) { return O2_FAIL; }  // not a server
-    O2err deliver(o2n_message_ptr msg);
+    // do nothing, just start receiving messages:
+    virtual O2err connected() { return O2_SUCCESS; }
+    virtual O2err accepted(Fds_info *conn) { return O2_FAIL; }  // not a server
+    virtual O2err deliver(o2n_message_ptr msg);
 
     bool local_is_synchronized() { o2_send_clocksync_proc(this);
                                    return IS_SYNCED(this); }
@@ -29,10 +31,6 @@ public:
     }
     virtual O2err send(bool block);
 };
-
-
-#define MQTT_CLIENT 80
-#define ISA_MQTT_CLIENT(p) ((p) && (p)->tag == MQTT_CLIENT)
 
 extern Vec<MQTT_info *> o2_mqtt_procs;
 

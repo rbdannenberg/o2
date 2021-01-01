@@ -231,7 +231,7 @@ bool MQTTcomm::handle_first_msg()
 }
 
 
-// handle an incoming message from network. application is MQTT_CLIENT.
+// handle an incoming message from network. 
 // 
 // Append incoming bytes to mqtt_input. Multiple messages can arrive at
 // once, and handle_first_mqtt_msg() looks for only the first message.

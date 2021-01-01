@@ -72,7 +72,9 @@ O2err o2_mqtt_enable(const char *broker, int port_num)
 O2err o2_mqtt_send_disc()
 {
     // send name to O2-<ensemblename>/disc, retain is off.
-    assert(o2_ctx->proc->key);
+    if (!o2_ctx->proc->key) { // no name and no mqtt connection yet
+        return O2_FAIL;
+    }
     O2_DBq(printf("%s publishing to O2-%s/disc with payload %s\n",
                   o2_debug_prefix, o2_ensemble_name, o2_ctx->proc->key));
     return mqtt_comm.publish("disc", (const uint8_t *) o2_ctx->proc->key,
@@ -92,7 +94,7 @@ O2err o2_mqtt_initialize()
     RETURN_IF_ERROR(o2_method_new_internal("/_o2/mqtt/dy", "s",
                          &o2_mqtt_discovery_handler, NULL, false, false));
     // make MQTT broker connection
-    mqtt_info = new MQTT_info(NULL, MQTT_CLIENT);
+    mqtt_info = new MQTT_info(NULL, O2TAG_MQTT);
     mqtt_info->fds_info = Fds_info::create_tcp_client(&mqtt_address);
     mqtt_info->fds_info->owner = mqtt_info;
     mqtt_info->fds_info->raw_flag = true;
@@ -284,6 +286,10 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
     snprintf(name, O2_MAX_PROCNAME_LEN, "@%s:%s:%s%c%c%c%c",
              public_ip, internal_ip, port_string, 0, 0, 0, 0);
     assert(o2_ctx->proc->key);
+    
+    if (streql(name, o2_ctx->proc->key)) {
+        return;  // we just received our own discovery message
+    }
     
     // action is "cs" or "dy". Handle the "cs" case first:
     if (action[0] == 'c') {
