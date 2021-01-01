@@ -69,6 +69,17 @@ O2err o2_mqtt_enable(const char *broker, int port_num)
 }
 
 
+O2err o2_mqtt_send_disc()
+{
+    // send name to O2-<ensemblename>/disc, retain is off.
+    assert(o2_ctx->proc->key);
+    O2_DBq(printf("%s publishing to O2-%s/disc with payload %s\n",
+                  o2_debug_prefix, o2_ensemble_name, o2_ctx->proc->key));
+    return mqtt_comm.publish("disc", (const uint8_t *) o2_ctx->proc->key,
+                      strlen(o2_ctx->proc->key),
+                      o2_clock_is_synchronized ? "/cs" : "/dy", 0, false);
+}
+
 O2err o2_mqtt_initialize()
 {
     if (!o2n_network_enabled) {
@@ -89,15 +100,9 @@ O2err o2_mqtt_initialize()
     mqtt_comm.initialize(mqtt_broker_ip, mqtt_address.get_port());
     // subscribe to O2-<ensemblename>/disc
     mqtt_comm.subscribe("disc", false);  // topic is O2-<ensemblename>/disc
-    // send name to O2-<ensemblename>/disc, retain is off.
-    assert(o2_ctx->proc->key);
-    O2_DBq(printf("%s publishing to O2-%s/disc with payload %s\n",
-                  o2_debug_prefix, o2_ensemble_name, o2_ctx->proc->key));
-    mqtt_comm.publish("disc", (const uint8_t *) o2_ctx->proc->key,
-                      strlen(o2_ctx->proc->key), 0, false);
+    o2_mqtt_send_disc();
     // subscribe to O2-<ensemble>/<public ip>:<local ip>:<port>
-    mqtt_comm.subscribe(o2_ctx->proc->key, false);  // topic O2-ens/pip:iip:port
-    return O2_SUCCESS;
+    return mqtt_comm.subscribe(o2_ctx->proc->key, false);
 }
 
 
@@ -129,7 +134,7 @@ O2err MQTT_info::send(bool block)
         const uint8_t *payload = (const uint8_t *) &msg->data.misc;
         // O2_DBq(o2_dbg_msg("MQTT_send", msg, &msg->data, NULL, NULL));
         O2_DBq(printf("MQTT_send payload_len (msg len) %d\n", payload_len));
-        rslt = mqtt_comm.publish(key, payload, payload_len, 0);
+        rslt = mqtt_comm.publish(key, payload, payload_len, "", 0);
         O2_FREE(msg);
     }
     return rslt;
@@ -206,13 +211,13 @@ static void o2_mqtt_discovery_handler(o2_msg_data_ptr msg, const char *types,
 }
 
 
-// Similar to strchr(s, ':'), but this function does not assume a terminating
+// Similar to strchr(s, c), but this function does not assume a terminating
 // end-of-string zero because MQTT strings are not terminated. The end
 // parameter is the address of the next character AFTER s
-static char *find_colon(char *s, const char *end)
+static char *find_before(char *s, const char c, const char *end)
 {
     while (s < end) {
-        if (*s == ':') {
+        if (*s == c) {
             return s;
         }
         s++;
@@ -225,43 +230,51 @@ void send_callback_via_mqtt(const char *name)
     O2message_ptr msg = o2_make_dy_msg(o2_ctx->proc, true,
                                         O2_DY_CALLBACK);
     mqtt_comm.publish(name, (const uint8_t *) O2_MSG_PAYLOAD(msg),
-                      msg->data.length, 0);
+                      msg->data.length, "", 0);
 }
 
-
 // handler for mqtt discovery message
-// payload should be of the form xxx.xxx.xxx.xxx:yyy.yyy.yyy.yyy:ddddd
+// payload should be of the form @xxxxxxxx:yyyyyyyy:ddddd/dy
+// or @xxxxxxxx:yyyyyyyy:ddddd/cs
 // payload may be altered and restored by this function, hence not const
 //
 void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
 {
     O2_DBq(printf("%s entered o2_mqtt_disc_handler\n", o2_debug_prefix));
-    // need 3 strings: public IP, intern IP, port
+    // need 3 strings: public IP, intern IP, port, clock status
     char *end = payload + payload_len;
     char *public_ip = payload + 1;
     char *internal_ip = NULL;
     char *port_num = NULL;
-    char *colon_ptr = find_colon(public_ip, end);
-    if (colon_ptr) {
-        *colon_ptr = 0;
-        internal_ip = colon_ptr + 1;
-        colon_ptr = find_colon(internal_ip, end);
-        if (colon_ptr) {
-            *colon_ptr = 0;
-            port_num = colon_ptr + 1;
+    char *action = NULL;
+    char *end_ptr = find_before(public_ip, ':', end);
+    if (end_ptr ) {
+        *end_ptr  = 0;
+        internal_ip = end_ptr  + 1;
+        end_ptr  = find_before(internal_ip, ':', end);
+        if (end_ptr ) {
+            *end_ptr  = 0;
+            port_num = end_ptr  + 1;
+            end_ptr  = find_before(port_num, '/', end);
+            if (end_ptr ) {
+                *end_ptr = 0;
+                action = end_ptr + 1;
+            }
         }
     }
     char port_string[8];
-    if (!port_num || port_num >= end || port_num + 7 < end) {
-        // FOR DEBUGGING ONLY: payload IS NOT TERMINATED AND UNSAFE:
+    if (!action ||  // careful: "dy" and "cs" are not zero-terminated
+        !((action[0] == 'd' && action[1] == 'y') ||   // "dy"
+          (action[0] == 'c' && action[1] == 's'))) {  // "cs"
+#ifndef NDEBUG
+        // PRINT FOR DEBUGGING ONLY: payload IS NOT TERMINATED AND UNSAFE:
         printf("o2_mqtt_disc_handler could not parse payload:\n%s\n",
                payload);
+#endif
         return;
     }
     // copy port field so it can be zero-terminated:
-    int port_string_len = end - port_num;
-    memcpy(port_string, port_num, port_string_len);
-    port_string[port_string_len] = 0;
+    memcpy(port_string, port_num, action - port_num);
     int port = o2_hex_to_int(port_string);
     O2_DBq(printf("%s o2_mqtt_disc_handler got %s %s %x\n", o2_debug_prefix,
                   public_ip, internal_ip, port));
@@ -271,7 +284,14 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
     snprintf(name, O2_MAX_PROCNAME_LEN, "@%s:%s:%s%c%c%c%c",
              public_ip, internal_ip, port_string, 0, 0, 0, 0);
     assert(o2_ctx->proc->key);
-
+    
+    // action is "cs" or "dy". Handle the "cs" case first:
+    if (action[0] == 'c') {
+        o2_send_cmd("/_o2/cs/cs", 0.0, "s", name);
+        return;
+    }
+    // else action is "dy"...
+    
     // CASE 1 (See doc/mqtt.txt): remote is not behind NAT
     // (public_ip == internal_ip) OR if remote and local share public IP
     // (public_ip == o2n_public_ip). Either way, remote ID is internal_ip

@@ -38,6 +38,8 @@ extern Vec<MQTT_info *> o2_mqtt_procs;
 
 extern bool o2_mqtt_waiting_for_public_ip;
 
+O2err o2_mqtt_send_disc();
+
 O2err o2_mqtt_initialize();
 
 void o2_mqtt_disc_handler(char *payload, int payload_len);

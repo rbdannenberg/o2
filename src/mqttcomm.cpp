@@ -271,7 +271,8 @@ void MQTTcomm::deliver(const char *data, int len)
 
 
 O2err MQTTcomm::publish(const char *subtopic, const uint8_t *payload,
-                        int payload_len, int retain, bool block)
+                        int payload_len, const char *suffix, int retain,
+                        bool block)
 {
     packet_id = (packet_id + 1) & 0xFFFF;
     o2_send_start();
@@ -282,6 +283,9 @@ O2err MQTTcomm::publish(const char *subtopic, const uint8_t *payload,
     assert(o2_ctx->msg_data.size() ==
            8 + strlen(o2_ensemble_name) + strlen(subtopic));
     mqtt_append_bytes((void *) payload, payload_len);
+    size_t suffix_len = strlen(suffix);
+    mqtt_append_bytes((void *) suffix, suffix_len);
+    payload_len += suffix_len;
     assert(o2_ctx->msg_data.size() == 8 + strlen(o2_ensemble_name) +
                                       strlen(subtopic) + payload_len);
     O2_DBq(printf("MQTTcomm::publish payload_len %d\n", payload_len));

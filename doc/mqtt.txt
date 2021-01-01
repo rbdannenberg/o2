@@ -22,7 +22,7 @@ disconnects from the server, which is useful to mimic TCP hangup
 functionality. 
 
 After considering more complicated schemes, it seems that MQTT can
-simply replace the O2 hub protocol, so you are on the internet, 
+simply replace the O2 hub protocol, so if you are on the internet, 
 you can just use MQTT. 
 
 If you use O2lite, you need LAN discovery and
@@ -37,6 +37,17 @@ O2-<ensemble>/<public ip>:<local ip>:<port>. Then, send public IP and
 local IP to the /disc topic. Other processes will also send to the
 /disc topic, so every process will discover every other process soon
 after it connects to the broker.
+
+Subscribe to:
+    O2-ens/disc
+    O2-ens/@pip:iip:port
+Discovery message:
+    topic: O2-ens/disc, payload: @pip:iip:port/dy
+Clock sync message (when a process gets clock sync):
+    topic: O2-ens/disc, payload: @pip:iip:port/cs
+Send O2 message via MQTT:
+    topic: O2-ens/@pip:iip:port, payload: an_O2_message_starting_with_
+                                        _the_misc_field_(after_length)
 
 Do not use the *store* feature so that when you crash, others will not
 "discover" a stale address. However, when you reboot, everyone already
@@ -66,7 +77,7 @@ particular process instead of all processes. If the sender is not
 known, it is created as a service with an MQTT_NOCLOCK tag and the
 usual clock status and service info messages are sent.
 
-It is possible to discovery a process through MQTT that can be
+It is possible to discover a process through MQTT that can be
 connected directly, so before sending the "!_o2/mqtt/dy" message, the
 following decision tree is followed, and things revert to normal
 discovery if MQTT can be avoided:
@@ -118,12 +129,29 @@ Assume the process is behind NAT.
          because you are behind NAT and can only be accessed via MQTT. 
          Create an MQTT_NOCLOCK connection as in CASE 1B2.
 
-For clock sync, we send a return address. Now, a return address will
-become dependent on the connection.
+When a process becomes synchronized, it announces its new status to
+all other processes. For remote MQTT processes, we publish only one
+message to O2-ens/disc, using publish-subscribe as a form of
+broadcast. There can be a race condition between publishing and
+subscribing, so when a process is discovered, we send it /_o2/cs/cs
+if we are already synced. 
+
+Proof. Prove that if A is synchronized, B knows it. 
+- Case 1: If A is synchronized before it connects to MQTT, then it will
+send /_o2/cs/cs to each connection it makes, so B will know it. 
+- Case 2: A is not synchronized when it connects to MQTT.  If B is
+subscribed before A is synchronized, B will get the "broadcast" to
+O2-ens/disc. If B is not subscribed before A is synchronized, then
+after A is synchronized, B subscribes, B is discovered by A, A sends
+/_o2/cs/cs/ to B, so B knows.
 
 There is only one TCP connection to the MQTT broker, but may be many
 processes. The MQTT connection should be shared by all, created by 
 o2_mqtt_enable(const char *mqtt_broker), and closed by o2_finish().
+
+There is an MQTT_info associated with this shared connection. It has
+a NULL key, whereas every remote MQTT process discovered so far has
+an MQTT_info as proxy with a key equal to the remote process name.
 
 When a remote process or service is discovered through MQTT, we need
 to set up a service named pip:iip:port that maps to a node
@@ -169,8 +197,19 @@ create services <--------- !_o2/sv <------- publish
 If message comes from O2-ens/disc, then send back !_o2/mqtt/dy and
 clock and services info. If messages comes to private
 
-==== everything below this line is obsoleted by the design above ====
-==== It's here for reference in case I want to rethink things.   ====
+
+
+
+
+
+
+
+*********************************************************************
+* ================================================================= *
+* == everything below this line is obsoleted by the design above == *
+* == It's here for reference in case I want to rethink things.   == *
+* ================================================================= *
+*********************************************************************
 
 
 Hub Protocol

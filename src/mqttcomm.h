@@ -48,10 +48,10 @@ public:
     void deliver(const char *data, int len);  // incoming bytes from TCP
     bool handle_first_msg();  // process next MQTT message from input stream
     O2err publish(const char *subtopic, const uint8_t *payload,
-                  int payload_len, int retain, bool block);
+                  int payload_len, const char *suffix, int retain, bool block);
     O2err publish(const char *subtopic, const uint8_t *payload,
-                  int payload_len, int retain) {
-        return publish(subtopic, payload, payload_len, retain, true);
+                  int payload_len, const char *suffix, int retain) {
+        return publish(subtopic, payload, payload_len, suffix, retain, true);
     }
     
     // msg owned by callee, send by TCP to MQTT broker:

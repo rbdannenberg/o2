@@ -208,22 +208,22 @@ static void compute_osc_time_offset(O2time now)
 #endif
 
 // when clock becomes synchronized, we must tell all other interested
-// Proxies: Proc_info, Bridge_info, MQTT_info.  To find them, use the
+// Proxies: Proc_info, Bridge_info, MQTT.  To find them, use the
 // o2_ctx->fds_info table since most of the entries lead us to the
-// proxy. For MQTT_info's, we have a table of MQTT_info since they
-// are not in o2_ctx->fds_info.
+// proxy. For MQTT, we just publish a discovery message.
 //
 static void announce_synchronized()
 {
     for (int i = 0; i < o2n_fds_info.size(); i++) {
         Proxy_info *proxy = (Proxy_info *) o2n_fds_info[i]->owner;
-        if (proxy && ISA_PROXY(proxy)) {
+        if (proxy && (proxy->tag & (O2TAG_PROC | O2TAG_BRIDGE))) {
             if (proxy->local_is_synchronized()) {
                 o2_clock_status_change(proxy);
             }
         }
     }
 #ifndef O2_NO_MQTT
+    o2_mqtt_send_disc();
     for (int i = 0; i < o2_mqtt_procs.size(); i++) {
         MQTT_info *mqtt_proc = o2_mqtt_procs[i];
         if (mqtt_proc->local_is_synchronized()) {
