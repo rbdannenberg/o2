@@ -291,7 +291,7 @@ O2err MQTTcomm::publish(const char *subtopic, const uint8_t *payload,
     O2_DBq(printf("MQTTcomm::publish payload_len %d\n", payload_len));
     o2n_message_ptr msg = mqtt_finish_msg(MQTT_PUBLISH | retain);
     O2_DBq(printf("MQTTcomm::publish message len %d\n", msg->length));
-    puback_expected++;
+    // puback_expected++;  // we are not setting QOS to get puback
     O2_DBq(printf("%s sending that msg via MQTT_PUBLISH puback expected %d\n",
                   o2_debug_prefix, puback_expected));
     O2err err = msg_send(msg, block);

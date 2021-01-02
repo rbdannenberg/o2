@@ -188,7 +188,7 @@ def runAllTests():
     if extensions:
         if not runTest("bundletest"): return
         if not runTest("patterntest"): return
-    if not runTest("infotest1"): return
+    if not runTest("infotest1 o"): return
     if not runTest("proptest"): return
 
     if not runDouble("statusclient", "CLIENT DONE",

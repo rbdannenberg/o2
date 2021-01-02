@@ -30,7 +30,7 @@ char mqtt_broker_ip[O2_IP_LEN] = "";
 // records that mqtt_enable() was called and should be initialized asap.
 bool o2_mqtt_waiting_for_public_ip = false;
 // connection to MQTT broker:
-MQTT_info *mqtt_info = NULL;
+static MQTT_info *mqtt_info = NULL;
 
 
 class O2_MQTTcomm : public MQTTcomm {
@@ -72,7 +72,7 @@ O2err o2_mqtt_enable(const char *broker, int port_num)
 O2err o2_mqtt_send_disc()
 {
     // send name to O2-<ensemblename>/disc, retain is off.
-    if (!o2_ctx->proc->key) { // no name and no mqtt connection yet
+    if (!o2_ctx->proc->key || !mqtt_info) { // no name and no mqtt connection yet
         return O2_FAIL;
     }
     O2_DBq(printf("%s publishing to O2-%s/disc with payload %s\n",
