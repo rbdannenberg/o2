@@ -339,7 +339,7 @@ static O2message_ptr osc_bundle_to_o2(int32_t len, char *oscmsg,
         O2_FREE(msg_list);
         msg_list = next;
     }
-    return o2_service_message_finish(ts, service, "", O2_TCP_FLAG);
+    return o2_service_message_finish(ts, service, "", true);
 }
 #endif
 

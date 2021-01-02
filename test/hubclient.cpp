@@ -50,7 +50,7 @@ void client_info_handler(o2_msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
-    O2status status = (O2status) (argv[1]->i32);
+    int status = argv[1]->i32;
     const char *status_string = o2_status_to_string(status);
     const char *process = argv[2]->s;
     const char *properties = argv[3]->s;
@@ -130,7 +130,7 @@ void wait_for_server(void)
         if (count++ % 1000 == 0) {
             printf("#   -> still waiting for server, "
                    "server status is %s at %ld\n",
-                   o2_status_to_string((O2status) o2_status("server")),
+                   o2_status_to_string(o2_status("server")),
                                        elapsed_time());
         }
     }

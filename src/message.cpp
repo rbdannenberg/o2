@@ -295,11 +295,9 @@ int o2_add_message(O2message_ptr msg)
 
 
 O2message_ptr o2_message_finish(O2time time, const char *address,
-                                 int tcp_flag)
+                                 bool tcp_flag)
 {
-    return o2_service_message_finish(time, NULL, address,
-                                     (tcp_flag ? O2_TCP_FLAG : O2_UDP_FLAG));
-
+    return o2_service_message_finish(time, NULL, address, tcp_flag);
 }
 
 
@@ -307,7 +305,7 @@ O2message_ptr o2_message_finish(O2time time, const char *address,
 // to create a bundle, o2_service_message_finish(time, service, "", flags)
 //
 O2message_ptr o2_service_message_finish(
-        O2time time, const char *service, const char *address, int flags)
+        O2time time, const char *service, const char *address, bool tcp_flag)
 {
     int addr_len = (int) strlen(address);
     // if service is provided, we'll prepend '/', so add 1 to string length
@@ -329,7 +327,7 @@ O2message_ptr o2_service_message_finish(
     if (!msg) return NULL;
 
     msg->next = NULL;
-    msg->data.misc = flags;
+    msg->data.misc = (tcp_flag ? O2_TCP_FLAG : O2_UDP_FLAG);;
     msg->data.timestamp = time;
     char *dst = msg->data.address;
     int32_t *end = (int32_t *) (dst + addr_size);
@@ -766,9 +764,9 @@ O2err o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
 }
 
 
-O2err O2message_build(O2message_ptr *msg, O2time timestamp,
+O2err o2_message_build(O2message_ptr *msg, O2time timestamp,
                           const char *service_name, const char *path,
-                          const char *typestring, int tcp_flag, va_list ap)
+                          const char *typestring, bool tcp_flag, va_list ap)
 {
     o2_send_start();
     
@@ -859,8 +857,7 @@ O2err O2message_build(O2message_ptr *msg, O2time timestamp,
     }
 #endif
     va_end(ap);
-    *msg = o2_service_message_finish(timestamp, service_name, path,
-                                     (tcp_flag ? O2_TCP_FLAG : O2_UDP_FLAG));
+    *msg = o2_service_message_finish(timestamp, service_name, path, tcp_flag);
     return (*msg ? O2_SUCCESS : O2_FAIL);
 #ifndef USE_ANSI_C
   error_exit:
@@ -872,7 +869,7 @@ O2err O2message_build(O2message_ptr *msg, O2time timestamp,
 }
 
 
-O2err o2_send_finish(O2time time, const char *address, int tcp_flag)
+O2err o2_send_finish(O2time time, const char *address, bool tcp_flag)
 {
     O2message_ptr msg = o2_message_finish(time, address, tcp_flag);
     if (!msg) return O2_FAIL;

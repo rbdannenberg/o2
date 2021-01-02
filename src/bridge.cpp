@@ -280,7 +280,7 @@ void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
     O2_DBd(if (err) printf("%s o2lite_dy_handler: ip %s, udp %d, err %s\n",
               o2_debug_prefix, ip, port, o2_error_to_string(err)));
     o2_send_start();
-    O2message_ptr msg = o2_make_dy_msg(o2_ctx->proc, false, O2_DY_INFO);
+    O2message_ptr msg = o2_make_dy_msg(o2_ctx->proc, false, true, O2_DY_INFO);
     o2n_send_udp(&address, (o2n_message_ptr) msg); // send and free the message
 }
 

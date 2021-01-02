@@ -82,7 +82,7 @@ connected directly, so before sending the "!_o2/mqtt/dy" message, the
 following decision tree is followed, and things revert to normal
 discovery if MQTT can be avoided:
 
-CASE 1: the incoming message has the same public IP and local IP.
+CASE 1: the incoming message has the same public IP and internal IP.
 Assume the process is not behind NAT (it's possible that the LAN
 behind NAT uses the same IP address as the public address, but it
 seems very unlikely and non-standard). 
@@ -94,37 +94,50 @@ seems very unlikely and non-standard).
     PROC_NOCLOCK and then a PROC_SYNCED.
 
     CASE 1B: You have a higher IP than they do, so you are the server. 
-         CASE 1B1: Your public and local IP are the same, so you can 
+         CASE 1B1: Your public and internal IP are the same, so you can 
          receive a connection request. Send a discovery message with 
          O2_DY_CALLBACK to the remote proc.  Let the discovery 
          protocol make the connection. The remote process will 
          become a PROC_NOCLOCK and then a PROC_SYNCED. 
 
-         CASE 1B2: Your public and local IP are different, so you are 
+         CASE 1B2: Your public and internal IP are different, so you are 
          the server, but the remote process cannot make a connection 
          because you are behind NAT and can only be accessed via MQTT. 
          Create an MQTT_NOCLOCK connection that will become an 
-         MQTT_SYNCED connection. The /publicip:localip:port service 
+         MQTT_SYNCED connection. The /publicip:internalip:port service 
          name will map to the MQTT node.  All messages will be sent 
          via MQTT to the topic corresponding to the remote process 
          IP addresses. 
 
 Whatever the remote process, services are sent to !_o2/sv there.
 
-CASE 2: the incoming message has different public IP and local IP.
-Assume the process is behind NAT.
+CASE 2: the incoming message has different public IP and internal IP.
+Assume the process is behind NAT. Note that you are behind the
+same NAT if you have a matching public IP. In that case, it's possible
+that broadcasts are disabled so discovery will only occur by MQTT even
+though local direct connections can be made after discovery.
 
-    CASE 2A: You have a lower IP than they do.  You can only reach
-    via MQTT, so create an MQTT_NOCLOCK connection as in CASE 1B2.
+    CASE 2A: You have the same Public IP as they do. Assume you are on
+         the same local network.
+         CASE 2A1: Your IP is higher, so you are the server. Send a 
+         discovery message via MQTT with O2_DY_CALLBACK to the remote 
+         proc.  Let the discovery protocol make the connection. The 
+         remote process will become a PROC_NOCLOCK and then a PROC_SYNCED. 
 
-    CASE 2B: You have a higher IP than they do, so you are the server. 
-         CASE 2B1: Your public and local IP are the same, so you can 
-         receive a connection request. Send a discovery message via
-         MQTT with O2_DY_CALLBACK to the remote proc.  Let the discovery 
-         protocol make the connection. The remote process will 
-         become a PROC_NOCLOCK and then a PROC_SYNCED. 
+         CASE 2A2: Your IP is lower, so you are the client. Connect as
+         in CASE 1A.
 
-         CASE 2B2: Your public and local IP are different, so you are 
+    CASE 2B: You have a lower IP than they do and a different public
+         IP. You can only reach via MQTT, so create an MQTT_NOCLOCK
+         connection as in CASE 1B2.
+
+    CASE 2C: You have a higher IP than they do, and a different public
+         IP, so you are the server.  
+         CASE 2C1: Your public and internal IP are the same, so you
+         can receive a connection request. Send a discovery message as
+         in CASE 2A1.
+
+         CASE 2C2: Your public and internal IP are different, so you are 
          the server, but the remote process cannot make a connection 
          because you are behind NAT and can only be accessed via MQTT. 
          Create an MQTT_NOCLOCK connection as in CASE 1B2.
@@ -132,18 +145,7 @@ Assume the process is behind NAT.
 When a process becomes synchronized, it announces its new status to
 all other processes. For remote MQTT processes, we publish only one
 message to O2-ens/disc, using publish-subscribe as a form of
-broadcast. There can be a race condition between publishing and
-subscribing, so when a process is discovered, we send it /_o2/cs/cs
-if we are already synced. 
-
-Proof. Prove that if A is synchronized, B knows it. 
-- Case 1: If A is synchronized before it connects to MQTT, then it will
-send /_o2/cs/cs to each connection it makes, so B will know it. 
-- Case 2: A is not synchronized when it connects to MQTT.  If B is
-subscribed before A is synchronized, B will get the "broadcast" to
-O2-ens/disc. If B is not subscribed before A is synchronized, then
-after A is synchronized, B subscribes, B is discovered by A, A sends
-/_o2/cs/cs/ to B, so B knows.
+broadcast. 
 
 There is only one TCP connection to the MQTT broker, but may be many
 processes. The MQTT connection should be shared by all, created by 
@@ -194,13 +196,19 @@ publish --------------> !_o2/mqtt/dy -----> create proc1
 publish ------------------ !_o2/sv -------> create services
 create services <--------- !_o2/sv <------- publish
 
-If message comes from O2-ens/disc, then send back !_o2/mqtt/dy and
-clock and services info. If messages comes to private
+Every message to /disc carries a suffix of either /dy or /cs to
+convey the clock state. When clock state becomes synchronized,
+an immediate discovery message is sent with /cs.
 
+Disconnect Protocol
+-------------------
+A clean disconnect or shutdown can be accomplished by sending
+<name>/bye to O2-ens/disc.
 
-
-
-
+For unannounced disconnects, we use keep-alive messages. These are
+broadcast by sending to O2-ens/disc with topic name/dy or name/cs
+every 10s. A timeout is associated with each known remote proc, and
+expired processes are detected and deleted every 10s.
 
 
 

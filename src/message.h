@@ -82,9 +82,9 @@ void o2_message_list_free(O2message_ptr msg);
  */
 O2err o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order);
 
-O2err O2message_build(O2message_ptr *msg, O2time timestamp,
-                          const char *service_name,
-                          const char *path, const char *typestring,
-                          int tcp_flag, va_list ap);
+O2err o2_message_build(O2message_ptr *msg, O2time timestamp,
+                       const char *service_name,
+                       const char *path, const char *typestring,
+                       bool tcp_flag, va_list ap);
 
 #endif /* message_h */

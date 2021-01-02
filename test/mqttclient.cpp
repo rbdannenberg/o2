@@ -1,4 +1,4 @@
-//  mqttclient.c - test for using MQTT as a bridge
+//  mqttclient.c - test for using MQTT
 //
 //  see mqttserver.c for details
 

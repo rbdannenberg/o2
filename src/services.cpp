@@ -39,9 +39,6 @@ Services entry is destroyed when:
     - o2_services_handler() (discovery message with service or tap deletion)
     - o2_service_free()
     - o2_remove_services_by() called when process ends
-  - o2_tap_remove_from(), which is called from one of:
-    - o2_tap_remove() called by o2_untap()
-    - o2_remove_taps_by() called when process ends
 */
 
 
@@ -570,38 +567,16 @@ O2err Services_entry::remove_services_by(Proxy_info *proc)
     O2err result = O2_SUCCESS;
     for (int i = 0; i < services_list.size(); i++) {
         Services_entry *services = services_list[i];
-        for (int j = 0; j < services->services.size(); j++) {
-            Service_provider *spp = &services->services[j];
-            if (spp->service == proc) {
-                if (!services->proc_service_remove(services->key, proc,
-                                                   services, j)) {
-                    result = O2_FAIL; // this should never happen
-                }
-                break; // can only be one of services offered by proc, and maybe
-                // even services was removed, so we should move on to the next
-                // service in services list
-            }
+        // if there are no taps, services could be deleted before we
+        // even try to remove taps by proc, but if it won't be deleted
+        // if there are any taps to begin with.
+        bool has_taps = services->taps.size() > 0;
+        int j = services->proc_service_index(proc);
+        if (!services->service_remove(services->key, j, proc)) {
+            result = O2_FAIL; // this should never happen
         }
-    }
-    return result;
-}
-
-
-// for each services_entry:
-//     remove taps that forward to this process
-//     if a service is the last service in services, remove the
-//         services_entry as well
-//
-O2err Services_entry::remove_taps_by(Proxy_info *proc)
-{
-    Vec<Services_entry *> services_list;
-    assert(proc != o2_ctx->proc); // assumes remote proc
-    list_services(services_list);
-    O2err result = O2_SUCCESS;
-    for (int i = 0; i < services_list.size(); i++) {
-        Services_entry *services = services_list[i];
-        if (services->tap_remove(proc, NULL) == O2_FAIL) {
-            result = O2_FAIL; // avoid infinite loop, can't remove tap
+        if (has_taps && services->tap_remove(proc, NULL) == O2_FAIL) {
+            result = O2_FAIL;
         }
     }
     return result;
@@ -636,6 +611,8 @@ void Services_entry::show(int indent)
     printf("\n");
     indent++;
     for (int i = 0; i < services.size(); i++) {
+        O2node *node = services[i].service;
+        printf("%s@%p %s\n", o2_tag_to_string(node->tag), node, node->key);
         services[i].service->show(indent);
     }
     for (int i = 0; i < taps.size(); i++) {

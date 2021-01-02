@@ -11,7 +11,10 @@ for design details. */
 
 class MQTT_info : public Proxy_info {
 public:
-    MQTT_info(const char *key, int tag) : Proxy_info(key, tag) { }
+    O2time timeout;
+    MQTT_info(const char *key, int tag) : Proxy_info(key, tag) { 
+        timeout = o2_local_time() + 5;
+    }
     ~MQTT_info();
     
     // Implement the Net_interface:
@@ -30,6 +33,12 @@ public:
                 O2_REMOTE : O2_REMOTE_NOTIME;
     }
     virtual O2err send(bool block);
+#ifndef O2_NO_DEBUG
+    void show(int indent) {
+        O2node::show(indent);
+        printf("\n");
+    }
+#endif
 };
 
 extern Vec<MQTT_info *> o2_mqtt_procs;
@@ -39,6 +48,8 @@ extern bool o2_mqtt_waiting_for_public_ip;
 O2err o2_mqtt_send_disc();
 
 O2err o2_mqtt_initialize();
+
+O2err o2_mqtt_finish();
 
 void o2_mqtt_disc_handler(char *payload, int payload_len);
 

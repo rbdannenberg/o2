@@ -19,17 +19,21 @@
 // the first discovery port, we send a discovery message every 4s to that
 // port only. If we open the 16th discovery port, we send to each one 
 // every 64s.
+//
+// We also give 2 tries on all ports initially, then only send to ports
+// less than or equal to our discovery index.
+//
+// With 100 processes, we send and get 25 messages per second, which
+// seems too high. We'll use the size of o2n_fds_info and
+// o2_mqtt_procs to estimate the number of processes out there and
+// increase the DEFAULT_DISCOVERY_PERIOD by (num_procs - 40/ 10) if
+// non-negative so that the max messages per second in each direction
+// is 10.
+//
 #define INITIAL_DISCOVERY_PERIOD 0.1
 #define DEFAULT_DISCOVERY_PERIOD 4.0
 #define RATE_DECAY 1.125
 
-// o2_discover:
-//   initially send a discovery message at short intervals, but increase the
-//     interval each time until a maximum interval of 4s is
-//     reached. This gives a message every 40ms on average when there
-//     are 100 processes. Also gives 2 tries on all ports initially, then
-//     only sends to ports less than or equal to our discovery index.
-//   next_disc_index is the port we will send discover message to
 static int disc_msg_count = 0;
 static double disc_period = INITIAL_DISCOVERY_PERIOD;
 static int next_disc_index = 0; // index to o2_port_map, port to send to
@@ -165,9 +169,9 @@ O2err o2_discovery_finish(void)
 
 
 /**
- * Make /_o2/dy message, if this is a udp message, switch to network byte order
+ * Make /_o2/dy message, if swap_flag, switch to network byte order
  */
-O2message_ptr o2_make_dy_msg(Proc_info *proc, int tcp_flag,
+O2message_ptr o2_make_dy_msg(Proc_info *proc, bool tcp_flag, bool swap_flag,
                               int dy_flag)
 {
     char public_ip_buff[O2_IP_LEN];
@@ -197,7 +201,7 @@ O2message_ptr o2_make_dy_msg(Proc_info *proc, int tcp_flag,
     O2message_ptr msg = o2_message_finish(0.0, "!_o2/dy", tcp_flag);
     if (!msg) return NULL;
 #if IS_LITTLE_ENDIAN
-    if (!tcp_flag) {
+    if (swap_flag) {
         o2_msg_swap_endian(&msg->data, true);
     }
 #endif
@@ -219,7 +223,7 @@ static O2err o2_broadcast_message(int port, int local_remote)
         return O2_SUCCESS;
     }
     // set up the address and port
-    O2message_ptr m = o2_make_dy_msg(o2_ctx->proc, false, O2_DY_INFO);
+    O2message_ptr m = o2_make_dy_msg(o2_ctx->proc, false, true, O2_DY_INFO);
     // m is in network order
     if (!m) {
         return O2_FAIL;
@@ -300,7 +304,13 @@ O2err o2_discovered_a_remote_process(const char *public_ip,
     // note: in the case of o2_hub(), there may be no incoming discovery
     // message and so remote will be bogus, but since o2_hug() passes
     // O2_DY_INFO for dy, remote will not be used so the value is immaterial
-    if (dy == O2_DY_CALLBACK) { // similar to info, but close connection first
+    if (dy == O2_DY_CALLBACK && o2_message_source) { // similar to info,
+        // but close connection first. In this case, we expect the socket
+        // to be a temporary TCP connection created just to reliably request
+        // a connection by the client to the server. We can also get an
+        // O2_DY_CALLBACK via MQTT, for example, when broadcasting is
+        // disabled. In that case, o2_message_source == NULL which is good
+        // because we do NOT want to shut down our MQTT broker connection.
         o2_message_source->fds_info->close_socket(); // we should be the client
         dy = O2_DY_INFO; 
     }
@@ -312,7 +322,13 @@ O2err o2_discovered_a_remote_process(const char *public_ip,
 
     O2_DBd(printf("    o2_discovery_handler: remote %s local %s\n",
                   name, o2_ctx->proc->key));
-    
+    return o2_discovered_a_remote_process_name(name, internal_ip, port, dy);
+}
+
+
+O2err o2_discovered_a_remote_process_name(const char *name,
+                  const char *internal_ip, int port, int dy)
+{
     Proc_info *proc = NULL;
     O2message_ptr reply_msg = NULL;
     if (dy == O2_DY_INFO) {
@@ -325,6 +341,16 @@ O2err o2_discovered_a_remote_process(const char *public_ip,
         }
         O2node **entry_ptr = o2_ctx->path_tree.lookup(name);
         if (*entry_ptr) { // process is already discovered, ignore message
+            Services_entry *services = *((Services_entry **) entry_ptr);
+#ifndef O2_NO_MQTT
+            if (services) {  // discovery is also a keep-alive signal for MQTT
+                O2node *proc = services->services[0].service;
+                if (ISA_MQTT(proc)) {
+                    ((MQTT_info *) proc)->timeout = o2_local_time() + 5;
+                    return O2_SUCCESS;
+                }
+            }
+#endif
             O2_DBd(printf("%s ** process already discovered, ignore %s\n",
                           o2_debug_prefix, name));
             return O2_SUCCESS;
@@ -341,7 +367,7 @@ O2err o2_discovered_a_remote_process(const char *public_ip,
                 return O2_FAIL;
             }
             // send /dy by TCP
-            o2_prepare_to_deliver(o2_make_dy_msg(o2_ctx->proc, true,
+            o2_prepare_to_deliver(o2_make_dy_msg(o2_ctx->proc, true, false,
                                                  O2_DY_CALLBACK));
             if (proc->send(false) != O2_SUCCESS) {
                 delete proc; // error recovery: don't leak memory
@@ -359,11 +385,18 @@ O2err o2_discovered_a_remote_process(const char *public_ip,
         proc->key = o2_heapify(name);
         int dy_flag = (streql(name, o2_hub_addr) ? O2_DY_HUB : O2_DY_CONNECT);
         Services_entry::service_provider_new(name, NULL, proc, proc);
-        O2_DBG(printf("%s ** discovery sending O2_DY_CONNECT to server %s\n",
+        O2_DBd(printf("%s ** discovery sending O2_DY_CONNECT to server %s\n",
                       o2_debug_prefix, name));
-        reply_msg = o2_make_dy_msg(o2_ctx->proc, true, dy_flag);
+        reply_msg = o2_make_dy_msg(o2_ctx->proc, true, false, dy_flag);
     } else { // dy is not O2_DY_INFO, must be O2_DY_CONNECT
              //    or O2_DY_REPLY or O2_DY_HUB
+        if (!o2_message_source || !ISA_PROC(o2_message_source)) {
+            O2_DBG(printf("%s ** o2_discovered_a_remote_process_name dy %d "
+                          "o2_message_source %p tag %s\n", o2_debug_prefix,
+                          dy, o2_message_source, (o2_message_source ?
+                          o2_tag_to_string(o2_message_source->tag) : "null")));
+            return O2_FAIL;
+        }
         proc = TO_PROC_INFO(o2_message_source);
         proc->key = o2_heapify(name);
         Services_entry::service_provider_new(proc->key, NULL, proc, proc);
@@ -372,7 +405,7 @@ O2err o2_discovered_a_remote_process(const char *public_ip,
             // send a /dy to remote with O2_DY_REPLY
             O2_DBd(printf("%s ** discovery got HUB sending REPLY to hub %s\n",
                           o2_debug_prefix, name));
-            reply_msg = o2_make_dy_msg(o2_ctx->proc, true, O2_DY_REPLY);
+            reply_msg = o2_make_dy_msg(o2_ctx->proc, true, false, O2_DY_REPLY);
         } else if (dy == O2_DY_REPLY) { // first message from hub
             if (!streql(name, o2_hub_addr)) { // should be equal
                 printf("Warning: expected O2_DY_REPLY to be from hub\n");
@@ -505,7 +538,8 @@ static void hub_has_new_client(Proc_info *nc)
             } else {      // if equal, tag should be PROC_TCP_SERVER
                 continue; // so this should never be reached
             }
-            O2message_ptr msg = o2_make_dy_msg(server_info, true, false);
+            O2message_ptr msg = o2_make_dy_msg(server_info, true, false,
+                                               O2_DY_INFO);
             o2_prepare_to_deliver(msg);
             int err = client_info->send(false);
             if (err) {
@@ -653,15 +687,25 @@ void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
             o2_local_remote[next_disc_index] &= ~2;
         }
     }
+    // If the estimated incoming message rate is >10/second,
+    // increase the discovery period:
+    int num_procs = (o2n_fds_info.size() - 2)
+#ifndef O2_NO_MQTT
+        + o2_mqtt_procs.size()
+#endif
+        ;
+    double final_disc_period = num_procs * 0.1;
+    if (final_disc_period < max_disc_period) {
+        final_disc_period = max_disc_period;
+    }
+    // back off rate by 10% until we're sending every final_disc_period:
+    disc_period *= RATE_DECAY;
+    if (disc_period > final_disc_period) {
+        disc_period = final_disc_period;
+    }
+    
     disc_msg_count++;
     O2time next_time = o2_local_time() + disc_period;
-    // back off rate by 10% until we're sending every max_disc_period (4s):
-    disc_period *= RATE_DECAY;
-
-    if (disc_period > max_disc_period) {
-        disc_period = max_disc_period;
-    }
-
     o2_send_discovery_at(next_time);
 }
 

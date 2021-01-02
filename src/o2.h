@@ -261,7 +261,7 @@ separator characters. Attribute names are alphanumeric.
 /// stdout, including network addresses, services discovered,
 /// and clock synchronization status. Enable the debugging
 /// information by calling #o2_debug_flags with a string
-/// containing any of the following characters:
+/// containing any of the following charac&ters:
 ///   - c - for basic connection data
 ///   - r - for tracing non-system incoming messages
 ///   - s - for tracing non-system outgoing messages
@@ -331,7 +331,7 @@ typedef enum {
     O2_BAD_TYPE = -7,
     
     /// \brief an error return value: mismatched types and arguments
-    /// returned by #O2message_build, #o2_send, #o2_send_cmd
+    /// returned by #o2_message_build, #o2_send, #o2_send_cmd
     O2_BAD_ARGS = -8,
     
     /// an error return value for #o2_initialize: the socket is closed.
@@ -864,6 +864,10 @@ int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)),
  * You can change the polling period from 4s by calling this function. The
  * new polling period takes effect when the next discovery message is sent
  * at the end of the current polling period.
+ * 
+ * However, discovery is limited to approximately 10 incoming
+ * messages/second based on the number of known processes, so when more 
+ * remote processes are discovered, the polling period may increase.
  *
  * @param period the requested polling period; a minimum of 0.1s is enforced; 
  *               4s is the default (recommended).
@@ -1580,7 +1584,7 @@ int o2_status(const char *service);
  * than a specific error description). Normally, you will retrieve an int
  * from #o2_status and call #o2_status_to_string((#O2status) stat).
  */
-const char *o2_status_to_string(O2status status);
+const char *o2_status_to_string(int status);
 #endif
 
 
@@ -2237,7 +2241,7 @@ int o2_add_message(O2message_ptr msg);
  * followed by the service name, e.g. "#service1".
  */
 O2message_ptr o2_message_finish(O2time time, const char *address,
-                                 int tcp_flag);
+                                 bool tcp_flag);
 
 /**
  * \brief finish and return a message, prepending service name
@@ -2255,7 +2259,7 @@ O2message_ptr o2_message_finish(O2time time, const char *address,
  * of #o2_message_finish, which simply passes NULL for service.
  */
 O2message_ptr o2_service_message_finish(O2time time,
-             const char *service, const char *address, int tcp_flag);
+             const char *service, const char *address, bool tcp_flag);
 
 
 /**
@@ -2282,7 +2286,7 @@ O2message_ptr o2_service_message_finish(O2time time,
  * is returned if there is no established clock and the message has a
  * non-zero timestamp. For other situations, see #O2message_warnings.
  */
-O2err o2_send_finish(O2time time, const char *address, int tcp_flag);
+O2err o2_send_finish(O2time time, const char *address, bool tcp_flag);
 
 
 /** @} */

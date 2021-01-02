@@ -82,7 +82,6 @@ when connection is closed:
         o2n_socket_remove(info) calls
             *o2n_close_callout == o2_net_info_remove() calls
                 o2_remove_services_by(proc)
-                o2_remove_taps_by(proc)
                     if a services_entry becomes empty either by removing
                     services or taps (and it will for the
                     @public:internal:port service), remove the services_entry
@@ -127,7 +126,6 @@ Proc_info::~Proc_info()
     // services in turn remove the back pointer in proc->services
     if (ISA_REMOTE_PROC(this)) { // not for PROC_TEMP or PROC_TCP_SERVER
         Services_entry::remove_services_by(this);
-        Services_entry::remove_taps_by(this);
     } else {
         O2_DBo(printf("%s: freeing local proc_info tag %s name %s\n",
                       o2_debug_prefix, o2_tag_to_string(tag),

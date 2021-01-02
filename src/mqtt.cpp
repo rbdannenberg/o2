@@ -77,10 +77,40 @@ O2err o2_mqtt_send_disc()
     }
     O2_DBq(printf("%s publishing to O2-%s/disc with payload %s\n",
                   o2_debug_prefix, o2_ensemble_name, o2_ctx->proc->key));
-    return mqtt_comm.publish("disc", (const uint8_t *) o2_ctx->proc->key,
+    mqtt_comm.publish("disc", (const uint8_t *) o2_ctx->proc->key,
                       strlen(o2_ctx->proc->key),
                       o2_clock_is_synchronized ? "/cs" : "/dy", 0, false);
+    // check for expired MQTT processes
+    for (int i = 0; i < o2_mqtt_procs.size(); i++) {
+        MQTT_info *mqtt = o2_mqtt_procs[i];
+        mqtt->timeout -= 10;
+        if (mqtt->timeout < 0) {
+            o2_mqtt_procs.remove(i);
+            i--; // this "hole" is filled with another, so check [i] again.
+            delete mqtt;
+        }
+    }
+    return O2_SUCCESS;
 }
+
+
+static void mqtt_ping_at(O2time when)
+{
+    o2_send_start();
+    o2_schedule_msg(&o2_ltsched,
+                    o2_message_finish(when, "!_o2/mqtt/ps", false));
+}
+
+
+static void mqtt_ping_send(o2_msg_data_ptr msg, const char *types,
+                           O2arg_ptr *argv, int argc, const void *user_data)
+{
+    if (mqtt_info) {
+        o2_mqtt_send_disc();
+        mqtt_ping_at(msg->timestamp + 10);
+    }
+}
+
 
 O2err o2_mqtt_initialize()
 {
@@ -92,7 +122,10 @@ O2err o2_mqtt_initialize()
         return O2_SUCCESS;
     }
     RETURN_IF_ERROR(o2_method_new_internal("/_o2/mqtt/dy", "s",
-                         &o2_mqtt_discovery_handler, NULL, false, false));
+                            &o2_mqtt_discovery_handler, NULL, false, false));
+    RETURN_IF_ERROR(o2_method_new_internal("/_o2/mqtt/ps", "",
+                            &mqtt_ping_send, NULL, false, false));
+    mqtt_ping_at(o2_local_time() + 10.0);  // send keep-alive every 10s
     // make MQTT broker connection
     mqtt_info = new MQTT_info(NULL, O2TAG_MQTT);
     mqtt_info->fds_info = Fds_info::create_tcp_client(&mqtt_address);
@@ -108,6 +141,14 @@ O2err o2_mqtt_initialize()
 }
 
 
+O2err o2_mqtt_finish()
+{
+    delete mqtt_info;
+    mqtt_info = NULL;
+    return O2_SUCCESS;
+}
+
+
 O2err o2_mqtt_can_send()
 {
     return (mqtt_info ?
@@ -117,7 +158,7 @@ O2err o2_mqtt_can_send()
 
 
 // send an O2 message to proc, which is an MQTT proc
-// prerequisite: msg is in network byte order
+// prerequisite: msg is in localhost byte order
 // msg is freed before returning
 //
 O2err MQTT_info::send(bool block)
@@ -158,7 +199,9 @@ MQTT_info::~MQTT_info()
         }
         o2_mqtt_procs.finish();  // deallocate storage too
         delete_fds_info();
-    } // else represents a remote MQTT process
+    } else {  // represents a remote MQTT process
+        Services_entry::remove_services_by(this);
+    }
 }
 
 
@@ -176,7 +219,11 @@ O2err create_mqtt_connection(const char *name, bool from_disc)
     if (services) {
         return O2_SUCCESS;
     }
-    MQTT_info *mqtt = new MQTT_info(name, O2TAG_MQTT | O2TAG_OWNED_BY_TREE);
+    // note that O2TAG_OWNED_BY_TREE is not set. We will consider the owner
+    // to be o2_mqtt_procs. We will leave it to the mqtt broker connection
+    // (mqtt_info) to manage all the other MQTT_info instances that represent
+    // remote processes.
+    MQTT_info *mqtt = new MQTT_info(name, O2TAG_MQTT);
     Services_entry::service_provider_new(mqtt->key, NULL, mqtt, mqtt);
     // add this process name to the list of mqtt processes
     o2_mqtt_procs.push_back(mqtt);
@@ -229,8 +276,8 @@ static char *find_before(char *s, const char c, const char *end)
 
 void send_callback_via_mqtt(const char *name)
 {
-    O2message_ptr msg = o2_make_dy_msg(o2_ctx->proc, true,
-                                        O2_DY_CALLBACK);
+    O2message_ptr msg = o2_make_dy_msg(o2_ctx->proc, true, true,
+                                       O2_DY_CALLBACK);
     mqtt_comm.publish(name, (const uint8_t *) O2_MSG_PAYLOAD(msg),
                       msg->data.length, "", 0);
 }
@@ -242,6 +289,7 @@ void send_callback_via_mqtt(const char *name)
 //
 void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
 {
+    bool proc_discovered = true;  // is the remote process known to us?
     O2_DBq(printf("%s entered o2_mqtt_disc_handler\n", o2_debug_prefix));
     // need 3 strings: public IP, intern IP, port, clock status
     char *end = payload + payload_len;
@@ -291,63 +339,83 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
         return;  // we just received our own discovery message
     }
     
-    // action is "cs" or "dy". Handle the "cs" case first:
-    if (action[0] == 'c') {
-        o2_send_cmd("/_o2/cs/cs", 0.0, "s", name);
-        return;
-    }
-    // else action is "dy"...
-    
+    // action is "cs" or "dy". The "dy" message can be omitted if the
+    // remote process already has clock sync, so we need to act as if
+    // "dy" was sent first, then record the synchronization state if 
+    // appropriate.
+
     // CASE 1 (See doc/mqtt.txt): remote is not behind NAT
     // (public_ip == internal_ip) OR if remote and local share public IP
     // (public_ip == o2n_public_ip). Either way, remote ID is internal_ip
     int cmp = strcmp(o2_ctx->proc->key, name);
+    if (cmp == 0) {
+        O2_DBq(printf("%s we \"discovered\" our own name; ignored.\n",
+                      o2_debug_prefix));
+        return;
+    }
     if (streql(public_ip, internal_ip)) {
         // CASE 1A: we are the client
         if (cmp < 0) {
             O2_DBq(printf("%s o2_mqtt_disc_handler 1A\n", o2_debug_prefix));
-            o2_discovered_a_remote_process(public_ip, internal_ip,
-                                           port, O2_DY_INFO);
-        } else if (cmp > 0) {  // CASE 1B: we are the server
+            o2_discovered_a_remote_process_name(name, internal_ip,
+                                                port, O2_DY_INFO);
+        } else { // (cmp > 0) -- CASE 1B: we are the server
             // CASE 1B1: we can receive a connection request
             if (streql(o2n_public_ip, o2n_internal_ip)) {
                 O2_DBq(printf("%s o2_mqtt_disc_handler 1B1\n",
                               o2_debug_prefix));
-                o2_discovered_a_remote_process(public_ip, internal_ip,
+                o2_discovered_a_remote_process_name(name, internal_ip,
                                                port, O2_DY_INFO);
+                proc_discovered = false;  // waiting for them to connect
             } else {  // CASE 1B2: must create an MQTT connection
                 O2_DBq(printf("%s o2_mqtt_disc_handler 1B2\n",
                               o2_debug_prefix));
                 create_mqtt_connection(name, true);
             }
-        } else {  // we got our own name
-            O2_DBq(printf("%s we \"discovered\" our own name; ignored.\n",
-                          o2_debug_prefix));
-            return;
         }
-        
     } else { // CASE 2: process is behind NAT
-        // CASE 2A: we are the client
-        if (cmp < 0) {
-            create_mqtt_connection(name, true);
-        } else if (cmp > 0) {  // CASE 2B: we are the server
-            if (streql(o2n_public_ip, o2n_internal_ip)) {
-                // CASE 2B1: send O2_DY_CALLBACK via MQTT
-                O2_DBq(printf("%s o2_mqtt_disc_handler 2B1\n",
+        // CASE 2A: we have the same public IP
+        if (streql(o2n_public_ip, public_ip)) {
+            if (cmp > 0) {  // CASE 2A1: we are the server
+                O2_DBq(printf("%s o2_mqtt_disc_handler 2A1\n",
                               o2_debug_prefix));
                 send_callback_via_mqtt(name);
-            } else { // CASE 2B2: we are behind NAT
-                O2_DBq(printf("%s o2_mqtt_disc_handler 2B2\n",
+                proc_discovered = false;  // waiting for them to connect
+            } else {  // (cmp < 0) -- CASE 2A2: we are the client
+                O2_DBq(printf("%s o2_mqtt_disc_handler 2A2\n",
+                              o2_debug_prefix));
+                o2_discovered_a_remote_process_name(name, internal_ip,
+                                                    port, O2_DY_INFO);
+            }
+        } else if (cmp < 0) {  // CASE 2B: we are the client
+            create_mqtt_connection(name, true);
+        } else {  // (cmp > 0) -- // CASE 2C: we are the server
+            if (streql(o2n_public_ip, o2n_internal_ip)) {
+                // CASE 2C1: send O2_DY_CALLBACK via MQTT
+                O2_DBq(printf("%s o2_mqtt_disc_handler 2C1\n",
+                              o2_debug_prefix));
+                send_callback_via_mqtt(name);
+                proc_discovered = false;
+            } else { // CASE 2C2: we are behind NAT
+                O2_DBq(printf("%s o2_mqtt_disc_handler 2C2\n",
                               o2_debug_prefix));
                 create_mqtt_connection(name, true);
             }
-        } else {  // we got our own name
-            return;
         }
     }
     // reconstruct payload just to be non-destructive:
     if (internal_ip) internal_ip[-1] = ':';
     if (port_num) port_num[-1] = ':';
+    if (action) action[-1] = '/';
+
+    // now, if this discovery message ended with /cs, we need to establish
+    // that the remote proc has clock sync. However, if we just sent an
+    // O2_DY_CALLBACK to the remote proc, then we are waiting for it to
+    // connect and we have no proxy for it and no place to record the
+    // clock synchronization status, so we can skip sending this message.
+    if (action[0] == 'c' && proc_discovered) {
+        o2_send_cmd("/_o2/cs/cs", 0.0, "s", name);
+    }
 }
 
 

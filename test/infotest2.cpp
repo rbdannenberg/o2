@@ -22,28 +22,6 @@
 
 #define N_ADDRS 10
 
-const char *status_strings[] = {
-    "O2_LOCAL_NOTIME",
-    "O2_REMOTE_NOTIME",
-    "O2_BRIDGE_NOTIME",
-    "O2_TO_OSC_NOTIME",
-    "O2_LOCAL",
-    "O2_REMOTE",
-    "O2_BRIDGE",
-    "O2_TO_OSC" };
-
-const char *status_to_string(int status)
-{
-    static char unknown[32];
-    if (status >= 0 && status <= 7) {
-        return status_strings[status];
-    } else if (status == O2_FAIL) {
-        return "O2_FAIL";
-    }
-    sprintf(unknown, "UNKNOWN(%d)", status);
-    return unknown;
-}
-
 
 void service_one(o2_msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
@@ -174,7 +152,7 @@ int check_service(const char *service, const char *ip_port, int status)
                     (group[i + 1][0] == 'X');
             if (!good_ip_port) {
                 printf("Bad ip_port %s for service %s, status %s\n",
-                       ip_port, service, status_to_string(status));
+                       ip_port, service, o2_status_to_string(status));
             }
             if ((status == O2_LOCAL_NOTIME && streql(group[i+1], "LN")) ||
                 (status == O2_LOCAL && streql(group[i+1], "L")) ||
@@ -191,14 +169,14 @@ int check_service(const char *service, const char *ip_port, int status)
                 return true;
             } else {
                 printf("Bad status %s for %s, expected %s\n",
-                       status_to_string(status), service, group[i + 1]);
+                       o2_status_to_string(status), service, group[i + 1]);
                 return false; // bad status
             }
         }
         i += 2;
     }
     printf("Service %s not expected, status is %s.\n", service,
-           status_to_string(status));
+           o2_status_to_string(status));
     return false; // did not find the service
 }
 
@@ -208,7 +186,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
 {
     const char *service_name = argv[0]->s;
     int status = argv[1]->i32;
-    const char *status_string = status_to_string(status);
+    const char *status_string = o2_status_to_string(status);
     const char *ip_port = argv[2]->s;
     const char *properties = argv[3]->s;
     printf("service_info_handler called: %s at %s status %s msg %d "

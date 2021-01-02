@@ -52,7 +52,7 @@
 
 O2err o2sm_send_marker(const char *path, double time, int tcp_flag,
                           const char *typestring, ...);
-O2err o2sm_send_finish(O2time time, const char *address, int tcp_flag);
+O2err o2sm_send_finish(O2time time, const char *address, bool tcp_flag);
 O2err o2sm_message_send(O2message_ptr msg);
 
 int o2sm_get_id(); 

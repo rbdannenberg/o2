@@ -72,27 +72,6 @@ const char *o2_tag_to_string(int tag)
     }
 }
 
-static const char *status_strings[] = {
-    "O2_LOCAL_NOTIME",
-    "O2_REMOTE_NOTIME",
-    "O2_BRIDGE_NOTIME",
-    "O2_TO_OSC_NOTIME",
-    "O2_LOCAL",
-    "O2_REMOTE",
-    "O2_BRIDGE",
-    "O2_TO_OSC" };
-
-const char *o2_status_to_string(O2status status)
-{
-    static char unknown[32];
-    if (status >= 0 && status <= 7) {
-        return status_strings[status];
-    } else if (status == O2_UNKNOWN) {
-        return "O2_FAIL";
-    }
-    sprintf(unknown, "UNKNOWN(%d)", status);
-    return unknown;
-}
-
 
 #endif
+

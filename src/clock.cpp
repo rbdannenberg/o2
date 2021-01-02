@@ -166,7 +166,7 @@ O2err o2_send_clocksync_proc(Proxy_info *proc)
     if (o2_send_start()) return O2_FAIL;
     assert(o2_ctx->proc->key);
     o2_add_string(o2_ctx->proc->key);
-    o2_prepare_to_deliver(o2_message_finish(0.0, "!_o2/cs/cs", O2_TCP_FLAG));
+    o2_prepare_to_deliver(o2_message_finish(0.0, "!_o2/cs/cs", true));
     proc->send(false);
     return O2_SUCCESS;
 }

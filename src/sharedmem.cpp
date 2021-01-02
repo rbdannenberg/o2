@@ -558,7 +558,7 @@ O2err o2sm_message_send(O2message_ptr msg)
 }
 
 
-O2err o2sm_send_finish(O2time time, const char *address, int tcp_flag)
+O2err o2sm_send_finish(O2time time, const char *address, bool tcp_flag)
 {
     O2message_ptr msg = o2_message_finish(time, address, tcp_flag);
     if (!msg) return O2_FAIL;
@@ -573,8 +573,8 @@ O2err o2sm_send_marker(const char *path, double time, int tcp_flag,
     va_start(ap, typestring);
 
     O2message_ptr msg;
-    O2err rslt = O2message_build(&msg, time, NULL, path,
-                                       typestring, tcp_flag, ap);
+    O2err rslt = o2_message_build(&msg, time, NULL, path,
+                                  typestring, tcp_flag, ap);
     if (rslt != O2_SUCCESS) {
         return rslt; // could not allocate a message!
     }

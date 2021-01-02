@@ -1,4 +1,4 @@
-// mqttserver.c - test for MQTT as bridge for O2 messages
+// mqttserver.c - test for MQTTfor O2 messages
 //
 // This program works with mqttclient.c. It sends a message
 // back and forth between a client and server.
@@ -23,8 +23,10 @@ The test should work as follows:
 7. Steps 5 and 6 repeat 9 more times for a total of 10 messages.
 8. Client reports average O2 message round-trip time.
 9. Client sends "goodbye" message to server.
-10. Server exits when it receives the "goodbye" message.
-11. Client exists after a 1s delay (to make sure the TCP send completes).
+10. Client exists after a 1s delay (to make sure the TCP send completes).
+11. Server waits after it receives the "goodbye" message for client to be gone.
+12. After Client status is O2_FAIL, server exits.
+
 
 For development, this test should work without MQTT on a single machine.
 */
@@ -111,6 +113,17 @@ int main(int argc, const char *argv[])
     while (running) {
         o2_poll();
         usleep(2000); // 2ms // as fast as possible
+    }
+
+    int wait_count = 0;
+    while (o2_status("client") != O2_FAIL) {
+        if ((wait_count % 1000) == 0) {
+            printf("server waiting for client disconnect, client status %s\n",
+                   o2_status_to_string(o2_status("client")));
+        }
+        o2_poll();
+        usleep(2000); // 2ms // as fast as possible
+        wait_count++;
     }
 
      assert(msg_count == MAX_MSG_COUNT);

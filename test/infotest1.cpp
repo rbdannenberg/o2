@@ -11,28 +11,6 @@
 
 int fail_and_exit = false;
 
-const char *status_strings[] = {
-    "O2_LOCAL_NOTIME",
-    "O2_REMOTE_NOTIME",
-    "O2_BRIDGE_NOTIME",
-    "O2_TO_OSC_NOTIME",
-    "O2_LOCAL",
-    "O2_REMOTE",
-    "O2_BRIDGE",
-    "O2_TO_OSC" };
-
-const char *status_to_string(int status)
-{
-    static char unknown[32];
-    if (status >= 0 && status <= 7) {
-        return status_strings[status];
-    } else if (status == O2_FAIL) {
-        return "O2_FAIL";
-    }
-    sprintf(unknown, "UNKNOWN(%d)", status);
-    return unknown;
-}
-
 
 void service_one(o2_msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
@@ -60,7 +38,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
 {
     const char *service_name = argv[0]->s;
     int status = argv[1]->i32;
-    const char *status_string = status_to_string(status);
+    const char *status_string = o2_status_to_string(status);
     const char *process = argv[2]->s;
     const char *properties = argv[3]->s;
     printf("service_info_handler called: %s at %s status %s properties %s\n", 

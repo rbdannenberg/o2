@@ -1268,6 +1268,26 @@ const char *o2_error_to_string(O2err i)
 }
 
 
+static const char *status_strings[] = {
+    "O2_UNKNOWN",
+    "O2_LOCAL_NOTIME",
+    "O2_REMOTE_NOTIME",
+    "O2_BRIDGE_NOTIME",
+    "O2_TO_OSC_NOTIME",
+    "O2_LOCAL",
+    "O2_REMOTE",
+    "O2_BRIDGE",
+    "O2_TO_OSC" };
+
+const char *o2_status_to_string(int status)
+{
+    if (status >= O2_UNKNOWN && status <= O2_TO_OSC) {
+        return status_strings[status + 1];
+    } else {
+        return o2_error_to_string((O2err) status);
+    }
+}
+
 
 O2err o2_finish()
 {
@@ -1278,6 +1298,9 @@ O2err o2_finish()
 
 #ifndef O2_NO_BRIDGES
     o2_bridges_finish();
+#endif
+#ifndef O2_NO_MQTT
+    o2_mqtt_finish();
 #endif
     // before closing sockets, one special case is the main udp server
     // socket AND the tcp server sockets point to o2_ctx->proc, and both

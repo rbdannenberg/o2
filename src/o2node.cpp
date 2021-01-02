@@ -417,7 +417,7 @@ O2message_ptr Proxy_info::pre_send(int *tcp_flag)
 #endif
     *tcp_flag = msg->data.misc & O2_TCP_FLAG; // before byte swap
 #if IS_LITTLE_ENDIAN
-    if (fds_info) {  // non-null indicates connection needs network order
+    if (fds_info || ISA_MQTT(this)) {  // needs network order
         o2_msg_swap_endian(&msg->data, true);
     }
 #endif

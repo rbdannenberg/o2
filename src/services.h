@@ -82,7 +82,6 @@ class Services_entry : public O2node {
                   Proxy_info *proc, Services_entry *ss, int index);
     static void list_services(Vec<Services_entry *> &list);
     static O2err remove_services_by(Proxy_info *proc);
-    static O2err remove_taps_by(Proxy_info *proc);
 };
 
 #ifdef O2_NO_DEBUG
