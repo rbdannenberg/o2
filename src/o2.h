@@ -1072,7 +1072,7 @@ O2err o2_service_new(const char *service_name);
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_services_list(void);
+O2err o2_services_list(void);
 
 
 /**
@@ -1237,8 +1237,8 @@ int o2_service_search(int i, const char *attr, const char *value);
  * service provider changes to a new process, there can be temporary
  * inconsistent views of service properties across the O2 ensemble.
  */
-int o2_service_set_property(const char *service, const char *attr,
-                            const char *value);
+O2err o2_service_set_property(const char *service, const char *attr,
+                              const char *value);
 
 
 /**
@@ -1254,7 +1254,7 @@ int o2_service_set_property(const char *service, const char *attr,
  * 
  * @returns O2_SUCCESS if successful
  */
-int o2_service_property_free(const char *service, const char *attr);
+O2err o2_service_property_free(const char *service, const char *attr);
 
 typedef enum {TAP_KEEP, TAP_RELIABLE, TAP_BEST_EFFORT} O2tap_send_mode;
 
@@ -1411,14 +1411,14 @@ O2err o2_method_free(const char *path);
  * @param warn     A human-readable description of the cause.
  * @param msg      a pointer to the message data to be dropped
  *
- * This default parameter for #O2message_warnings prints the `warn`
+ * This default parameter for #o2_message_warnings prints the `warn`
  * string followed by the message to be dropped (if O2_NO_DEBUG is
  * undefined) or the message address and type string (if O2_NO_DEBUG
  * is defined) to stdout. Do not call this function. Use 
  * #o2_drop_message or #o2_drop_msg_data instead. You can pass this
- * function to #O2message_warnings to restore default warning behavior.
+ * function to #o2_message_warnings to restore default warning behavior.
  */
-void O2message_drop_warning(const char *warn, o2_msg_data_ptr msg);
+void o2_message_drop_warning(const char *warn, o2_msg_data_ptr msg);
 
 /**
  * \brief Tell world that a message was dropped.
@@ -1428,8 +1428,8 @@ void O2message_drop_warning(const char *warn, o2_msg_data_ptr msg);
  *
  * Applications and libraries can call this function to report dropped
  * messages in the same manner as O2. The default behavior is to call
- * #O2message_drop_warning or another handler installed by a previous
- * call to #O2message_warnings. This function assumes the message is
+ * #o2_message_drop_warning or another handler installed by a previous
+ * call to #o2_message_warnings. This function assumes the message is
  * at the head of the list o2_ctx->msgs, so you can access it wtih
  * #o2_current_message() and aquire ownership with #o2_postpone_delivery().
  */
@@ -1438,7 +1438,7 @@ void o2_drop_message(const char *warn, bool free_the_msg);
 /**
  * \brief Enable/Disable warnings for dropped messages.
  *
- * @param warning   a function such as O2message_drop_warning to 
+ * @param warning   a function such as o2_message_drop_warning to 
  *                  issue the warning or NULL.
  *
  * It can be very annoying when O2 messages are not received due to
@@ -1451,7 +1451,7 @@ void o2_drop_message(const char *warn, bool free_the_msg);
  * behavior is to print a warning to stdout, but since that does not 
  * always exist, you can call this function to install a custom handler.
  *
- * Call #O2message_warnings(NULL) to disable any warnings.
+ * Call #o2_message_warnings(NULL) to disable any warnings.
  *
  * The #warning function, if any, must not free #msg, which is
  * owned and eventually freed by the caller.
@@ -1464,7 +1464,7 @@ void o2_drop_message(const char *warn, bool free_the_msg);
  * With O2, however, failed or non-existent remote services are
  * detected (eventually), resulting in warnings even for UDP messages.
  */
-void O2message_warnings(
+void o2_message_warnings(
         void (*warning)(const char *warn, o2_msg_data_ptr msg));
 
 
@@ -2284,7 +2284,7 @@ O2message_ptr o2_service_message_finish(O2time time,
  * easy to distinguish. One (probably) clear case is that if a message is
  * sent to a non-existent service, #O2_NO_SERVICE is returned. #O2_NO_CLOCK
  * is returned if there is no established clock and the message has a
- * non-zero timestamp. For other situations, see #O2message_warnings.
+ * non-zero timestamp. For other situations, see #o2_message_warnings.
  */
 O2err o2_send_finish(O2time time, const char *address, bool tcp_flag);
 
@@ -2558,16 +2558,18 @@ O2message_ptr o2_postpone_delivery();
 /**
  * \brief Enable MQTT to form wide-area-network connections between O2 processes
  *
- * Note that #o2_mqtt_enable can be called before #o2_initialize or while O2
- * initialization is waiting for a public IP port. In that case, O2_SUCCESS is
- * called, but if O2 fails to obtain a public IP port (within about 10 seconds),
- * an MQTT connection will not be established. This decision can be detected by
- *  calling #o2_get_addresses (it will set the #public_ip parameter to "00000000" 
- * if there is no public IP).
+ * Note that #o2_mqtt_enable can be called before #o2_initialize or
+ * while O2 initialization is waiting for a public IP port. In that
+ * case, O2_SUCCESS is called, but if O2 fails to obtain a public IP
+ * port (within about 10 seconds), an MQTT connection will not be
+ * established. This decision can be detected by calling
+ * #o2_get_addresses (it will set the #public_ip parameter to
+ * "00000000" if there is no public IP).
  *
- * @param broker An IP address or name for an MQTT broker, or NULL for default.
+ * @param broker An IP address or name for an MQTT broker, or NULL or
+ *        empty for default.
  *
- * @param port_num A port number for the MQTT borker, or 0 for default.
+ * @param port_num A port number for the MQTT broker, or 0 for default.
  *
  * @return O2_SUCCESS if successful, O2_NOT_INITIALIZED if O2 is not initialized,
  *         or O2_NO_NETWORK if networking is disabled (see #o2_network_enable) or

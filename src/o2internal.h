@@ -44,7 +44,7 @@
 // string type. These are used in messages as well.
 typedef const char *O2string; // string padded to 4-byte boundary
 
-#include "network.h"
+#include "o2network.h"
 #include "o2node.h"
 
 class Proc_info;
@@ -100,7 +100,7 @@ public:
         proc = NULL;
         binst = NULL;
         msgs = NULL;
-        warning = &O2message_drop_warning;
+        warning = &o2_message_drop_warning;
     }
 
     // deallocate everything that may have been allocated and attached

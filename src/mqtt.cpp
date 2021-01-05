@@ -50,7 +50,7 @@ O2err o2_mqtt_enable(const char *broker, int port_num)
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
-    if (!broker) broker = "mqtt.eclipseprojects.io";
+    if (!broker || broker[0] == 0) broker = "mqtt.eclipseprojects.io";
     if (port_num == 0) port_num = 1883; // default for MQTT
     // look up the server to get the IP address. That way, we can get the
     // blocking call out of the way when the process starts up, and we

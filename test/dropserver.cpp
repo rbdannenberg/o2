@@ -75,7 +75,7 @@ int main(int argc, const char *argv[])
     }
 
     o2_initialize("test");
-    O2message_warnings(drop_warning);
+    o2_message_warnings(drop_warning);
     o2_service_new("dropserver");
     //                                                  coerce parse
     o2_method_new("/dropserver/hi",     "i", &hi, NULL, false, true);

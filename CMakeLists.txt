@@ -105,7 +105,7 @@ set(O2_SRC
   src/mqttcomm.cpp src/mqttcomm.h 
   src/msgsend.cpp src/msgsend.h 
   src/msgprint.cpp
-  src/network.cpp src/network.h 
+  src/o2network.cpp src/o2network.h 
   src/o2.cpp src/o2.h src/o2base.h src/o2internal.h 
   src/o2osc.cpp src/o2osc.h
   src/pathtree.cpp src/pathtree.h
