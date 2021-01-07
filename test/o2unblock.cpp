@@ -18,7 +18,7 @@ void client_test(o2_msg_data_ptr data, const char *types,
 {
     msg_count++;
     if (msg_count == 1) {
-        sleep(5); // cause sender to block
+        usleep(5000000); // cause sender to block
         o2_send_cmd("/server/hello", 0, "i", 1);
     }
 

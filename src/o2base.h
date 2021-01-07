@@ -1,20 +1,48 @@
 // o2base.h -- core programming definitions
 
-#include <cstddef>
-#include <cstdint>
-using std::size_t;
-using std::int32_t;
 
 /** \defgroup basics Basics
  * @{
  */
 
 #ifdef __cplusplus
+#include <cstddef>
+#include <cstdint>
+using std::size_t;
+using std::int32_t;
+
 extern "C" {
 #endif
+
+#define streql(a, b) (strcmp(a, b) == 0)
+
+/**
+ * \brief Convert hex string to integer.
+ *
+ * @param hex a string of hex digits (no minus sign allowed)
+ *
+ * @return a positive integer
+ */
+unsigned int o2_hex_to_int(const char *hex);
+
+
+/**
+* \brief Convert from hex format to dot format IP address
+*
+* O2 uses 8 digit hexadecimal notation for IP addresses, mostly
+* internally. To convert to the more conventional "dot" notation,
+* e.g. "127.0.0.1", call #o2_hex_to_dot.
+*
+* @param hex is a string containing an 8 character hexadecimal IP address.
+*
+* @param dot is a memory area of size O2N_IP_LEN or greater where the dot
+*         notation is written.
+*
+*/
+void o2_hex_to_dot(const char *hex, char *dot);
+
+
     
-// room for IP address in dot notation and terminating EOS
-#define O2_IP_LEN 16
 // room for longest string/address of the form:
 //   /_publicIP:localIP:port + padding_to_int32_boundary
 #define O2_MAX_PROCNAME_LEN 32
@@ -33,7 +61,12 @@ extern void ((*o2_free_ptr)(void *));
  * are provided to allocate, construct, and deallocate messages, but
  * if you need to allocate memory, especially in an O2 message
  * handler callback, i.e. within the sphere of O2 execution, you
- * should use #O2_MALLOC, #O2_FREE, and #O2_CALLOC.
+ * should use #O2_MALLOC, #O2_FREE, and #O2_CALLOC and their variants.
+ *
+ * The O2lite library shares some code with O2 but not memory allocation.
+ * To simplify things, you can just define O2_MALLOC, e.g. to be malloc,
+ * and define O2_FREE, e.g. to be free, and the logic here will provide
+ * implementations of O2_MALLOCT, O2_MALLOCNT, etc.
  */
 #ifndef O2_MALLOC
 #ifdef NO_O2_DEBUG
@@ -42,9 +75,14 @@ extern void ((*o2_free_ptr)(void *));
 #else
 void *o2_dbg_malloc(size_t size, const char *file, int line);
 #define O2_MALLOC(x) o2_dbg_malloc(x, __FILE__, __LINE__)
-#define O2_MALLOCNT(n, typ) \
-        ((typ *) o2_dbg_malloc((n) * sizeof(typ), __FILE__, __LINE__))
 #endif
+#endif
+
+#ifndef O2_MALLOCNT
+#define O2_MALLOCNT(n, typ) ((typ *) O2_MALLOC((n) * sizeof(typ)))
+#endif
+
+#ifndef O2_MALLOCT
 #define O2_MALLOCT(typ) O2_MALLOCNT(1, typ)
 #endif
 
@@ -58,6 +96,7 @@ void o2_dbg_free(const void *obj, const char *file, int line);
 #endif
 #endif
 
+
 /** \brief allocate and zero memory (see #O2_MALLOC) */
 #ifndef O2_CALLOC
 #ifdef NO_O2_DEBUG
@@ -67,9 +106,14 @@ void *o2_calloc(size_t n, size_t s);
 #else
 void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
 #define O2_CALLOC(n, s) o2_dbg_calloc(n, s, __FILE__, __LINE__)
-#define O2_CALLOCNT(n, typ) \
-        ((typ *) o2_dbg_calloc(n, sizeof(typ), __FILE__, __LINE__))
 #endif
+#endif
+
+#ifndef O2_CALLOCNT
+#define O2_CALLOCNT(n, typ) ((typ *) O2_CALLOC(n, sizeof(typ)))
+#endif
+
+#ifndef O2_CALLOCT
 #define O2_CALLOCT(typ) O2_CALLOCNT(1, typ)
 #endif
 

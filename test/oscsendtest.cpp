@@ -56,7 +56,7 @@ int main(int argc, const char * argv[])
     else if (argc > 2)
         printf("Usage: oscsendtest [clockref]\n");
     
-    if (clockref) sleep(2); // wait for liblo server if we are clockref
+    if (clockref) usleep(2000000); // wait for liblo server if we are clockref
     printf("Waiting for clock sync\n");
     while (!o2_clock_is_synchronized) {
         usleep(2000);
@@ -110,7 +110,7 @@ int main(int argc, const char * argv[])
     o2_service_free("oscsend");
     printf("*** Calling o2_finish @ %g\n", o2_time_get());
     o2_finish();
-    sleep(1); // finish closing sockets
+    usleep(1000000); // finish closing sockets
     printf("OSCSEND DONE\n");
     return 0;
 }

@@ -15,7 +15,8 @@
 #elif __STDC_VERSION__ >= 201112L
 # define thread_local _Thread_local
 #elif defined(_MSC_VER)
-# define thread_local __declspec(thread)
+// now thread_local seems to be a keyword in Visual Studio
+// # define thread_local __declspec(thread)
 #else
 # error Cannot define thread_local
 #endif
@@ -30,8 +31,8 @@
 #include <math.h>
 #include <assert.h>
 
+#include "hostip.h"
 #include "o2.h"
-
 
 #include "o2obj.h"
 #include "debug.h"
@@ -73,7 +74,7 @@ public:
 
     // support for o2mem:
     char *chunk; // where to allocate bytes when freelist is empty
-    int64_t chunk_remaining; // how many bytes left in chunk
+    size_t chunk_remaining; // how many bytes left in chunk
         
     // one and only one of the following 2 addresses should be NULL:
     Proc_info *proc; ///< the process descriptor for this process
@@ -205,7 +206,6 @@ void o2_mem_finish(void); // implemented by o2mem.c, called to free
 
 #define ROUNDUP_TO_32BIT(i) ((((size_t) i) + 3) & ~3)
 
-#define streql(a, b) (strcmp(a, b) == 0)
 
 // o2strcpy is like strlcpy but it does not return length.
 // precisely, o2strcpy() copies up to n characters (including EOS) from

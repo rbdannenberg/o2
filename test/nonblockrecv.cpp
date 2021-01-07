@@ -70,7 +70,7 @@ int main(int argc, const char * argv[])
     }
     
     o2_finish();
-    sleep(1); // finish cleaning up sockets
+    usleep(1000000); // finish cleaning up sockets
     printf("SERVER DONE\n");
     return 0;
 }

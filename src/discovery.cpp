@@ -55,8 +55,8 @@ static int o2_local_remote[PORT_MAX] = {3, 3, 3, 3, 3, 3, 3, 3,
 Fds_info *o2_discovery_udp_server = NULL;
 
 static bool hub_needs_public_ip = false;
-static char hub_pip[O2_IP_LEN];
-static char hub_iip[O2_IP_LEN];
+static char hub_pip[O2N_IP_LEN];
+static char hub_iip[O2N_IP_LEN];
 static int hub_port;
 
 static void hub_has_new_client(Proc_info *nc);
@@ -79,14 +79,14 @@ int o2_parse_name(const char *name, char *public_ip,
     if (*name != '@') {
         return O2_FAIL;
     }
-    if (!colon || colon - name > O2_IP_LEN - 1) {
+    if (!colon || colon - name > O2N_IP_LEN - 1) {
         return O2_FAIL;
     }
     // we allow extra char after public ip, which becomes EOS:
     o2strcpy(public_ip, name + 1, colon - name);
     colon++;  // colon is now first char after ':'
     const char *colon2 = strchr(colon, ':');
-    if (!colon2 || colon2 - colon > O2_IP_LEN - 1) {
+    if (!colon2 || colon2 - colon > O2N_IP_LEN - 1) {
         return O2_FAIL;
     }
     colon2++;  // colon2 is first char after second ':'
@@ -174,8 +174,8 @@ O2err o2_discovery_finish(void)
 O2message_ptr o2_make_dy_msg(Proc_info *proc, bool tcp_flag, bool swap_flag,
                               int dy_flag)
 {
-    char public_ip_buff[O2_IP_LEN];
-    char internal_ip_buff[O2_IP_LEN];
+    char public_ip_buff[O2N_IP_LEN];
+    char internal_ip_buff[O2N_IP_LEN];
     char *public_ip;
     char *internal_ip;
     int port;
@@ -356,7 +356,7 @@ O2err o2_discovered_a_remote_process_name(const char *name,
             return O2_SUCCESS;
         }
         // process is unknown, make a proc_info for it and start connecting...
-        char ipdot[O2_IP_LEN];
+        char ipdot[O2N_IP_LEN];
         o2_hex_to_dot(internal_ip, ipdot);
         proc = Proc_info::create_tcp_proc(O2TAG_PROC_TEMP,
                                           (const char *) ipdot, port);
@@ -733,17 +733,17 @@ O2err o2_hub(const char *public_ip, const char *internal_ip, int port)
     Net_address pub_address, int_address;
     RETURN_IF_ERROR(pub_address.init(public_ip, port, true));
     RETURN_IF_ERROR(int_address.init(internal_ip, port, true));
-    char pip[O2_IP_LEN];
-    char iip[O2_IP_LEN];
-    snprintf(pip, O2_IP_LEN, "%08x", ntohl(pub_address.sa.sin_addr.s_addr));
-    snprintf(iip, O2_IP_LEN, "%08x", ntohl(int_address.sa.sin_addr.s_addr));
+    char pip[O2N_IP_LEN];
+    char iip[O2N_IP_LEN];
+    snprintf(pip, O2N_IP_LEN, "%08x", ntohl(pub_address.sa.sin_addr.s_addr));
+    snprintf(iip, O2N_IP_LEN, "%08x", ntohl(int_address.sa.sin_addr.s_addr));
     if (o2n_public_ip[0]) {
         snprintf(o2_hub_addr, O2_MAX_PROCNAME_LEN, "@%s:%s:%x%c%c%c%c",
                  pip, iip, port, 0, 0, 0, 0);
         return o2_discovered_a_remote_process(pip, iip, port, O2_DY_INFO);
     } else {
-        o2strcpy(hub_pip, pip, O2_IP_LEN);
-        o2strcpy(hub_iip, iip, O2_IP_LEN);
+        o2strcpy(hub_pip, pip, O2N_IP_LEN);
+        o2strcpy(hub_iip, iip, O2N_IP_LEN);
         hub_port = port;
         hub_needs_public_ip = true;
     }

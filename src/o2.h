@@ -922,29 +922,6 @@ O2time o2_set_discovery_period(O2time period);
 O2err o2_hub(const char *public_ip, const char *internal_ip, int port);
 
 
-/**
-  * \brief Convert from hex format to dot format IP address
-  *
-  * O2 uses 8 digit hexadecimal notation for IP addresses, mostly
-  * internally. To convert to the more conventional "dot" notation,
-  * e.g. "127.0.0.1", call #o2_hex_to_dot.
-  *
-  * @param hex is a string containing an 8 character hexadecimal IP address.
-  *
-  * @param dot is a memory area of size O2_IP_LEN or greater where the dot notation is written.
-  *
- */
-void o2_hex_to_dot(const char *hex, char *dot);
-
-
-/**
-  * \brief Convert hex string to integer.
-  *
-  * @param hex a string of hex digits (no minus sign allowed)
-  *
-  * @return a positive integer
- */
-int o2_hex_to_int(const char *hex);
 
 /**
  * \brief Get IP address and TCP connection port number.
@@ -1011,9 +988,9 @@ const char *o2_get_proc_name(void);
  *
  * @param name the full PublicIP:LocalIP:PortNumber string
  *
- * @param public_ip address where public_ip is written, at least O2_IP_LEN long
+ * @param public_ip address where public_ip is written, at least O2N_IP_LEN long
  *
- * @param internal_ip address where internal_ip is written, at least O2_IP_LEN long
+ * @param internal_ip address where internal_ip is written, at least O2N_IP_LEN long
  *
  * @param port address where the port number is written
  *

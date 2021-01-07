@@ -8,7 +8,8 @@
 // link with o2usleep.c so that usleep() will be implemented for Windows
 
 #ifdef WIN32
-void usleep(long usec);
+#include <windows.h>
+#define usleep(usec) Sleep((usec) / 1000)
 #else
 #  if defined(__linux__) && defined(__GNUC__)
 #    define _XOPEN_SOURCE 500

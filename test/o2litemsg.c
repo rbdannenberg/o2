@@ -19,20 +19,13 @@ This test:
 
 */
 
+#include "o2usleep.h"
 #include <stdio.h>
 #include <assert.h>
 #include "o2lite.h"
 #include <string.h>
 
 #define streql(a, b) (strcmp(a, b) == 0)
-
-
-
-#ifdef WIN32
-#include "usleep.h" // special windows implementation of sleep/usleep
-#else
-#include <unistd.h>
-#endif
 
 // these are duplicate declarations to access "private" stuff in o2lite.c:
 extern char tcpinbuf[MAX_MSG_LEN];
@@ -62,7 +55,7 @@ void abcde_han(o2l_msg_ptr msg, const char *types, void *data, void *info)
 {
     assert(o2l_get_int32() == 1234);
     assert(streql(o2l_get_string(), "this is a test"));
-    o2l_time t = o2l_get_time();
+    o2l_time t = (o2l_time) o2l_get_time();
     assert(about_equal(t, 567.89));
     abcde_called = true;
 }
@@ -74,7 +67,7 @@ void abcde2_han(o2l_msg_ptr msg, const char *types, void *data, void *info)
 {
     assert(o2l_get_int32() == 4567);
     assert(streql(o2l_get_string(), "this is a test"));
-    o2l_time t = o2l_get_time();
+    o2l_time t = (o2l_time) o2l_get_time();
     assert(about_equal(t, 4567.89));
     abcde2_called = true;
 }
@@ -210,7 +203,7 @@ int main(int argc, const char * argv[])
     o2l_send_start("/any", 0, "sift", true);
     o2l_add_string("this is another string");
     o2l_add_int32(5678);
-    o2l_add_float(9.012);
+    o2l_add_float(9.012F);
     o2l_add_time(34567.89);
     deliver(true);
     assert(any_called);

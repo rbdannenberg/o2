@@ -9,17 +9,11 @@
 //    receive "hello" message from follow,
 //    shut down
 
-
+#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
 #include "assert.h"
-
-#ifdef WIN32
-#include "usleep.h" // special windows implementation of sleep/usleep
-#else
-#include <unistd.h>
-#endif
 
 #define streql(a, b) (strcmp(a, b) == 0)
 
@@ -149,7 +143,7 @@ int main(int argc, const char * argv[])
     o2_run(100);
     o2_finish();
     
-    sleep(1);
+    usleep(1000000);
     if (rtt_received) {
         printf("APPLEAD DONE\n");
     } else {

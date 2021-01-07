@@ -80,6 +80,6 @@ int main(int argc, const char * argv[])
     o2_osc_port_free(8100);
     o2_finish();
     printf("OSCANY DONE\n");
-    sleep(1); // allow TCP to finish up
+    usleep(1000000); // allow TCP to finish up
     return 0;
 }

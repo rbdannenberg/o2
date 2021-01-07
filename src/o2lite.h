@@ -6,6 +6,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#define O2_MALLOC malloc
+#define O2_CALLOC calloc
+#define O2_FREE free
+#include "o2base.h"
 
 #define MAX_MSG_LEN 256
 #define PORT_MAX 16

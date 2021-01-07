@@ -21,10 +21,11 @@ subclass of Bridge_info will be Demo_info.
 - close the bridge
 */
 
-#include "o2usleep.h"
+
 #include <stdio.h>
 #include <assert.h>
 #include "o2internal.h"
+#include "o2usleep.h"
 #include "services.h"
 
 O2message_ptr demo_incoming = NULL; // message queue

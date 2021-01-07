@@ -116,10 +116,11 @@ typedef struct chunk_struct {
 #define O2MEM_CHUNK_SIZE (1 << 13) // 13 is much bigger than 9
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
-static enum { UNINITIALIZED, NOT_USED, INITIALIZED }
-        o2mem_state = UNINITIALIZED;
+typedef enum { UNINITIALIZED, NOT_USED, INITIALIZED } O2mem_state;
+static O2mem_state o2mem_state = UNINITIALIZED;
+
 static bool malloc_ok = true;
-static int total_allocated = 0;
+static size_t total_allocated = 0;
 static O2queue allocated_chunk_list;
 
 static void *o2_malloc(size_t size);
@@ -139,7 +140,7 @@ static O2queue exponential_free[LOG2_MAX_EXPONENTIAL_BYTES -
                                  LOG2_MAX_LINEAR_BYTES];
 
 #ifndef O2_NO_DEBUG
-int o2mem_get_seqno(const void *ptr);
+int64_t o2mem_get_seqno(const void *ptr);
 
 void *o2_dbg_malloc(size_t size, const char *file, int line)
 {
@@ -147,7 +148,7 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
                   (long long) size, file, line));
     O2_DBm(fflush(stdout));
     void *obj = (*o2_malloc_ptr)(size);
-    O2_DBm(printf(" -> #%d@%p\n", o2mem_get_seqno(obj), obj));
+    O2_DBm(printf(" -> #%lld@%p\n", o2mem_get_seqno(obj), obj));
     assert(obj);
     return obj;
 }
@@ -155,7 +156,7 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
 
 void o2_dbg_free(const void *obj, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_FREE %ld bytes in %s:%d : #%d@%p\n",
+    O2_DBm(printf("%s O2_FREE %ld bytes in %s:%d : #%lld@%p\n",
                   o2_debug_prefix, O2_OBJ_SIZE((O2list_elem_ptr) obj),
                   file, line, o2mem_get_seqno(obj), obj));
     // bug in C. free should take a const void * but it doesn't
@@ -181,11 +182,11 @@ void *o2_calloc(size_t n, size_t s)
 #else
 void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_CALLOC %lu of %lu in %s:%d", o2_debug_prefix,
+    O2_DBm(printf("%s O2_CALLOC %llu of %llu in %s:%d", o2_debug_prefix,
                   n, s, file, line));
     fflush(stdout);
     void *obj = (*o2_malloc_ptr)(n * s);
-    O2_DBm(printf(" -> #%d@%p\n", o2mem_get_seqno(obj), obj));
+    O2_DBm(printf(" -> #%lld@%p\n", o2mem_get_seqno(obj), obj));
     assert(obj);
     memset(obj, 0, n * s);
     return obj;
@@ -274,7 +275,7 @@ void o2_mem_check(void *ptr)
 }
 
 
-int o2mem_get_seqno(const void *ptr)
+int64_t o2mem_get_seqno(const void *ptr)
 {
     preamble_ptr preamble = (preamble_ptr)
             ((char *) ptr - offsetof(preamble_t, payload));
@@ -283,7 +284,7 @@ int o2mem_get_seqno(const void *ptr)
 }
 #else
 #ifndef O2_NO_DEBUG
-int o2mem_get_seqno(void *ptr)
+int64_t o2mem_get_seqno(void *ptr)
 {
     return 0;
 }
@@ -297,7 +298,7 @@ int o2mem_get_seqno(void *ptr)
 bool o2_mem_check_all(int report_leaks)
 {
     chunk_ptr chunk = (chunk_ptr) allocated_chunk_list.pop();
-    int leak_found = false;
+    bool leak_found = false;
     while (chunk) { // walk the chunk list and see if everything is freed
         // within each chunk, blocks are allocated sequentially
         preamble_ptr preamble = &chunk->first;
@@ -398,7 +399,7 @@ void o2_mem_finish()
 static int power_of_2_block_size(size_t size)
 {
     int log = LOG2_MAX_LINEAR_BYTES;
-    while (size > (1 << log)) log++;
+    while (log < LOG2_MAX_EXPONENTIAL_BYTES && size > ((size_t) 1 << log)) log++;
     return log;
 }
 
@@ -413,7 +414,7 @@ static O2queue *head_ptr_for_size(size_t *size)
     }
     index = power_of_2_block_size(*size);
     if (index < LOG2_MAX_EXPONENTIAL_BYTES) {
-        *size = 1 << index;
+        *size = (size_t) 1 << index;
         // assert: index - LOG2_MAX_LINEAR_BYTES is in bounds
         // proof: (1) show index - LOG2_MAX_LINEAR_BYTES >= 0
         //    equivalent to index >= LOG2_MAX_LINEAR_BYTES
@@ -453,7 +454,7 @@ void *o2_malloc(size_t size)
             preamble = (preamble_ptr) malloc(realsize);
             goto gotit;
         }
-        fprintf(stderr, "o2_malloc of %lu bytes failed\n", realsize);
+        fprintf(stderr, "o2_malloc of %llu bytes failed\n", realsize);
         return NULL;
     }
 
@@ -593,7 +594,7 @@ void o2_free(void *ptr)
             free(ptr); // now we're freeing the originally allocated address
             return;
         }
-        fprintf(stderr, "o2_free of %lu bytes failed\n", preamble->size);
+        fprintf(stderr, "o2_free of %llu bytes failed\n", preamble->size);
         return;
     }
     total_allocated -= realsize;

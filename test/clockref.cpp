@@ -177,7 +177,7 @@ int main(int argc, const char * argv[])
     o2_send("!server/clockref", 0.0, ""); // start polling
     o2_run_special(polling_rate);
     o2_finish();
-    sleep(1);
+    usleep(1000000);
     if (rtt_received) {
         printf("CLOCKREF DONE\n");
     } else {

@@ -3,10 +3,10 @@
 // Roger B. Dannenberg
 // August 2020
 
-#include "o2usleep.h"
 #include "stdio.h"
 #include "o2.h"
 #include "o2internal.h"
+#include "o2usleep.h"
 
 int main(int argc, const char * argv[])
 {
@@ -31,7 +31,7 @@ int main(int argc, const char * argv[])
         if (i % 500 == 0) printf("- polling @ %g\n", o2_local_time());
     }
     if (o2n_public_ip[0]) {
-        char pip_dot[O2_IP_LEN];
+        char pip_dot[O2N_IP_LEN];
         o2_hex_to_dot(o2n_public_ip, pip_dot);
         printf("Public IP: %s (%s)\n", o2n_public_ip, pip_dot);
         printf("Full name: %s\n", o2_get_proc_name()); 

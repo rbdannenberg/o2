@@ -3,15 +3,10 @@
 //  see appmaster.c for details
 
 
+#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-
-#ifdef WIN32
-#include "usleep.h" // special windows implementation of sleep/usleep
-#else
-#include <unistd.h>
-#endif
 
 O2time cs_time = 1000000.0;
 
@@ -79,7 +74,7 @@ int main(int argc, const char * argv[])
     o2_run(100);
     o2_finish();
 
-    sleep(1);
+    usleep(1000000);
     printf("APPFOLLOW DONE\n");
     return 0;
 }

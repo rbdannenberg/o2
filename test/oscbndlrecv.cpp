@@ -149,7 +149,7 @@ int main(int argc, const char * argv[])
     assert(test_called);
     o2_osc_port_free(8100);
     o2_finish();
-    sleep(1);
+    usleep(1000000);
     printf("OSCRECV DONE\n");
     return 0;
 }

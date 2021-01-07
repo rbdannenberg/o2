@@ -5,12 +5,12 @@
 // to exit, then checks that the status of the service
 // reverts to "does not exist".
 
-#include "o2usleep.h"
-#include "o2.h"
+
 #include "stdio.h"
 #include "string.h"
 #include "assert.h"
 #include "o2internal.h"
+#include "o2usleep.h"
 
 bool running = true;
 
@@ -102,6 +102,6 @@ int main(int argc, const char * argv[])
         o2_ctx->show_tree();
     }
     o2_finish();
-    sleep(1); // clean up sockets
+    usleep(1000000); // clean up sockets
     return 0;
 }
