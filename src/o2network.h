@@ -1,4 +1,4 @@
-/* network.h -- interface for network communication */
+//* network.h -- interface for network communication */
 //
 // Roger B. Dannenberg, 2019
 //
@@ -90,7 +90,10 @@ typedef struct o2n_message {
 // o2n_close_socket() has been called on this socket: (0x800000)
 #define NET_INFO_CLOSED (O2TAG_HIGH << 6)
 
-// Any open, sendable TCP socket:
+// Any open, sendable TCP socket (NET_TCP_SERVER is not actually sendable
+// as a socket, but if we get the Proc_info that owns this, it is the 
+// local process, and we can always "send" to the local process because
+// we just find and invoke the local handler.
 #define NET_TCP_MASK (NET_TCP_SERVER | NET_TCP_CLIENT | NET_TCP_CONNECTION)
 
 class Net_address {
