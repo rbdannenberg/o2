@@ -26,7 +26,7 @@ Vec<MQTT_info *> o2_mqtt_procs;
 // address of the MQTT Broker:
 Net_address mqtt_address;
 // standard "dot" format IP address for broker:
-char mqtt_broker_ip[O2_IP_LEN] = "";
+char mqtt_broker_ip[O2N_IP_LEN] = "";
 // records that mqtt_enable() was called and should be initialized asap.
 bool o2_mqtt_waiting_for_public_ip = false;
 // connection to MQTT broker:
@@ -78,7 +78,7 @@ O2err o2_mqtt_send_disc()
     O2_DBq(printf("%s publishing to O2-%s/disc with payload %s\n",
                   o2_debug_prefix, o2_ensemble_name, o2_ctx->proc->key));
     mqtt_comm.publish("disc", (const uint8_t *) o2_ctx->proc->key,
-                      strlen(o2_ctx->proc->key),
+                      (int) strlen(o2_ctx->proc->key),
                       o2_clock_is_synchronized ? "/cs" : "/dy", 0, false);
     // check for expired MQTT processes
     for (int i = 0; i < o2_mqtt_procs.size(); i++) {

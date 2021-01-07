@@ -104,7 +104,7 @@ int main(int argc, const char * argv[])
     o2l_send_start("/sift", 0, "sift", true);
     o2l_add_string("this is a test");
     o2l_add_int32(1234);
-    o2l_add_float(123.4);
+    o2l_add_float(123.4F);
     o2l_add_time(567.89);
     o2l_send();
 

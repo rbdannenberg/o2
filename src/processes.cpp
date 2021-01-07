@@ -163,19 +163,19 @@ void o2_show_sockets()
         Fds_info *info = o2n_fds_info[i];
         Proxy_info *proc = (Proxy_info *) info->owner;
         if (proc) {
-            printf("    %s (%d) net_tag %x (%s) socket %d info %p "
+            printf("    %s (%d) net_tag %x (%s) socket %ld info %p "
                    "owner %p (%s%s)\n",
                    o2_debug_prefix, i, info->net_tag,
                    o2_tag_to_string(info->net_tag),
-                   info->get_socket(), info,
+                   (long) info->get_socket(), info,
                    proc, o2_tag_to_string(proc->tag),
                    (proc == o2_ctx->proc ? ", local proc" : ""));
         } else {
-            printf("    %s (%d) net_tag %x (%s) socket %d info %p "
+            printf("    %s (%d) net_tag %x (%s) socket %ld info %p "
                    "owner NULL\n",
                    o2_debug_prefix, i, info->net_tag,
                    o2_tag_to_string(info->net_tag),
-                   info->get_socket(), info);
+                   (long) info->get_socket(), info);
         }
     }
 }

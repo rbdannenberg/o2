@@ -323,7 +323,7 @@ void msg_send_to_tap(Service_tap *tap)
     if (slash) {
         curlen = (int) (slash - msg->data.address);
     } else {
-        curlen = strlen((char *) (msg->data.address));
+        curlen = (int) strlen((char *) (msg->data.address));
     }
     // how much space will tapper take?
     int newlen = (int) strlen(tap->tapper) + 1; // add 1 for initial '/' or '!'
@@ -357,11 +357,11 @@ void msg_send_to_tap(Service_tap *tap)
     newmsg->data.address[0] = msg->data.address[0];
     // copies name and EOS:
     memcpy((char *) (newmsg->data.address + 1), tap->tapper, newlen);
-    memcpy((char *) (newmsg->data.address + newlen), msg->data.address + curlen,
-           curaddrlen - curlen);
+    memcpy((char *) (newmsg->data.address + newlen), 
+           msg->data.address + curlen, curaddrlen - curlen);
     // copy the rest of the message
-    int len = ((char *) &msg->data) + msg->data.length +
-                    sizeof(msg->data.length) - &msg->data.address[curaddrall];
+    int len = (int) (((char *) &msg->data) + msg->data.length +
+                  sizeof(msg->data.length) - &msg->data.address[curaddrall]);
     memcpy((char *) (newmsg->data.address + newaddrall),
            msg->data.address + curaddrall, len);
     o2_prepare_to_deliver(newmsg); // transfer ownership to o2_ctx->msgs

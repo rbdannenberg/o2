@@ -9,7 +9,11 @@
 #include "stdlib.h"
 #include "string.h"
 #include "assert.h"
+#include "hostip.h"
+
+#ifndef WIN32
 #include <sys/time.h>
+#endif
 
 #define RETRY 1
 #define LOW 2
@@ -18,13 +22,20 @@
 
 const char *test_to_string[] = {"nil", "RETRY", "LOW", "HIGH", "EITHER"};
 
-
-long long current_timestamp() {
+#ifdef WIN32
+long long current_timestamp()
+{
+    return timeGetTime();
+}
+#else
+long long current_timestamp() 
+{
     struct timeval te; 
     gettimeofday(&te, NULL); // get current time
     long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000;
     return milliseconds;
 }
+#endif
 
 long long start_time = 0;
 void start_timer()
@@ -34,15 +45,15 @@ void start_timer()
 
 long elapsed_time()
 {
-    return current_timestamp() - start_time;
+    return (long) (current_timestamp() - start_time);
 }
 
 
 #define streql(a, b) (strcmp(a, b) == 0)
 
 
-char server_pip[O2_IP_LEN];
-char server_iip[O2_IP_LEN];
+char server_pip[O2N_IP_LEN];
+char server_iip[O2N_IP_LEN];
 int server_port = -1;
 
 
@@ -164,8 +175,8 @@ bool my_ipport_is_greater(const char *server_pip,
                           const char *server_iip, int server_port)
 {
     // compare port numbers
-    char my_pip[O2_IP_LEN];
-    char my_iip[O2_IP_LEN];
+    char my_pip[O2N_IP_LEN];
+    char my_iip[O2N_IP_LEN];
     const char *pip;
     const char *iip;
     int my_port;
@@ -268,8 +279,8 @@ int test_other_as_hub(int order)
     delay_for(0.5);
 
     // clear record of server now before hub has a chance to say "hi"
-    char server_pip_copy[O2_IP_LEN];
-    char server_iip_copy[O2_IP_LEN];
+    char server_pip_copy[O2N_IP_LEN];
+    char server_iip_copy[O2N_IP_LEN];
     int server_port_copy = server_port;
     strcpy(server_pip_copy, server_pip);
     strcpy(server_iip_copy, server_iip);
@@ -278,9 +289,9 @@ int test_other_as_hub(int order)
     server_port = 0;
     
     startup(8, "reinitialize and call o2_hub()");
-    char pip_dot[O2_IP_LEN];
+    char pip_dot[O2N_IP_LEN];
     o2_hex_to_dot(server_pip_copy, pip_dot);
-    char iip_dot[O2_IP_LEN];
+    char iip_dot[O2N_IP_LEN];
     o2_hex_to_dot(server_iip_copy, iip_dot);
     O2err err = o2_hub(pip_dot, iip_dot, server_port_copy);
     assert(err == O2_SUCCESS);

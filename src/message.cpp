@@ -114,20 +114,6 @@ static void need_argv(int argv_needed, int arg_needed)
 }
 
 
-
-
-// update o2_ctx->arg_data to indicate the something has been appended
-#define ARG_DATA_USED(data_type) o2_ctx->arg_data.length += sizeof(data_type)
-
-// write a data item into o2_ctx->arg_data as part of message construction
-#define ARG_DATA(rslt, data_type, data)         \
-    *((data_type *) (rslt)) = (data);           \
-    ARG_DATA_USED(data_type);
-
-#define ARG_NEXT \
-        ((O2arg_ptr) (o2_ctx->arg_data.array + o2_ctx->arg_data.length))
-
-
 /// end of message must be zero to prevent strlen from running off the
 /// end of malformed message
 #define MSG_ZERO_END(msg, siz) *((int32_t *) &PTR(msg)[(siz) - 4]) = 0
@@ -924,7 +910,7 @@ static O2arg_ptr convert_int(O2type to_type, int64_t i)
         case O2_INT32: {
             // coerce to int to avoid compiler warning; O2 can in fact lose
             // data coercing from type O2_INT64 to O2_INT32
-            int32_t i32 = i;
+            int32_t i32 = (int32_t) i;
             o2_ctx->arg_data.append((char *) &i32, sizeof(int32_t));
             break;
         }
@@ -934,7 +920,7 @@ static O2arg_ptr convert_int(O2type to_type, int64_t i)
         case O2_FLOAT: {
             // coerce to float to avoid compiler warning; O2 can in fact lose
             // data coercing from type O2_INT64 to O2_FLOAT
-            float f = i;
+            float f = (float) i;
             o2_ctx->arg_data.append((char *) &f, sizeof(float));
             break;
         }
@@ -942,7 +928,7 @@ static O2arg_ptr convert_int(O2type to_type, int64_t i)
         case O2_TIME: {
             // coerce to double to avoid compiler warning; O2 can in fact lose
             // data coercing from type O2_INT64 to O2_DOUBLE:
-            double d = i;
+            double d = (double) i;
             o2_ctx->arg_data.append((char *) &d, sizeof(double));
             break;
         }

@@ -98,7 +98,7 @@ int main(int argc, const char * argv[])
     if (master)
         o2_clock_set(NULL, NULL);
     
-    if (master) sleep(2); // wait for liblo server to come up if we are master
+    if (master) usleep(2000000); // wait for liblo server to come up if we are master
 
     char s[128];
 
@@ -168,13 +168,13 @@ int main(int argc, const char * argv[])
     send_nested(now, 3.1, 3.2, 4000);
 
     printf("after sending\n");
-    sleep(1); // if you exit() after send(), data might be lost
+    usleep(1000000); // if you exit() after send(), data might be lost
     printf("removing oscsend\n");
     o2_service_free("oscsend");
     printf("calling o2_finish()\n");
     o2_finish();
     printf("sleep(1)\n");
-    sleep(1); // clean up sockets
+    usleep(1000000); // clean up sockets
     printf("OSCSEND DONE\n");
     return 0;
 }

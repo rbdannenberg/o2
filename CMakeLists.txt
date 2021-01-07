@@ -96,6 +96,7 @@ set(O2_SRC
   src/clock.cpp src/clock.h 
   src/debug.cpp src/debug.h 
   src/discovery.cpp src/discovery.h 
+  src/hostip.c src/hostip.h
   src/vec.cpp src/vec.h
   src/dynarray.cpp src/dynarray.h
   src/o2node.cpp src/o2node.h
@@ -127,7 +128,8 @@ add_library(o2_static STATIC ${O2_SRC})
 
 
 set(O2LITE_SRC  
-  src/o2lite.c src/o2lite.h
+  src/o2lite.c src/o2lite.h 
+# src/hostip.c src/hostip.h -- included in o2lite.c
   )
   
 add_library(o2lite_static STATIC ${O2LITE_SRC})

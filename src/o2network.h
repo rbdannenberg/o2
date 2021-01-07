@@ -26,6 +26,9 @@
 
 #ifdef WIN32
 #include <winsock2.h> // define SOCKET, INVALID_SOCKET
+#include <WS2tcpip.h>
+#define inet_ntop InetNtop
+typedef SSIZE_T ssize_t;
 #else
 #include "arpa/inet.h"  // Headers for all inet functions
 typedef int SOCKET;  // In O2, we'll use SOCKET to denote the type of a socket
@@ -107,7 +110,7 @@ public:
     struct sockaddr *get_sockaddr() { return (struct sockaddr *) &sa; }
     struct in_addr *get_in_addr() { return &sa.sin_addr; }
     const char *to_dot(char *ip) {  // returns ip (or NULL on error)
-        return inet_ntop(AF_INET, get_in_addr(), ip, O2_IP_LEN); }
+        return inet_ntop(AF_INET, get_in_addr(), ip, O2N_IP_LEN); }
 };
 
 class Fds_info;  // forward declaration
@@ -199,7 +202,7 @@ class Fds_info : public O2obj {
 
 #ifndef O2_NO_DEBUG
     static const char *tag_to_string(int tag);
-    int get_socket();
+    SOCKET get_socket();
 };
 #endif
 
@@ -208,8 +211,8 @@ extern Vec<Fds_info *> o2n_fds_info;
 extern bool o2n_network_enabled;  // network connections are permitted
 extern bool o2n_network_found;    // local area network exists
 // if !o2n_network_found, o2n_internal_ip will be "7f000001" (localhost)
-extern char o2n_public_ip[O2_IP_LEN];
-extern char o2n_internal_ip[O2_IP_LEN];
+extern char o2n_public_ip[O2N_IP_LEN];
+extern char o2n_internal_ip[O2N_IP_LEN];
 
 // initialize this module
 O2err o2n_initialize();

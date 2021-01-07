@@ -66,7 +66,7 @@ static void mqtt_append_int16(int i)
 
 static void mqtt_append_string(const char *s)
 {
-    int len = strlen(s);
+    int len = (int) strlen(s);
     mqtt_append_int16(len);
     o2_ctx->msg_data.append(s, len);
 }
@@ -75,8 +75,8 @@ static void mqtt_append_string(const char *s)
 //   (to append a full topic string)
 static void mqtt_append_topic(const char *s1)
 {
-    int len0 = strlen(o2_ensemble_name);
-    int len1 = strlen(s1);
+    int len0 = (int) strlen(o2_ensemble_name);
+    int len1 = (int) strlen(s1);
     int len = 4 + len0 + len1;
     mqtt_append_int16(len);
     o2_ctx->msg_data.append("O2-", 3);
@@ -283,7 +283,7 @@ O2err MQTTcomm::publish(const char *subtopic, const uint8_t *payload,
     assert(o2_ctx->msg_data.size() ==
            8 + strlen(o2_ensemble_name) + strlen(subtopic));
     mqtt_append_bytes((void *) payload, payload_len);
-    size_t suffix_len = strlen(suffix);
+    int suffix_len = (int) strlen(suffix);
     mqtt_append_bytes((void *) suffix, suffix_len);
     payload_len += suffix_len;
     assert(o2_ctx->msg_data.size() == 8 + strlen(o2_ensemble_name) +

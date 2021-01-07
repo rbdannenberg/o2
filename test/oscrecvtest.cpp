@@ -95,6 +95,6 @@ int main(int argc, const char * argv[])
     printf("*** calling o2_finish @ %g\n", o2_time_get());
     o2_finish();
     printf("OSCRECV DONE\n");
-    sleep(1); // allow TCP to finish up
+    usleep(1000000); // allow TCP to finish up
     return 0;
 }

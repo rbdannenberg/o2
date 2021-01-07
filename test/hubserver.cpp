@@ -63,11 +63,14 @@
 
 #include "o2usleep.h"
 #include "o2.h"
+#include "hostip.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
 #include "assert.h"
+#ifndef WIN32
 #include <sys/time.h>
+#endif
 
 #define RETRY 1
 #define LOW 2
@@ -77,12 +80,20 @@
 const char *test_to_string[] = {"nil", "RETRY", "LOW", "HIGH", "EITHER"};
 
 
-long long current_timestamp() {
-    struct timeval te; 
+#ifdef WIN32
+long long current_timestamp()
+{
+    return timeGetTime();
+}
+#else
+long long current_timestamp()
+{
+    struct timeval te;
     gettimeofday(&te, NULL); // get current time
-    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000;
+    long long milliseconds = te.tv_sec * 1000LL + te.tv_usec / 1000;
     return milliseconds;
 }
+#endif
 
 long long start_time = 0;
 void start_timer()
@@ -92,15 +103,15 @@ void start_timer()
 
 long elapsed_time()
 {
-    return current_timestamp() - start_time;
+    return (long) (current_timestamp() - start_time);
 }
 
 
 #define streql(a, b) (strcmp(a, b) == 0)
 
 
-char client_pip[O2_IP_LEN];
-char client_iip[O2_IP_LEN];
+char client_pip[O2N_IP_LEN];
+char client_iip[O2N_IP_LEN];
 int client_port = -1;
 
 void service_info_handler(o2_msg_data_ptr data, const char *types,
@@ -223,8 +234,8 @@ void wait_for_pip(void)
 bool my_ipport_is_greater(const char *client_pip, 
                           const char *client_iip, int client_port)
 {
-    char my_pip[O2_IP_LEN];
-    char my_iip[O2_IP_LEN];
+    char my_pip[O2N_IP_LEN];
+    char my_iip[O2N_IP_LEN];
     const char *pip;
     const char *iip;
     int my_port;
@@ -326,8 +337,8 @@ int test_other_as_hub(int order)
     delay_for(0.5);
 
     // clear record of client now before hub has a chance to say "hi"
-    char client_pip_copy[O2_IP_LEN];
-    char client_iip_copy[O2_IP_LEN];
+    char client_pip_copy[O2N_IP_LEN];
+    char client_iip_copy[O2N_IP_LEN];
     int client_port_copy = client_port;
     strcpy(client_pip_copy, client_pip);
     strcpy(client_iip_copy, client_iip);
@@ -336,9 +347,9 @@ int test_other_as_hub(int order)
     client_port = 0;
 
     startup(8, "reinitialize and call o2_hub()");
-    char pip_dot[O2_IP_LEN];
+    char pip_dot[O2N_IP_LEN];
     o2_hex_to_dot(client_pip_copy, pip_dot);
-    char iip_dot[O2_IP_LEN];
+    char iip_dot[O2N_IP_LEN];
     o2_hex_to_dot(client_iip_copy, iip_dot);
     O2err err = o2_hub(pip_dot, iip_dot, client_port_copy);
 

@@ -1,48 +1,27 @@
-// network.c -- implementation of network communication
+// network.cpp -- implementation of network communication
 //
 // Roger B. Dannenberg, 2020
 //
 
-// to define addrinfo, need to set this macro:
-
-#include "o2usleep.h"
 #include <fcntl.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <ctype.h>
-#include <netdb.h>
-#include <sys/time.h>
-#include <unistd.h>
 #include "o2internal.h"
 #include <errno.h>
 
 #ifdef WIN32
 #include <stdio.h> 
 #include <stdlib.h> 
-#include <windows.h>
 
 // test after recvfrom() < 0 to see if the socket should close
 #define TERMINATING_SOCKET_ERROR \
     (WSAGetLastError() != WSAEWOULDBLOCK && WSAGetLastError() != WSAEINTR)
-
-typedef struct ifaddrs
-{
-    struct ifaddrs  *ifa_next;    /* Next item in list */
-    char            *ifa_name;    /* Name of interface */
-    unsigned int     ifa_flags;   /* Flags from SIOCGIFFLAGS */
-    struct sockaddr *ifa_addr;    /* Address of interface */
-    struct sockaddr *ifa_netmask; /* Netmask of interface */
-    union {
-        struct sockaddr *ifu_broadaddr; /* Broadcast address of interface */
-        struct sockaddr *ifu_dstaddr; /* Point-to-point destination address */
-    } ifa_ifu;
-#define              ifa_broadaddr ifa_ifu.ifu_broadaddr
-#define              ifa_dstaddr   ifa_ifu.ifu_dstaddr
-    void            *ifa_data;    /* Address-specific data */
-} ifaddrs;
-
 #else
+#include <sys/socket.h>
 #include <unistd.h>    // define close()
+#include <netdb.h>
+#include <sys/time.h>
+
 #include "sys/ioctl.h"
 #include <ifaddrs.h>
 #include <sys/poll.h>
@@ -54,13 +33,7 @@ typedef struct ifaddrs
 static Vec<struct pollfd> o2n_fds;  ///< pre-constructed fds parameter for poll()
 Vec<Fds_info *> o2n_fds_info; ///< info about sockets
 
-// this can be turned off before calling o2n_initialize():
-bool o2n_network_enabled = true;
-// this will be turned on if we find an internal IP address, but
-// it stays false if o2n_network_enabled is false:
-bool o2n_network_found = false;
-char o2n_public_ip[O2_IP_LEN] = "";
-char o2n_internal_ip[O2_IP_LEN] = "";
+char o2n_public_ip[O2N_IP_LEN] = "";
 
 static struct sockaddr_in o2_serv_addr;
 
@@ -79,47 +52,6 @@ SOCKET o2n_udp_send_sock = INVALID_SOCKET;
 static struct sockaddr_in local_to_addr;
 
 static bool o2n_socket_delete_flag = false;
-
-static int hex_to_nibble(char hex)
-{
-    if (isdigit(hex)) return hex - '0';
-    else if (hex >= 'A' && hex <= 'F') return hex - 'A' + 10;
-    else if (hex >= 'a' && hex <= 'f') return hex - 'a' + 10;
-#ifndef O2_NO_DEBUG
-    printf("ERROR: bad hex character passed to hex_to_nibble()\n");
-#endif
-    return 0;
-}
-
-static int hex_to_byte(const char *hex)
-{
-    return (hex_to_nibble(hex[0]) << 4) + hex_to_nibble(hex[1]);
-}
-
-
-// convert 8-char, 32-bit hex representation to dot-notation,
-//   e.g. "7f000001" converts to "127.0.0.1"
-//   dot must be a string of length 16 or more
-void o2_hex_to_dot(const char *hex, char *dot)
-{
-    int i1 = hex_to_byte(hex);
-    int i2 = hex_to_byte(hex + 2);
-    int i3 = hex_to_byte(hex + 4);
-    int i4 = hex_to_byte(hex + 6);
-    snprintf(dot, 16, "%d.%d.%d.%d", i1, i2, i3, i4);
-}
-
-
-int o2_hex_to_int(const char *hex)
-{
-    char h;
-    int i = 0;
-    while ((h = *hex++)) {
-        i = (i << 4) + hex_to_nibble(h);
-    }
-    return i;
-}
-
 
 // macOS does not always free ports, so to aid in debugging orphaned ports,
 // define CLOSE_SOCKET_DEBUG 1 and get a list of sockets that are opened
@@ -199,7 +131,7 @@ O2err Net_address::init(const char *ip, int port_num, bool tcp_flag)
 
 O2err Net_address::init_hex(const char *ip, int port_num, bool tcp_flag)
 {
-    char ip_dot_form[O2_IP_LEN];
+    char ip_dot_form[O2N_IP_LEN];
     o2_hex_to_dot(ip, ip_dot_form);
     return init(ip_dot_form, port_num, tcp_flag);
 }
@@ -355,8 +287,8 @@ static int bind_recv_socket(SOCKET sock, int *port, bool tcp_recv_flag,
         }
         *port = ntohs(o2_serv_addr.sin_port);  // set actual port used
     }
-    O2_DBo(printf("*   %s bind socket %d port %d\n", o2_debug_prefix,
-                  sock,   *port));
+    O2_DBo(printf("*   %s bind socket %ld port %d\n", o2_debug_prefix,
+                  (long) sock, *port));
     assert(*port != 0);
     return O2_SUCCESS;
 }
@@ -420,7 +352,7 @@ Fds_info *Fds_info::cleanup(const char *error, SOCKET sock)
 
 Fds_info *Fds_info::create_tcp_server(int port)
 {
-    int sock = o2n_tcp_socket_new();
+    SOCKET sock = o2n_tcp_socket_new();
     if (sock == INVALID_SOCKET) {
         return NULL;
     }
@@ -474,41 +406,6 @@ SOCKET o2n_broadcast_socket_new()
 }
 
 
-static void get_internal_ip(void)
-{
-    struct ifaddrs *ifap, *ifa;
-    if (o2n_internal_ip[0]) {  // already known
-        return;
-    }
-    assert(!o2n_network_found);  // not yet found
-    assert(o2n_network_enabled); // otherwise, we should not be called
-    struct sockaddr_in *sa;
-    // look for AF_INET interface. If you find one, copy it
-    // to name. If you find one that is not 127.0.0.1, then
-    // stop looking.
-    
-    if (getifaddrs(&ifap)) {
-        perror("getting IP address");
-        return;
-    }
-    for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr->sa_family == AF_INET) {
-            sa = (struct sockaddr_in *) ifa->ifa_addr;
-            snprintf(o2n_internal_ip, O2_IP_LEN, "%08x",
-                     ntohl(sa->sin_addr.s_addr));
-            if (!streql(o2n_internal_ip, "7f000001")) {
-                o2n_network_found = true;
-                break;
-            }
-        }
-    }
-    freeifaddrs(ifap);
-    // make sure we got an address:
-    if (!o2n_internal_ip[0]) {
-        strcpy(o2n_internal_ip, "7f000001");  // localhost
-    }
-}
-
 // initialize this module
 // - create UDP broadcast socket
 // - create UDP send socket
@@ -523,7 +420,7 @@ O2err o2n_initialize()
     if (o2n_network_enabled) {
         o2n_internal_ip[0] = 0;  // IP addresses are looked up, initially
         o2n_public_ip[0] = 0;    // they are unknown
-        get_internal_ip();
+        o2n_get_internal_ip();
         // Initialize addr for broadcasting
         o2n_broadcast_to_addr.get_sockaddr()->sa_family = AF_INET;
         if (inet_pton(AF_INET, "255.255.255.255",
@@ -604,9 +501,13 @@ SOCKET o2n_tcp_socket_new()
         printf("tcp socket creation error");
         return sock;
     }
+#ifdef WIN32
+    u_long nonblocking_enabled = TRUE;
+    ioctlsocket(sock, FIONBIO, &nonblocking_enabled);
+#else
     // make the socket non-blocking
     fcntl(sock, F_SETFL, O_NONBLOCK);
-
+#endif
     O2_DBo(printf("%s created tcp socket %ld\n", o2_debug_prefix, (long) sock));
     // a "normal" TCP connection: set NODELAY option
     // (NODELAY means that TCP messages will be delivered immediately
@@ -733,7 +634,7 @@ O2err Fds_info::send(bool block)
 {
     int err;
     int flags = 0;
-#ifndef __APPLE__
+#if __linux__
     flags = MSG_NOSIGNAL;
 #endif
     if (net_tag == NET_INFO_CLOSED) {
@@ -749,7 +650,7 @@ O2err Fds_info::send(bool block)
         FD_SET(pfd->fd, &write_set);
         int total;
         // try while a signal interrupts us
-        while ((total = select(pfd->fd + 1, NULL,
+        while ((total = select(o2n_fds.size(), NULL,
                                &write_set, NULL, NULL)) != 1) {
 #ifdef WIN32
             if (total == SOCKET_ERROR && errno != EINTR) {
@@ -765,16 +666,19 @@ O2err Fds_info::send(bool block)
         }
         int socket_error;
         socklen_t errlen = sizeof socket_error;
-        getsockopt(pfd->fd, SOL_SOCKET, SO_ERROR, &socket_error, &errlen);
+        // linux uses (void *), Windows uses (char *) for arg 4
+        getsockopt(pfd->fd, SOL_SOCKET, SO_ERROR, (char *) &socket_error, &errlen);
         if (socket_error) {
             return O2_SOCKET_ERROR;
         }
         // otherwise, socket is writable, thus connected now
         net_tag = NET_TCP_CLIENT;
     }
+#ifndef WIN32
     if (!block) {
         flags |= MSG_DONTWAIT;
     }
+#endif
     o2n_message_ptr msg;
     while ((msg = out_message)) { // more messages to send
         // Send the length of the message followed by the message.
@@ -911,10 +815,10 @@ O2err o2n_recv()
     
     FD_ZERO(&o2_read_set);
     FD_ZERO(&o2_write_set);
-    for (int i = 0; i < o2n_fds.length; i++) {
+    for (int i = 0; i < o2n_fds.size(); i++) {
         FD_SET(o2n_fds[i].fd, &o2_read_set);
-        Net_interface *interf = &o2n_fds_info[i];
-        if (TAG_IS_REMOTE(interf->tag) && interf->proc.pending_msg) {
+        Fds_info *fi = o2n_fds_info[i];
+        if (fi->out_message) {
             FD_SET(o2n_fds[i].fd, &o2_write_set);
         }
     }
@@ -928,26 +832,29 @@ O2err o2n_recv()
     if (total == 0) { /* no messages waiting */
         return O2_SUCCESS;
     }
-    for (int i = 0; i < o2n_fds.length; i++) {
+    for (int i = 0; i < o2n_fds.size(); i++) {
         SOCKET socket = o2n_fds[i].fd;
         if (FD_ISSET(socket, &o2_read_set)) {
-            Net_interface *interf = &o2n_fds_info[i];
-            if ((interf->read_event_handler()) == O2_TCP_HUP) {
-                O2_DBo(printf("%s removing remote process after O2_TCP_HUP to "
-                         "socket %ld", o2_debug_prefix, (long) o2n_fds[i].fd));
-                interf->close_socket();
+            Fds_info *fi = o2n_fds_info[i];
+            if (fi->read_event_handler()) {
+                O2_DBo(printf("%s removing remote process after handler "
+                              "reported error on socket %ld", o2_debug_prefix, 
+			      (long) socket));
+                fi->close_socket();
             }
         }
         if (FD_ISSET(socket, &o2_write_set)) {
-            Net_interface *interf = &o2n_fds_info[i];
-            O2message_ptr msg = interf->proc.pending_msg; // unlink pending msg
-            interf->proc.pending_msg = NULL;
-            O2err rslt = o2n_send(interf, false);
-            assert(false); // need to handle multiple queued messages
-            if (rslt == O2_SUCCESS) {
-                // printf("clearing POLLOUT on %d\n", interf->fds_index);
-                pfd->events &= ~POLLOUT;
-            }
+            Fds_info *fi = o2n_fds_info[i];
+	    if (fi->net_tag & NET_TCP_CONNECTING) { // connect completed
+		fi->net_tag = NET_TCP_CLIENT;
+                O2_DBo(printf("%s connection completed, socket %ld index %d\n",
+                              o2_debug_prefix, (long) socket, i));
+                // tell next layer up that connection is good, e.g. O2 sends
+                // notification that a new process is connected
+                if (fi->owner) fi->owner->connected();
+            } else if (fi->out_message) {
+		O2err rslt = fi->send(false);
+	    }
         }            
         if (!o2_ensemble_name) { // handler called o2_finish()
             // o2n_fds are all freed and gone
@@ -1131,7 +1038,7 @@ int Fds_info::read_event_handler()
         }
         // fall through and send message
     } else if (net_tag == NET_UDP_SERVER) {
-        int len;
+        unsigned long len;
         if (ioctlsocket(sock, FIONREAD, &len) == -1) {
             perror("udp_recv_handler");
             return O2_FAIL;
@@ -1241,7 +1148,7 @@ const char *Fds_info::tag_to_string(int tag)
     return unknown;
 }
 
-int Fds_info::get_socket()
+SOCKET Fds_info::get_socket()
 {
     return o2n_fds[fds_index].fd;
 }

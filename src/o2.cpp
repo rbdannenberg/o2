@@ -779,12 +779,9 @@ See ../doc/o2lite.txt for details.
  *  tests that generate error messages
  */
 
-// to define sig_int_handler and usleep, we need these macros:
-#include "o2usleep.h"
 #include <stdio.h>
 #include <signal.h>
 #include <ctype.h>
-#include "unistd.h"
 
 #include "o2internal.h"
 #include "o2mem.h"
@@ -798,7 +795,10 @@ See ../doc/o2lite.txt for details.
 #include "properties.h"
 #include "pathtree.h"
 
-#ifndef WIN32
+#ifdef WIN32
+#include "o2usleep.h"
+#else
+#include "unistd.h"
 #include <sys/time.h>
 #endif
 
@@ -812,6 +812,20 @@ O2time o2_global_now = 0.0;
 O2time o2_global_offset = 0.0;
 
 
+#ifdef WIN32
+// ctrl-C handler for windows (referenced below)
+static BOOL WINAPI console_ctrl_handler(DWORD dw_ctrl_type)
+{
+    o2_finish();
+    // Return TRUE if handled this message, further handler functions 
+    // won't be called.
+    // Return FALSE to pass this message to further handlers until
+    // default handler calls ExitProcess().
+    return FALSE;
+}
+#else
+// ctrl-c handler for Unix (Mac OS X, Linux)
+// 
 static void o2_int_handler(int s)
 {
     // debugging statement: race condition, should be removed:
@@ -819,6 +833,7 @@ static void o2_int_handler(int s)
     o2_finish(); // clean up ports
     exit(1);
 }
+#endif
 
 
 O2err o2_network_enable(bool enable)
@@ -867,6 +882,9 @@ O2err o2_initialize(const char *ensemble_name)
         goto cleanup;
     }
     
+#ifdef WIN32
+    SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
+#else
     // before sockets, set up signal handler to try to clean up ports
     // in the event of a Control-C shutdown. This seems to leave ports
     // locked up forever in OS X, eventually requiring a reboot, so
@@ -876,9 +894,9 @@ O2err o2_initialize(const char *ensemble_name)
     sigemptyset(&sig_int_handler.sa_mask);
     sig_int_handler.sa_flags = 0;
     sigaction(SIGINT, &sig_int_handler, NULL);
+#endif
     // atexit will ignore the return value of o2_finish:
     atexit((void (*)(void)) &o2_finish);
-
 
     if ((err = o2n_initialize())) {
         goto cleanup;
@@ -1164,6 +1182,10 @@ int o2_run(int rate)
 {
     if (rate <= 0) rate = 1000; // poll about every ms
     int sleep_usec = 1000000 / rate;
+#ifdef WIN32
+    // we use a ms timer, so don't go below 1ms:
+    if (sleep_usec < 1000) sleep_usec = 1000;
+#endif
     o2_stop_flag = false;
     while (!o2_stop_flag) {
         o2_poll();

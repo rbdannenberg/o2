@@ -3,16 +3,11 @@
 //  see clockmaster.c for details
 
 
+#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
 #include "ctype.h"
-
-#ifdef WIN32
-#include "usleep.h" // special windows implementation of sleep/usleep
-#else
-#include <unistd.h>
-#endif
 
 int keep_alive = false;
 int polling_rate = 100;
@@ -82,7 +77,7 @@ int main(int argc, const char * argv[])
     clockmirror(NULL, NULL, NULL, 0, NULL);
     o2_run(polling_rate);
     o2_finish();
-    sleep(1);
+    usleep(1000000);
     printf("CLOCKMIRROR DONE\n");
     return 0;
 }

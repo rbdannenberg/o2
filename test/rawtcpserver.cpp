@@ -4,12 +4,18 @@
 #ifdef WIN32
 #include <winsock2.h> 
 #include <windows.h> 
+#include <stdint.h>
+#include <assert.h>
 #else
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <poll.h>
+#include <netinet/tcp.h>
+#define SOCKET socket_t
+#define closesocket close
 #endif
 
 #include <stdio.h>
@@ -18,8 +24,6 @@
 #include <string.h>
 #include <time.h>
 #include <signal.h>
-#include <poll.h>
-#include <netinet/tcp.h>
 
 #ifndef TRUE
 #define TRUE 1
@@ -46,7 +50,7 @@ int fds_len = 0;
 
 int main(int argc, char **argv)
 {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == -1) {
         displayError("tcp socket set up error");
     }
@@ -70,8 +74,8 @@ int main(int argc, char **argv)
     fds[0].revents = 0;
     fds_len = 1;
 
-    socklen_t client_size = sizeof client;
-    int conn = accept(sock, (struct sockaddr *) &client, &client_size);
+    int client_size = sizeof client;
+    SOCKET conn = accept(sock, (struct sockaddr *) &client, &client_size);
     if (conn < 0) {
         printf("server acccept failed...\n");
         exit(0);
@@ -91,6 +95,9 @@ int main(int argc, char **argv)
     int32_t count = 0;
     int done = FALSE;
     while (!done) {
+#ifdef WIN32
+        assert(false); // no windows select() implementation
+#else
         int i;
         poll(fds, fds_len, 0);
         for (i = 0; i < fds_len; i++) {
@@ -113,8 +120,9 @@ int main(int argc, char **argv)
                 }
             }
         }
+#endif
     }
-    close(conn);
-    close(sock);
+    closesocket(conn);
+    closesocket(sock);
     return 0;
 }

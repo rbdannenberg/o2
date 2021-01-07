@@ -12,11 +12,17 @@ This test:
 - respond to messages from o2litehost's client services
 */
 
-#include "o2usleep.h"
 #include <stdlib.h>
-#include <pthread.h>
 #include "o2internal.h"
+#include "o2usleep.h"
 #include "pathtree.h"
+#ifdef WIN32
+#include <windows.h>
+#include <mmsystem.h>
+#else
+#include <pthread.h>
+pthread_t pt_thread_pid;
+#endif
 #include "sharedmem.h"
 
 #define streql(a, b) (strcmp(a, b) == 0)
@@ -38,8 +44,7 @@ bool about_equal(double a, double b)
 bool use_tcp = false;
 
 
-pthread_t pt_thread_pid;
-void *sharedmem(void *ignore);
+void sharedmem();
 
 int main(int argc, const char * argv[])
 {
@@ -63,10 +68,7 @@ int main(int argc, const char * argv[])
     assert(res == O2_SUCCESS);
     smbridge = o2_shmem_inst_new();
 
-    res = pthread_create(&pt_thread_pid, NULL, &sharedmem, NULL);
-    if (res != 0) {
-        printf("ERROR: pthread_create failed\n");
-    }
+    sharedmem(); // start and run the thread
 
     // we are the master clock
     o2_clock_set(NULL, NULL);
@@ -145,74 +147,126 @@ void sift_han(o2_msg_data_ptr msg, const char *types,
     sift_called = true;
 }
 
+O2_context o2sm_ctx;
 
-void *sharedmem(void *ignore)
+
+void sharedmem_init()
 {
-    O2_context ctx;
-    o2sm_initialize(&ctx, smbridge);
-
+    o2sm_initialize(&o2sm_ctx, smbridge);
     o2sm_service_new("sift", NULL);
 
-    o2sm_method_new("/sift", "sift", &sift_han, (void *) 111, false, false);
+    o2sm_method_new("/sift", "sift", &sift_han, (void *)111, false, false);
 
     printf("shmemthread detected connected\n");
 
     o2_send_start();
     o2_add_string("this is a test");
     o2_add_int32(1234);
-    o2_add_float(123.4);
+    o2_add_float(123.4F);
     o2_add_time(567.89);
     o2sm_send_finish(0, "/sift", true);
     printf("sent sift msg\n");
+}
 
-    while (o2sm_time_get() < 0) { // not synchronized
-        o2sm_poll();
-        usleep(2000); // 2ms
+static int phase = 0;
+static O2time start_wait;
+
+// perform whatever the thread does. Return false when done.
+bool o2sm_act()
+{
+    if (phase == 0) {
+        if (o2sm_time_get() < 0) { // not synchronized
+            return true;
+        } else {
+            printf("shmemthread detected clock sync\n");
+            start_wait = o2sm_time_get();
+            phase++;
+        }
     }
-    printf("shmemthread detected clock sync\n");
+    if (phase == 1) {
+        if (start_wait + 1 > o2sm_time_get() && !sift_called) {
+            return true;
+        } else {
+            assert(sift_called);
+            printf("shmemthread received loop-back message\n");
+            // we are ready for the client, so announce the server services
+            o2sm_service_new("server", NULL);
+            // now create addresses and handlers to receive server messages
+            client_addresses = O2_MALLOCNT(n_addrs, char *);
+            server_addresses = O2_MALLOCNT(n_addrs, char *);
+            for (int i = 0; i < n_addrs; i++) {
+                char path[100];
 
-    O2time start_wait = o2sm_time_get();
-    while (start_wait + 1 > o2sm_time_get() && !sift_called) {
-        o2sm_poll();
-        usleep(2000);
+                sprintf(path, "!client/benchmark/%d", i);
+                client_addresses[i] = O2_MALLOCNT(strlen(path) + 1, char);
+                strcpy(client_addresses[i], path);
+
+                sprintf(path, "/server/benchmark/%d", i);
+                server_addresses[i] = O2_MALLOCNT(strlen(path) + 1, char);
+                strcpy(server_addresses[i], path);
+                o2sm_method_new(path, "i", &server_test, NULL, false, true);
+            }
+            phase++;
+        }
     }
-    assert(sift_called);
-    printf("shmemthread received loop-back message\n");
+    if (phase == 2) {
+        if (running) {
+            return true;
+        } else {
+            for (int i = 0; i < n_addrs; i++) {
+                O2_FREE(client_addresses[i]);
+                O2_FREE(server_addresses[i]);
+            }
+            O2_FREE(client_addresses);
+            O2_FREE(server_addresses);
 
-    // we are ready for the client, so announce the server services
-    o2sm_service_new("server", NULL);
-    // now create addresses and handlers to receive server messages
-    client_addresses = O2_MALLOCNT(n_addrs, char *);
-    server_addresses = O2_MALLOCNT(n_addrs, char *);
-    for (int i = 0; i < n_addrs; i++) {
-        char path[100];
+            o2sm_finish();
+            o2_stop_flag = true; // shut down O2
 
-        sprintf(path, "!client/benchmark/%d", i);
-        client_addresses[i] = O2_MALLOCNT(strlen(path) + 1, char);
-        strcpy(client_addresses[i], path);
-
-        sprintf(path, "/server/benchmark/%d", i);
-        server_addresses[i] = O2_MALLOCNT(strlen(path) + 1, char);
-        strcpy(server_addresses[i], path);
-        o2sm_method_new(path, "i", &server_test, NULL, false, true);
+            printf("shmemserv:\nSERVER DONE\n");
+            phase++;
+            return false;
+        }
     }
+    return true; // should never get here
+}
 
-    while (running) {
-        o2sm_poll();
-        usleep(2000);
+
+#ifdef WIN32
+void CALLBACK o2sm_run_callback(UINT timer_id, UINT msg, DWORD_PTR data, 
+                                DWORD_PTR dw1, DWORD_PTR dw2)
+{
+    if (!o2sm_act()) {
+        timeKillEvent(timer_id);
     }
+}
 
-    for (int i =
-         0; i < n_addrs; i++) {
-        O2_FREE(client_addresses[i]);
-        O2_FREE(server_addresses[i]);
-    }
-    O2_FREE(client_addresses);
-    O2_FREE(server_addresses);
-
-    o2sm_finish();
-    o2_stop_flag = true; // shut down O2
-
-    printf("shmemserv:\nSERVER DONE\n");
+void *sharedmem_run()
+{
+    timeSetEvent(1, 0, &o2sm_run_callback, NULL, TIME_PERIODIC);
     return NULL;
+}
+#else
+void *sharedmem_action(void *ignore)
+{
+    while (o2sm_act()) {
+        ;
+    }
+    return NULL;
+}
+
+void *sharedmem_run()
+{
+    res = pthread_create(&pt_thread_pid, NULL, &sharedmem_action, NULL);
+    if (res != 0) {
+        printf("ERROR: pthread_create failed\n");
+    }
+    return NULL;
+}
+#endif
+
+void sharedmem()
+{
+    sharedmem_init();
+    sharedmem_run();
 }

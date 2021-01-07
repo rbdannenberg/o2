@@ -98,7 +98,7 @@ int main(int argc, const char * argv[])
     }
 
     o2_finish();
-    sleep(1); // clean up sockets
+    usleep(1000000); // clean up sockets
     printf("SERVER DONE\n");
     return 0;
 }

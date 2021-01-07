@@ -8,15 +8,11 @@
 // Based on clockmaster.c
 
 
+#include "o2usleep.h"
 #include <stdio.h>
 #include "o2.h"
 #include "string.h"
 #include <ctype.h>
-#ifdef WIN32
-#include "usleep.h" // special windows implementation of sleep/usleep
-#else
-#include <unistd.h>
-#endif
 
 #define streql(a, b) (strcmp(a, b) == 0)
 
@@ -243,7 +239,7 @@ int main(int argc, const char * argv[])
     o2_send("!server/clockmaster", 0.0, ""); // start polling
     o2_run(100);
     o2_finish();
-    sleep(1);
+    usleep(1000000);
     if (si_msg_count != 12) {
         printf("FAILURE - wrong si_msg_count (%d)\n", si_msg_count);
     } else {

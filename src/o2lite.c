@@ -10,10 +10,15 @@
 // Roger B. Dannenberg
 // Jul-Aug 2020
 
-#include "o2usleep.h"
 #include "o2lite.h"
 #include <string.h>
 #include <ctype.h>
+// IMPORTANT: hostip.c normally uses O2_MALLOC as defined in o2base.h,
+// but here, we want to replace o2_dbg_malloc and o2_malloc with simple
+// malloc using macros set up in o2lite.h (above) to override this 
+// default. If you compile hostip.c independently, it will expect to 
+// link with o2_dbg_malloc.
+#include "hostip.c"
 
 // you can enable/disable O2LDB printing using -DO2LDEBUG=1 or =0 
 #if (!defined(O2LDEBUG))
@@ -28,8 +33,6 @@
 #define O2LDB if (O2LDEBUG)
 // PTR is a machine address to which you can add byte offsets
 #define PTR(addr) ((char *) (addr))
-// a more type-safe malloc:
-#define MALLOCT(typ) (typ *) malloc(sizeof(typ));
 // get address of first 32-bit word boundary at or above ptr:
 #define ROUNDUP(ptr) ((char *)((((size_t) ptr) + 3) & ~3))
 #define streql(a, b) (strcmp(a, b) == 0)
@@ -38,13 +41,12 @@ void o2l_dispatch(o2l_msg_ptr msg);
 static void find_my_ip_address();
 
 static const char *o2l_services = NULL;
-static char host_ip[16]; // "7f000001:65000"
 static const char *o2l_ensemble = NULL;
 
 #ifdef WIN32
 /****************************WINDOWS***********************************/
-#include <windows.h>
 #include <winsock2.h> // define SOCKET, INVALID_SOCKET
+#include <ws2tcpip.h>
 #define TERMINATING_SOCKET_ERROR \
     (WSAGetLastError() != WSAEWOULDBLOCK && WSAGetLastError() != WSAEINTR)
 
@@ -127,10 +129,12 @@ void connect_to_wifi(const char *hostname, const char *ssid, const char *pwd)
         delay(500);
         printf(".");
     }
-    strcpy(host_ip, WiFi.localIP().toString().c_str());
-
+    uint32_t ip = WiFi.localIP();
+    snprintf(o2n_internal_ip, O2N_IP_LEN, "%08x", ip);
+    char dot_ip[O2N_IP_LEN];
+    o2_hex_to_dot(o2n_internal_ip, dot_ip);
     printf("\n");
-    printf("WiFi connected!\nIP address: %s\n", host_ip);
+    printf("WiFi connected!\nIP address: %s (%s)\n", o2n_internal_ip, dot_ip);
 }
 
 #else
@@ -165,23 +169,6 @@ static int parse_cnt;         // how many bytes retrieved
 static int max_parse_cnt;     // how many bytes can be retrieved
 static bool parse_error;      // was there an error parsing message?
 int out_msg_cnt;              // how many bytes written to outbuf
-
-
-static int hex_to_nibble(char hex)
-{
-    if (isdigit(hex)) return hex - '0';
-    else if (hex >= 'A' && hex <= 'F') return hex - 'A' + 10;
-    else if (hex >= 'a' && hex <= 'f') return hex - 'a' + 10;
-#ifndef O2_NO_DEBUG
-    printf("ERROR: bad hex character passed to hex_to_nibble()\n");
-#endif
-    return 0;
-}
-
-static int hex_to_byte(const char *hex)
-{
-    return (hex_to_nibble(hex[0]) << 4) + hex_to_nibble(hex[1]);
-}
 
 
 // convert 8-char, 32-bit hex representation to dot-notation,
@@ -251,7 +238,7 @@ char *o2l_get_string()
 {
     CHECKERROR(char *)
     char *s = CURDATAADDR(char *);
-    int len = strlen(s);
+    int len = (int) strlen(s);
     parse_cnt += (len + 4) & ~3;
     return s;
 }
@@ -379,6 +366,7 @@ int o2l_network_initialize()
     // Initialize (in Windows)
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
+#define inet_pton InetPton
 #endif // WIN32
 
 #ifndef O2L_NO_DISCOVERY
@@ -511,8 +499,8 @@ void network_connect(const char *ip, int port)
     // send back !_o2/o2lite/con ipaddress updport
     o2l_send_start("!_o2/o2lite/con", 0, "si", true);
     O2LDB printf("o2lite sends !_o2/o2lite/con %s %x\n", 
-                 host_ip, udp_recv_port);
-    o2l_add_string(host_ip);
+                 o2n_internal_ip, udp_recv_port);
+    o2l_add_string(o2n_internal_ip);
     o2l_add_int(udp_recv_port);
     o2l_send();
 }
@@ -554,7 +542,8 @@ void read_from_tcp()
                 while (tcp_msg_got < tcp_in_msg->length) {
                     int togo = tcp_in_msg->length - tcp_msg_got;
                     if (togo > capacity) togo = capacity;
-                    n = read(tcp_sock, PTR(&tcp_in_msg->misc), togo);
+                    n = recvfrom(tcp_sock, PTR(&tcp_in_msg->misc), togo, 
+                                 0, NULL, NULL);
                     if (n <= 0) {
                         goto error_exit;
                     }
@@ -618,12 +607,16 @@ void network_poll()
     FD_ZERO(&read_set);
     if (udp_recv_sock != INVALID_SOCKET) {
         FD_SET(udp_recv_sock, &read_set);
-        nfds = udp_recv_sock + 1;
+        // Windows socket is not an int, but Windows does not care about
+        // the value of nfds, so it's OK even if this cast loses data
+        nfds = (int) (udp_recv_sock + 1);
     }
     if (tcp_sock != INVALID_SOCKET) {
         FD_SET(tcp_sock, &read_set);
         if (tcp_sock >= nfds) {
-            nfds = tcp_sock + 1;
+            // tcp_sock is not an int on Windows, but Windows does not
+            // care what this value is, so OK even if we lose data here
+            nfds = (int) (tcp_sock + 1);
         }
     }
     no_timeout.tv_sec = 0;
@@ -657,7 +650,7 @@ void o2l_send()
     // grap the tcp flag before byte-swapping
     out_msg->length = o2lswap32(out_msg_cnt - sizeof out_msg->length);
     if (out_msg->misc & o2lswap32(O2_TCP_FLAG)) {
-        write(tcp_sock, outbuf, out_msg_cnt);
+        send(tcp_sock, outbuf, out_msg_cnt, 0);
     } else {
         if (sendto(udp_send_sock, outbuf + sizeof out_msg->length,
                    out_msg_cnt - sizeof out_msg->length, 0,
@@ -687,7 +680,7 @@ static o2l_method_ptr methods = NULL;
 void o2l_method_new(const char *path, const char *typespec,
                     bool full, o2l_handler h, void *info)
 {
-    o2l_method_ptr mp = MALLOCT(o2l_method);
+    o2l_method_ptr mp = O2_MALLOCT(o2l_method);
     mp->next = methods;
     mp->address = path;
     mp->typespec = typespec;
@@ -736,7 +729,7 @@ void o2l_dispatch(o2l_msg_ptr msg)
             }
         }
         parse_msg = msg;
-        parse_cnt = data - (char *) msg;
+        parse_cnt = (int) (data - (char *) msg);
         parse_error = false;
         max_parse_cnt = sizeof msg->length + msg->length;
         (*m->handler)(msg, typespec + 1, (void *) data, m->info);
@@ -785,7 +778,7 @@ static void ping_reply_handler(o2l_msg_ptr msg, const char *types,
         return;
     }
     o2l_time rtt = o2l_local_now - clock_ping_send_time;
-    o2l_time ref_time = o2l_get_time() + rtt * 0.5;
+    o2l_time ref_time = (o2l_time) (o2l_get_time() + rtt * 0.5);
     //O2LDB printf("o2lite: ping_reply_handler now %g rtt %g ref %g error %d\n",
     //             o2l_local_now, rtt, ref_time, parse_error);
     if (parse_error) {
@@ -824,9 +817,9 @@ static void ping_reply_handler(o2l_msg_ptr msg, const char *types,
             } else if (global_minus_local < upper) {
                 global_minus_local = upper;
             } else if (global_minus_local < new_gml - 0.002) {
-                bump = 0.002; // increase by 2ms if too low by more than 2ms
+                bump = 0.002F; // increase by 2ms if too low by more than 2ms
             } else if (global_minus_local > new_gml + 0.002) {
-                bump = -0.002; // decrease by 2ms is too high by more then 2ms
+                bump = -0.002F; // decrease by 2ms is too high by more then 2ms
             } else {  // set exactly to estimate
                 bump = new_gml - global_minus_local;
             }
@@ -886,11 +879,11 @@ static void clock_ping()
     o2l_add_int32(clock_sync_id);
     o2l_add_string("!_o2/cs/put");
     o2l_send();
-    time_for_clock_ping = clock_ping_send_time + 0.1;
+    time_for_clock_ping = clock_ping_send_time + 0.1F;
     if (clock_ping_send_time - start_sync_time > 1)
-        time_for_clock_ping += 0.4;
+        time_for_clock_ping += 0.4F;
     if (clock_ping_send_time - start_sync_time > 5)
-        time_for_clock_ping += 9.5;
+        time_for_clock_ping += 9.5F;
     // O2LDB printf("clock_ping sent at %g id %d\n", 
     //              clock_ping_send_time, clock_sync_id);
 }
@@ -912,7 +905,7 @@ o2l_time o2l_local_time()
     gettimeofday(&tv, NULL);
     return ((tv.tv_sec - start_time) + (tv.tv_usec * 0.000001));
 #elif WIN32
-    return ((timeGetTime() - start_time) * 0.001);
+    return (o2l_time) ((timeGetTime() - start_time) * 0.001);
 #elif ESP32
     // casting intended to do a double multiply or a float multiply,
     // depending on o2l_time's definition.
@@ -931,7 +924,7 @@ o2l_time o2l_local_time()
 #define RATE_DECAY 1.125
 #define PORT_MAX 16
 
-static o2l_time disc_period = 0.1;
+static o2l_time disc_period = 0.1F;
 static o2l_time time_for_discovery_send = 0;
 int next_disc_index = -1;
 
@@ -952,7 +945,7 @@ static void make_dy()
 {
     o2l_send_start("!_o2/o2lite/dy", 0, "ssi", false);
     o2l_add_string(o2l_ensemble);
-    o2l_add_string(host_ip);
+    o2l_add_string(o2n_internal_ip);
     o2l_add_int(udp_recv_port);
     o2l_add_int(O2_DY_INFO);
 }
@@ -983,33 +976,11 @@ static void discovery_send()
 static void find_my_ip_address()
 {
 #ifndef ESP32 
-    // (esp32 already has stored host address in host_ip)
-    struct ifaddrs *ifap, *ifa;
-    host_ip[0] = 0;   // initially empty
-    struct sockaddr_in *sa;
-    // look for AF_INET interface. If you find one, copy it
-    // to name. If you find one that is not 127.0.0.1, then
-    // stop looking.
-            
-    ifap = NULL;
-    if (getifaddrs(&ifap)) {
-        perror("getting IP address");
-        return;
-    }
-    for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr->sa_family==AF_INET) {
-            sa = (struct sockaddr_in *) ifa->ifa_addr;
-            snprintf(host_ip, sizeof host_ip, "%08x",
-                     ntohl(sa->sin_addr.s_addr));
-            if (!streql(host_ip, "7f000001")) {
-                goto found_good_one;
-            }
-        }
-    }
-    host_ip[0] = 0;
-  found_good_one:
-    if (ifap) freeifaddrs(ifap);
-    O2LDB printf("o2lite: local ip address is %s\n", host_ip);
+    o2n_get_internal_ip();
+    char dot_ip[O2N_IP_LEN];
+    o2_hex_to_dot(o2n_internal_ip, dot_ip);
+    O2LDB printf("o2lite: local ip address is %s (%s)\n",
+	 	 o2n_internal_ip, dot_ip);
 #endif
     return;
 }
@@ -1048,7 +1019,7 @@ static void o2l_id_handler(o2l_msg_ptr msg, const char *types,
 #ifndef O2L_NO_CLOCKSYNC
     // Sends are synchronous. Since we just sent a bunch of messages,
     // take 50ms to service any other real-time tasks before this:
-    time_for_clock_ping = o2l_local_now + 0.05;
+    time_for_clock_ping = o2l_local_now + 0.05F;
     start_sync_time = time_for_clock_ping; // when does syncing start?
 #endif
 }
