@@ -22,7 +22,7 @@ static Vec<service_info> service_list;
 
 // add every active service to service_list. Get services from list of
 // processes.
-int o2_services_list()
+O2err o2_services_list()
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
@@ -303,8 +303,8 @@ static void service_property_add(Service_provider *spp, const char *attr,
 }
 
 
-int o2_service_set_property(const char *service, const char *attr,
-                            const char *value)
+O2err o2_service_set_property(const char *service, const char *attr,
+                              const char *value)
 {
     // find service_provider struct matching service
     Services_entry *services = *Services_entry::find(service);
@@ -331,7 +331,7 @@ int o2_service_set_property(const char *service, const char *attr,
 }
 
 
-int o2_service_property_free(const char *service, const char *attr)
+O2err o2_service_property_free(const char *service, const char *attr)
 {
     return o2_service_set_property(service, attr, NULL);
 }
