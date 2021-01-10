@@ -12,12 +12,7 @@
 #include "string.h"
 #include "assert.h"
 
-#ifdef WIN32
-#include "usleep.h" // special windows implementation of sleep/usleep
-#else
-#include <unistd.h>
-#endif
-
+#include "o2base.h"
 
 // To put some weight on fast address lookup, we create n_addrs
 // different addresses to use.
@@ -65,7 +60,7 @@ int main(int argc, const char *argv[])
     // wait for client service to be discovered
     while (o2_status("client") < O2_REMOTE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     
     printf("We discovered the client at time %g.\n", o2_time_get());
@@ -74,7 +69,7 @@ int main(int argc, const char *argv[])
     double now = o2_time_get();
     while (o2_time_get() < now + 1) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
     assert(got_start);
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
@@ -90,7 +85,7 @@ int main(int argc, const char *argv[])
             now = o2_time_get();
             while (o2_time_get() < now + 6 && !got_one) {
                 o2_poll();
-                usleep(2000);
+                o2_sleep(2);
             }
             assert(got_one);
             blocked = true; // only expected got_one once
@@ -102,7 +97,7 @@ int main(int argc, const char *argv[])
     while (o2_time_get() < now + 1) {
         o2_poll();
         o2_can_send("client"); // what happens when client disappears?
-        usleep(2000);
+        o2_sleep(2);
     }
     assert(got_max);
     assert(o2_can_send("client") == O2_FAIL); // does not exist

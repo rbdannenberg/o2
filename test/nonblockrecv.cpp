@@ -10,7 +10,6 @@
 // Keep receiving 10 messages per second until the last message is received.
 
 
-#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -59,18 +58,17 @@ int main(int argc, const char * argv[])
     
     while (running) {
         o2_poll();
-        // usleep(msg_count > 0 ? 100000 : 2000); // 100ms or 2ms
-        usleep(500);
+        // o2_sleep(1); // we have a lot of messages to receive
     }
     o2_send_cmd("!sender/done", 0, "");
     printf("Poll for 1s to make sure message is received\n");
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 1; i++) {
         o2_poll();
-        usleep(1000); // 1ms
+        o2_sleep(1);
     }
     
     o2_finish();
-    usleep(1000000); // finish cleaning up sockets
+    o2_sleep(1000); // finish cleaning up sockets
     printf("SERVER DONE\n");
     return 0;
 }

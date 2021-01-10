@@ -3,7 +3,6 @@
 //  see appmaster.c for details
 
 
-#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -74,7 +73,7 @@ int main(int argc, const char * argv[])
     o2_run(100);
     o2_finish();
 
-    usleep(1000000);
+    o2_sleep(1000);
     printf("APPFOLLOW DONE\n");
     return 0;
 }

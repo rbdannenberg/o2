@@ -59,11 +59,12 @@ static long start_time;
 #include "sys/ioctl.h"
 #include <ifaddrs.h>
 #include <netinet/tcp.h>
-#include <netdb.h>
 #include <errno.h>
 #include <sys/select.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <stdlib.h>
 
 typedef int SOCKET;  // In O2, we'll use SOCKET to denote the type of a socket

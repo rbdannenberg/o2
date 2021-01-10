@@ -3,7 +3,6 @@
 //  see hubserver.c for details
 
 
-#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -99,7 +98,7 @@ void delay_for(double delay)
     long done = elapsed_time() + (long) (delay * 1000);
     while (elapsed_time() < done) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
 }
 
@@ -137,7 +136,7 @@ void wait_for_server(void)
     int count = 0;
     while (o2_status("server") < O2_REMOTE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
         if (count++ % 1000 == 0) {
             printf("#   -> still waiting for server, "
                    "server status is %s at %ld\n",
@@ -206,7 +205,7 @@ int step_11_to_13(bool good, int hi_low)
     int count = 0;
     while (o2_status("server") < O2_REMOTE || server_hi_count < 1) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
         count++;
         if (count % 1000 == 0) {
             substep("waiting for server service");

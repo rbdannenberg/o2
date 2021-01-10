@@ -8,12 +8,14 @@
 // link with o2usleep.c so that usleep() will be implemented for Windows
 
 #ifdef WIN32
-#include <windows.h>
-#define usleep(usec) Sleep((usec) / 1000)
+#  include <windows.h>
+#  define usleep(usec) Sleep((usec) / 1000)
 #else
-#  if defined(__linux__) && defined(__GNUC__)
-#    define _XOPEN_SOURCE 500
-#    define _POSIX_C_SOURCE 200112L
-#  endif
-#  include <unistd.h>
+#if defined(__linux__) && defined(__GNUC__)
+// #    define _XOPEN_SOURCE 500
+// #    define _POSIX_C_SOURCE 200112L
+#  include <sys/time.h>
 #endif
+#include <unistd.h>
+#endif
+

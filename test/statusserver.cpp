@@ -10,7 +10,6 @@
 #include "string.h"
 #include "assert.h"
 #include "o2internal.h"
-#include "o2usleep.h"
 
 bool running = true;
 
@@ -67,7 +66,7 @@ int main(int argc, const char * argv[])
     // wait for client service to be discovered
     while (o2_status("client") < O2_REMOTE_NOTIME) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("My address is %s:%s:%x\n", my_pip, my_iip, tcp_port);
     printf("We discovered the client at time %g.\n", o2_time_get());
@@ -75,7 +74,7 @@ int main(int argc, const char * argv[])
     // wait for client service to be discovered
     while (o2_status("client") < O2_REMOTE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     
     printf("We got clock sync at time %g.\n", o2_time_get());
@@ -84,7 +83,7 @@ int main(int argc, const char * argv[])
     double now = o2_time_get();
     while (o2_time_get() < now + 1) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
     
     double start_time = o2_time_get();
@@ -102,6 +101,6 @@ int main(int argc, const char * argv[])
         o2_ctx->show_tree();
     }
     o2_finish();
-    usleep(1000000); // clean up sockets
+    o2_sleep(1000); // clean up sockets
     return 0;
 }

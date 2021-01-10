@@ -10,7 +10,6 @@
 //  between UDP messages.
 //  For TCP, measure longest time interval between messages.
 
-#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -81,7 +80,7 @@ static void ppause(double dur)
 {
     do {
         o2_poll();
-        usleep(1000); // 1ms
+        o2_sleep(1); // 1ms
         dur -= 0.001;
     } while (dur > 0);
 }

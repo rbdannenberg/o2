@@ -7,11 +7,11 @@
 // run this program with test/o2liteserv, which is based on o2server.c
 
 
-#include "o2usleep.h"
 #include "o2.h"
-#include "stdio.h"
-#include "string.h"
-#include "assert.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 
 int max_msg_count = 500;
 
@@ -90,21 +90,21 @@ int main(int argc, const char *argv[])
 
     while (o2_status("server") < O2_BRIDGE_NOTIME) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("We discovered the server.\ntime is %g.\n", o2_time_get());
 
 
     while (o2_status("server") != O2_BRIDGE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("The server has clock sync.\ntime is %g.\n", o2_time_get());
     
     double now = o2_time_get();
     while (o2_time_get() < now + 1) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
     
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
@@ -114,7 +114,7 @@ int main(int argc, const char *argv[])
     
     while (running) {
         o2_poll();
-        usleep(2000); // 2ms (you could delete this line for benchmarking)
+        o2_sleep(2); // 2ms (you could delete this line for benchmarking)
     }
 
     for (int i = 0; i < n_addrs; i++) {

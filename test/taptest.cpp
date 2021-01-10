@@ -1047,13 +1047,14 @@ int main(int argc, const char * argv[])
         printf("WARNING: taptest ignoring extra command line argments\n");
     }
 
-    a_blob = (O2blob_ptr) malloc(20);
-    a_blob->size = 15;
-    memcpy(a_blob->data, "This is a blob", 15);
-
     a_midi_msg = (0x90 << 16) + (60 << 8) + 100;
 
     o2_initialize("test");    
+
+    a_blob = (O2blob_ptr) O2_MALLOC(20);
+    a_blob->size = 15;
+    memcpy(a_blob->data, "This is a blob", 15);
+
     o2_service_new("one");
     o2_service_new("two");
     o2_service_new("three");
@@ -1231,6 +1232,7 @@ int main(int argc, const char * argv[])
     send_the_message();
     o2_send("/four/i", 0, "d", 1234.0);
     send_the_message();
+    O2_FREE(a_blob);
     printf("DONE\n");
     o2_finish();
     return 0;

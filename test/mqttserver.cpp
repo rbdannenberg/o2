@@ -31,7 +31,6 @@ The test should work as follows:
 For development, this test should work without MQTT on a single machine.
 */
 
-#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "assert.h"
@@ -90,14 +89,14 @@ int main(int argc, const char *argv[])
     // wait for client service to be discovered
     while (o2_status("client") < O2_REMOTE_NOTIME) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("We discovered the client at time %g.\n", o2_local_time());
 
     // wait for client service to be discovered
     while (o2_status("client") < O2_REMOTE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("Clock sync with client at time %g.\n", o2_time_get());
     
@@ -105,14 +104,14 @@ int main(int argc, const char *argv[])
     double now = o2_time_get();
     while (o2_time_get() < now + 1) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
     
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     
     while (running) {
         o2_poll();
-        usleep(2000); // 2ms // as fast as possible
+        o2_sleep(2); // 2ms // as fast as possible
     }
 
     int wait_count = 0;
@@ -122,7 +121,7 @@ int main(int argc, const char *argv[])
                    o2_status_to_string(o2_status("client")));
         }
         o2_poll();
-        usleep(2000); // 2ms // as fast as possible
+        o2_sleep(2); // 2ms // as fast as possible
         wait_count++;
     }
 

@@ -795,13 +795,6 @@ See ../doc/o2lite.txt for details.
 #include "properties.h"
 #include "pathtree.h"
 
-#ifdef WIN32
-#include "o2usleep.h"
-#else
-#include "unistd.h"
-#include <sys/time.h>
-#endif
-
 const char *o2_ensemble_name = NULL;
 char o2_hub_addr[O2_MAX_PROCNAME_LEN];
 
@@ -1181,15 +1174,13 @@ bool o2_stop_flag = false;
 int o2_run(int rate)
 {
     if (rate <= 0) rate = 1000; // poll about every ms
-    int sleep_usec = 1000000 / rate;
-#ifdef WIN32
+    int sleep_ms = 1000 / rate;
     // we use a ms timer, so don't go below 1ms:
-    if (sleep_usec < 1000) sleep_usec = 1000;
-#endif
+    if (sleep_ms < 1) sleep_ms = 1;
     o2_stop_flag = false;
     while (!o2_stop_flag) {
         o2_poll();
-        usleep(sleep_usec);
+        o2_sleep(sleep_ms);
     }
     return O2_SUCCESS;
 }

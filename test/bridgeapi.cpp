@@ -22,10 +22,10 @@ subclass of Bridge_info will be Demo_info.
 */
 
 
+// o2usleep.h goes first to set _XOPEN_SOURCE to define usleep:
 #include <stdio.h>
 #include <assert.h>
 #include "o2internal.h"
-#include "o2usleep.h"
 #include "services.h"
 
 O2message_ptr demo_incoming = NULL; // message queue
@@ -173,7 +173,7 @@ int main(int argc, const char * argv[])
     o2_send("/demobridge1/test", now + 0.2, "i", 45); // clock, future, no sync
     while (o2_time_get() < now + 0.4 && message_int != 45) {
         o2_poll();
-        usleep(2000); // 2 ms
+        o2_sleep(2);
     }
     assert(message_int == 45);
     double delay = o2_time_get() - now;
@@ -201,7 +201,7 @@ int main(int argc, const char * argv[])
     // check receipt of the timed message to SYNCED bridge
     while (o2_time_get() < now + 0.4 && message_int != 67) {
         o2_poll();
-        usleep(2000); // 2 ms
+        o2_sleep(2); // 2 ms
     }
     assert(message_int == 67);
     delay = o2_time_get() - now;

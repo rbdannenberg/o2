@@ -3,7 +3,6 @@
 //  this test is designed to run with oscsendtest.c
 
 
-#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -144,12 +143,12 @@ int main(int argc, const char * argv[])
     o2_method_new("/oscrecv/first", "is", first_handler, NULL, false, true);
     while (msg_count < 16) {
         o2_poll();
-        usleep(1000); // 1ms
+        o2_sleep(1); // 1ms
     }
     assert(test_called);
     o2_osc_port_free(8100);
     o2_finish();
-    usleep(1000000);
+    o2_sleep(1000);
     printf("OSCRECV DONE\n");
     return 0;
 }

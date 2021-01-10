@@ -4,13 +4,12 @@
 //  synchronization and status updates.
 //
 
-
-#include "o2usleep.h"
 #include "o2.h"
-#include "stdio.h"
-#include "string.h"
-#include "assert.h"
-#include "ctype.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <ctype.h>
 
 #define streql(a, b) (strcmp(a, b) == 0)
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
@@ -99,7 +98,8 @@ void rtt_reply(o2_msg_data_ptr msg, const char *types,
 int o2_run_special(int rate)
 {
     if (rate <= 0) rate = 1000; // poll about every ms
-    int sleep_usec = 1000000 / rate;
+    int sleep_ms = 1000 / rate;
+    if (sleep_ms < 1) sleep_ms = 1; // maximum rate is 1000 (1 ms period)
     o2_stop_flag = false;
 #if TIMING_INFO
     double maxtime = 0.0;
@@ -109,7 +109,7 @@ int o2_run_special(int rate)
 #endif
     while (!o2_stop_flag) {
         o2_poll();
-        usleep(sleep_usec);
+        o2_sleep(sleep_ms);
 #if TIMING_INFO
         count++;
         if (timing_info) {
@@ -119,7 +119,9 @@ int o2_run_special(int rate)
             maxtime = MAX(maxtime, looptime);
             mintime = MIN(mintime, looptime);
             if (count % 1000 == 0) {
-                printf("now %g maxtime %g mintime %g looptime %g, sleep_usec %d\n", now, maxtime, mintime, looptime, sleep_usec);
+                printf("now %g maxtime %g mintime %g looptime %g, "
+                       "sleep_ms %d\n", now, maxtime, mintime,
+                       looptime, sleep_ms);
                 lasttime = o2_local_time();
                 mintime = 100.0;
                 maxtime = 0.0;
@@ -177,7 +179,7 @@ int main(int argc, const char * argv[])
     o2_send("!server/clockref", 0.0, ""); // start polling
     o2_run_special(polling_rate);
     o2_finish();
-    usleep(1000000);
+    o2_sleep(1000);
     if (rtt_received) {
         printf("CLOCKREF DONE\n");
     } else {

@@ -2,12 +2,11 @@
 //
 //  see tcpserver.c for details
 
-
-#include "o2usleep.h"
 #include "o2.h"
-#include "stdio.h"
-#include "string.h"
-#include "assert.h"
+#include <stdio.h>
+#include <stdlib.h>   // atoi
+#include <string.h>
+#include <assert.h>
 
 
 #define N_ADDRS 20
@@ -73,14 +72,14 @@ int main(int argc, const char * argv[])
     
     while (o2_status("server") < O2_LOCAL) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("We discovered the server.\ntime is %g.\n", o2_time_get());
     
     double now = o2_time_get();
     while (o2_time_get() < now + 1) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
     
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
@@ -89,12 +88,12 @@ int main(int argc, const char * argv[])
     
     while (running) {
         o2_poll();
-        //usleep(2000); // 2ms // as fast as possible
+        //o2_sleep(2); // 2ms // as fast as possible
     }
     // poll some more to make sure last message goes out
     for (int i = 0; i < 100; i++) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
 
     // clean up
@@ -103,7 +102,7 @@ int main(int argc, const char * argv[])
     }
     
     o2_finish();
-    usleep(1000000); // finish cleaning up sockets
+    o2_sleep(1000); // finish cleaning up sockets
     printf("CLIENT DONE\n");
     return 0;
 }

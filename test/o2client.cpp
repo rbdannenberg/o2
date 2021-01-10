@@ -2,13 +2,11 @@
 //
 //  see o2server.c for details
 
-
-#include "o2usleep.h"
 #include "o2.h"
-#include "stdio.h"
-#include "string.h"
-#include "assert.h"
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 
 int max_msg_count = 1000;
 
@@ -93,14 +91,14 @@ int main(int argc, const char *argv[])
 
     while (o2_status("server") < O2_REMOTE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("We discovered the server.\ntime is %g.\n", o2_time_get());
     
     double now = o2_time_get();
     while (o2_time_get() < now + 1) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
     
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
@@ -110,14 +108,14 @@ int main(int argc, const char *argv[])
     
     while (running) {
         o2_poll();
-        usleep(2000); // 2ms // as fast as possible
+        o2_sleep(2); // 2ms // as fast as possible
     }
 
     // run some more to make sure messages get sent
     now = o2_time_get();
     while (o2_time_get() < now + 0.1) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
     
     for (int i = 0; i < n_addrs; i++) {

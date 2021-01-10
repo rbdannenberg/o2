@@ -37,7 +37,8 @@
    freed by o2_mem_finish().
  */
 
-#include "stddef.h"
+#include <stddef.h>
+#include <inttypes.h>
 #include "o2internal.h"
 #include "o2mem.h"
 #include "o2atomic.h"
@@ -144,11 +145,11 @@ int64_t o2mem_get_seqno(const void *ptr);
 
 void *o2_dbg_malloc(size_t size, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_MALLOC %lld bytes in %s:%d", o2_debug_prefix, 
-                  (long long) size, file, line));
+    O2_DBm(printf("%s O2_MALLOC %zd bytes in %s:%d", o2_debug_prefix, 
+                  size, file, line));
     O2_DBm(fflush(stdout));
     void *obj = (*o2_malloc_ptr)(size);
-    O2_DBm(printf(" -> #%lld@%p\n", o2mem_get_seqno(obj), obj));
+    O2_DBm(printf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj));
     assert(obj);
     return obj;
 }
@@ -156,7 +157,7 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
 
 void o2_dbg_free(const void *obj, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_FREE %ld bytes in %s:%d : #%lld@%p\n",
+    O2_DBm(printf("%s O2_FREE %ld bytes in %s:%d : #%" PRId64 "@%p\n",
                   o2_debug_prefix, O2_OBJ_SIZE((O2list_elem_ptr) obj),
                   file, line, o2mem_get_seqno(obj), obj));
     // bug in C. free should take a const void * but it doesn't
@@ -186,7 +187,7 @@ void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line)
                   n, s, file, line));
     fflush(stdout);
     void *obj = (*o2_malloc_ptr)(n * s);
-    O2_DBm(printf(" -> #%lld@%p\n", o2mem_get_seqno(obj), obj));
+    O2_DBm(printf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj));
     assert(obj);
     memset(obj, 0, n * s);
     return obj;

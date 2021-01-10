@@ -2,11 +2,11 @@
 //
 // Plan: see proprecv.c
 
-#include "o2usleep.h"
+#include "o2.h"
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
-#include "o2.h"
+#include <stdlib.h>
 
 #define streql(a, b) (strcmp(a, b) == 0)
 
@@ -15,7 +15,7 @@ void delay(int ms)
     // wait for client service to be discovered
     for (int i = 0; i < ms; i += 2) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
 }
 
@@ -208,7 +208,7 @@ int main(int argc, const char * argv[])
     // wait for client service to be discovered
     while (o2_status("two") < O2_REMOTE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     
     lookup(); // confirm we have expected services one and two

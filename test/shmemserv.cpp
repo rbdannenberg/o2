@@ -12,9 +12,9 @@ This test:
 - respond to messages from o2litehost's client services
 */
 
+// o2usleep.h goes first to set _XOPEN_SOURCE to define usleep:
 #include <stdlib.h>
 #include "o2internal.h"
-#include "o2usleep.h"
 #include "pathtree.h"
 #ifdef WIN32
 #include <windows.h>
@@ -79,7 +79,7 @@ int main(int argc, const char * argv[])
     O2time now = o2_time_get();
     while (o2_time_get() < now + 0.1) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("*** shmemserv main called o2_poll() for 0.1s after\n"
            "    shared mem process finished; calling o2_finish...\n");
@@ -258,7 +258,7 @@ void *sharedmem_action(void *ignore)
 {
     sharedmem_init();
     while (o2sm_act()) {
-        usleep(2000); // don't poll too fast - it's unnecessary
+        o2_sleep(2); // don't poll too fast - it's unnecessary
     }
     return NULL;
 }

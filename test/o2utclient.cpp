@@ -3,11 +3,12 @@
 //  see o2utserver.c for details
 
 
-#include "o2usleep.h"
 #include "o2.h"
-#include "stdio.h"
-#include "string.h"
-#include "assert.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+
 
 int max_msg_count = 200000;
 
@@ -20,7 +21,7 @@ static void ppause(double dur)
 {
     do {
         o2_poll();
-        usleep(1000); // 1ms
+        o2_sleep(1); // 1ms
         dur -= 0.001;
     } while (dur > 0);
 }

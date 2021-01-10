@@ -19,7 +19,6 @@
 //                 [/xyz/msg1 1011 "an arbitrary string at 3.1"],
 //                 [/abcdefg/msg2 2011 "another arbitrary string at 3.1"]]
 
-#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -107,13 +106,13 @@ int main(int argc, const char * argv[])
     if (master)
         o2_clock_set(NULL, NULL);
     
-    if (master) usleep(2000000); // wait for liblo server to come up if we are master
+    if (master) o2_sleep(2000); // wait for liblo server to come up if we are master
 
     char s[128];
 
     printf("Waiting for clock sync\n");
     while (!o2_clock_is_synchronized) {
-        usleep(2000);
+        o2_sleep(2);
         o2_poll();
     }
 
@@ -184,14 +183,14 @@ int main(int argc, const char * argv[])
     printf("after sending\n");
     for (int i = 0; i < 500; i++) {
         o2_poll();
-        usleep(2000); // if you exit() after send(), data might be lost
+        o2_sleep(2); // if you exit() after send(), data might be lost
     }
     printf("removing oscsend\n");
     o2_service_free("oscsend");
     printf("calling o2_finish()\n");
     o2_finish();
     printf("sleep(1)\n");
-    usleep(1000000); // clean up sockets
+    o2_sleep(1000); // clean up sockets
     printf("OSCSEND DONE\n");
     return 0;
 }

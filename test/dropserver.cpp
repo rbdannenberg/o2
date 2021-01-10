@@ -14,7 +14,6 @@
 // 7 Send a message to /dropclient/bye
 // Wait a bit and exit. (dropclient should wait and exit after bye message).
 
-#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -26,7 +25,7 @@ void pollsome()
 {
     for (int i = 0; i < 10; i++) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
 }
 
@@ -95,7 +94,7 @@ int main(int argc, const char *argv[])
     // wait for client service to be discovered
     while (o2_status("dropclient") < O2_REMOTE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     
     printf("We discovered the dropclient at time %g.\n", o2_local_time());
@@ -158,7 +157,7 @@ int main(int argc, const char *argv[])
     double now = o2_time_get();
     while (o2_time_get() < now + 0.5) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
 
     // test for warning on timed message drop
@@ -171,7 +170,7 @@ int main(int argc, const char *argv[])
     assert(warning_count == 4);
     while (o2_time_get() < now + 0.2) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
     assert(warning_count == 5);
 

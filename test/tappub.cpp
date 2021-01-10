@@ -28,11 +28,12 @@
 //
 //  Shut down cleanly.
 
-#include "o2usleep.h"
 #include "o2.h"
-#include "stdio.h"
-#include "string.h"
-#include "assert.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+
 #define streql(a, b) (strcmp(a, b) == 0)
 
 // To put some weight on fast address lookup, we create n_addrs
@@ -78,7 +79,7 @@ void run_for_awhile(double dur)
     double now = o2_time_get();
     while (o2_time_get() < now + dur) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
 }
 
@@ -164,14 +165,14 @@ int main(int argc, const char *argv[])
     // wait for client service to be discovered.
     while (o2_status("subscribe0") < O2_REMOTE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     
     printf("We discovered the client at time %g.\n", o2_time_get());
     
     while (running) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     // remove our tap
     assert(o2_untap("publish0", "copy0") == O2_SUCCESS);

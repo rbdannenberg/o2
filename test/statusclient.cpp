@@ -3,12 +3,11 @@
 //  see statusserver.c for details
 
 
-#include "o2usleep.h"
 #include "o2.h"
-#include "stdio.h"
-#include "string.h"
-#include "assert.h"
-
+#include <stdio.h>
+#include <stdlib.h>  // atoi
+#include <string.h>
+#include <assert.h>
 
 bool running = true;
 
@@ -70,7 +69,7 @@ int main(int argc, const char * argv[])
     
     while (running) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     // exit without calling o2_finish() -- this is a test for behavior when
     // the client crashes. Will the server still remove the service?

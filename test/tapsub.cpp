@@ -2,11 +2,11 @@
 //
 //  see tappub.c for details
 
-#include "o2usleep.h"
 #include "o2.h"
-#include "stdio.h"
-#include "string.h"
-#include "assert.h"
+#include <stdio.h>
+#include <stdlib.h>  // atoi
+#include <string.h>
+#include <assert.h>
 #define streql(a, b) (strcmp(a, b) == 0)
 
 int MAX_MSG_COUNT = 1000;
@@ -50,7 +50,7 @@ void run_for_awhile(double dur)
     double now = o2_time_get();
     while (o2_time_get() < now + dur) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
 }
 
@@ -144,7 +144,7 @@ int main(int argc, const char *argv[])
 
     while (o2_status("publish0") < O2_REMOTE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("We discovered publish0 sevice.\ntime is %g.\n", o2_time_get());
     
@@ -167,7 +167,7 @@ int main(int argc, const char *argv[])
     
     while (running && msg_count < 500) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
 
     // we have now sent a message with i=500

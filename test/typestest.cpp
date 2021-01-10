@@ -563,13 +563,15 @@ int main(int argc, const char * argv[])
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);
     }
-    a_blob = (O2blob_ptr) malloc(20);
-    a_blob->size = 15;
-    memcpy(a_blob->data, "This is a blob", 15);
 
     a_midi_msg = (0x90 << 16) + (60 << 8) + 100;
 
     o2_initialize("test");    
+
+    a_blob = (O2blob_ptr) O2_MALLOC(20);
+    a_blob->size = 15;
+    memcpy(a_blob->data, "This is a blob", 15);
+
     heap_tests(); // also do some quick checks on O2_MALLOC, O2_FREE.
     o2_service_new("one");
     o2_service_new("two");
@@ -693,6 +695,7 @@ int main(int argc, const char * argv[])
     send_the_message();
     o2_send("/four/i", 0, "d", 1234.0);
     send_the_message();
+    O2_FREE(a_blob);
     printf("DONE\n");
     o2_finish();
     return 0;

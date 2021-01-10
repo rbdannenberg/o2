@@ -16,7 +16,6 @@
 // Keep receiving 10 messages per second until the last message is received.
 
 
-#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -53,14 +52,14 @@ int main(int argc, const char * argv[])
     
     while (o2_status("server") < O2_LOCAL) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("We discovered the server.\ntime is %g.\n", o2_time_get());
     
     double now = o2_time_get();
     while (o2_time_get() < now + 1) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
     
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
@@ -76,7 +75,7 @@ int main(int argc, const char * argv[])
     // poll until server unblocks
     while (o2_can_send("server") == O2_BLOCKED) {    
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     assert(o2_can_send("server") == O2_SUCCESS);
     printf("Resuming sends after blocked message.\n");
@@ -113,11 +112,11 @@ int main(int argc, const char * argv[])
     printf("Poll until we get a done message from receiver.\n");
     while (running) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     
     o2_finish();
-    usleep(1000000); // finish cleaning up sockets
+    o2_sleep(1000); // finish cleaning up sockets
     printf("CLIENT DONE\n");
     return 0;
 }

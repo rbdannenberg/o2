@@ -12,7 +12,12 @@ This test:
 - respond to messages from o2litehost's client services
 */
 
-#include "o2usleep.h"
+/* does not define usleep when compiled with:
+
+/usr/bin/cc -D_FORTIFY_SOURCE=0 -D_POSIX_C_SOURCE=201112L -I/home/rbd/o2/src  -std=c11 -mcx16 -g   -o CMakeFiles/o2liteserv.dir/test/o2liteserv.c.o   -c /home/rbd/o2/test/o2liteserv.c
+
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -97,7 +102,7 @@ int main(int argc, const char * argv[])
 
     while (o2l_bridge_id < 0) { // not connected
         o2l_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("main detected o2lite connected\n");
 
@@ -110,14 +115,14 @@ int main(int argc, const char * argv[])
 
     while (o2l_time_get() < 0) { // not synchronized
         o2l_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("main detected o2lite clock sync\n");
 
     o2l_time start_wait = o2l_time_get();
     while (start_wait + 1 > o2l_time_get() && !sift_called) {
         o2l_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
     printf("main received loop-back message\n");
 
@@ -141,7 +146,7 @@ int main(int argc, const char * argv[])
 
     while (running) {
         o2l_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
 
     printf("o2liteserv\nSERVER DONE\n");

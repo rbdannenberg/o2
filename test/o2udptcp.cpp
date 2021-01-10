@@ -7,12 +7,7 @@
 #include "stdio.h"
 #include "string.h"
 #include "assert.h"
-
-#ifdef WIN32
-#include "usleep.h" // special windows implementation of sleep/usleep
-#else
-#include <unistd.h>
-#endif
+#include "o2base.h"  // to get o2_sleep
 
 
 int max_msg_count = 50000;
@@ -89,14 +84,14 @@ int main(int argc, const char *argv[])
 
     while (o2_status("server") < O2_REMOTE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("We discovered the server.\ntime is %g.\n", o2_time_get());
     
     double now = o2_time_get();
     while (o2_time_get() < now + 1) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
     
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
@@ -105,7 +100,7 @@ int main(int argc, const char *argv[])
     
     while (running) {
         o2_poll();
-        //usleep(2000); // 2ms // as fast as possible
+        //o2_sleep(2); // 2ms // as fast as possible
     }
 
     o2_finish();

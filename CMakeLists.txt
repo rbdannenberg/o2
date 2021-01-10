@@ -80,11 +80,13 @@ if(UNIX)
     set(FRAMEWORK_PATH ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks) 
     set(EXTRA_LIBS "${FRAMEWORK_PATH}/CoreAudio.framework")
   else(APPLE) # must be Linux
+# struct addrinfo not defined by default, so fix it here:
+    add_definitions("-D_POSIX_C_SOURCE=201112L")
     set(EXTRA_LIBS m atomic) # needed by liblo
   endif(APPLE)
 endif(UNIX)
 
-#set(CMAKE_CXX_FLAGS "-stdlib=libc++")
+#set(CMAKE_CXX_FLAGS "-stdlib=libc++ -D_POSIX_C_SOURCE=201112L" )
 #set(CMAKE_EXE_LINKER_FLAGS "-stdlib=libc++")
 
 # o2
@@ -113,7 +115,7 @@ set(O2_SRC
   src/processes.cpp src/processes.h
   src/properties.cpp src/properties.h
   src/o2sched.cpp src/o2sched.h
-  src/o2usleep.cpp src/o2usleep.h
+  src/o2sleep.c
   src/services.cpp src/services.h 
   src/sharedmem.cpp src/sharedmem.h
   src/o2mem.cpp src/o2mem.h 
@@ -129,6 +131,7 @@ add_library(o2_static STATIC ${O2_SRC})
 
 set(O2LITE_SRC  
   src/o2lite.c src/o2lite.h 
+  src/o2sleep.c
 # src/hostip.c src/hostip.h -- included in o2lite.c 
   )
   

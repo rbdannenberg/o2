@@ -4,7 +4,6 @@
 //  see oscsendtest.c for details
 
 
-#include "o2usleep.h"
 #include "stdio.h"
 #include "o2.h"
 #include "string.h"
@@ -80,7 +79,7 @@ int main(int argc, const char * argv[])
     o2_method_new("/oscrecv/i", "i", osc_i_handler, NULL, false, true);
     while (message_count < 10 || timed_count < 10) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     err = o2_osc_port_free(8100);
     assert(err == O2_SUCCESS);
@@ -90,11 +89,11 @@ int main(int argc, const char * argv[])
     // sender will send after 1 seconds
     for (int i = 0; i < 2000; i++) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("*** calling o2_finish @ %g\n", o2_time_get());
     o2_finish();
     printf("OSCRECV DONE\n");
-    usleep(1000000); // allow TCP to finish up
+    o2_sleep(1000); // allow TCP to finish up
     return 0;
 }

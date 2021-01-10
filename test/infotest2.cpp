@@ -8,10 +8,10 @@
 // Based on clockmaster.c
 
 
-#include "o2usleep.h"
 #include <stdio.h>
 #include "o2.h"
-#include "string.h"
+#include <stdlib.h>  // exit
+#include <string.h>
 #include <ctype.h>
 
 #define streql(a, b) (strcmp(a, b) == 0)
@@ -239,7 +239,7 @@ int main(int argc, const char * argv[])
     o2_send("!server/clockmaster", 0.0, ""); // start polling
     o2_run(100);
     o2_finish();
-    usleep(1000000);
+    o2_sleep(1000);
     if (si_msg_count != 12) {
         printf("FAILURE - wrong si_msg_count (%d)\n", si_msg_count);
     } else {

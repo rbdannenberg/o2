@@ -9,7 +9,6 @@
 //    receive "hello" message from follow,
 //    shut down
 
-#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -143,7 +142,7 @@ int main(int argc, const char * argv[])
     o2_run(100);
     o2_finish();
     
-    usleep(1000000);
+    o2_sleep(1000);
     if (rtt_received) {
         printf("APPLEAD DONE\n");
     } else {

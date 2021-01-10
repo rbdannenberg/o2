@@ -12,9 +12,22 @@ using std::size_t;
 using std::int32_t;
 
 extern "C" {
+#else
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 #endif
 
 #define streql(a, b) (strcmp(a, b) == 0)
+
+/**
+ * \brief Suspend for n milliseconds
+ *
+ * @param n number of milliseconds to sleep
+ *
+ */
+void o2_sleep(int n);
+
 
 /**
  * \brief Convert hex string to integer.

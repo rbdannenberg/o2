@@ -7,12 +7,7 @@
 #include "string.h"
 #include "cmtio.h"
 
-#ifdef WIN32
-#include "usleep.h" // special windows implementation of sleep/usleep
-#else
-#include <unistd.h>
-#endif
-
+#include "o2base.h" // to get o2_sleep
 
 #define N_ADDRS 20
 
@@ -31,7 +26,7 @@ int main(int argc, const char * argv[])
     
     while (o2_status("midi") < O2_LOCAL) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     printf("We discovered the midi service.\ntime is %g.\n", o2_time_get());
     
@@ -51,7 +46,7 @@ int main(int argc, const char * argv[])
                 printf("sent key number %d at %g\n", input, now);
             }
         }
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     return 0;
 }

@@ -22,7 +22,6 @@
 //   wait 1 second
 //   shut everything down
 
-#include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
@@ -56,10 +55,10 @@ int main(int argc, const char * argv[])
     else if (argc > 2)
         printf("Usage: oscsendtest [clockref]\n");
     
-    if (clockref) usleep(2000000); // wait for liblo server if we are clockref
+    if (clockref) o2_sleep(2000); // wait for liblo server if we are clockref
     printf("Waiting for clock sync\n");
     while (!o2_clock_is_synchronized) {
-        usleep(2000);
+        o2_sleep(2);
         o2_poll();
     }
     printf("*** Clock sync obtained @ %g\n", o2_time_get());
@@ -75,7 +74,7 @@ int main(int argc, const char * argv[])
         // pause for 0.5s, but keep running O2 by polling
         for (int i = 0; i < 250; i++) {
             o2_poll();
-            usleep(2000); // 2ms
+            o2_sleep(2); // 2ms
         }
     }
     // send 10 messages with timestamps spaced by 0.1s
@@ -89,7 +88,7 @@ int main(int argc, const char * argv[])
     // pause for 2s to make sure messages are sent and service is deleted
     for (int i = 0; i < 1000; i++) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     if (pauseflag) {
         printf("Type return to continue by sending to expected closed port: ");
@@ -98,7 +97,7 @@ int main(int argc, const char * argv[])
         // in case we were paused, run o2 to process service removed msgs
         for (int i = 0; i < 500; i++) {
             o2_poll();
-            usleep(2000); // 2ms
+            o2_sleep(2); // 2ms
         }
     }
     // receiver should close port now and check that these
@@ -110,7 +109,7 @@ int main(int argc, const char * argv[])
     o2_service_free("oscsend");
     printf("*** Calling o2_finish @ %g\n", o2_time_get());
     o2_finish();
-    usleep(1000000); // finish closing sockets
+    o2_sleep(1000); // finish closing sockets
     printf("OSCSEND DONE\n");
     return 0;
 }

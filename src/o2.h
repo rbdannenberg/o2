@@ -246,11 +246,6 @@ the characters ":;\" are preceded by "\" since ":" and ";" are
 separator characters. Attribute names are alphanumeric.
 */
 
-// get uint32_t, etc.:
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
-
 /** \defgroup debugging Debugging Support
  * @{
  */

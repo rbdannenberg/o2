@@ -6,7 +6,6 @@
 #include "stdio.h"
 #include "o2.h"
 #include "o2internal.h"
-#include "o2usleep.h"
 
 int main(int argc, const char * argv[])
 {
@@ -27,7 +26,7 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < 5000; i++) { // run for up to 10 seconds
         o2_poll();
         if (o2n_public_ip[0]) break;
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
         if (i % 500 == 0) printf("- polling @ %g\n", o2_local_time());
     }
     if (o2n_public_ip[0]) {

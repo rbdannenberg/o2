@@ -9,12 +9,7 @@
 #include "string.h"
 #include <stdbool.h>
 
-#ifdef WIN32
-#include <windows.h> 
-#include "usleep.h" // special windows implementation of sleep/usleep
-#else
-#include <unistd.h>
-#endif
+#include "o2base.h" // to get o2_sleep()
 
 
 int ints[] = {1005, 2005, 1006, 2006, 1007, 2007, 1008, 2008, 1009, 2009,
@@ -122,7 +117,7 @@ int main(int argc, const char * argv[])
 
     while (msg_count < 16) {
         lo_server_recv_noblock(server, 0);
-        usleep(10000); // 10ms
+        o2_sleep(10); // 10ms
     }
     assert(test_called);
     lo_server_free(server);

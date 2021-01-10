@@ -2,7 +2,6 @@
 //
 //  This program works with dropserver.c See that for test description.
 
-#include "o2usleep.h"
 #include "stdio.h"
 #include "string.h"
 #include "assert.h"
@@ -14,7 +13,7 @@ void pollsome()
 {
     for (int i = 0; i < 10; i++) {
         o2_poll();
-        usleep(2000);
+        o2_sleep(2);
     }
 }
 
@@ -67,7 +66,7 @@ int main(int argc, const char *argv[])
     // wait for server service to be discovered
     while (o2_status("dropserver") < O2_REMOTE) {
         o2_poll();
-        usleep(2000); // 2ms
+        o2_sleep(2); // 2ms
     }
     
     printf("We discovered the dropserver at time %g.\n", o2_local_time());

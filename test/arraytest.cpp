@@ -750,13 +750,14 @@ void add_x_parameter()
 
 int main(int argc, const char * argv[])
 {
-    a_blob = (O2blob_ptr) malloc(20);
-    a_blob->size = 15;
-    memcpy(a_blob->data, "This is a blob", 15);
-
     a_midi_msg = (0x90 << 16) + (60 << 8) + 100;
 
     o2_initialize("test");    
+
+    a_blob = (O2blob_ptr) O2_MALLOC(20);
+    a_blob->size = 15;
+    memcpy(a_blob->data, "This is a blob", 15);
+
     o2_service_new("one");
 
     o2_method_new("/one/service_ai", "[i]", &service_ai, NULL, false, false);
@@ -1008,6 +1009,8 @@ int main(int argc, const char * argv[])
             }
         }
     }
+
+    O2_FREE(a_blob);
 
     printf("DONE\n");
     o2_finish();
