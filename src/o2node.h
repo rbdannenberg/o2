@@ -56,6 +56,7 @@ are all the possible tag values:
 #define ISA_OSC_UDP_CLIENT(x)      ((x)->tag & O2TAG_OSC_UDP_CLIENT)
 #define ISA_OSC_TCP_CLIENT(x)      ((x)->tag & O2TAG_OSC_TCP_CLIENT)
 #define ISA_BRIDGE(x)   ((x)->tag & O2TAG_BRIDGE)
+#define ISA_STUN_CLIENT(x) ((x)->tag == O2TAG_STUN)
 
 
 // ISA_PROXY tells us if the node, considered as a service provider,
@@ -315,7 +316,17 @@ public:
     virtual O2err deliver(o2n_message_ptr msg);
     // returns message to send, or null if O2_NO_SERVICE:
     O2message_ptr pre_send(int *tcp_flag);
+#ifndef O2_NO_DEBUG
+    // to print debugging information on connections (O2_DBc):
+    void co_info(Fds_info *fds_info, const char *msg) {
+        if (!fds_info) return;
+        printf("%s %s (%s)\n    socket %d index %d tags %s, %s\n",
+               o2_debug_prefix, msg, key ? key : "noname",
+               fds_info->get_socket(), fds_info->fds_index, 
+               o2_tag_to_string(fds_info->net_tag), o2_tag_to_string(tag));
+    }
 
+#endif
 };
 
 extern Proxy_info *o2_message_source;

@@ -1221,9 +1221,11 @@ O2err o2_can_send(const char *service)
         Fds_info *fds = ((Proxy_info *) entry)->fds_info;
         if (fds) {
             return fds->can_send();
+        } else {
+            return O2_SUCCESS; // because this is a UDP connection
         }
     } else if (entry) {
-        return O2_SUCCESS;
+        return O2_SUCCESS; // because this is a local service
     }
     return O2_FAIL;
 }

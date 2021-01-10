@@ -118,8 +118,7 @@ Destruction of PROC_TEMP
 // become dangling pointers.
 Proc_info::~Proc_info()
 {
-    O2_DBc(printf("%s delete Proc_info tag %s name %s\n",
-            o2_debug_prefix, Fds_info::tag_to_string(tag), key));
+    O2_DBc(co_info(fds_info, "delete Proc_info"));
     O2_DBo(o2_fds_info_debug_predelete(fds_info));
     // remove the remote services provided by the proc
     // circularity is taken care of by removing each service,
@@ -186,12 +185,14 @@ void o2_show_sockets()
 //
 O2err Proc_info::accepted(Fds_info *conn)
 {
-    // accept can only be from OSC_TCP_SERVER or PROC_TCP_SERVER:
+    // accept can only be from PROC_TCP_SERVER:
     assert(ISA_PROC_TCP_SERVER(this));
     // create a proc_info for the connection
-    conn->owner = new Proc_info();
-    conn->owner->fds_info = conn;
+    Proc_info *info = new Proc_info();
+    conn->owner = info;
+    info->fds_info = conn;
     // port and udp_sa are zero'd initially
+    O2_DBc(info->co_info(conn, "PROC accepted connection"));
     return O2_SUCCESS;
 }
 

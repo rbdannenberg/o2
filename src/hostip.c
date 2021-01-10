@@ -1,11 +1,13 @@
-// hostip.cpp -- get the host ip address
+// hostip.c -- get the host ip address
 //
 // Roger B. Dannenberg, 2020
 //
 
 #include <stdint.h>
-#ifdef WIN32
 #include <stdbool.h>
+#include <string.h>
+#include <ctype.h>
+#ifdef WIN32
 #include <stdlib.h>
 #include <Winsock2.h>
 #include <iphlpapi.h>

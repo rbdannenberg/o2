@@ -182,7 +182,7 @@ void *o2_calloc(size_t n, size_t s)
 #else
 void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_CALLOC %llu of %llu in %s:%d", o2_debug_prefix,
+    O2_DBm(printf("%s O2_CALLOC %zu of %zu in %s:%d", o2_debug_prefix,
                   n, s, file, line));
     fflush(stdout);
     void *obj = (*o2_malloc_ptr)(n * s);
@@ -454,7 +454,7 @@ void *o2_malloc(size_t size)
             preamble = (preamble_ptr) malloc(realsize);
             goto gotit;
         }
-        fprintf(stderr, "o2_malloc of %llu bytes failed\n", realsize);
+        fprintf(stderr, "o2_malloc of %zu bytes failed\n", realsize);
         return NULL;
     }
 
@@ -594,7 +594,7 @@ void o2_free(void *ptr)
             free(ptr); // now we're freeing the originally allocated address
             return;
         }
-        fprintf(stderr, "o2_free of %llu bytes failed\n", preamble->size);
+        fprintf(stderr, "o2_free of %zu bytes failed\n", preamble->size);
         return;
     }
     total_allocated -= realsize;

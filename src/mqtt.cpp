@@ -131,6 +131,8 @@ O2err o2_mqtt_initialize()
     mqtt_info->fds_info = Fds_info::create_tcp_client(&mqtt_address);
     mqtt_info->fds_info->owner = mqtt_info;
     mqtt_info->fds_info->raw_flag = true;
+    O2_DBc(mqtt_info->co_info(mqtt_info->fds_info,
+                              "created TCP CLIENT for MQTT broker"));
 
     mqtt_comm.initialize(mqtt_broker_ip, mqtt_address.get_port());
     // subscribe to O2-<ensemblename>/disc

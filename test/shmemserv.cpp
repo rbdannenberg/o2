@@ -44,7 +44,7 @@ bool about_equal(double a, double b)
 bool use_tcp = false;
 
 
-void sharedmem();
+void *sharedmem();
 
 int main(int argc, const char * argv[])
 {
@@ -127,7 +127,7 @@ void server_test(o2_msg_data_ptr msg, const char *types,
 
 bool sift_called = false;
 
-// handles types "ist"
+// handles types "sift"
 void sift_han(o2_msg_data_ptr msg, const char *types,
               O2arg_ptr *argv, int argc, const void *user_data)
 {
@@ -174,6 +174,7 @@ static O2time start_wait;
 // perform whatever the thread does. Return false when done.
 bool o2sm_act()
 {
+    o2sm_poll();
     if (phase == 0) {
         if (o2sm_time_get() < 0) { // not synchronized
             return true;
@@ -233,15 +234,21 @@ bool o2sm_act()
 
 
 #ifdef WIN32
+bool shmem_initialized = false;
+
 void CALLBACK o2sm_run_callback(UINT timer_id, UINT msg, DWORD_PTR data, 
                                 DWORD_PTR dw1, DWORD_PTR dw2)
 {
+    if (!shmem_initialized) {
+        sharedmem_init();
+        shmem_initialized = true;
+    }
     if (!o2sm_act()) {
         timeKillEvent(timer_id);
     }
 }
 
-void *sharedmem_run()
+void *sharedmem()
 {
     timeSetEvent(1, 0, &o2sm_run_callback, NULL, TIME_PERIODIC);
     return NULL;
@@ -249,24 +256,19 @@ void *sharedmem_run()
 #else
 void *sharedmem_action(void *ignore)
 {
+    sharedmem_init();
     while (o2sm_act()) {
-        ;
+        usleep(2000); // don't poll too fast - it's unnecessary
     }
     return NULL;
 }
 
-void *sharedmem_run()
+void *sharedmem()
 {
-    res = pthread_create(&pt_thread_pid, NULL, &sharedmem_action, NULL);
+    int res = pthread_create(&pt_thread_pid, NULL, &sharedmem_action, NULL);
     if (res != 0) {
         printf("ERROR: pthread_create failed\n");
     }
     return NULL;
 }
 #endif
-
-void sharedmem()
-{
-    sharedmem_init();
-    sharedmem_run();
-}

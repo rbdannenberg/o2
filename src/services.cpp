@@ -367,11 +367,12 @@ O2err Services_entry::service_remove(const char *srv_name,
     }
     if (index >= 0) {
         spp = &services[index];
-    } else {
-        O2_DBG(printf("%s o2_service_remove(%s, %s, ...) did not find "
-                      "service offered by this process\n",
-                      o2_debug_prefix, key,
-                      ISA_REMOTE_PROC(proc) ? proc->key : "local"));
+    } else {  // this is normal since we search every service before
+              // removing a proc.
+        //O2_DBG(printf("%s o2_service_remove(%s, %s, ...) did not find "
+        //              "service offered by this process\n",
+        //              o2_debug_prefix, key,
+        //              ISA_REMOTE_PROC(proc) ? proc->key : "local"));
         return O2_FAIL;
     }
     // Now spp == &services[index]

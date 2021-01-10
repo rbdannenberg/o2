@@ -7,6 +7,7 @@
 #define O2_H
 
 #include "o2base.h"
+#include "hostip.h"
 
 #ifdef __cplusplus
 extern "C" {

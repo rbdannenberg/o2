@@ -172,8 +172,10 @@ O2err o2_osc_port_new(const char *service_name, int port, int tcp_flag)
             tcp_flag ? O2TAG_OSC_TCP_SERVER : O2TAG_OSC_UDP_SERVER);
     if (tcp_flag) {
         osc->fds_info = Fds_info::create_tcp_server(port);
+        O2_DBc(osc->co_info(osc->fds_info, "created OSC_TCP_SERVER"));
     } else {
         osc->fds_info = Fds_info::create_udp_server(&port, true);
+        O2_DBc(osc->co_info(osc->fds_info, "created OSC_UDP_SERVER"));
     }
     if (!osc->fds_info) { // failure, remove osc
         O2_FREE(osc->key);
@@ -191,7 +193,9 @@ O2err Osc_info::accepted(Fds_info *conn)
 {
     assert(tag == O2TAG_OSC_TCP_SERVER);
     // create an osc_info for the connection
-    conn->owner = new Osc_info(key, port, conn, O2TAG_OSC_TCP_CONNECTION);
+    Osc_info *info = new Osc_info(key, port, conn, O2TAG_OSC_TCP_CONNECTION);
+    conn->owner = info;
+    O2_DBc(info->co_info(conn, "OSC TCP CONNECTION accepted"));
     return O2_SUCCESS;
 }
 
@@ -206,7 +210,7 @@ O2err Osc_info::connected()
 
 Osc_info::~Osc_info()
 {
-    O2_DBc(printf("%s delete Osc_info name %s\n", o2_debug_prefix, key));
+    O2_DBc(co_info(fds_info, "deleting Osc_info"));
     O2_DBo(o2_fds_info_debug_predelete(fds_info));
     if (key && (tag & (O2TAG_OSC_TCP_CLIENT | O2TAG_OSC_UDP_CLIENT))) {
         // if we are a client, we offer a service that's going away:
@@ -274,6 +278,7 @@ O2err o2_osc_delegate(const char *service_name, const char *ip,
         osc->fds_info = Fds_info::create_tcp_client(ip, port_num);
         osc->fds_info->owner = osc;
         rslt = osc->fds_info ? O2_SUCCESS : O2_FAIL;
+        O2_DBc(osc->co_info(osc->fds_info, "created TCP CLIENT for OSC"));
     } else {
         rslt = osc->udp_address.init(ip, port_num, false);
     }

@@ -24,7 +24,6 @@ void service_two(o2_msg_data_ptr data, const char *types,
     printf("Service two received a message\n");
 }
 
-#define streql(a, b) (!strcmp(a, b))
 
 #define FIRST_COUNT 3
 int si_msg_count = 0;

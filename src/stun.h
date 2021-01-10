@@ -3,9 +3,6 @@
 // Roger B. Dannenberg
 // August 2020
 
-#define STUN_CLIENT        70 // used for MQTT protocol, getting public IP
-#define ISA_STUN_CLIENT(p) ((p) && (p)->tag == STUN_CLIENT)
-
 #ifdef O2_NO_DEBUG
 #define TO_STUN_CLIENT(node) ((stun_client_ptr) (node))
 #else
@@ -15,7 +12,7 @@
 
 class Stun_info : public Proxy_info {
   public:
-    Stun_info(Fds_info *fds_info_) : Proxy_info(NULL, STUN_CLIENT) {
+    Stun_info(Fds_info *fds_info_) : Proxy_info(NULL, O2TAG_STUN) {
         fds_info = fds_info_;
         fds_info->owner = this;
     }

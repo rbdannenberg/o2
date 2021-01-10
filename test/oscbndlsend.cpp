@@ -25,6 +25,8 @@
 #include "string.h"
 #include "assert.h"
 
+int block_check = true;
+
 O2message_ptr make_message(O2time time, const char *address, int i, char *s)
 {
     o2_send_start();
@@ -70,6 +72,11 @@ void send_nested(O2time now, O2time touter, O2time tinner, int base)
     // make outer bundle
     O2message_ptr outer = bundle2(now + touter, out1, inner);
 
+    printf("send_nested o2_can_send to oscsend: %d\n", o2_can_send("oscsend"));
+    while (block_check && o2_can_send("oscsend") != O2_SUCCESS) {
+        o2_poll();
+    }
+
     // send it
     o2_message_send(outer);
 }
@@ -78,13 +85,15 @@ void send_nested(O2time now, O2time touter, O2time tinner, int base)
 int main(int argc, const char * argv[])
 {
     printf("Usage: oscbndlrecv flags (see o2.h for flags, "
-           "use a for all, also u for UDP, M for master)\n");
+           "use a for all, also u for UDP, M for master, and\n"
+           "! to send without checking o2_can_send)\n");
     int tcpflag = true;
     int master = false;
     if (argc == 2) {
         o2_debug_flags(argv[1]);
         tcpflag = (strchr(argv[1], 'u') == NULL);
         master = (strchr(argv[1], 'M') != NULL);
+        block_check = (strchr(argv[1], '!') == NULL);
         printf("debugflags %s, tcp %d, master %d\n", argv[1], tcpflag, master);
     }
     if (argc > 2) {
@@ -153,6 +162,11 @@ int main(int argc, const char * argv[])
                                                        "oscsend", "", true);
         printf("Sending bundle with %d \"...2.%d\" and %d \"...2.%d\"\n",
                1000 + i, i, 2000 + i, i);
+
+        printf("o2_can_send to oscsend: %d\n", o2_can_send("oscsend"));
+        while (block_check && o2_can_send("oscsend") != O2_SUCCESS) {
+            o2_poll();
+        }
         // send it
         o2_message_send(msg);
     }
@@ -168,7 +182,10 @@ int main(int argc, const char * argv[])
     send_nested(now, 3.1, 3.2, 4000);
 
     printf("after sending\n");
-    usleep(1000000); // if you exit() after send(), data might be lost
+    for (int i = 0; i < 500; i++) {
+        o2_poll();
+        usleep(2000); // if you exit() after send(), data might be lost
+    }
     printf("removing oscsend\n");
     o2_service_free("oscsend");
     printf("calling o2_finish()\n");

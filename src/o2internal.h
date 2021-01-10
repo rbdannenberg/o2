@@ -31,7 +31,6 @@
 #include <math.h>
 #include <assert.h>
 
-#include "hostip.h"
 #include "o2.h"
 
 #include "o2obj.h"

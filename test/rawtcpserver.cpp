@@ -14,7 +14,8 @@
 #include <arpa/inet.h>
 #include <poll.h>
 #include <netinet/tcp.h>
-#define SOCKET socket_t
+typedef int SOCKET;  // In O2, we'll use SOCKET to denote the type of a socket
+#define INVALID_SOCKET -1
 #define closesocket close
 #endif
 
@@ -74,8 +75,8 @@ int main(int argc, char **argv)
     fds[0].revents = 0;
     fds_len = 1;
 
-    int client_size = sizeof client;
-    SOCKET conn = accept(sock, (struct sockaddr *) &client, &client_size);
+    unsigned int client_size = sizeof client;
+    SOCKET conn = ::accept(sock, (struct sockaddr *) &client, &client_size);
     if (conn < 0) {
         printf("server acccept failed...\n");
         exit(0);

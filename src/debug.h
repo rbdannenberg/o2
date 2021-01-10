@@ -70,7 +70,7 @@ void o2_dbg_msg(const char *src, O2message_ptr msg, o2_msg_data_ptr data,
 #define O2_DB(flags, x) if (o2_debug & (flags)) { x; }
 #define O2_DBA(x) O2_DB(O2_DBA_FLAGS, x)
 #define O2_DBa(x) O2_DB(O2_DBa_FLAGS, x)
-#define O2_DBc(x) O2_DB(O2_DBc_FLAG, x)
+#define O2_DBc(x) O2_DB(O2_DBc_FLAG | O2_DBo_FLAG, x)
 #define O2_DBr(x) O2_DB(O2_DBr_FLAG, x)
 #define O2_DBs(x) O2_DB(O2_DBs_FLAG, x)
 #define O2_DBR(x) O2_DB(O2_DBR_FLAG, x)

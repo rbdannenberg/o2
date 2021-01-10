@@ -77,6 +77,7 @@ O2err o2_get_public_ip()
     stun_try_count = 0;  // we get 5 tries every time we start
     Fds_info *fds_info = Fds_info::create_udp_server(&stun_server_port, true);
     stun_info = new Stun_info(fds_info);
+    O2_DBc(stun_info->co_info(fds_info, "created UDP server for STUN"));
     stun_server_address.init("stun.l.google.com", 19302, false);
     // schedule stun_query until we get a reply
     o2_method_new_internal("/_o2/ipq", "", &o2_stun_query, NULL, false, false);
@@ -119,6 +120,9 @@ O2err Stun_info::deliver(o2n_message_ptr msg)
 
 Stun_info::~Stun_info()
 {
+    // I think this always does nothing because fds_info has been removed by
+    // now:
+    O2_DBc(co_info(fds_info, "deleting Stun_info"));
     O2_DBo(o2_fds_info_debug_predelete(fds_info));
     delete_fds_info();
 }

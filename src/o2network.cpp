@@ -526,20 +526,30 @@ Fds_info::~Fds_info()
     assert(o2n_fds.bounds_check(fds_index));
     struct pollfd *pfd = &o2n_fds[fds_index];
 
-    O2_DBo(printf("%s o2n_socket_remove: net_tag %s port %d closing "
-                  "socket %ld index %d\n",
-                  o2_debug_prefix, Fds_info::tag_to_string(net_tag),
-                  port, (long) pfd->fd, fds_index));
+    O2_DBc(if (owner) {
+               Proxy_info *proxy = (Proxy_info *) owner;
+               proxy->co_info(this, "deleting Fds_info");
+           } else {
+               printf("%s deleting Fds_info: net_tag %s port %d closing "
+                      "socket %ld index %d (no owner)\n",
+                      o2_debug_prefix, Fds_info::tag_to_string(net_tag),
+                      port, (long) pfd->fd, fds_index);
+           });
     if (o2n_fds.size() > fds_index + 1) { // move last to i
         struct pollfd *lastfd = &o2n_fds.last();
         memcpy(pfd, lastfd, sizeof *lastfd);
         Fds_info *replace = o2n_fds_info.last();
         o2n_fds_info[fds_index] = replace; // move to new index
         replace->fds_index = fds_index;
-        O2_DBo(printf("%s o2n_socket_remove: net_tag %s port %d moved "
-                      "socket %ld to index %d\n", o2_debug_prefix,
-                      Fds_info::tag_to_string(replace->net_tag), replace->port,
-                      (long) pfd->fd, fds_index));
+        O2_DBc(if (replace->owner) {
+                   Proxy_info * proxy = (Proxy_info *) replace->owner;
+                   proxy->co_info(replace, "moved to new index");
+               } else {
+                   printf("%s net_tag %s port %d moved socket %ld "
+                          "to index %d\n", o2_debug_prefix,
+                          Fds_info::tag_to_string(replace->net_tag),
+                          replace->port, (long) pfd->fd, fds_index);
+               });
     }
     o2n_fds.pop_back();
     o2n_fds_info.pop_back();
@@ -643,8 +653,17 @@ O2err Fds_info::send(bool block)
     struct pollfd *pfd = &o2n_fds[fds_index];
     if (net_tag == NET_TCP_CONNECTING && block) {
         O2_DBo(printf("%s: o2n_send - index %d tag is NET_TCP_CONNECTING, "
-                      "so we wait\n", o2_debug_prefix, fds_index));
+                      "so we poll\n", o2_debug_prefix, fds_index));
         // we need to wait until connected before we can send
+        while (o2n_recv() == O2_SUCCESS and net_tag == NET_TCP_CONNECTING) ;
+    }
+    // if we are already in o2n_recv(), it will return O2_ALREADY_RUNNING
+    // and no progress will be made, so as a last resort we just block
+    // with select. There may be a bug here because on macOS, this would
+    // block forever before I added the previous loop to call o2n_recv().
+    if (net_tag == NET_TCP_CONNECTING && block) {
+        O2_DBo(printf("%s: o2n_send - index %d tag is NET_TCP_CONNECTING, "
+                          "so we wait\n", o2_debug_prefix, fds_index));
         fd_set write_set;
         FD_ZERO(&write_set);
         FD_SET(pfd->fd, &write_set);
@@ -783,9 +802,14 @@ void Fds_info::close_socket()
     reset();
     struct pollfd *pfd = &o2n_fds[fds_index];
     SOCKET sock = pfd->fd;
-    O2_DBo(printf("%s close_socket called on fds_info %p (%s) socket %ld\n",
-                  o2_debug_prefix, this, Fds_info::tag_to_string(net_tag),
-                  (long) sock));
+    O2_DBc(if (owner) {
+               Proxy_info *proxy = (Proxy_info *) owner;
+               proxy->co_info(this, "closing socket");
+           } else {
+               printf("%s close_socket called on fds_info %p (%s) socket %ld\n",
+                      o2_debug_prefix, this, Fds_info::tag_to_string(net_tag),
+                      (long) sock);
+           });
     if (sock != INVALID_SOCKET) { // in case we're closed again
         #ifdef SHUT_WR
             shutdown(sock, SHUT_WR);
@@ -800,14 +824,18 @@ void Fds_info::close_socket()
 }
 
 
+static bool in_o2n_recv = false;
+    
 #ifdef WIN32
 
 FD_SET o2_read_set;
 FD_SET o2_write_set;
 struct timeval o2_no_timeout;
-
+    
 O2err o2n_recv()
 {
+    if (in_o2n_recv) return O2_ALREADY_RUNNING; // reentrant call
+    in_o2n_recv = true;
     // if there are any bad socket descriptions, remove them now
     if (o2n_socket_delete_flag) o2n_free_deleted_sockets();
     
@@ -827,9 +855,11 @@ O2err o2n_recv()
     if ((total = select(0, &o2_read_set, &o2_write_set, NULL, 
                         &o2_no_timeout)) == SOCKET_ERROR) {
         O2_DBo(printf("%s SOCKET_ERROR in o2n_recv", o2_debug_prefix));
+        in_o2n_recv = false;
         return O2_SOCKET_ERROR;
     }
     if (total == 0) { /* no messages waiting */
+        in_o2n_recv = false;
         return O2_SUCCESS;
     }
     for (int i = 0; i < o2n_fds.size(); i++) {
@@ -852,12 +882,14 @@ O2err o2n_recv()
                 // tell next layer up that connection is good, e.g. O2 sends
                 // notification that a new process is connected
                 if (fi->owner) fi->owner->connected();
-            } else if (fi->out_message) {
-		O2err rslt = fi->send(false);
-	    }
+            }
+            if (fi->out_message) {
+                O2err rslt = fi->send(false);
+            }
         }            
         if (!o2_ensemble_name) { // handler called o2_finish()
             // o2n_fds are all freed and gone
+            in_o2n_recv = false;
             return O2_FAIL;
         }
     }
@@ -865,6 +897,7 @@ O2err o2n_recv()
     // (actually, user handlers could have done a lot, so maybe this is
     // not strictly necessary.)
     if (o2n_socket_delete_flag) o2n_free_deleted_sockets();
+    in_o2n_recv = false;
     return O2_SUCCESS;
 }
 
@@ -873,7 +906,8 @@ O2err o2n_recv()
 O2err o2n_recv()
 {
     int i;
-        
+    if (in_o2n_recv) return O2_ALREADY_RUNNING; // reentrant call
+    in_o2n_recv = true;
     // if there are any bad socket descriptions, remove them now
     if (o2n_socket_delete_flag) o2n_free_deleted_sockets();
 
@@ -923,6 +957,7 @@ O2err o2n_recv()
         }
         if (!o2_ensemble_name) { // handler called o2_finish()
             // o2n_fds are all free and gone now
+            in_o2n_recv = false;
             return O2_FAIL;
         }
     }
@@ -930,6 +965,7 @@ O2err o2n_recv()
     // (actually, user handlers could have done a lot, so maybe this is
     // not strictly necessary.)
     if (o2n_socket_delete_flag) o2n_free_deleted_sockets();
+    in_o2n_recv = false;
     return O2_SUCCESS;
 }
 #endif
@@ -1038,7 +1074,11 @@ int Fds_info::read_event_handler()
         }
         // fall through and send message
     } else if (net_tag == NET_UDP_SERVER) {
-        unsigned long len;
+#ifdef WIN32
+        u_long len; // CAREFUL! This type not unix compatible!
+#else
+        int len;
+#endif
         if (ioctlsocket(sock, FIONREAD, &len) == -1) {
             perror("udp_recv_handler");
             return O2_FAIL;
@@ -1152,5 +1192,4 @@ SOCKET Fds_info::get_socket()
 {
     return o2n_fds[fds_index].fd;
 }
-
 #endif

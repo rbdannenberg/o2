@@ -130,7 +130,10 @@ O2err o2_discovery_initialize()
     // the general UDP receive and TCP server port
     O2_DBdo(printf("%s **** discovery port %ld (%d already taken).\n",
                    o2_debug_prefix, (long) my_port, disc_port_index));
-    
+    O2_DBc(o2_ctx->proc->co_info(o2_discovery_udp_server,
+                                 "created upd server port");
+           o2_ctx->proc->co_info(o2_ctx->proc->fds_info,
+                                 "created tcp server port"));
     // do not send local discovery msg to this port
     o2_local_remote[disc_port_index] &= ~1;
     
@@ -360,6 +363,8 @@ O2err o2_discovered_a_remote_process_name(const char *name,
         o2_hex_to_dot(internal_ip, ipdot);
         proc = Proc_info::create_tcp_proc(O2TAG_PROC_TEMP,
                                           (const char *) ipdot, port);
+        O2_DBc(proc->co_info(proc->fds_info,
+                         "created temp proc to connect to discovered proc"));
         // proc name is NULL
 
         if (compare > 0) { // we are the server, the other party should connect

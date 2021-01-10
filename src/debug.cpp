@@ -60,14 +60,14 @@ const char *o2_tag_to_string(int tag)
         case O2TAG_PROC_NOMSGYET:      return "PROC_NOMSGYET";
         case O2TAG_PROC:               return "PROC";
         case O2TAG_PROC_TEMP:          return "PROC_TEMP";
-        case O2TAG_MQTT:               return "MQTT";
+        case O2TAG_MQTT:               return "MQTT_CLIENT";
         case O2TAG_OSC_UDP_SERVER:     return "OSC_UDP_SERVER";
         case O2TAG_OSC_TCP_SERVER:     return "OSC_TCP_SERVER";
         case O2TAG_OSC_UDP_CLIENT:     return "OSC_UDP_CLIENT";
         case O2TAG_OSC_TCP_CLIENT:     return "OSC_TCP_CLIENT";
         case O2TAG_OSC_TCP_CONNECTION: return "OSC_TCP_CONNECTION";
         case O2TAG_BRIDGE:             return "BRIDGE";
-        case O2TAG_STUN:               return "STUN";
+        case O2TAG_STUN:               return "STUN_CLIENT";
         default:                       return Fds_info::tag_to_string(tag);
     }
 }

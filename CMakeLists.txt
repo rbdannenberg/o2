@@ -129,7 +129,7 @@ add_library(o2_static STATIC ${O2_SRC})
 
 set(O2LITE_SRC  
   src/o2lite.c src/o2lite.h 
-# src/hostip.c src/hostip.h -- included in o2lite.c
+# src/hostip.c src/hostip.h -- included in o2lite.c 
   )
   
 add_library(o2lite_static STATIC ${O2LITE_SRC})
