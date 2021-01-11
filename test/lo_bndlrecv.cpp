@@ -121,7 +121,7 @@ int main(int argc, const char * argv[])
     }
     assert(test_called);
     lo_server_free(server);
-    sleep(1);
+    o2_sleep(1000);
     printf("OSCRECV DONE\n");
     return 0;
 }

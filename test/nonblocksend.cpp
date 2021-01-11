@@ -4,16 +4,33 @@
 // Begin sending messages to /server/test until the send would block
 // Check that some initial messages do not block.
 // After the socket would block, wait until the socket would not block.
-// Send again until socket would block, then send 5 more without checking.
-// (This last step should force a blocking send. We want to make sure that
-// works too.)
+// Send 2 times as many mesages without checking to create a blocking
+// condition and test that blocking works.
 //
 // Messages all have sequence numbers and a "last message" flag.
 // 
 // The server should operate normally until the first message is received.
-// Then the server should recieve (only) 10 messages per second so that
-// the sender, which can send *much* faster, will eventually block.
-// Keep receiving 10 messages per second until the last message is received.
+// Since there could be thousands of buffered messages, it takes too long
+// to receive them at a low rate, e.g. even 1000 per second could take
+// minutes if Linux TCP buffers 1MB. But if we receive too fast, then the
+// sender will have to send even more messages before blocking is reached.
+//
+// The solution is have the server receive slowly (500/sec) until the
+// sender blocks. Then receive 500 messages per second for an twice
+// the amount of *time*, which should ensure that the sender has time
+// to test that blocking and unblocking are working. Then receive at
+// full speed to check that all messages are sent.
+//
+// To detect when the sender blocks, we'll have it send 10 UDP messages.
+// Even though TCP is blocked and may have 10's of thousands of messages
+// in the queue, a UDP message will come on a different socket and should
+// be processed almost immediately.
+//
+// Messages:
+//    Normal sequence of TCP messages: /server/test "iB" msg_count true
+//    UDP message to say we've reached a blocking state:
+//                                     /server/stat "i" msg_count
+//    End of sequence:                 /server/test "iB" msg_count false
 
 
 #include "o2.h"
@@ -23,7 +40,8 @@
 
 int msg_count = 0;
 bool running = true;
-
+#define NOTYET -999
+O2time start_sending = NOTYET;
 
 // at the end, we get a message to /sender/done
 void sender_done(o2_msg_data_ptr msg, const char *types,
@@ -63,6 +81,7 @@ int main(int argc, const char * argv[])
     }
     
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
+    start_sending = o2_time_get();
     while (o2_can_send("server") == O2_SUCCESS) {
         o2_send_cmd("!server/test", 0, "iB", msg_count, false);
         msg_count++;
@@ -70,7 +89,15 @@ int main(int argc, const char * argv[])
     }
     assert(msg_count > 1); // first message should not have blocked
     // it's possible 2nd message blocked and is queued
-    printf("Blocked after %d messages.\n", msg_count);
+    printf("Blocked after %d msgs and %g s from start_sending.\n",
+           msg_count, o2_time_get() -  start_sending);
+
+    // send multiple messages to make sure one gets through
+    // use UDP to bypass the blocked queue of TCP messages
+    // tell server that we have blocked
+    for (int i = 0; i < 10; i++) {
+        o2_send("!server/stat", 0, "iB", msg_count, true);
+    }
 
     // poll until server unblocks
     while (o2_can_send("server") == O2_BLOCKED) {    
@@ -78,6 +105,14 @@ int main(int argc, const char * argv[])
         o2_sleep(2); // 2ms
     }
     assert(o2_can_send("server") == O2_SUCCESS);
+
+    printf("Unblocked after %d msgs and %g s from start_sending.\n",
+           msg_count, o2_time_get() -  start_sending);
+
+    // tell server that we have unblocked
+    for (int i = 0; i < 10; i++) {
+        o2_send("!server/stat", 0, "iB", msg_count, false);
+    }
     printf("Resuming sends after blocked message.\n");
 
     // send until blocks again
@@ -86,7 +121,8 @@ int main(int argc, const char * argv[])
         msg_count++;
         o2_poll();
     }
-    printf("Blocked again after %d messages.\n", msg_count);
+    printf("Blocked again after %d msgs and %g s after start_sending.\n",
+           msg_count, o2_time_get() - start_sending);
 
     // send 2 * msg_count more messages to make sure blocking works
     int n = 2 * msg_count;
@@ -94,7 +130,7 @@ int main(int argc, const char * argv[])
         o2_send_cmd("!server/test", 0, "iB", msg_count, false);
         msg_count++;
         o2_poll();
-        if (msg_count % 2000 == 0) {
+        if (msg_count % 5000 == 0) {
             printf("msg_count %d\n", msg_count);
         }
     }        
@@ -102,19 +138,22 @@ int main(int argc, const char * argv[])
 
     // send last message
     o2_send_cmd("!server/test", 0, "iB", msg_count, true);
-    printf("Sent %d messages total.\n", msg_count);
+    printf("Sent %d messages total in %g s.\n",
+           msg_count, o2_time_get() - start_sending);
 
     // now, the problem is we could have 1000's of buffered
     // messages being received at 1000 per second, so how long
     // do we need to wait before we delete the socket? Let's
     // get an ACK from the receiver.
 
-    printf("Poll until we get a done message from receiver.\n");
+    printf("Poll until we get a done message from receiver at O2 time %g.\n",
+           o2_time_get());
     while (running) {
         o2_poll();
         o2_sleep(2); // 2ms
     }
     
+    printf("Finish at O2 clock time %g\n", o2_time_get());
     o2_finish();
     o2_sleep(1000); // finish cleaning up sockets
     printf("CLIENT DONE\n");
