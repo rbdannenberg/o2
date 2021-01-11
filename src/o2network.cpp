@@ -652,6 +652,7 @@ O2err Fds_info::send(bool block)
     }
     struct pollfd *pfd = &o2n_fds[fds_index];
     if (net_tag == NET_TCP_CONNECTING && block) {
+        printf("-----------------block while CONNECTING--------------\n");
         O2_DBo(printf("%s: o2n_send - index %d tag is NET_TCP_CONNECTING, "
                       "so we poll\n", o2_debug_prefix, fds_index));
         // we need to wait until connected before we can send
@@ -659,8 +660,7 @@ O2err Fds_info::send(bool block)
     }
     // if we are already in o2n_recv(), it will return O2_ALREADY_RUNNING
     // and no progress will be made, so as a last resort we just block
-    // with select. There may be a bug here because on macOS, this would
-    // block forever before I added the previous loop to call o2n_recv().
+    // with select.
     if (net_tag == NET_TCP_CONNECTING && block) {
         O2_DBo(printf("%s: o2n_send - index %d tag is NET_TCP_CONNECTING, "
                           "so we wait\n", o2_debug_prefix, fds_index));
@@ -669,7 +669,7 @@ O2err Fds_info::send(bool block)
         FD_SET(pfd->fd, &write_set);
         int total;
         // try while a signal interrupts us
-        while ((total = select(o2n_fds.size(), NULL,
+        while ((total = select(pfd->fd + 1, NULL,
                                &write_set, NULL, NULL)) != 1) {
 #ifdef WIN32
             if (total == SOCKET_ERROR && errno != EINTR) {
