@@ -320,9 +320,9 @@ public:
     // to print debugging information on connections (O2_DBc):
     void co_info(Fds_info *fds_info, const char *msg) {
         if (!fds_info) return;
-        printf("%s %s (%s)\n    socket %d index %d tags %s, %s\n",
+        printf("%s %s (%s)\n    socket %ld index %d tags %s, %s\n",
                o2_debug_prefix, msg, key ? key : "noname",
-               fds_info->get_socket(), fds_info->fds_index, 
+               (long) fds_info->get_socket(), fds_info->fds_index, 
                o2_tag_to_string(fds_info->net_tag), o2_tag_to_string(tag));
     }
 

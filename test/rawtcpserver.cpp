@@ -75,7 +75,10 @@ int main(int argc, char **argv)
     fds[0].revents = 0;
     fds_len = 1;
 
-    unsigned int client_size = sizeof client;
+#ifndef WIN32
+    unsigned
+#endif
+    int client_size = sizeof client;
     SOCKET conn = ::accept(sock, (struct sockaddr *) &client, &client_size);
     if (conn < 0) {
         printf("server acccept failed...\n");
