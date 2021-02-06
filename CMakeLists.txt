@@ -183,13 +183,13 @@ endif(WIN32)
 # EXECUTABLE
 # Create executables
 
-#if(WIN32)
+if(WIN32)
   # non-o2 code to check out non-blocking sockets on windows
   add_executable(winnbserver test/winnbserver.cpp)
   target_link_libraries(winnbserver ${LIBRARIES})
   add_executable(winnbclient test/winnbclient.cpp)
   target_link_libraries(winnbclient ${LIBRARIES})
-#endif(WIN32)
+endif(WIN32)
 
 add_executable(dispatchtest test/dispatchtest.cpp)
 target_include_directories(dispatchtest PRIVATE ${CMAKE_SOURCE_DIR}/src)
