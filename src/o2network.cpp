@@ -814,7 +814,6 @@ void Fds_info::reset()
     in_message = NULL; // in case we're closed again
     while (out_message) {
         o2n_message_ptr p = out_message;
-        printf("reset assigning %p to %p->out_message\n", p->next, this);
         out_message = p->next;
         O2_FREE(p);
     }
@@ -842,8 +841,6 @@ void Fds_info::close_socket()
         o2_closesocket(sock, "o2n_close_socket");
         pfd->fd = INVALID_SOCKET;
         net_tag = NET_INFO_CLOSED;
-    } else {
-        printf("socket %ld already closed\n", (long) sock);
     }
     assert(net_tag == NET_INFO_CLOSED && pfd->fd == INVALID_SOCKET);
     delete_me = true;
