@@ -83,6 +83,7 @@ void o2n_get_internal_ip(void)
                 }
             }
         }
+        cur = cur->Next;
     }
     O2_FREE(addresses);
 #else

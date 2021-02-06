@@ -16,6 +16,19 @@
 // test after recvfrom() < 0 to see if the socket should close
 #define TERMINATING_SOCKET_ERROR \
     (WSAGetLastError() != WSAEWOULDBLOCK && WSAGetLastError() != WSAEINTR)
+
+void print_socket_error(int err, const char *source)
+{
+    char errbuf[256];
+    errbuf[0] = 0;
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                  NULL, err, 0, errbuf, sizeof(errbuf), NULL);
+    if (!errbuf[0]) {
+        sprintf(errbuf, "%d", err);  // error as number if no string 
+    }
+    O2_DBo(fprintf(stderr, "%s SOCKET_ERROR in %s: %s\n",
+                   o2_debug_prefix, source, errbuf);)
+}
 #else
 #include <sys/socket.h>
 #include <unistd.h>    // define close()
@@ -28,6 +41,12 @@
 #include <netinet/tcp.h>
 
 #define TERMINATING_SOCKET_ERROR (errno != EAGAIN && errno != EINTR)
+
+void print_socket_error(int err, const char *source)
+{
+    O2_DBo(fprintf(stderr, "%s in %s:\n", o2_debug_prefix, source);
+           perror("SOCKET_ERROR");)
+}
 #endif
 
 static Vec<struct pollfd> o2n_fds;  ///< pre-constructed fds parameter for poll()
@@ -343,10 +362,8 @@ Fds_info *Fds_info::cleanup(const char *error, SOCKET sock)
 {
     perror(error);
     o2_closesocket(sock, "socket_cleanup");
-    o2n_fds_info.pop_back();   // restore socket arrays
-    o2n_fds.pop_back();
-    delete this;
-    return NULL; // so caller can "return info->cleanup(...)"
+    delete this;  // this Fds_info will be removed from socket arrays 
+    return NULL;  // so caller can "return info->cleanup(...)"
 }
 
 
@@ -614,7 +631,11 @@ Fds_info *Fds_info::create_tcp_client(Net_address *remote_addr)
                   (long) sock, o2n_fds.size() - 1));
     if (::connect(sock, remote_addr->get_sockaddr(),
                         sizeof(struct sockaddr)) == -1) {
+#ifdef WIN32
+        if (WSAGetLastError() != WSAEWOULDBLOCK) {
+#else
         if (errno != EINPROGRESS) {
+#endif
             O2_DBo(perror("o2n_connect making TCP connection"));
             return info->cleanup("connect error", sock);
         }
@@ -656,7 +677,7 @@ O2err Fds_info::send(bool block)
         O2_DBo(printf("%s: o2n_send - index %d tag is NET_TCP_CONNECTING, "
                       "so we poll\n", o2_debug_prefix, fds_index));
         // we need to wait until connected before we can send
-        while (o2n_recv() == O2_SUCCESS and net_tag == NET_TCP_CONNECTING) ;
+        while (o2n_recv() == O2_SUCCESS && net_tag == NET_TCP_CONNECTING) ;
     }
     // if we are already in o2n_recv(), it will return O2_ALREADY_RUNNING
     // and no progress will be made, so as a last resort we just block
@@ -669,14 +690,16 @@ O2err Fds_info::send(bool block)
         FD_SET(pfd->fd, &write_set);
         int total;
         // try while a signal interrupts us
-        while ((total = select(pfd->fd + 1, NULL,
+        while ((total = select((int) (pfd->fd + 1), NULL,
                                &write_set, NULL, NULL)) != 1) {
 #ifdef WIN32
-            if (total == SOCKET_ERROR && errno != EINTR) {
+            int err;
+            if (total == SOCKET_ERROR && (err = WSAGetLastError()) != WSAEINTR) {
+                print_socket_error(err, "Fds_info::send");
 #else
             if (total < 0 && errno != EINTR) {
+                print_socket_error(errno, "Fds_info::send");
 #endif
-                O2_DBo(perror("SOCKET_ERROR in o2n_recv"));
                 return O2_SOCKET_ERROR;
             }
         }
@@ -776,9 +799,10 @@ void Fds_info::enqueue(o2n_message_ptr msg)
         // now *pending is where to put the new message
         *pending = msg;
         O2_DBo(printf("%s blocked message %p queued for fds_info %p (%s) "
-                      "socket %ld\n", o2_debug_prefix, msg, this,
+                      "socket %ld fds_info %p msg %p\n", o2_debug_prefix, 
+                      msg, this,
                       Fds_info::tag_to_string(net_tag),
-                      (long) o2n_fds[fds_index].fd));
+                      (long) o2n_fds[fds_index].fd, this, out_message));
     }
 }
     
@@ -790,6 +814,7 @@ void Fds_info::reset()
     in_message = NULL; // in case we're closed again
     while (out_message) {
         o2n_message_ptr p = out_message;
+        printf("reset assigning %p to %p->out_message\n", p->next, this);
         out_message = p->next;
         O2_FREE(p);
     }
@@ -817,6 +842,8 @@ void Fds_info::close_socket()
         o2_closesocket(sock, "o2n_close_socket");
         pfd->fd = INVALID_SOCKET;
         net_tag = NET_INFO_CLOSED;
+    } else {
+        printf("socket %ld already closed\n", (long) sock);
     }
     assert(net_tag == NET_INFO_CLOSED && pfd->fd == INVALID_SOCKET);
     delete_me = true;
@@ -830,8 +857,19 @@ static bool in_o2n_recv = false;
 
 FD_SET o2_read_set;
 FD_SET o2_write_set;
+FD_SET o2_except_set;
 struct timeval o2_no_timeout;
-    
+
+static void report_error(const char *msg, SOCKET socket)
+{
+    int err;
+    int errlen = sizeof(err);
+    getsockopt(socket, SOL_SOCKET, SO_ERROR, (char *) &err, &errlen);
+    O2_DBo(printf("%s Socket %ld error %s: %d", o2_debug_prefix,
+                   (long) socket, msg, err));
+}
+  
+
 O2err o2n_recv()
 {
     if (in_o2n_recv) return O2_ALREADY_RUNNING; // reentrant call
@@ -843,18 +881,25 @@ O2err o2n_recv()
     
     FD_ZERO(&o2_read_set);
     FD_ZERO(&o2_write_set);
-    for (int i = 0; i < o2n_fds.size(); i++) {
-        FD_SET(o2n_fds[i].fd, &o2_read_set);
+    FD_ZERO(&o2_except_set);
+    // careful here! o2n_fds_info can grow if we accept a connection
+    // and the FD_SETs will be invalid with respect to a new socket
+    int socket_count = o2n_fds_info.size();
+    for (int i = 0; i < socket_count; i++) {
+        SOCKET fd = o2n_fds[i].fd;
+        FD_SET(fd, &o2_read_set);
         Fds_info *fi = o2n_fds_info[i];
         if (fi->out_message) {
-            FD_SET(o2n_fds[i].fd, &o2_write_set);
+            FD_SET(fd, &o2_write_set);
         }
+        FD_SET(fd, &o2_except_set);
     }
     o2_no_timeout.tv_sec = 0;
     o2_no_timeout.tv_usec = 0;
-    if ((total = select(0, &o2_read_set, &o2_write_set, NULL, 
+    if ((total = select(0, &o2_read_set, &o2_write_set, &o2_except_set, 
                         &o2_no_timeout)) == SOCKET_ERROR) {
-        O2_DBo(printf("%s SOCKET_ERROR in o2n_recv", o2_debug_prefix));
+        int err = WSAGetLastError();
+        print_socket_error(err, "o2n_recv");
         in_o2n_recv = false;
         return O2_SOCKET_ERROR;
     }
@@ -862,31 +907,36 @@ O2err o2n_recv()
         in_o2n_recv = false;
         return O2_SUCCESS;
     }
-    for (int i = 0; i < o2n_fds.size(); i++) {
+    for (int i = 0; i < socket_count; i++) {
         SOCKET socket = o2n_fds[i].fd;
-        if (FD_ISSET(socket, &o2_read_set)) {
+        
+        if (FD_ISSET(socket, &o2_except_set)) {
             Fds_info *fi = o2n_fds_info[i];
-            if (fi->read_event_handler()) {
-                O2_DBo(printf("%s removing remote process after handler "
-                              "reported error on socket %ld", o2_debug_prefix, 
-			      (long) socket));
-                fi->close_socket();
+            report_error("generated exception event", socket);
+            fi->close_socket();
+        } else {
+            if (FD_ISSET(socket, &o2_read_set)) {
+                Fds_info *fi = o2n_fds_info[i];
+                if (fi->read_event_handler()) {
+                    report_error("reported by read_event_handler", socket);
+                    fi->close_socket();
+                }
+            }
+            if (FD_ISSET(socket, &o2_write_set)) {
+                Fds_info *fi = o2n_fds_info[i];
+                if (fi->net_tag & NET_TCP_CONNECTING) { // connect completed
+                    fi->net_tag = NET_TCP_CLIENT;
+                    O2_DBo(printf("%s connection completed, socket %ld index %d\n",
+                        o2_debug_prefix, (long)socket, i));
+                    // tell next layer up that connection is good, e.g. O2 sends
+                    // notification that a new process is connected
+                    if (fi->owner) fi->owner->connected();
+                }
+                if (fi->out_message) {
+                    O2err rslt = fi->send(false);
+                }
             }
         }
-        if (FD_ISSET(socket, &o2_write_set)) {
-            Fds_info *fi = o2n_fds_info[i];
-	    if (fi->net_tag & NET_TCP_CONNECTING) { // connect completed
-		fi->net_tag = NET_TCP_CLIENT;
-                O2_DBo(printf("%s connection completed, socket %ld index %d\n",
-                              o2_debug_prefix, (long) socket, i));
-                // tell next layer up that connection is good, e.g. O2 sends
-                // notification that a new process is connected
-                if (fi->owner) fi->owner->connected();
-            }
-            if (fi->out_message) {
-                O2err rslt = fi->send(false);
-            }
-        }            
         if (!o2_ensemble_name) { // handler called o2_finish()
             // o2n_fds are all freed and gone
             in_o2n_recv = false;

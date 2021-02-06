@@ -83,7 +83,7 @@ void service_B(o2_msg_data_ptr data, const char *types,
     o2_extract_start(data);
     assert(strcmp(types, "B") == 0);
     O2arg_ptr arg = o2_get_next(O2_BOOL);
-    assert(arg->B == true);
+    assert(arg->B);
     printf("service_B types=%s bool=%d\n", types, arg->B);
     got_the_message = true;
 }
@@ -94,7 +94,7 @@ void service_Bp(o2_msg_data_ptr data, const char *types,
 {
     assert(strcmp(types, "B") == 0);
     assert(argc == 1);
-    assert(argv[0]->B == true);
+    assert(argv[0]->B);
     printf("service_Bp types=%s bool=%d\n", types, argv[0]->B);
     got_the_message = true;
 }
@@ -382,7 +382,7 @@ void service_many(o2_msg_data_ptr data, const char *types,
     arg = o2_get_next(O2_CHAR);
     assert(arg->c == 'Q');
     arg = o2_get_next(O2_BOOL);
-    assert(arg->B == true);
+    assert(arg->B);
     arg = o2_get_next(O2_INT64);
     assert(arg->h == 12345LL);
     arg = o2_get_next(O2_FLOAT);
@@ -423,7 +423,7 @@ void service_manyp(o2_msg_data_ptr data, const char *types,
     assert(argc == 16);
     assert(argv[0]->i == 1234);
     assert(argv[1]->c == 'Q');
-    assert(argv[2]->B == true);
+    assert(argv[2]->B);
     assert(argv[3]->h == 12345LL);
     assert(argv[4]->f == 1234.5);
     assert(argv[5]->d == 1234.56);

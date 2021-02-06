@@ -182,6 +182,15 @@ endif(WIN32)
 
 # EXECUTABLE
 # Create executables
+
+#if(WIN32)
+  # non-o2 code to check out non-blocking sockets on windows
+  add_executable(winnbserver test/winnbserver.cpp)
+  target_link_libraries(winnbserver ${LIBRARIES})
+  add_executable(winnbclient test/winnbclient.cpp)
+  target_link_libraries(winnbclient ${LIBRARIES})
+#endif(WIN32)
+
 add_executable(dispatchtest test/dispatchtest.cpp)
 target_include_directories(dispatchtest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(dispatchtest ${LIBRARIES})
@@ -470,8 +479,6 @@ message(STATUS LIBRARIES=${LIBRARIES})
 #add_executable(tcppollclient test/tcppollclient.cpp)
 #add_executable(tcppollserver test/tcppollserver.cpp)
 
-
-
 # I don't know if this is necessary. If it is, it should be duplicated
 # for o2client and o2server:
 #if(WIN32)
@@ -488,9 +495,7 @@ message(STATUS LIBRARIES=${LIBRARIES})
 
 message(STATUS "TESTS_BUILD ${TESTS_BUILD} BUILD_WITH_OSC_SUPPORT ${BUILD_WITH_OSC_SUPPORT} BUILD_TESTS_WITH_LIBLO ${BUILD_TESTS_WITH_LIBLO}")
 
-if(TESTS_BUILD)
-if(BUILD_WITH_OSC_SUPPORT)
-if(BUILD_TESTS_WITH_LIBLO)
+if(TESTS_BUILD AND BUILD_WITH_OSC_SUPPORT AND BUILD_TESTS_WITH_LIBLO)
   set(LIBLO_PATH "${CMAKE_SOURCE_DIR}/../liblo-0.28" CACHE PATH
                  "Where to find liblo_64s.a, the liblo library.")
   set(LIBLO_LIB LIBLO_LIB-NOTFOUND CACHE FILEPATH
@@ -529,6 +534,4 @@ if(BUILD_TESTS_WITH_LIBLO)
         ${LIBLO_INCLUDE_PATH} ${CMAKE_SOURCE_DIR}/src) 
     target_link_libraries(lo_bndlrecv ${LIBLO_LIB}  ${EXTRA_LO_LIBS})
   endif(BUILD_WITH_BUNDLE_SUPPORT)
-endif(BUILD_TESTS_WITH_LIBLO)
-endif(BUILD_WITH_OSC_SUPPORT)
-endif(TESTS_BUILD)
+endif(TESTS_BUILD AND BUILD_WITH_OSC_SUPPORT AND BUILD_TESTS_WITH_LIBLO)

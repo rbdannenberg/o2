@@ -9,6 +9,8 @@
 #include <string.h>
 #include <assert.h>
 
+#define POLL_PERIOD 100
+
 bool running = true;
 
 
@@ -69,7 +71,7 @@ int main(int argc, const char * argv[])
     
     while (running) {
         o2_poll();
-        o2_sleep(2); // 2ms
+        o2_sleep(POLL_PERIOD); // 2ms
     }
     // exit without calling o2_finish() -- this is a test for behavior when
     // the client crashes. Will the server still remove the service?
