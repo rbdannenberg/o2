@@ -25,7 +25,6 @@ pthread_t pt_thread_pid;
 #endif
 #include "sharedmem.h"
 
-#define streql(a, b) (strcmp(a, b) == 0)
 
 Bridge_info *smbridge = NULL;
 

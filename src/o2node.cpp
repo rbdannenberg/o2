@@ -29,7 +29,7 @@ int o2_strsize(const char *s)
     return (int) ((strlen(s) + 4) & ~3);
 }
 
-
+#ifndef O2_NO_DEBUG
 void Hash_node::show(int indent)
 {
     O2node::show(indent);
@@ -38,17 +38,10 @@ void Hash_node::show(int indent)
     Enumerate en(this);
     O2node *entry;
     while ((entry = en.next())) {
-#ifdef NDEBUG
-        lookup(entry->key);
-#else
-        O2node **ptr = lookup(entry->key);
-        if (*ptr != entry)
-            printf("ERROR: *ptr %p != entry %p\n", *ptr, entry);
-#endif
         entry->show(indent + 1);
     }
 }
-
+#endif
 
 
 // insert an entry into the hash table. If the table becomes
@@ -146,10 +139,10 @@ Handler_entry::~Handler_entry()
             // the pointer so if anyone tries to reference it, it will
             // generate a more obvious and immediate runtime error.
     }
-    if (type_string) O2_FREE(type_string);
+    if (type_string) O2_FREE((char *) type_string);
 }
 
-
+#ifndef O2_NO_DEBUG
 void Handler_entry::show(int indent)
 {
     O2node::show(indent);
@@ -157,6 +150,7 @@ void Handler_entry::show(int indent)
     if (full_path) printf(" full_path=%s", full_path);
     printf("\n");
 }
+#endif
 
 
 // call handler for message. Does type coercion, argument vector
@@ -432,7 +426,7 @@ O2message_ptr Proxy_info::pre_send(int *tcp_flag)
 // message is in network byte order.
 // message must be removed from pending deliveries -- we own it now.
 //
-O2err Proxy_info::deliver(o2n_message_ptr o2n_msg)
+O2err Proxy_info::deliver(O2netmsg_ptr o2n_msg)
 {
     O2message_ptr msg = (O2message_ptr) o2n_msg;
 #if IS_LITTLE_ENDIAN

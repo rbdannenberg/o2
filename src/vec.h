@@ -85,15 +85,31 @@ template <typename T> class Vec : public O2obj {
         return &array[length - count];
     }
 
-    // remove n elements from beginning if size is at least n.
-    //    No destructors are callled.
-    void drop_front(int n) {
-        if (n <= length) {
-            memmove(array, array + n, length * sizeof(T));
+    // remove elements from index first to index last, [first, last)
+    //    No destructors are callled. Element order is maintained.
+    void erase(int first, int last) {
+        if (first >= 0 && first <= last && last <= length) {
+            int n = last - first;
+            memmove(array + first, array + last, (length - last) * sizeof(T));
             length -= n;
         }
     }
+
+    // remove one element. Element order is maintained.
+    void erase(int i) { erase(i, i + 1); }
+
+    // remove n elements from beginning if size is at least n.
+    //    No destructors are callled.
+    void drop_front(int n) { erase(0, n); }
     
+    void insert(int i, T data) {
+        if (i >= 0 && i <= length) {
+            append_space(1);
+            memmove(array + i, array + i + 1, (length - i) * sizeof(T));
+            array[i] = data;
+        }
+    }
+
     // copy all size() elements to C array:
     void retrieve(T *data) { memcpy(data, array, length * sizeof(T)); }
 

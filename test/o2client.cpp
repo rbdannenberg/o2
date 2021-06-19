@@ -72,7 +72,9 @@ int main(int argc, const char *argv[])
     }
 
     o2_initialize("test");
+#ifndef O2_NO_BRIDGES
     o2lite_initialize(); // enable o2lite - this test is used with o2litedisc
+#endif
     o2_service_new("client");
     
     for (int i = 0; i < n_addrs; i++) {

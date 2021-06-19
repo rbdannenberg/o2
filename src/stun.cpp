@@ -49,7 +49,7 @@ void o2_stun_query(o2_msg_data_ptr msgdata, const char *types,
         o2_stun_query_running = false;
         return;
     }
-    o2n_message_ptr msg = (o2n_message_ptr) O2_MALLOC(80);
+    O2netmsg_ptr msg = (O2netmsg_ptr) O2_MALLOC(80);
     binding_req_ptr brp = (binding_req_ptr) &msg->payload; // after length
     brp->stun_method = htons(0x0001);
     brp->msg_length = 0;
@@ -87,7 +87,7 @@ O2err o2_get_public_ip()
 }
 
 
-O2err Stun_info::deliver(o2n_message_ptr msg)
+O2err Stun_info::deliver(O2netmsg_ptr msg)
 {
     binding_reply_ptr brp = (binding_reply_ptr) msg->payload;
     // brp is now based just after the message length
@@ -106,7 +106,7 @@ O2err Stun_info::deliver(o2n_message_ptr msg)
                 sprintf(o2n_public_ip, "%02x%02x%02x%02x", ptr[0] ^ 0x21,
                         ptr[1] ^ 0x12, ptr[2] ^ 0xA4, ptr[3] ^ 0x42);
                 // if you get the IP address, close the socket
-                stun_info->fds_info->close_socket();
+                stun_info->fds_info->close_socket(true);
                 o2_init_phase2();
                 break;
             }

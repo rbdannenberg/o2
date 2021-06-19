@@ -1,0 +1,251 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>O2 Test</title>
+<script src="o2ws.js"></script>
+<script>
+// see o2liteserv.c for a description of this test. Here, we are using
+// the websocket protocol, but connecting through websockhost.cpp to
+// the same o2litehost program. We should be able to do the same
+// interaction with o2litehost as does o2liteserv.c.
+
+var N_ADDRS = 20;
+
+var sift_called = false;
+
+function sift_handler(timestamp, address, typespec, info) {
+    if (info != 111) {
+        fail_test("sift_handler info was " + info); 
+        return; 
+    }
+    if (o2ws_get_string() != "this is a test") {
+        fail_test("sift_handler string was wrong"); 
+        return; 
+    }
+    if (o2ws_get_int32() != 1234) {
+        fail_test("sift_handler int was wrong"); 
+        return; 
+    }
+    if (o2ws_get_float() != 123.4) {
+        fail_test("sift_handler float was wrong"); 
+        return; 
+    }
+    if (o2ws_get_time() != 567.89) {
+        fail_test("sift_handler time was wrong"); 
+        return; 
+    }
+    sift_called = true;
+}
+
+
+var msg_count = 0;
+var running = true;
+
+function server_test(timestamp, address, typespec, info) {
+    var got_i = o2ws_get_int32();
+    msg_count++;
+    o2ws_send_cmd(client_addresses[msg_count % N_ADDRS], 0, "i", msg_count);
+
+    if (msg_count % 10000 == 0) {
+        o2ws_status_msg("server received " + msg_count + " messages"); 
+    }
+    if (msg_count < 100) {
+        o2ws_status_msg("server message " + msg_count + " is " + got_i);
+    }
+    if (got_i == -1) {
+        running = false;
+    } else if (msg_count != got_i) {
+        fail_test("in server_test (msg handler), msg_count " +
+                  msg_count + " got_i " + got_i);
+    }
+}
+
+
+function app_init() {
+    wsResult = document.getElementById("wsResult"); 
+    wsStatus = document.getElementById("wsStatus"); 
+    wsState = document.getElementById("wsState"); 
+    wsOutput = document.getElementById("wsOutput"); 
+    o2ws_status_msgs_enable = true;
+    o2ws_status_msg("Initializing O2ws with " + WSURI);
+    o2ws_initialize("test");
+    // create handler for server status messages
+    o2ws_method_new("/_o2/st", "si", true, status_handler, null);
+    o2ws_method_new("/sift", "sift", true, sift_handler, 111);
+    o2ws_set_services("sift"); 
+    set_state("START");
+    step(0);
+    watchdog();
+}
+
+
+// Tricky to do this sequencing with asynchronous callbacks:
+// initially, state = START
+// START: if (o2ws_bridge_id != null)
+//             send_msg; state = CLKWAIT; step()
+//         else step(250)
+// CLKWAIT: if (o2ws_clock_synchronized && sift_called)
+//              status_report; send o2/ws/st("client")
+//              make /server/benchmark/n handers
+//              state = WCL; client_status = null;
+// WCL: if (client_status == O2_REMOTE)
+//          state = GO
+//          set_services("sift,server")
+//       else
+//         state=WCLRETRY; step(250)
+// WCLRETRY: send o2/ws/st("client"); 
+// GO: step(250)
+
+
+var state;
+var client_status = null;
+var count = 0;
+
+function set_state(s) {
+    if (state != "STOPPED") {  // cannot exit final state
+        state = s;
+        wsState.innerHTML = state;
+    }
+}
+
+
+function fail_test(msg) {
+    set_state("STOPPED");
+    o2ws_on_error(msg);
+}
+
+
+var server_addresses = []; 
+var client_addresses = []; 
+
+function make_handlers() {
+    for (var i = 0; i < N_ADDRS; i++) {
+        client_addresses[i] = "!client/benchmark/" + i;
+        server_addresses[i] = "/server/benchmark/" + i;
+        o2ws_method_new(server_addresses[i], "i", true, server_test, null);
+    }
+}
+
+var last_step_time = 1000000;  // no timeout yet
+
+// watchdog alerts us when nothing happens in 10s
+//
+function watchdog() {
+    var now = o2ws_local_time();
+    if (last_step_time + 10 < now && state != "STOPPED") {
+        fail_test("watchdog time says nothing is happening, last state " +
+                  state + " last step " + last_step_time + " now " + now);
+    } else {
+        setTimeout(watchdog, 10000);
+    }
+}    
+
+
+function step(timeout = 0) {
+    last_step_time = o2ws_local_time();
+    if (timeout > 0) {
+        setTimeout(step, timeout, 0);
+        return;
+    }
+    console.log("in step, state is " + state);
+    if (state == "START") {
+        if (o2ws_bridge_id == null) {
+            step(250);
+        } else {
+            o2ws_send_cmd("/sift", 0, "sift", "this is a test", 1234,
+                          123.4, 567.89);
+            set_state("CLKWAIT");
+            step();
+        }
+    } else if (state == "CLKWAIT") {
+        if (o2ws_clock_synchronized && sift_called) {
+            o2ws_send_cmd("!_o2/ws/st", 0, "s", "client"); 
+            count++; 
+            make_handlers();
+            client_status = null;
+            state = "WCL"; 
+        } else {
+            step(250);
+        }
+    } else if (state == "WCL") {
+        if (client_status == O2_REMOTE) {
+            // for debugging, stop sending clock get messages:
+            // o2ws_disable_clock_ping = true; 
+            o2ws_set_services("sift,server");
+            set_state("GO");
+            step(1000);
+        } else {  // get status after short wait
+            set_state("WCLRETRY");
+            step(250);
+        }
+    } else if (state == "WCLRETRY") {
+        set_state("WCL");
+        o2ws_send_cmd("!_o2/ws/st", 0, "s", "client"); 
+    } else if (state == "GO") {
+        if (!running) {
+            display_result("SUCCESS");
+            o2ws_send_cmd("/websockhost/stop", 0, "");
+            set_state("SHUTDOWN");
+        }
+        step(250);
+    } else if (state == "SHUTDOWN") {
+        o2ws_finish();
+        set_state("STOPPED");
+    }
+}
+
+
+function status_handler(address, typespec, info) {
+    var service_name = o2ws_get_string();
+    var service_status = o2ws_get_int32();
+    if (service_name == "client") {
+        o2ws_status_msg("client status is " + service_status);
+        client_status = service_status;
+    }
+    step();
+}
+
+
+function make_paragraph(content) {
+    var par = document.createElement("p"); 
+    par.style.wordWrap = "break-word"; 
+    par.innerHTML = content;
+    return par;
+}
+
+
+function display_result(msg) {
+    wsResult.innerHTML = msg;
+}
+
+function o2ws_status_msg(message) {
+    wsStatus.innerHTML = "<p>" + message + "</p>";
+    console.log("Status: " + message);
+}
+
+function o2ws_on_error(message) {
+    wsOutput.appendChild(make_paragraph(
+            '<span style="color: red;">ERROR:</span> ' + message));
+}
+
+function client_stop_handler(timestamp, typespec, info) {
+    // tell the server to die
+    o2ws_send_start("/websockhost/stop", 0, "");
+    o2ws_send_finish();
+}
+
+
+window.addEventListener("load", app_init, false);
+console.log("Finished loading index.htm scripts");
+</script>
+</head>
+
+<body>
+<h1>O2 wsserv Test</h1>
+  <h3 id="wsResult"></h3>
+  <p>State: <span id="wsState"></span></p>
+  <div id="wsStatus"></div>
+  <div id="wsOutput"></div>
+</body>
+</html>

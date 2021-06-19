@@ -154,8 +154,7 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
     return obj;
 }
 
-
-void o2_dbg_free(const void *obj, const char *file, int line)
+void o2_dbg_free(void *obj, const char *file, int line)
 {
     O2_DBm(printf("%s O2_FREE %ld bytes in %s:%d : #%" PRId64 "@%p\n",
                   o2_debug_prefix, O2_OBJ_SIZE((O2list_elem_ptr) obj),
@@ -165,6 +164,7 @@ void o2_dbg_free(const void *obj, const char *file, int line)
 }
 #endif
 
+
 /**
  * Similar to calloc, but this uses the malloc and free functions
  * provided to O2 through a call to o2_memory().
@@ -173,7 +173,7 @@ void o2_dbg_free(const void *obj, const char *file, int line)
  *
  * @return The address of newly allocated and zeroed memory, or NULL.
  */
-#ifdef NO_O2_DEBUG
+#ifdef O2_NO_DEBUG
 void *o2_calloc(size_t n, size_t s)
 {
     void *loc = O2_MALLOC(n * s);
@@ -433,8 +433,9 @@ static O2queue *head_ptr_for_size(size_t *size)
 void *o2_malloc(size_t size)
 {
     int need_debug_space = 0;
-
+#if O2MEM_DEBUG
     o2_mem_check_all(false);
+#endif
     // round up to 8-byte alignment, add room for preamble and postlude,
     // but postlude includes an extra 8-byte sentinal that's not part of
     // the allocated block, so subtract that to get realsize:
@@ -519,8 +520,10 @@ void *o2_malloc(size_t size)
     o2_ctx->chunk += realsize;
     o2_ctx->chunk_remaining -= realsize;
   gotnew:
+#if O2MEM_DEBUG
     ((preamble_ptr) ((char *) preamble + realsize))->start_sentinal =
             0xDEADDEEDCACA0000;
+#endif
   gotit: // invariant: preamble points to base of block of size realsize
     result = preamble->payload;
 #if O2MEM_DEBUG
@@ -553,8 +556,9 @@ void *o2_malloc(size_t size)
                 result, o2_mem_seqno);
     }
 #endif
-    o2_mem_check(result);
+#if O2MEM_DEBUG
     o2_mem_check_all(false);
+#endif
     return result;
 }
 

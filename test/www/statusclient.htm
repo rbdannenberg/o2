@@ -1,0 +1,61 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>O2 Test</title>
+<script src="o2ws.js"></script>
+<script>
+function app_init() {
+    wsResult = document.getElementById("wsResult"); 
+    wsStatus = document.getElementById("wsStatus"); 
+    wsOutput = document.getElementById("wsOutput"); 
+    o2ws_status_msgs_enable = true;
+    o2ws_status_msg("Initializing O2ws with " + WSURI);
+    o2ws_initialize("test");
+    o2ws_set_services("client");
+    o2ws_method_new("/client/stop", "", true, client_stop_handler, null);
+}
+
+function make_paragraph(content) {
+    var par = document.createElement("p"); 
+    par.style.wordWrap = "break-word"; 
+    par.innerHTML = content;
+    return par;
+}
+
+
+function display_result(msg) {
+    wsResult.innerHTML = msg;
+}
+
+function o2ws_status_msg(message) {
+    wsStatus.innerHTML = "<p>" + message + "</p>";
+    console.log("Status: " + message);
+}
+
+function o2ws_on_error(message) {
+    wsOutput.appendChild(make_paragraph(
+            '<span style="color: red;">ERROR:</span> ' + message));  
+}
+ 
+function client_stop_handler(timestamp, typespec, info) {
+    // tell the server to die
+    o2ws_send_start("/websockhost/stop", 0, "");
+    o2ws_send_finish();
+    display_result("SUCCESS");
+    o2ws_finish();
+}
+
+
+window.addEventListener("load", app_init, false);
+console.log("Finished loading index.htm scripts");
+</script>
+</head>
+
+<body>
+<h1>O2 statusclient Test</h1>
+  <h3 id="wsResult"></h3>
+  <div id="wsStatus"></div>
+  <div id="wsOutput"></div>
+</body>
+</html>

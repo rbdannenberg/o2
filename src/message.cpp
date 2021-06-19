@@ -132,7 +132,7 @@ static const char zeros[4] = {0, 0, 0, 0};
     (data).append(zeros, pad_len); }
 
 
-int o2_send_start()
+O2err o2_send_start()
 {
     o2_ctx->msg_types.clear();
     o2_ctx->msg_data.clear();
@@ -144,7 +144,7 @@ int o2_send_start()
     return O2_SUCCESS;
 }
 
-int o2_add_float(float f)
+O2err o2_add_float(float f)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
@@ -156,7 +156,7 @@ int o2_add_float(float f)
 }
 
 
-int o2_add_int64(int64_t i)
+O2err o2_add_int64(int64_t i)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
@@ -168,7 +168,7 @@ int o2_add_int64(int64_t i)
 }
 
 
-int o2_add_int32_or_char(O2type code, int32_t i)
+O2err o2_add_int32_or_char(O2type code, int32_t i)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
@@ -180,7 +180,7 @@ int o2_add_int32_or_char(O2type code, int32_t i)
 }
 
 
-int o2_add_double_or_time(O2type code, double d)
+O2err o2_add_double_or_time(O2type code, double d)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
@@ -192,7 +192,7 @@ int o2_add_double_or_time(O2type code, double d)
 }
 
 
-int o2_add_only_typecode(O2type code)
+O2err o2_add_only_typecode(O2type code)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
@@ -203,7 +203,7 @@ int o2_add_only_typecode(O2type code)
 }
 
 
-int o2_add_string_or_symbol(O2type code, const char *s)
+O2err o2_add_string_or_symbol(O2type code, const char *s)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
@@ -221,7 +221,7 @@ int o2_add_string_or_symbol(O2type code, const char *s)
 }    
 
 
-int o2_add_blob_data(uint32_t size, void *data)
+O2err o2_add_blob_data(uint32_t size, void *data)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
@@ -234,19 +234,19 @@ int o2_add_blob_data(uint32_t size, void *data)
 }
 
 
-int o2_add_blob(O2blob *b)
+O2err o2_add_blob(O2blob *b)
 {
     return o2_add_blob_data(b->size, b->data);
 }
 
 
-int o2_add_midi(uint32_t m)
+O2err o2_add_midi(uint32_t m)
 {
     return o2_add_int32_or_char(O2_MIDI, (int32_t) m);
 }
 
 
-int o2_add_vector(O2type element_type, int32_t length, void *data)
+O2err o2_add_vector(O2type element_type, int32_t length, void *data)
 {
 #ifndef O2_NO_BUNDLES
     if (is_bundle) return O2_FAIL;
@@ -267,7 +267,7 @@ int o2_add_vector(O2type element_type, int32_t length, void *data)
 
 
 // add a message to a bundle
-int o2_add_message(O2message_ptr msg)
+O2err o2_add_message(O2message_ptr msg)
 {
 #ifndef O2_NO_BUNDLES
     if (is_normal) return O2_FAIL;
@@ -497,12 +497,12 @@ MX_TYPE(rd_int64, int64_t)
 
 // ------- PART 5 : GENERAL MESSAGE FUNCTIONS -------
 
-void o2_message_list_free(O2message_ptr msg)
+void o2_message_list_free(O2message_ptr *msgptr)
 {
-    while (msg) {
-        O2message_ptr next = msg->next;
-        O2_FREE(msg);
-        msg = next;
+    while (*msgptr) {
+        O2message_ptr next = (*msgptr)->next;
+        O2_FREE(*msgptr);
+        *msgptr = next;
     }
 }
 

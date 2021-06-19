@@ -114,7 +114,7 @@ public:
         msg_types.finish();
         msg_data.finish();
     }
-#ifndef O2_DEBUG
+#ifndef O2_NO_DEBUG
     void show_tree() {
         printf("%s -------- PATH TREE --------\n", o2_debug_prefix);
         path_tree.show(2);
@@ -205,15 +205,15 @@ void o2_mem_finish(void); // implemented by o2mem.c, called to free
 #define ROUNDUP_TO_32BIT(i) ((((size_t) i) + 3) & ~3)
 
 
-// o2strcpy is like strlcpy but it does not return length.
-// precisely, o2strcpy() copies up to n characters (including EOS) from
+// o2_strcpy is like strlcpy but it does not return length.
+// precisely, o2_strcpy() copies up to n characters (including EOS) from
 // s to d. String s is truncated to a maximum length of n - 1 and terminated
 // with a zero EOS byte. (Any remainder of d may or may not be filled with
 // zeros, unlike strlcpy, which zero fills.)
 #ifdef __APPLE__
-#define o2strcpy(d, s, n) ((void) strlcpy(d, s, n))
+#define o2_strcpy(d, s, n) ((void) strlcpy(d, s, n))
 #else
-void o2strcpy(char *__restrict dst, const char *__restrict src,
+void o2_strcpy(char *__restrict dst, const char *__restrict src,
               size_t dstsize);
 #endif
 
@@ -237,7 +237,7 @@ extern int o2_gtsched_started;
 
 
 // shared internal functions
-void o2_notify_others(const char *service_name, int added, const char *tappee,
+void o2_notify_others(const char *service_name, bool added, const char *tappee,
                       const char *properties, int send_mode);
 
 

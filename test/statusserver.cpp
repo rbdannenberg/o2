@@ -43,7 +43,7 @@ int main(int argc, const char * argv[])
         pip = argv[2];
         iip = argv[3];
         port = atoi(argv[4]);
-        printf("Using %s:%s:%x as hub.\n", pip, iip, port);
+        printf("Using %s:%s:%04x as hub.\n", pip, iip, port);
     } else if (argc > 5) {
         printf("WARNING: statusserver ignoring extra command line argments\n");
     }
@@ -54,23 +54,24 @@ int main(int argc, const char * argv[])
 
     // we are the master clock
     o2_clock_set(NULL, NULL);
-    
-    if (port > 0)
-        o2_hub(pip, iip, port);
 
+#ifndef O2_NO_HUB
+    if (port > 0)
+        o2_hub(pip, iip, port, port);
+#endif
     const char *my_pip;
     const char *my_iip;
     int tcp_port;
     O2err err = o2_get_addresses(&my_pip, &my_iip, &tcp_port);
     assert(err == O2_SUCCESS);
-    printf("Before stun: address is %s:%s:%x\n", my_pip, my_iip, tcp_port);
+    printf("Before stun: address is %s:%s:%04x\n", my_pip, my_iip, tcp_port);
 
     // wait for client service to be discovered
     while (o2_status("client") < O2_REMOTE_NOTIME) {
         o2_poll();
-        o2_sleep(POLL_PERIOD); // 2ms
+        o2_sleep(POLL_PERIOD);
     }
-    printf("My address is %s:%s:%x\n", my_pip, my_iip, tcp_port);
+    printf("My address is %s:%s:%04x\n", my_pip, my_iip, tcp_port);
     printf("We discovered the client at time %g.\n", o2_time_get());
 
     // wait for client service to be discovered
@@ -100,7 +101,9 @@ int main(int argc, const char * argv[])
         printf("SERVER DONE\n");
     } else {
         printf("FAIL: client service status is %d\n", o2_status("client"));
+#ifndef O2_NO_DEBUG
         o2_ctx->show_tree();
+#endif
     }
     o2_finish();
     o2_sleep(1000); // clean up sockets

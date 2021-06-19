@@ -14,8 +14,6 @@
 #include "string.h"
 #include "assert.h"
 
-#define streql(a, b) (strcmp(a, b) == 0)
-
 int hello_count = 0;
 O2time cs_time = 1000000.0;
 

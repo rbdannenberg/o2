@@ -13,6 +13,20 @@
 #define MSG_NOSIGNAL 0
 #endif
 
+class Pending_msgs_queue {
+    O2message_ptr head;
+    O2message_ptr tail;
+public:
+    Pending_msgs_queue();
+    void enqueue(O2message_ptr msg);
+    O2message_ptr dequeue();
+    bool empty();
+};
+
+extern Pending_msgs_queue o2_pending_local;
+extern Pending_msgs_queue o2_pending_anywhere;
+
+
 void o2_drop_msg_data(const char *warn, o2_msg_data_ptr data);
 
 void o2_prepare_to_deliver(O2message_ptr msg);
@@ -35,6 +49,16 @@ void o2_free_pending_msgs(void);
  *                If the service is unknown, pass NULL.
  */
 void o2_msg_deliver(O2node *service, Services_entry *services);
+
+
+/**
+ * Send a message to any tappers. tap messages will be queued
+ * if another message delivery is in progress.
+ * @param msg the message  to deliver
+ * @param ss is the services entry with the tapper list
+ */
+void o2_send_to_taps(O2message_ptr msg, Services_entry *ss);
+
 
 O2err o2_msg_send_now();
 

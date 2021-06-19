@@ -6,6 +6,17 @@
 #ifndef O2_H
 #define O2_H
 
+#ifdef O2_NO_O2DISCOVERY
+#define O2_NO_HUB 1
+#endif
+#if defined(O2_NO_O2DISCOVERY) && defined(O2_NO_ZEROCONF)
+#error O2_NO_O2DISCOVERY and O2_NO_ZEROCONF are defined, therefore no discovery
+#endif
+#if !defined(O2_NO_O2DISCOVERY) && !defined(O2_NO_ZEROCONF)
+#warning O2DISCOVERY and ZEROCONF are *both* enabled
+#endif
+
+
 #include "o2base.h"
 #include "hostip.h"
 
@@ -172,7 +183,7 @@ the IP address and port number are used to construct a string, e.g.
 
 \subsection Internal Messages
 
-`/_o2/dy "ssii"` *ensemble_name* *internal_ip* *tcp_port* *dy* -
+`/_o2/dy "sssiii"` *ensemble_name* *public_ip* *internal_ip* *tcp_port* *udp_port* *dy* -
 this message is normally sent to the discovery port, but it can also be sent
 as a result of calling #o2_hub and providing an O2 process address.
 Processes must exchange discovery messages to be connected. The *dy* 
@@ -215,14 +226,15 @@ the mean round-trip time, and the minimum round-trip time.
 to request the time as part of the clock synchronization protocol.
 
 `/_o2/si "siss"` *service_name* *status* *process-name* *properties* -
-Whenever an active service status changes, this message is sent to the
-local process. Note that when a local service is created, an 
-*internal* `/sv` message is sent to all other processes, and when that
-process's services table is updated, if the service is or becomes
-active, the change is reported locally to the application by sending
-this `/_o2/si` message. Normally, you should not add handlers or use
-the `_o2` service, but in this case, an application is expected to 
-add a custom handler to receive status updates. 
+Whenever an active service status changes or service properties
+change, this message is sent to the local process. Note that when a
+local service is created, an *internal* `/sv` message is sent to all
+other processes, and when that process's services table is updated, if
+the service is or becomes active, the change is reported locally to
+the application by sending this `/_o2/si` message. Normally, you
+should not add handlers or use the `_o2` service, but in this case, an
+application is expected to add a custom handler to receive status
+updates.
     See #o2_status for a list of status values. O2_UNKNOWN is reported
 when the current provider of a service is removed.  This may be
 followed immediately by another message to `/_o2/si` if another
@@ -273,6 +285,7 @@ separator characters. Attribute names are alphanumeric.
 ///   - o - trace socket creating and closing
 ///   - O - open sound control messages
 ///   - q - show MQTT messages
+///   - w - for tracing websockets activity
 ///   - g - print general status info, not much detail
 ///   - n - all network flags (no malloc or scheduling): rRsS
 ///   - a - all debug flags except m (malloc/free)
@@ -281,9 +294,7 @@ separator characters. Attribute names are alphanumeric.
 ///         called. Internal IP becomes 127.0.0.1, public IP is 
 ///         0.0.0.0 (signifying no Internet connection). Interprocess
 ///         communication on the host is supported.
-#ifndef O2_NO_DEBUG
 void o2_debug_flags(const char *flags);
-#endif
 
 /** @} */
 
@@ -574,7 +585,7 @@ const char *o2_next_o2string(const char *str);
 /** \brief an O2 message container
  *
  * Note: This struct represents an O2 message that is stored on the heap.
- * O2message is an alias for o2n_message. At the o2n (network)
+ * O2message is an alias for O2netmsg. At the o2n (network)
  * abstraction, there is no O2msg_data type.
  *
  * Note that O2messages are on the heap and can be allocated, scheduled,
@@ -730,7 +741,7 @@ extern const char *o2_ensemble_name; // also used to detect initialization
  *
  * @param msg a message to be printed
  */
-void O2message_print(O2message_ptr msg);
+void o2_message_print(O2message_ptr msg);
 
 
 /** \brief print a message from msg_data_ptr to stdout
@@ -872,7 +883,7 @@ int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)),
  */
 O2time o2_set_discovery_period(O2time period);
 
-
+#ifndef O2_NO_HUB
 /**
  * \brief Connect to a hub.
  *
@@ -910,13 +921,15 @@ O2time o2_set_discovery_period(O2time period);
  * 
  * @param public_ip the public IP address of the hub or NULL
  * @param internal_ip the local IP address of the hub
- * @param port the port number of the hub's TCP port
+ * @param tcp_port the port number of the hub's TCP port
+ * @param udp_port the port number of the hub's UDP port
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not,
  *         #O2_NOT_INITIALIZED if O2 is not initialized.
  */
-O2err o2_hub(const char *public_ip, const char *internal_ip, int port);
-
+O2err o2_hub(const char *public_ip, const char *internal_ip,
+             int tcp_port, int udp_port);
+#endif
 
 
 /**
@@ -1056,7 +1069,7 @@ O2err o2_services_list(void);
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-int o2_services_list_free(void);
+O2err o2_services_list_free(void);
 
 
 /**
@@ -1078,9 +1091,12 @@ const char *o2_service_name(int i);
 /**
  * \brief get a type from a saved list of services
  *
- * See #o2_services_list. The return value indicates the type of the service:
- * O2_LOCAL (4) if the service is local, O2_REMOTE (5) if the service
- * is remote, and O2_TAP (8) for each tapper of the service.
+ * See #o2_services_list. The return value indicates the type of the
+ * service: O2_LOCAL (4) if the service is local, O2_REMOTE (5) if the
+ * service is remote, O2_BRIDGE (6) if the service is a bridge to an
+ * o2lite, websocket or shared memory process (or some other bridge
+ * protocol), O2_TO_OSC (7) if the service delegates to an OSC server,
+ * and O2_TAP (8) for each tapper of the service.
  *
  * @param i the index of the service, starting with zero
  *
@@ -1533,10 +1549,11 @@ int o2_run(int rate);
  * network such as Bluetooth. The status at the originator will be
  * simply #O2_REMOTE or #O2_REMOTE_NOTIME.
  *
- * When the status of a service changes, a message is sent with address
- * `!_o2/si`. The type string is "sis" and the parameters are (1) the 
- * service name, (2) the new status, and (3) the @public:internal:port string of
- * the process that offers (or offered) the service.
+ * When the status of a service changes, a message is sent with
+ * address `!_o2/si`. The type string is "sis" and the parameters are
+ * (1) the service name, (2) the new status, and (3) the
+ * @public:internal:port string of the process that offers (or
+ * offered) the service.
  */
 int o2_status(const char *service);
 
@@ -2088,15 +2105,15 @@ O2blob_ptr o2_blob_new(uint32_t size);
  * such as #o2_add_int32 to add parameters. Then call
  * #o2_send_finish to send the message.
  */
-int o2_send_start(void);
+O2err o2_send_start(void);
 
 
 /// \brief add a `float` to the message (see #o2_send_start)
-int o2_add_float(float f);
+O2err o2_add_float(float f);
 
 /// \brief This function suppports #o2_add_symbol and #o2_add_string
 /// Normally, you should not call this directly.
-int o2_add_string_or_symbol(O2type tcode, const char *s);
+O2err o2_add_string_or_symbol(O2type tcode, const char *s);
 
 /// \brief add a symbol to the message (see #o2_send_start)
 #define o2_add_symbol(s) o2_add_string_or_symbol(O2_SYMBOL, s)
@@ -2106,18 +2123,18 @@ int o2_add_string_or_symbol(O2type tcode, const char *s);
 
 /// \brief add an `O2blob` to the message (see #o2_send_start), where
 ///        the blob is given as a pointer to an #O2blob object.
-int o2_add_blob(O2blob_ptr b);
+O2err o2_add_blob(O2blob_ptr b);
 
 /// \brief add an `O2blob` to the message (see #o2_send_start), where
 ///        the blob is specified by a size and a data address.
-int o2_add_blob_data(uint32_t size, void *data);
+O2err o2_add_blob_data(uint32_t size, void *data);
 
 /// \brief add an `int64` to the message (see #o2_send_start)
-int o2_add_int64(int64_t i);
+O2err o2_add_int64(int64_t i);
 
 /// \brief This function supports #o2_add_double and #o2_add_time
 /// Normally, you should not call this directly.
-int o2_add_double_or_time(O2type tchar, double d);
+O2err o2_add_double_or_time(O2type tchar, double d);
 
 /// \brief add a `double` to the message (see #o2_send_start)
 #define o2_add_double(d) o2_add_double_or_time(O2_DOUBLE, d)
@@ -2127,7 +2144,7 @@ int o2_add_double_or_time(O2type tchar, double d);
 
 /// \brief This function supports #o2_add_int32 and #o2_add_char
 /// Normally, you should not call this directly.
-int o2_add_int32_or_char(O2type tcode, int32_t i);
+O2err o2_add_int32_or_char(O2type tcode, int32_t i);
 
 /// \brief add an `int32` to the message (see #o2_send_start)
 #define o2_add_int32(i) o2_add_int32_or_char(O2_INT32, i)
@@ -2136,12 +2153,12 @@ int o2_add_int32_or_char(O2type tcode, int32_t i);
 #define o2_add_char(c) o2_add_int32_or_char(O2_CHAR, c)
 
 /// \brief add a short midi message to the message (see #o2_send_start)
-int o2_add_midi(uint32_t m);
+O2err o2_add_midi(uint32_t m);
 
 /// \brief This function supports #o2_add_true, #o2_add_false, #o2_add_bool,
 /// #o2_add_nil, #o2_add_infinitum, and others.
 /// Normally, you should not call this directly.
-int o2_add_only_typecode(O2type typecode);
+O2err o2_add_only_typecode(O2type typecode);
 
 /// \brief add "true" to the message (see #o2_send_start)
 #define o2_add_true() o2_add_only_typecode(O2_TRUE);
@@ -2177,7 +2194,7 @@ int o2_add_only_typecode(O2type typecode);
  *             in a format determined by element_type. The element
  *             type is restricted to a character in "ifhtdc"
  */
-int o2_add_vector(O2type element_type,
+O2err o2_add_vector(O2type element_type,
                   int length, void *data);
 
 #ifndef O2_NO_BUNDLES
@@ -2196,7 +2213,7 @@ int o2_add_vector(O2type element_type,
  * This function does NOT free msg. Probably you should call 
  * O2_FREE(msg) after calling o2_add_message(msg).
  */
-int o2_add_message(O2message_ptr msg);
+O2err o2_add_message(O2message_ptr msg);
 #endif
 
 /**
@@ -2461,7 +2478,7 @@ extern O2sched_ptr o2_active_sched; // the scheduler that should be used
  * messages scheduled within handlers are appended to a "pending
  * messages" queue and delivered after the handler returns.
  */
-int o2_schedule_msg(O2sched_ptr scheduler, O2message_ptr msg);
+O2err o2_schedule_msg(O2sched_ptr scheduler, O2message_ptr msg);
 
 /** @} */ // end of a basics group
 
@@ -2484,6 +2501,7 @@ O2err o2lite_initialize();
 
 
 /** @} */ // end of a bridgeapi group
+#endif
 
 /**
  * /brief Obtain the message being sent.
@@ -2544,9 +2562,10 @@ O2message_ptr o2_postpone_delivery();
  *
  * @param port_num A port number for the MQTT broker, or 0 for default.
  *
- * @return O2_SUCCESS if successful, O2_NOT_INITIALIZED if O2 is not initialized,
- *         or O2_NO_NETWORK if networking is disabled (see #o2_network_enable) or
- *         no Internet connection was found.
+ * @return O2_SUCCESS if successful, O2_NOT_INITIALIZED if O2 is not
+ *         initialized, or O2_NO_NETWORK if networking is disabled
+ *         (see #o2_network_enable) or no Internet connection was
+ *         found.
  */
  O2err o2_mqtt_enable(const char *broker, int port_num);
 
@@ -2557,9 +2576,52 @@ O2message_ptr o2_postpone_delivery();
 #ifndef O2_NO_SHAREDMEM
 O2err o2_shmem_initialize();
 #endif
+
+
+#ifndef O2_NO_WEBSOCKETS
+#ifdef O2_NO_BRIDGES
+#error WEBSOCKETS feature depends on BRIDGES
+#error You must define O2_NO_WEBSOCKETS or undefine O2_NO_BRIDGES
 #endif
+#endif 
 
+/** \defgroup httpapi HTTP/Websockets API
+ * @{
+ */
 
+#define O2_NO_HOSTNAME "\001"   // a non-text marker string
+
+/**
+ * \brief Enable HTTP and Websocket access to an O2 host
+ *
+ * An simple HTTP server is operated on the given port with support for
+ * web sockets. A name is set up with ZeroConf/Bonjour so that the
+ * server can be accessed with the url `http://<ensname>.local:<port>`,
+ * where `<ensname>` is the O2 ensemble name and `<port>` is the
+ * `port` parameter passed to this function. If other hosts are also
+ * offering an http service, the name may be changed by appending
+ * " (2)" etc. The server may also be reached via the host name which
+ * may already be published by ZeroConf/Bonjour, or by the IP address,
+ * which is necessary for Android devices that do not support .local.
+ * names through mDNS.
+ *
+ * @param port The port number for the web server. If 0, then 8080 is
+ *        used.
+ *
+ * @param root The path to the files to be served. E.g. if the file
+ *        `mypage.htm` is in `path`, then the page will be served by
+ *        a URL like `http://o2.local:8080/mypage.htm`. `path` can
+ *        be a full path or relative path. If relative, it is relative
+ *        to the current working directory of the current process.
+ *
+ * @return O2_SUCCESS if successful, O2_NOT_INITIALIZED if O2 is not
+ *         initialized, or O2_NO_NETWORK if networking is disabled
+ *         (see #o2_network_enable) or no Internet connection was
+ *         found.
+ */
+O2err http_initialize(int port, const char *root);
+
+/** @} */ // end of a httpapi group
 
 #ifdef __cplusplus
 }

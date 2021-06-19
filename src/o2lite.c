@@ -7,6 +7,24 @@
 //
 // For ESP32, this must be named as a .cpp file because of the includes.
 //
+// Note that o2lite clients do not have a full directory of services and
+// their status. To retrieve a service status, send the service name to
+// "/_o2/o2lite/st" (typespec "s"). Create a local handler for "/_o2/st"
+// with typespec "si". The parameters will be the service name and status
+// using values as specified in o2.h (see o2_status()).
+//
+// Similarly, there is no o2_services_list() for o2lite. Instead, send a
+// message to "/_o2/o2lite/ls" (typespec ""). A message will be sent for
+// each service to this o2lite client's "/_o2/ls" with typespec "siss"
+// with parameters:
+// - service name
+// - service type (see o2.h o2_service_type())
+// - process name (see o2.h o2_service_process())
+// - properties or tapper (see o2.h o2_service_tapper() and 
+//      o2_service_properties())
+// After all service information has been sent, an end-of-services message
+// is sent with service name "", type 0, process name "", properties "".
+
 // Roger B. Dannenberg
 // Jul-Aug 2020
 
@@ -19,6 +37,27 @@
 // default. If you compile hostip.c independently, it will expect to 
 // link with o2_dbg_malloc.
 #include "hostip.c"
+
+#ifndef O2_NO_ZEROCONF
+
+#include <dns_sd.h>
+
+#define BROWSE_TIMEOUT 20  // restart ServiceBrowse if no activity
+
+#ifndef O2_NO_O2DISCOVERY
+// O2 ensembles should adopt one of two discovery methods. If ZeroConf
+// works out, the built-in O2 discovery mechanism will be removed entirely.
+// Whatever method is used by O2, this O2lite library must do the same.
+#error O2lite supporte either ZeroConf or built-in discovery, but not both.
+#error One of O2_NO_ZEROCONF or O2_NO_O2DISCOVERY must be defined
+#endif
+
+#ifndef O2L_NO_BROADCAST
+// if O2_NO_O2DISCOVERY, then we should disable sending O2 discovery messages
+#define O2L_NO_BROADCAST
+#endif
+
+#endif
 
 // you can enable/disable O2LDB printing using -DO2LDEBUG=1 or =0 
 #if (!defined(O2LDEBUG))
@@ -35,7 +74,6 @@
 #define PTR(addr) ((char *) (addr))
 // get address of first 32-bit word boundary at or above ptr:
 #define ROUNDUP(ptr) ((char *)((((size_t) ptr) + 3) & ~3))
-#define streql(a, b) (strcmp(a, b) == 0)
 
 void o2l_dispatch(o2l_msg_ptr msg);
 static void find_my_ip_address();
@@ -177,10 +215,10 @@ int out_msg_cnt;              // how many bytes written to outbuf
 //   dot must be a string of length 16 or more
 void o2l_hex_to_dot(const char *hex, char *dot)
 {
-    int i1 = hex_to_byte(hex);
-    int i2 = hex_to_byte(hex + 2);
-    int i3 = hex_to_byte(hex + 4);
-    int i4 = hex_to_byte(hex + 6);
+    int i1 = o2_hex_to_byte(hex);
+    int i2 = o2_hex_to_byte(hex + 2);
+    int i3 = o2_hex_to_byte(hex + 4);
+    int i4 = o2_hex_to_byte(hex + 6);
     snprintf(dot, 16, "%d.%d.%d.%d", i1, i2, i3, i4);
 }
 
@@ -319,7 +357,6 @@ void o2l_send_start(const char *address, o2l_time time,
 int udp_recv_port = 0;
 SOCKET udp_recv_sock = INVALID_SOCKET;
 
-int udp_send_port = 0;
 struct sockaddr_in udp_server_sa;
 SOCKET udp_send_sock = INVALID_SOCKET;
 
@@ -329,14 +366,26 @@ SOCKET tcp_sock = INVALID_SOCKET;
 
 static struct sockaddr_in server_addr;
 
-char o2l_remote_ip_port[16];
 int o2l_bridge_id = -1; // unique id for this process's connection to O2
+
+#if O2LDEBUG
+char o2l_remote_ip_port[16];
+#endif
+
+#ifndef O2_NO_O2DISCOVERY
 
 unsigned short o2_port_map[PORT_MAX] = {
                                 64541, 60238, 57143, 55764, 56975, 62711,
                                 57571, 53472, 51779, 63714, 53304, 61696,
                                 50665, 49404, 64828, 54859 };
-
+#else // assume ZeroConf
+DNSServiceRef browse_ref = NULL;
+SOCKET browse_sock = INVALID_SOCKET;
+DNSServiceRef resolve_ref = NULL;
+SOCKET resolve_sock = INVALID_SOCKET;
+o2l_time resolve_timeout = 0;
+o2l_time browse_timeout = BROWSE_TIMEOUT;
+#endif
 
 static int bind_recv_socket(SOCKET sock, int *port)
 {
@@ -355,8 +404,16 @@ static int bind_recv_socket(SOCKET sock, int *port)
              sizeof server_addr)) {
         return O2L_FAIL;
     }
+    if (*port == 0) { // find the port that was (possibly) allocated
+        socklen_t addr_len = sizeof server_addr;
+        if (getsockname(sock, (struct sockaddr *) &server_addr,
+                        &addr_len)) {
+            perror("getsockname call to get port number");
+            return O2L_FAIL;
+        }
+        *port = o2lswap16(server_addr.sin_port);  // set actual port used
+    }
     O2LDB printf("o2lite: bind port %d as UDP server port\n", *port);
-
     return O2L_SUCCESS;
 }
 
@@ -370,7 +427,7 @@ int o2l_network_initialize()
 #define inet_pton InetPton
 #endif // WIN32
 
-#ifndef O2L_NO_DISCOVERY
+#ifndef O2L_NO_BROADCAST
     // Initialize addr for broadcasting
     broadcast_to_addr.sin_family = AF_INET;
     inet_pton(AF_INET, "255.255.255.255",
@@ -401,12 +458,19 @@ int o2l_network_initialize()
         printf("udp socket creation error");
         return O2L_FAIL;
     }
+#ifndef O2_NO_O2DISCOVERY
     for (int i = 0; i < PORT_MAX; i++) {
         udp_recv_port = o2_port_map[i];
         if (bind_recv_socket(udp_recv_sock, &udp_recv_port) == 0) {
             goto done;
         }
     }
+#else
+    udp_recv_port = 0;
+    if (bind_recv_socket(udp_recv_sock, &udp_recv_port) == 0) {
+        goto done;
+    }
+#endif
     O2LDB printf("o2lite: could not allocate a udp recv port\n");
     return O2L_FAIL;
   done:
@@ -485,6 +549,7 @@ void o2l_send_services()
 void network_connect(const char *ip, int port)
 {
     address_init(&tcp_server_sa, ip, port, true); // sets tcp_server_sa
+    O2LDB printf("connecting to %s port %d\n", ip, port);
     tcp_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (connect(tcp_sock, (struct sockaddr *) &tcp_server_sa,
                 sizeof tcp_server_sa) == -1) {
@@ -495,7 +560,7 @@ void network_connect(const char *ip, int port)
     int set = 1;
     setsockopt(tcp_sock, SOL_SOCKET, SO_NOSIGPIPE, (void *) &set, sizeof set);
 #endif
-    snprintf(o2l_remote_ip_port, 16, "%s:%x", ip, port);
+    O2LDB snprintf(o2l_remote_ip_port, 16, "%s:%04x", ip, port);
     O2LDB printf("o2lite: connected to O2 %s\n", o2l_remote_ip_port);
     // send back !_o2/o2lite/con ipaddress updport
     o2l_send_start("!_o2/o2lite/con", 0, "si", true);
@@ -504,6 +569,7 @@ void network_connect(const char *ip, int port)
     o2l_add_string(o2n_internal_ip);
     o2l_add_int(udp_recv_port);
     o2l_send();
+    return;
 }
 
 
@@ -600,28 +666,43 @@ int read_from_udp()
 
 
 static fd_set read_set;
-struct timeval no_timeout;
+static int nfds;
+struct timeval no_timeout = {0, 0};
+
+static void add_socket(SOCKET s)
+{
+    if (s != INVALID_SOCKET) {
+        FD_SET(s, &read_set);
+        // Windows socket is not an int, but Windows does not care about
+        // the value of nfds, so it's OK even if this cast loses data
+        if (s >= nfds) nfds = (int) (s + 1);
+    }
+}
+
+#ifndef O2_NO_ZEROCONF
+static void zc_handle_event(SOCKET *sock, DNSServiceRef *sd_ref,
+                            const char *msg)
+{
+    DNSServiceErrorType err = DNSServiceProcessResult(*sd_ref);
+    if (err) {
+        printf("Error %d from DNSServiceProcessResult for %s\n", err, msg);
+        DNSServiceRefDeallocate(*sd_ref);
+        *sd_ref = NULL;
+        *sock = INVALID_SOCKET;
+    }
+}
+#endif
 
 void network_poll()
 {
-    int nfds = 0;
+    nfds = 0;
     FD_ZERO(&read_set);
-    if (udp_recv_sock != INVALID_SOCKET) {
-        FD_SET(udp_recv_sock, &read_set);
-        // Windows socket is not an int, but Windows does not care about
-        // the value of nfds, so it's OK even if this cast loses data
-        nfds = (int) (udp_recv_sock + 1);
-    }
-    if (tcp_sock != INVALID_SOCKET) {
-        FD_SET(tcp_sock, &read_set);
-        if (tcp_sock >= nfds) {
-            // tcp_sock is not an int on Windows, but Windows does not
-            // care what this value is, so OK even if we lose data here
-            nfds = (int) (tcp_sock + 1);
-        }
-    }
-    no_timeout.tv_sec = 0;
-    no_timeout.tv_usec = 0;
+    add_socket(udp_recv_sock);
+    add_socket(tcp_sock);
+#ifndef O2_NO_ZEROCONF
+    add_socket(browse_sock);
+    add_socket(resolve_sock);
+#endif
     int total;
     if ((total = select(nfds, &read_set, NULL, NULL,
                         &no_timeout)) == SOCKET_ERROR) {
@@ -640,6 +721,18 @@ void network_poll()
         // O2LDB printf("o2lite: network_poll got UDP msg\n");
         read_from_udp();
     }
+#ifndef O2_NO_ZEROCONF
+    if (browse_sock != INVALID_SOCKET) {
+        if (FD_ISSET(browse_sock, &read_set)) {
+            zc_handle_event(&browse_sock, &browse_ref, "ServiceBrowse");
+        }
+    }
+    if (resolve_sock != INVALID_SOCKET) {
+        if (FD_ISSET(resolve_sock, &read_set)) {
+            zc_handle_event(&resolve_sock, &resolve_ref, "ServiceResolve");
+        }
+    }
+#endif
 }
 
 
@@ -916,9 +1009,7 @@ o2l_time o2l_local_time()
 #endif
 }
 
-
-#ifndef O2L_NO_DISCOVERY
-
+#ifndef O2L_NO_BROADCAST
 /******* DISCOVERY *********/
 
 #define O2_DY_INFO 50
@@ -942,11 +1033,13 @@ int o2l_broadcast(int port)
     return O2L_SUCCESS;
 }
 
+
 static void make_dy()
 {
-    o2l_send_start("!_o2/o2lite/dy", 0, "ssi", false);
+    o2l_send_start("!_o2/o2lite/dy", 0, "ssiii", false);
     o2l_add_string(o2l_ensemble);
     o2l_add_string(o2n_internal_ip);
+    o2l_add_int(tcp_port);
     o2l_add_int(udp_recv_port);
     o2l_add_int(O2_DY_INFO);
 }
@@ -970,9 +1063,7 @@ static void discovery_send()
         disc_period = 4.0;
     }
 }
-
 #endif
-
 
 static void find_my_ip_address()
 {
@@ -987,6 +1078,7 @@ static void find_my_ip_address()
 }
 
 
+#ifndef O2_NO_O2DISCOVERY
 // handler for "!_o2/dy" messages from O2 hosts
 //
 static void o2l_dy_handler(o2l_msg_ptr msg, const char *types,
@@ -998,16 +1090,17 @@ static void o2l_dy_handler(o2l_msg_ptr msg, const char *types,
     const char *ens = o2l_get_string();
     o2l_get_string();  // assume host is local; ignore public
     const char *iip = o2l_get_string();  // here is the internal (local) IP
-    int port = o2l_get_int32();
+    int tcp_port = o2l_get_int32();
+    int udp_port = o2l_get_int32();
     if (parse_error || !streql(ens, o2l_ensemble)) {
         return; // error parsing message
     }
     char iip_dot[16];
     o2l_hex_to_dot(iip, iip_dot);
-    address_init(&udp_server_sa, iip_dot, port, false);
-    network_connect(iip_dot, port);
+    address_init(&udp_server_sa, iip_dot, udp_port, false);
+    network_connect(iip_dot, tcp_port);
 }
-
+#endif
 
 // Handler for !_o2/id message
 static void o2l_id_handler(o2l_msg_ptr msg, const char *types,
@@ -1025,14 +1118,181 @@ static void o2l_id_handler(o2l_msg_ptr msg, const char *types,
 #endif
 }
 
+#ifndef O2_NO_ZEROCONF
+// check for len-char hex string
+static bool check_hex(const char *addr, int len)
+{
+    for (int i = 0; i < len; i++) {
+        char c = addr[i];
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+typedef struct pending_service_struct {
+    char *name;
+    struct pending_service_struct *next;
+} pending_service_type;
+
+pending_service_type *pending_services = NULL;
+pending_service_type *active_service = NULL;
+#define LIST_PUSH(list, node) (node)->next = (list); (list) = (node);
+#define LIST_POP(list, node) (node) = (list); (list) = (list)->next;
+
+static bool is_valid_proc_name(char *name, int port,
+                               char *internal_ip, int *udp_port)
+{
+    if (!name) return false;
+    if (strlen(name) != 28) return false;
+    if (name[0] != '@') return false;
+    // must have 8 lower case hex chars starting at name[1] followed by ':'
+    if (!check_hex(name + 1, 8)) return false;
+    if (name[9] != ':') return false;
+    if (!check_hex(name + 10, 8)) return false;
+    if (name[18] != ':') return false;
+    // internal IP is copied to internal_ip
+    memcpy(internal_ip, name + 10, 8);
+    internal_ip[8] = 0;
+   // must have 4-digit hex tcp port number matching port
+    if (!check_hex(name + 19, 4)) return false;
+     int top = o2_hex_to_byte(name + 19);
+    int bot = o2_hex_to_byte(name + 21);
+    int tcp_port = (top << 8) + bot;
+    if (tcp_port != port) return false;  // name must be consistent
+    if (name[23] != ':') return false;
+    // must find 4-digit hex udp port number
+    if (!check_hex(name + 24, 4)) return false;
+    top = o2_hex_to_byte(name + 24);
+    bot = o2_hex_to_byte(name + 26);
+    *udp_port = (top << 8) + bot;
+    // pad O2 name with zeros to a word boundary (only one zero needed)
+    name[23] = 0;
+    return true;
+}
+
+
+static void stop_resolving()
+{
+    // clean up previous resolve attempt:
+    if (resolve_ref) {
+        DNSServiceRefDeallocate(resolve_ref);
+        resolve_sock = INVALID_SOCKET;
+        resolve_ref = NULL;
+    }
+    if (active_service) {
+        O2_FREE(active_service->name);
+        O2_FREE(active_service);
+    }
+}
+
+
+static void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
+                         uint32_t interface_index, DNSServiceErrorType err,
+                         const char *fullname, const char *hosttarget,
+                         uint16_t port, uint16_t txt_len,
+                         const unsigned char *txt_record, void *context)
+{
+    int udp_send_port;
+    port = ntohs(port);
+    uint8_t proc_name_len;
+    const char *proc_name = (const char *) TXTRecordGetValuePtr(txt_len,
+                                    txt_record, "name", &proc_name_len);
+    if (proc_name_len == 28) {  // names are fixed length -- reject if invalid
+        char name[32];
+        memcpy(name, proc_name, 28);
+        name[28] = 0;
+
+        char internal_ip[O2N_IP_LEN];
+        if (is_valid_proc_name(name, port, internal_ip, &udp_send_port)) {
+            char iip_dot[16];
+            o2l_hex_to_dot(internal_ip, iip_dot);
+            address_init(&udp_server_sa, iip_dot, udp_send_port, false);
+            network_connect(iip_dot, port);
+            if (tcp_sock) {  // we are connected; stop browsing ZeroConf
+                if (browse_ref) {
+                    DNSServiceRefDeallocate(browse_ref);
+                }
+                browse_ref = NULL;
+                browse_sock = INVALID_SOCKET;
+                while (pending_services) {
+                    LIST_POP(pending_services, active_service);
+                    stop_resolving();  // existing code to free active_service
+                }
+            }
+        }
+    }
+    stop_resolving();
+    resolve_timeout = o2l_local_now;  // so start_resolving() will be called
+}
+
+
+static void start_resolving()
+{
+    DNSServiceErrorType err;
+    stop_resolving();
+    LIST_POP(pending_services, active_service);
+    
+    err = DNSServiceResolve(&resolve_ref, 0, kDNSServiceInterfaceIndexAny,
+                       active_service->name, "_o2proc._tcp.", "local",
+                       zc_resolve_callback, (void *) active_service->name);
+    browse_timeout = o2l_local_now + BROWSE_TIMEOUT;
+    if (err) {
+        fprintf(stderr, "DNSServiceResolve returned %d\n", err);
+        DNSServiceRefDeallocate(resolve_ref);
+        resolve_ref = NULL;
+    } else {
+        resolve_sock = DNSServiceRefSockFD(resolve_ref);
+        resolve_timeout = o2l_local_now + 1; //  try for 1s
+    }
+}
+
+static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
+                uint32_t interfaceIndex, DNSServiceErrorType err,
+                const char *name, const char *regtype,
+                const char *domain, void *context)
+{
+    // match if ensemble name is a prefix of name, e.g. "ensname (2)"
+    if ((flags & kDNSServiceFlagsAdd) &&
+        (strncmp(o2l_ensemble, name, strlen(o2l_ensemble)) == 0)) {
+        pending_service_type *ps = O2_MALLOCT(pending_service_type);
+        ps->name = O2_MALLOCNT(strlen(name) + 1, char);
+        strcpy(ps->name, name);
+        LIST_PUSH(pending_services, ps);
+    }
+}
+#endif
+
 
 static void o2l_discovery_initialize(const char *ensemble)
 {
-    time_for_discovery_send = o2l_local_time();
     o2l_ensemble = ensemble;
-    o2l_method_new("!_o2/dy", "sssii", true, &o2l_dy_handler, NULL);
+#ifndef O2_NO_O2DISCOVERY
+    time_for_discovery_send = o2l_local_time();
+    o2l_method_new("!_o2/dy", "sssiii", true, &o2l_dy_handler, NULL);
+#else
+    // set up ZeroConf discovery -- our goal is to find any O2 host
+    // in the ensemble, so service type is "_o2proc._tcp". Then, we
+    // have to resolve a service to get the proc name, IP, and ports.
+    // We'll start DNSServiceBrowse and make a list of incoming services.
+    // We'll start DNSServiceResolve one service at a time until we find
+    // a host. Allow 1s for each service to return a resolution. Host
+    // connection will just time out on its own. Unlike the more elaborate
+    // scheme in the O2 implementation, if a service times out, we just
+    // go on to the next one without any retries later.
+    DNSServiceErrorType err = DNSServiceBrowse(&browse_ref, 0,
+                 kDNSServiceInterfaceIndexAny,
+                 "_o2proc._tcp.", NULL, zc_browse_callback, NULL);
+    if (err) {
+        fprintf(stderr, "DNSServiceBrowse returned %d\n", err);
+        DNSServiceRefDeallocate(browse_ref);
+        browse_ref = NULL;
+    } else {
+        browse_sock = DNSServiceRefSockFD(browse_ref);
+    }
+#endif
 }
-
 
 void o2l_poll()
 {
@@ -1045,11 +1305,35 @@ void o2l_poll()
     }
 #endif
 
-#ifndef O2L_NO_DISCOVERY
+#ifndef O2L_NO_BROADCAST
     // send discovery if not connected to O2
     if (tcp_sock == INVALID_SOCKET && 
         time_for_discovery_send < o2l_local_now) {
         discovery_send();
+    }
+#endif
+
+#ifndef O2_NO_ZEROCONF
+    // start resolving if timeout
+    if (tcp_sock == INVALID_SOCKET) {
+        if (pending_services && o2l_local_now > resolve_timeout) {
+            start_resolving();
+        // in principle, if we just leave the browser open, we'll see
+        // anything new that appears. But we have nothing else to do.
+        // And a full restart seems more robust when all else fails.
+        // So if there's nothing to resolve, and no activity for 20s,
+        // restart the ServiceBrowse operation.
+        } else if (!pending_services && o2l_local_now > browse_timeout) {
+            O2LDB printf("No activity, restarting ServiceBrowse\n");
+            stop_resolving();
+            if (browse_ref) {
+                DNSServiceRefDeallocate(browse_ref);
+                browse_ref = NULL;
+                browse_sock = INVALID_SOCKET;
+            }
+            browse_timeout = o2l_local_now + BROWSE_TIMEOUT;  // try every 20s
+            o2l_discovery_initialize(o2l_ensemble);
+        }
     }
 #endif
 

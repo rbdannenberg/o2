@@ -14,27 +14,25 @@
 //
 //  This process also taps /publish0 with /subscribe0 and sets up a handler.
 //
-//  To run, up to 1000 messages are sent from tapsub.c to /publish services in
-//  round-robin order (mod n_addr). all services check for expected messages.
+//  To run MAX_MSG_COUNT messages are sent from tapsub.c to /publish
+//  services in round-robin order (mod n_addr). all services check for
+//  expected messages. A final message with -1 is sent.
 //
-//  After 500 messages, both publisher and subscriber make a services list
-//  and check all the entries.
+//  After -1 is received, both publisher and subscriber remove all their
+//  taps and run for 1 second to let the taps clear.
 //
-//  After 600 messages, all taps are removed. Since tap propagation is
-//  potentially asynchronous, keep processing messages if any.
+//  Then, both publisher and subscriber make a services list and check
+//  all the entries.
 //
-//  After 1 second, both publisher and subscriber make a services list
-//  and check all the entries.
-//
-//  Shut down cleanly.
+//  Wait 1 more second so the other side can finish; then shut down
+//  cleanly.
 
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-
-#define streql(a, b) (strcmp(a, b) == 0)
+#include "debug.h"
 
 // To put some weight on fast address lookup, we create n_addrs
 // different addresses to use.
@@ -42,12 +40,12 @@
 char **client_addresses;
 int n_addrs = 3;
 
-#define MAX_MSG_COUNT 1000
+#define MAX_MSG_COUNT 200
 
 int msg_count = 0;
 bool running = true;
 
-void search_for_non_tapper(const char *service, bool must_exist)
+void search_for_non_tapper(const char *service, bool expected)
 {
     bool found_it = false;
     int i = 0;
@@ -57,15 +55,22 @@ void search_for_non_tapper(const char *service, bool must_exist)
         // tap on the service.
         const char *name = o2_service_name(i);
         if (!name) {
-            if (must_exist != found_it) {
+            if (expected != found_it) {
                 printf("search_for_non_tapper %s must_exist %s\n",
-                       service, must_exist ? "true" : "false");
-                assert(false);
+                       service, expected ? "true" : "false");
+                o2_print_path_tree();
             }
+            assert(expected == found_it);
             return;
         }
         if (streql(name, service)) { // must not show as a tap
-            assert(o2_service_type(i) != O2_TAP);
+            int st = o2_service_type(i);
+            if (st == O2_TAP) {
+                printf("Unexpected that %s has a TAP (%s)\n", service,
+                           o2_service_tapper(i));
+                o2_print_path_tree();
+            }
+            assert(st != O2_TAP);
             assert(!o2_service_tapper(i));
             found_it = true;
         }
@@ -76,11 +81,13 @@ void search_for_non_tapper(const char *service, bool must_exist)
 
 void run_for_awhile(double dur)
 {
+    printf("rfa start %g\n", o2_time_get());
     double now = o2_time_get();
     while (o2_time_get() < now + dur) {
         o2_poll();
         o2_sleep(2);
     }
+    printf("rfa stop %g\n", o2_time_get());
 }
 
 
@@ -96,7 +103,7 @@ void server_test(o2_msg_data_ptr msg, const char *types,
         printf("server message %d is %d\n", msg_count, argv[0]->i32);
     }
 
-    if (argv[0]->i32 >= 500) {
+    if (argv[0]->i32 == -1) {
         printf("server_test got %s i=%d\n", msg->address, argv[0]->i);
         running = false;
     } else {
@@ -128,7 +135,8 @@ int main(int argc, const char *argv[])
 {
     printf("Usage: tappub [debugflags] [n_addrs]\n"
            "    see o2.h for flags, use a for all, - for none\n"
-           "    n_addrs is number of addresses to use, default 3\n");
+           "    n_addrs is number of addresses to use, default %d\n",
+           n_addrs);
     if (argc >= 2) {
         if (argv[1][0] != '-') {
             o2_debug_flags(argv[1]);
@@ -154,28 +162,21 @@ int main(int argc, const char *argv[])
         o2_method_new(path, "i", &server_test, NULL, false, true);
     }
 
-    assert(o2_tap("publish0", "copy0", TAP_RELIABLE) == O2_SUCCESS);
-    assert(o2_service_new("copy0") == O2_SUCCESS);
-    assert(o2_method_new("/copy0/i", "i", &copy_i,
+    assert(o2_tap("publish0", "subscribe0", TAP_RELIABLE) == O2_SUCCESS);
+    assert(o2_service_new("subscribe0") == O2_SUCCESS);
+    assert(o2_method_new("/subscribe0/i", "i", &copy_i,
                          NULL, false, true) == O2_SUCCESS);
     
     // we are the master clock
     o2_clock_set(NULL, NULL);
     
-    // wait for client service to be discovered.
-    while (o2_status("subscribe0") < O2_REMOTE) {
-        o2_poll();
-        o2_sleep(2); // 2ms
-    }
-    
-    printf("We discovered the client at time %g.\n", o2_time_get());
-    
     while (running) {
         o2_poll();
         o2_sleep(2); // 2ms
     }
+    printf("Finished %d messages at %g\n", msg_count, o2_time_get());
     // remove our tap
-    assert(o2_untap("publish0", "copy0") == O2_SUCCESS);
+    assert(o2_untap("publish0", "subscribe0") == O2_SUCCESS);
 
     run_for_awhile(1); // allow time for taps to disappear
 
@@ -190,12 +191,15 @@ int main(int argc, const char *argv[])
         search_for_non_tapper(tapper, true);
         search_for_non_tapper(tappee, true); // might as well check
     }
-    search_for_non_tapper("copy0", true);
+    search_for_non_tapper("subscribe0", true);
 
-    // With modulo arithmetick so copy_i only gets 1/n_addrs messages, let's
-    // just check that it got most of the messages and not test for an exact count.
-    assert(copy_count >= 500 / n_addrs - 1);
-    assert(msg_count >= 500 - 1);
+    // copy_count incremented every n_addrs messages starting with the
+    // first. Note there are actually MAX_MSG_COUNT+1 messages sent,
+    // so the expression for total expected is tricky.
+    assert(copy_count / n_addrs == (MAX_MSG_COUNT / n_addrs + 1));
+    assert(msg_count == MAX_MSG_COUNT + 1);
+
+    run_for_awhile(1); // allow time for tapsub to check things
 
     o2_finish();
     printf("SERVER DONE\n");

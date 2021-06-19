@@ -69,9 +69,9 @@ void o2_msg_data_print_2(o2_msg_data_ptr msg);
 #endif
 
 /* allocate message structure with at least size bytes in the data portion */
-#define o2_message_new(size) ((O2message_ptr) o2n_message_new(size))
+#define o2_message_new(size) ((O2message_ptr) O2netmsg_new(size))
 
-void o2_message_list_free(O2message_ptr msg);
+void o2_message_list_free(O2message_ptr *msg);
 
 /**
  * Convert endianness of a message

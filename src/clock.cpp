@@ -56,7 +56,9 @@ static long start_time;
 #endif
 
 static void announce_synchronized(void);
+#ifndef O2_NO_OSC
 static void compute_osc_time_offset(O2time now);
+#endif
 
 // call this with the local and reference time when clock sync is obtained
 //
@@ -286,14 +288,18 @@ void o2_clock_status_change(Proxy_info *proxy)
                     o2_send_cmd("!_o2/si", 0.0, "siss", services->key, O2_LOCAL,
                             "_o2", spp->properties ? spp->properties + 1 : "");
                 }
-            } else if (status == O2_REMOTE && spp->service == proxy) {
+            } else if ((status == O2_REMOTE || status == O2_BRIDGE) &&
+                       spp->service == proxy) {
                 O2_DBk(printf("%s o2_clock_status_change sends /si \"%s\" "
                         "%s(%d) proxy \"%s\" properties \"%s\"\n",
                         o2_debug_prefix, services->key,
                         o2_status_to_string(status), status, proxy->key,
                         spp->properties ? spp->properties + 1 : ""));
+                // if proxy->key is null, assume this is a bridge and send
+                // service process name "_o2":
                 o2_send_cmd("!_o2/si", 0.0, "siss", services->key, status,
-                        proxy->key, spp->properties ? spp->properties + 1 : "");
+                        proxy->key ? proxy->key : "_o2",
+                        spp->properties ? spp->properties + 1 : "");
             }
         }
     }
@@ -317,9 +323,11 @@ void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
             Fds_info *info = TO_PROC_INFO(entry)->fds_info;
             if (info->net_tag != NET_TCP_CLIENT &&
                 info->net_tag != NET_TCP_CONNECTION) {
-                printf("ERROR: unexpected net_tag %x (%s) on entry %p in "
+#ifndef O2_NO_DEBUG
+                printf("ERROR: unexpected net_tag %04x (%s) on entry %p in "
                        "o2_clocksynced handler\n", info->net_tag,
                        o2_tag_to_string(info->net_tag), info);
+#endif
                 return;
             }
             entry->tag |= O2TAG_SYNCED;
@@ -491,6 +499,11 @@ void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
             // run every 0.1 second until at least CLOCK_SYNC_HISTORY_LEN
             // pings have been sent to get a fast start, then ping every
             // 0.5s until 5s, then every 10s.
+            // 
+            // This could be a problem if the round trip is >0.1s because
+            // the first 5 pings will be time out and be ignored. But
+            // that only wastes 0.5s, and after that, 0.5s separation should
+            // be enough to ping anywhere.
             O2time t1 = CLOCK_SYNC_HISTORY_LEN * 0.1 - 0.01;
             if (clock_sync_send_time - start_sync_time > t1) when += 0.4;
             if (clock_sync_send_time - start_sync_time > 5.0) when += 9.5;
@@ -566,7 +579,7 @@ void o2_clock_finish()
 #endif
 	clock_initialized = false;
     if (clock_sync_reply_to) {
-        O2_FREE(clock_sync_reply_to);
+        O2_FREE((char *) clock_sync_reply_to);
         clock_sync_reply_to = NULL;
     }
 }    

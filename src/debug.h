@@ -4,7 +4,7 @@
  * April 2020
  */
 
-// O2message_print() is included in debug versions automatically.
+// o2_message_print() is included in debug versions automatically.
 // It is also included if O2_MSGPRINT is defined.
 
 #ifndef O2_NO_DEBUG
@@ -14,14 +14,16 @@
 #endif
 
 #ifdef O2_NO_DEBUG
-#define o2_debug_flags(x)
+#define O2_DB(flags, x)
 #define O2_DBc(x)
 #define O2_DBr(x)
 #define O2_DBs(x)
+#define O2_DBsS(x)
 #define O2_DBR(x)
 #define O2_DBS(x)
 #define O2_DBk(x)
 #define O2_DBd(x)
+#define O2_DBdo(x)
 #define O2_DBh(x)
 #define O2_DBt(x)
 #define O2_DBT(x)
@@ -30,7 +32,9 @@
 #define O2_DBn(x)
 #define O2_DBo(x)
 #define O2_DBO(x)
+#define O2_DBoO(x)
 #define O2_DBq(x)
+#define O2_DBw(x)
 #define O2_DBG(x)
 // special multiple category tests:
 #define O2_DBoO(x)
@@ -41,6 +45,7 @@ extern int o2_debug;
 extern const char *o2_debug_prefix;
 void o2_dbg_msg(const char *src, O2message_ptr msg, o2_msg_data_ptr data,
                 const char *extra_label, const char *extra_data);
+void o2_print_path_tree();
 
 // Note: The ordering of these flags is coordinated with debug_chars, 
 // defined in debug.c. See o2_debug_flags() implementation there too.
@@ -60,11 +65,13 @@ void o2_dbg_msg(const char *src, O2message_ptr msg, o2_msg_data_ptr data,
 #define O2_DBo_FLAG 0x1000
 #define O2_DBO_FLAG 0x2000
 #define O2_DBq_FLAG 0x4000
-#define O2_DBg_FLAG 0x8000
+#define O2_DBw_FLAG 0x8000
+#define O2_DBg_FLAG 0x10000
+#define O2_DBG_FLAGS 0x1FFFF
 // All flags but malloc, schedulers, o2_msg_deliver, enabled by "A"
-#define O2_DBA_FLAGS (0x7FFF-O2_DBm_FLAG-O2_DBl_FLAG-O2_DBt_FLAG-O2_DBT_FLAG)
+#define O2_DBA_FLAGS (O2_DBG_FLAGS-O2_DBm_FLAG-O2_DBl_FLAG-O2_DBt_FLAG-O2_DBT_FLAG)
 // All flags but DBm (malloc/free) and DBl (o2_msg_deliver) enabled by "a"
-#define O2_DBa_FLAGS (0x7FFF-O2_DBm_FLAG-O2_DBl_FLAG)
+#define O2_DBa_FLAGS (O2_DBG_FLAGS-O2_DBm_FLAG-O2_DBl_FLAG)
 
 // macro to surround debug print statements:
 #define O2_DB(flags, x) if (o2_debug & (flags)) { x; }
@@ -86,11 +93,11 @@ void o2_dbg_msg(const char *src, O2message_ptr msg, o2_msg_data_ptr data,
 #define O2_DBo(x) O2_DB(O2_DBo_FLAG, x)
 #define O2_DBO(x) O2_DB(O2_DBO_FLAG, x)
 #define O2_DBq(x) O2_DB(O2_DBq_FLAG, x)
+#define O2_DBw(x) O2_DB(O2_DBw_FLAG, x)
 
 // O2_DBg is specifically NOT defined. Instead, 'g' is assumed
 // if ANY debugging is enabled (including O2_DBg_FLAG).
 // Instead of O2_DBg, use O2_DBG which prints if any flag is set.
-#define O2_DBG_FLAGS (O2_DBa_FLAGS | O2_DBm_FLAG | O2_DBl_FLAG)
 #define O2_DBG(x) O2_DB(O2_DBG_FLAGS, x)
 // special multiple category tests:
 #define O2_DBoO(x) O2_DB(O2_DBo_FLAG | O2_DBO_FLAG, x)

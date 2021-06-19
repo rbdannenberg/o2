@@ -51,9 +51,6 @@ long elapsed_time()
 }
 
 
-#define streql(a, b) (strcmp(a, b) == 0)
-
-
 char server_pip[O2N_IP_LEN];
 char server_iip[O2N_IP_LEN];
 int server_port = -1;
@@ -64,11 +61,16 @@ void client_info_handler(o2_msg_data_ptr data, const char *types,
 {
     const char *service_name = argv[0]->s;
     int status = argv[1]->i32;
-    const char *status_string = o2_status_to_string(status);
     const char *process = argv[2]->s;
     const char *properties = argv[3]->s;
-    printf("# client_info_handler called: %s at %s status %s properties %s\n", 
+#ifndef O2_NO_DEBUG
+    const char *status_string = o2_status_to_string(status);
+    printf("# client_info_handler called: %s at %s status %s properties %s\n",
            service_name, process, status_string, properties);
+#else
+    printf("# client_info_handler called: %s at %s status %d properties %s\n",
+           service_name, process, status, properties);
+#endif
     if (!properties || properties[0]) {
         printf("FAILURE -- expected empty string for properties\n");
         assert(false);
@@ -141,10 +143,14 @@ void wait_for_server(void)
         o2_poll();
         o2_sleep(2); // 2ms
         if (count++ % 1000 == 0) {
-            printf("#   -> still waiting for server, "
-                   "server status is %s at %ld\n",
-                   o2_status_to_string(o2_status("server")),
-                                       elapsed_time());
+#ifndef O2_NO_DEBUG
+            printf("#   -> still waiting for server, server status is %s "
+                   "at %ld\n", o2_status_to_string(o2_status("server")),
+                   elapsed_time());
+#else
+            printf("#   -> still waiting for server, server status is %d "
+                   "at %ld\n", o2_status("server"), elapsed_time());
+#endif
         }
     }
     assert(server_pip[0]);
@@ -222,7 +228,7 @@ int step_11_to_13(bool good, int hi_low)
     return good ? hi_low : RETRY;
 }
 
-
+#ifndef O2_NO_HUB
 int test_self_as_hub(int order)
 {
     server_pip[0] = 0;
@@ -233,7 +239,7 @@ int test_self_as_hub(int order)
     wait_for_server();
     delay_for(0.5);
     step(6, "caling o2_hub(NULL)");
-    o2_hub(NULL, NULL, 0);
+    o2_hub(NULL, NULL, 0, 0);
     delay_for(0.5);
     substep("6B: server should shut down now");
     delay_for(0.5);
@@ -295,7 +301,7 @@ int test_other_as_hub(int order)
     o2_hex_to_dot(server_pip_copy, pip_dot);
     char iip_dot[O2N_IP_LEN];
     o2_hex_to_dot(server_iip_copy, iip_dot);
-    O2err err = o2_hub(pip_dot, iip_dot, server_port_copy);
+    O2err err = o2_hub(pip_dot, iip_dot, server_port_copy, server_port_copy);
     assert(err == O2_SUCCESS);
     wait_for_pip();
     bool client_greater = my_ipport_is_greater(server_pip_copy, 
@@ -315,14 +321,14 @@ int test_other_as_hub(int order)
     wait_for_server();
     // see if we discovered what we expected
     step(10, "check that we discovered expected server IP:port");
-    printf("#   -> hub says server is %s:%s:%x\n", server_pip, server_iip,
+    printf("#   -> hub says server is %s:%s:%04x\n", server_pip, server_iip,
            server_port);
     assert(streql(server_pip, server_pip_copy));
     assert(streql(server_iip, server_iip_copy));
     assert(server_port == server_port_copy);
     return step_11_to_13(good, actual);
 }
-
+#endif
 
 int main(int argc, const char *argv[])
 {
@@ -336,6 +342,7 @@ int main(int argc, const char *argv[])
     if (argc > 2) {
         printf("WARNING: hubclient ignoring extra command line argments\n");
     }
+#ifndef O2_NO_HUB
     server_pip[0] = 0;
     server_iip[0] = 0;
     startup(0, "first time to sync up, discover server");
@@ -372,6 +379,10 @@ int main(int argc, const char *argv[])
     printf("######################## FINISH ##########################\n");
     step(18, "finish");
     o2_finish();
-    printf("HUBCLIENT DONE\n at %ld\n", elapsed_time());
+    printf("At time %ld, \n", elapsed_time());
+#else
+    printf("O2_NO_HUB defined, so there are no tests that can fail\n");
+#endif
+    printf("HUBCLIENT DONE\n");
     return 0;
 }

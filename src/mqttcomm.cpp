@@ -86,7 +86,7 @@ static void mqtt_append_topic(const char *s1)
 }
 
 
-static o2n_message_ptr mqtt_finish_msg(int command)
+static O2netmsg_ptr mqtt_finish_msg(int command)
 {
     int len = o2_ctx->msg_data.size();
     uint8_t varlen[4];
@@ -102,7 +102,7 @@ static o2n_message_ptr mqtt_finish_msg(int command)
     len = o2_ctx->msg_data.size();
     // (this will allocate some unused bytes for flags and timestamp:)
     int msg_len = len + varlen_len + 1;
-    o2n_message_ptr msg = O2N_MESSAGE_ALLOC(msg_len);
+    O2netmsg_ptr msg = O2N_MESSAGE_ALLOC(msg_len);
     msg->length = msg_len;
     // move data
     o2_ctx->msg_data.retrieve(msg->payload + varlen_len + 1);
@@ -127,7 +127,7 @@ O2err MQTTcomm::initialize(const char *server, int port_num)
     mqtt_append_string("MQTT");
     uint8_t bytes[6] = {4, 2, 0, 60, 0, 0};
     mqtt_append_bytes(bytes, 6);
-    o2n_message_ptr msg = mqtt_finish_msg(MQTT_CONNECT);
+    O2netmsg_ptr msg = mqtt_finish_msg(MQTT_CONNECT);
     connack_expected++;
     O2_DBq(printf("%s sending MQTT_CONNECT connack expected %d\n",
                   o2_debug_prefix, connack_expected));
@@ -144,7 +144,7 @@ O2err MQTTcomm::subscribe(const char *topic, bool block)
     mqtt_append_topic(topic);
     uint8_t byte = 0;
     mqtt_append_bytes(&byte, 1);
-    o2n_message_ptr msg = mqtt_finish_msg(MQTT_SUBSCRIBE);
+    O2netmsg_ptr msg = mqtt_finish_msg(MQTT_SUBSCRIBE);
     suback_expected++;
     O2_DBq(printf("%s sending MQTT_SUBSCRIBE %s suback expected %d\n",
                   o2_debug_prefix, topic, suback_expected));
@@ -289,7 +289,7 @@ O2err MQTTcomm::publish(const char *subtopic, const uint8_t *payload,
     assert(o2_ctx->msg_data.size() == 8 + strlen(o2_ensemble_name) +
                                       strlen(subtopic) + payload_len);
     O2_DBq(printf("MQTTcomm::publish payload_len %d\n", payload_len));
-    o2n_message_ptr msg = mqtt_finish_msg(MQTT_PUBLISH | retain);
+    O2netmsg_ptr msg = mqtt_finish_msg(MQTT_PUBLISH | retain);
     O2_DBq(printf("MQTTcomm::publish message len %d\n", msg->length));
     // puback_expected++;  // we are not setting QOS to get puback
     O2_DBq(printf("%s sending that msg via MQTT_PUBLISH puback expected %d\n",

@@ -1,0 +1,8 @@
+Tests we need:
+    see if multiple O2lite clients can connect
+    see if O2lite clients can discover host with their own discovery
+        messages
+    see if O2lite clients can use host discovery messages
+    see if multiple O2sm client threads work
+    test TTL feature and tap loops
+

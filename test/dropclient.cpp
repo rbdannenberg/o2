@@ -17,7 +17,6 @@ void pollsome()
     }
 }
 
-#define streql(a, b) (strcmp(a, b) == 0)
 const char *expected_warning = "";
 int warning_count = 0;
 

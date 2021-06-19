@@ -50,6 +50,10 @@ public:
     bool local_is_synchronized() { o2_send_clocksync_proc(this);
                                    return IS_SYNCED(this); }
     virtual O2status status(const char **process) {
+        if (!(fds_info->net_tag & (NET_TCP_SERVER | NET_TCP_CLIENT |
+                                   NET_TCP_CONNECTION))) {
+            return O2_UNKNOWN;  // maybe still connecting
+        }
         if (process) {
             *process = get_proc_name();
         }
@@ -70,13 +74,13 @@ public:
     void show(int indent);
 #endif
 
-    static Proc_info *create_tcp_proc(int tag, const char *ip, int port);
+    static Proc_info *create_tcp_proc(int tag, const char *ip, int *port);
 
 };
 
 
 #ifdef O2_NO_DEBUG
-#define TO_PROC_INFO(node) ((proc_info_ptr) (node))
+#define TO_PROC_INFO(node) ((Proc_info *) (node))
 #else
 #define TO_PROC_INFO(node) (assert(ISA_PROC((Proc_info *) (node))), \
                             ((Proc_info *) (node)))

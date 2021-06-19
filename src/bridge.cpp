@@ -13,6 +13,7 @@
 #include "pathtree.h"
 #include "discovery.h"
 #include "clock.h"
+#include "properties.h"
 
 static bool bridges_initialized;
 int o2_bridge_next_id = 1;
@@ -25,7 +26,7 @@ static Vec<Bridge_protocol *> bridges;
 void Bridge_info::show(int indent)
 {
     O2node::show(indent);
-    printf(" bridge protocol %s id %d", proto->protocol, id);
+    printf(" bridge protocol %s id %d\n", proto->protocol, id);
 }
 #endif
 
@@ -49,6 +50,9 @@ Bridge_protocol::Bridge_protocol(const char *name) {
 
 Bridge_protocol::~Bridge_protocol() {
     remove_services(NULL);  // remove all Bridge_info for this protocol
+    for (int i = 0; i < instances.size(); i++) {
+        delete instances[i];
+    }
     int i = o2_bridge_find_protocol(protocol, NULL);
     if (i >= 0) {
         bridges.remove(i);
@@ -102,7 +106,7 @@ O2err Bridge_protocol::remove_services(Bridge_info *bi)
                                                   services, k)) {
                     result = O2_FAIL; // this should never happen
                 }
-                delete service; // free the bridge_info
+                // bridge_info is owned by protocol
                 break; // can only be one service offered by proc, and maybe
                 // even services was removed, so we should move on to the
                 // next service in services list
@@ -135,6 +139,180 @@ int Bridge_protocol::find_loc(int id)
         }
     }
     return -1;
+}
+
+
+// This is a generalized handler for !_o2/o2lite/cs/get and !_o2/ws/cs/get
+// Both direct to specific message handlers that find the sender in code
+// that is bridge-protocol-specific. Then, they direct here to finish the work.
+void o2_bridge_csget_handler(o2_msg_data_ptr msgdata, int seqno,
+                             const char *replyto)
+{
+    if (!o2_message_source || !ISA_BRIDGE(o2_message_source)) {
+        o2_drop_message("bad ID in o2lite/cs/get message", msgdata);
+        return;  // some non-O2lite sender invoked /_o2/o2lite/get!
+    }
+    if (!o2_clock_is_synchronized) {  // can't reply with time
+        o2_drop_msg_data("no global time yet for /_o2/*/cs/get message",
+                         msgdata);
+        return;
+    }
+    o2_send_start();
+    o2_add_int32(seqno);
+    // should we get the time again? It would be a little more accurate
+    // than o2_global_now, but it's more computation, so no.
+    o2_add_time(o2_global_now);
+    O2message_ptr msg = o2_message_finish(0, replyto, false);
+    O2_DBk(o2_dbg_msg("o2_bridge_csget_handler sends", msg, &msg->data,
+                      NULL, NULL));
+    o2_prepare_to_deliver(msg);
+    o2_message_source->send(false);
+}
+
+void o2_bridge_cscs_handler(o2_msg_data_ptr msgdata, const char *types,
+                            O2arg_ptr *argv, int argc, const void *user_data)
+{
+    O2_DBd(printf("o2ws_bridge_cscs_handler, source is:\n");
+           (o2_message_source ? o2_message_source->show(4)
+                              : (void) printf("    NULL\n")));
+    // make sure source is really an Http_conn: check tag and proto:
+    if (!o2_message_source || !ISA_BRIDGE(o2_message_source)) {
+        return;  // some non-websocket sender invoked /_o2/ws/cs/cs!
+    }
+    if (IS_SYNCED(o2_message_source)) {
+        o2_drop_msg_data("/_o2/*/cs/cs is from synced process", msgdata);
+        return;
+    }
+    o2_message_source->tag |= O2TAG_SYNCED;
+    o2_clock_status_change(o2_message_source);
+}
+
+
+// handler for /_o2/*/sv messages which register services for o2lite
+// protocols (including websocket interface)
+//
+void o2_bridge_sv_handler(o2_msg_data_ptr msgdata, const char *types,
+                          O2arg_ptr *argv, int argc, const void *user_data)
+{
+    O2err rslt = O2_SUCCESS;
+
+    O2_DBw(o2_dbg_msg("o2_bridge_sv_handler gets", NULL, msgdata, NULL, NULL));
+    // get the arguments: bridge id, service name, 
+    //     add-or-remove flag, is-service-or-tap flag, property string
+    // assumes o2ws is initialized, but it must be
+    // because the handler is installed
+    const char *serv = argv[0]->s;
+    bool add = argv[1]->i;
+    bool is_service = argv[2]->i;
+    const char *prtp = argv[3]->s;
+    O2tap_send_mode send_mode = (O2tap_send_mode) (argv[4]->i32);
+    if (!ISA_BRIDGE(o2_message_source)) {
+        o2_drop_msg_data("source of /_o2/*/sv is not a bridge", msgdata);
+    } else if (is_service) {
+        Service_provider *spp = Services_entry::find_local_entry(serv);
+        if (spp) {
+            if (spp->service != o2_message_source) {  // cannot replace
+                o2_drop_msg_data("/_o2/*/sv not from service provider",
+                                 msgdata);
+            } else {
+                if (add) { // service already exists, set properties
+                    if (prtp) {
+                        if (prtp[0] == 0 || (prtp[0] == ';' && prtp[1] == 0)) {
+                            prtp = NULL;  // change "" or ";" to NULL
+                        } else {
+                            prtp = o2_heapify(prtp);
+                        }
+                    }
+                    rslt = o2_set_service_properties(spp, serv, (char *) prtp);
+                } else {
+                    rslt = Services_entry::proc_service_remove(serv,
+                                             o2_ctx->proc, NULL, -1);
+                }
+            }
+        } else {
+            if (add) {
+                rslt = Services_entry::service_provider_new(serv, prtp,
+                                       o2_message_source, o2_ctx->proc);
+                if (rslt == O2_SUCCESS) {
+                    o2_notify_others(serv, true, NULL, prtp, 0);
+                }
+            }  // else remove service, but there is no service; we're done
+        }
+    } else {
+        if (add) {
+            rslt = o2_tap_new(serv, o2_ctx->proc, prtp, send_mode);
+        } else {
+            rslt = o2_tap_remove(serv, o2_ctx->proc, prtp);
+        }
+    }
+    if (rslt) {
+        char errmsg[100];
+        snprintf(errmsg, 100, "/_o2/*/sv handler got %s for service %s",
+                 o2_error_to_string(rslt), serv);
+        o2_drop_msg_data(errmsg, msgdata);
+    }
+    return;
+}
+
+
+// handler for /_o2/*/st messages which return status of a service
+// for o2lite protocols (including websocket interface)
+//
+void o2_bridge_st_handler(o2_msg_data_ptr msgdata, const char *types,
+                          O2arg_ptr *argv, int argc, const void *user_data)
+{
+    const char *service = argv[0]->s;
+    int status = o2_status(service);
+    o2_send_start();
+    o2_add_string(service);
+    o2_add_int32(status);
+    O2message_ptr msg = o2_message_finish(0, "!_o2/st", true);
+    o2_prepare_to_deliver(msg);
+    o2_message_source->send(false);
+}
+
+
+// handler for /_o2/*/ls messages which return information on all 
+// services to for o2lite clients (including websocket interfaces)
+// Sends messages with: service_name, service_type, process_name, properties
+// properties is sent WITHOUT a leading ";"
+void o2_bridge_ls_handler(o2_msg_data_ptr msgdata, const char *types,
+                          O2arg_ptr *argv, int argc, const void *user_data)
+{
+    o2_services_list();
+    for (int i = 0; true; i++) {
+        // prepare for the end of services when we send ("", 0, "", ""):
+        const char *name = o2_service_name(i);
+        int service_type = 0;
+        const char *process_name = "";
+        const char *properties = "";
+        if (name) {  // replace all the parameters with "real" data
+            service_type = o2_service_type(i);
+            process_name = o2_service_process(i);
+            properties = (service_type == O2_TAP ?
+                          o2_service_tapper(i) : o2_service_properties(i));
+        }
+        o2_send_start();
+        o2_add_string(name ? name : "");
+        o2_add_int32(service_type);
+        o2_add_string(process_name);
+        o2_add_string(properties);
+        O2message_ptr msg = o2_message_finish(0, "!_o2/ls", true);
+        o2_prepare_to_deliver(msg);
+        o2_message_source->send(false);
+        if (!name) break;  // no more messages to send, exit loop
+    }
+    o2_services_list_free();
+}
+
+O2err Bridge_info::send_to_taps(O2message_ptr msg)
+{
+    Services_entry *ss;
+    if (!o2_msg_service(&msg->data, &ss)) {
+        return O2_NO_SERVICE;
+    }
+    o2_send_to_taps(msg, ss);
+    return O2_SUCCESS;
 }
 
 
@@ -182,10 +360,7 @@ public:
         if (!this) return;
         // remove all sockets serviced by this connection
         proto->remove_services(this);
-        if (fds_info) {
-            fds_info->owner = NULL; // prevent recursion, stale pointer
-            fds_info->close_socket();
-        }
+        delete_fds_info();
     }
 
 
@@ -207,18 +382,22 @@ public:
     virtual O2err send(bool block) {
         O2err rslt;
         int tcp_flag;
+        // send to taps before byte swap. taps are handled here on host side.
+        O2err taperr = send_to_taps(o2_current_message());
+        // send taps first because we will lose ownership of msg to network
         O2message_ptr msg = pre_send(&tcp_flag);
         if (!msg) return O2_NO_SERVICE;
         if (tcp_flag) {
-            rslt = fds_info->send_tcp(block, (o2n_message_ptr) msg);
+            rslt = fds_info->send_tcp(block, (O2netmsg_ptr) msg);
         } else {  // send via UDP
-            rslt = o2n_send_udp(&udp_address, (o2n_message_ptr) msg);
+            rslt = o2n_send_udp(&udp_address, (O2netmsg_ptr) msg);
             if (rslt != O2_SUCCESS) {
                 O2_DBn(printf("Bridge_info::send error, port %d\n",
                               udp_address.get_port()));
             }
         }
-        return rslt;
+        // report the first error we saw
+        return (O2err) ((int) taperr || (int) rslt);
     }
 
 #ifndef O2_NO_DEBUG
@@ -232,7 +411,7 @@ public:
     // Net_interface:
     O2err accepted(Fds_info *conn) {
         printf("ERROR: O2lite_info is not a server\n");
-        conn->close_socket();
+        conn->close_socket(true);
         return O2_FAIL;
     }
     O2err connected() { return O2_FAIL; } // we are not a TCP client
@@ -254,14 +433,13 @@ O2lite_protocol::~O2lite_protocol()
 
 
 // o2lite_dy_handler - generic bridge discovery handler for !_o2/o2lite/dy
-//   message parameters are ensemble, port
+//   message parameters are ensemble, tcp port, udp_port
 void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
                        O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2lite_dy_handler gets", NULL, msgdata, NULL, NULL));
-    // get the arguments: ensemble name, protocol name,
-    // if this is "O2lite" protocol, get ip as string,
-    //  tcp port, discovery port.
+    // get the arguments: ensemble name, ip as string,
+    //  tcp port, discovery port, DY_INFO
     
     
     if (!streql(argv[0]->s, o2_ensemble_name)) {
@@ -272,16 +450,17 @@ void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
     // assumes o2lite is initialized, but it must be
     // because the handler is installed
     const char *ip = argv[1]->s;
-    int port = argv[2]->i32;
+    // unused: int tcp_port = argv[2]->i32;
+    int udp_port = argv[3]->i32;
     
     // send !_o2/dy back to bridged process:
     Net_address address;
-    O2err err = address.init_hex(ip, port, false);
+    O2err err = address.init_hex(ip, udp_port, false);
     O2_DBd(if (err) printf("%s o2lite_dy_handler: ip %s, udp %d, err %s\n",
-              o2_debug_prefix, ip, port, o2_error_to_string(err)));
+              o2_debug_prefix, ip, udp_port, o2_error_to_string(err)));
     o2_send_start();
     O2message_ptr msg = o2_make_dy_msg(o2_ctx->proc, false, true, O2_DY_INFO);
-    o2n_send_udp(&address, (o2n_message_ptr) msg); // send and free the message
+    o2n_send_udp(&address, (O2netmsg_ptr) msg); // send and free the message
 }
 
 
@@ -294,10 +473,8 @@ void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
 {
     O2_DBd(o2_dbg_msg("o2lite_con_handler gets", NULL, msgdata, NULL, NULL));
     // get the arguments: ensemble name, protocol name,
-    // if this is "O2lite" protocol, get ip as string,
-    //  tcp port, discovery port.
-    // assumes o2lite is initialized, but it must be
-    // because the handler is installed
+    // if this is "O2lite" protocol, get ip as string, tcp port, discovery port.
+    // assume o2lite is initialized; it must be because the handler is installed
     const char *ip = argv[0]->s;
     int port = argv[1]->i32;
     // make sure o2_message_source is an O2TAG_TCP_PROC. If o2lite mistakenly
@@ -334,58 +511,7 @@ void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
 }
        
 
-// Handler for !_o2/o2lite/sv message. This is to create/modify a
-// service/tapper for o2lite client. Parameters are: service-name,
-// exists-flag, service-flag, and tapper-or-properties string, send_mode
-// (for taps).
-//
-void o2lite_sv_handler(o2_msg_data_ptr msgdata, const char *types,
-                        O2arg_ptr *argv, int argc, const void *user_data)
-{
-    O2_DBd(o2_dbg_msg("o2lite_sv_handler gets", NULL, msgdata, NULL, NULL));
-    // get the arguments: ensemble name, protocol name,
-    // if this is "O2lite" protocol, get ip as string,
-    //  tcp port, discovery port.
-    // assumes o2lite is initialized, but it must be
-    // because the handler is installed
-    // int id = argv[0]->i32; // ignore id since we have o2_message_source
-    const char *serv = argv[0]->s;
-    bool add = argv[1]->i;
-    bool is_service = argv[2]->i;
-    const char *prtp = argv[3]->s;
-    O2tap_send_mode send_mode = (O2tap_send_mode) (argv[4]->i);
-    O2lite_info *o2lite = (O2lite_info *) o2_message_source;
-    // make sure o2lite is really an O2lite_info: check tag and proto:
-    if (!ISA_BRIDGE(o2lite) ||
-        TO_BRIDGE_INFO(o2lite)->proto != o2lite_protocol) {
-        return;  // some non-O2lite sender invoked /_o2/o2lite/sv!
-    }
-    O2err err = O2_SUCCESS;
-    if (add) { // add a new service or tap
-        if (is_service) {
-             err = Services_entry::service_provider_new(serv, prtp, o2lite,
-                                                        o2_ctx->proc);
-       } else { // add tap
-            err = o2_tap_new(serv, o2_ctx->proc, prtp, send_mode);
-        }
-    } else {
-        if (is_service) { // remove a service
-            err = Services_entry::proc_service_remove(serv, o2_ctx->proc,
-                                                      NULL, -1);
-        } else { // remove a tap
-            err = o2_tap_remove(serv, o2_ctx->proc, prtp);
-        }
-    }
-    if (err) {
-        char errmsg[100];
-        snprintf(errmsg, 100, "o2lite/sv handler got %s for service %s",
-                 o2_error_to_string(err), serv);
-        o2_drop_msg_data(errmsg, msgdata);
-    }
-}
-
-
-// Handler for !_o2/o2lite/cs/get message. This is to get the time from
+// Handler for !_o2/o2lite/cs/get message. This is to get the time for
 // an o2lite client. Parameters are: id, sequence-number, reply-to
 //
 void o2lite_csget_handler(o2_msg_data_ptr msgdata, const char *types,
@@ -404,49 +530,8 @@ void o2lite_csget_handler(o2_msg_data_ptr msgdata, const char *types,
     // more secure -- you can't send a bogus message to cause this
     // process to send a random message to a random UDP port!)
     o2_message_source = o2lite_protocol->find(id);
-    if (!o2_message_source || !ISA_O2LITE(o2_message_source)) {
-        o2_drop_message("bad ID in o2lite/cs/get message", msgdata);
-        return;  // some non-O2lite sender invoked /_o2/o2lite/get!
-    }
-    if (!o2_clock_is_synchronized) {  // can't reply with time
-        o2_drop_msg_data("no global time yet for o2lite/cs/get message",
-                         msgdata);
-        return;
-    }
-    o2_send_start();
-    o2_add_int32(seqno);
-    // should we get the time again? It would be a little more accurate
-    // than o2_global_now, but it's more computation, so no.
-    o2_add_time(o2_global_now);
-    O2message_ptr msg = o2_message_finish(0, replyto, false);
-    O2_DBk(o2_dbg_msg("o2lite_csget_handler sends", msg, &msg->data,
-                      NULL, NULL));
-#if IS_LITTLE_ENDIAN
-    o2_msg_swap_endian(&msg->data, true);
-#endif
-    o2n_send_udp(&((O2lite_info *) o2_message_source)->udp_address,
-                 (o2n_message_ptr) msg);
-}
-
-
-// Handler for !_o2/o2lite/cs/cs message. This is to announce the
-// o2lite client has clock sync. Parameters are: id
-//
-void o2lite_cscs_handler(o2_msg_data_ptr msgdata, const char *types,
-                         O2arg_ptr *argv, int argc, const void *user_data)
-{
-    O2_DBd(o2_dbg_msg("o2lite_cscs_handler gets", NULL, msgdata, NULL, NULL));
-    // make sure o2lite is really an O2lite_info: check tag and proto:
-    if (!ISA_BRIDGE(o2_message_source) ||
-        TO_BRIDGE_INFO(o2_message_source)->proto != o2lite_protocol) {
-        return;  // some non-O2lite sender invoked /_o2/o2lite/cs/cs!
-    }
-    if (IS_SYNCED(o2_message_source)) {
-        o2_drop_msg_data("o2lite/cs/cs is from synced process", msgdata);
-        return;
-    }
-    o2_message_source->tag |= O2TAG_SYNCED;
-    o2_clock_status_change(o2_message_source);
+    // use common code to reply to cs/get:
+    o2_bridge_csget_handler(msgdata, seqno, replyto);
 }
 
 
@@ -454,20 +539,22 @@ O2err o2lite_initialize()
 {
     if (o2lite_protocol) return O2_ALREADY_RUNNING; // already initialized
     o2lite_protocol = new O2lite_protocol();
-    o2_method_new_internal("/_o2/o2lite/dy", "ssii",
+    o2_method_new_internal("/_o2/o2lite/dy", "ssiii",
                            &o2lite_dy_handler, NULL, false, true);
     o2_method_new_internal("/_o2/o2lite/con", "si",
                            &o2lite_con_handler, NULL, false, true);
     o2_method_new_internal("/_o2/o2lite/sv", "siisi",
-                           &o2lite_sv_handler, NULL, false, true);
+                           &o2_bridge_sv_handler, NULL, false, true);
     o2_method_new_internal("/_o2/o2lite/cs/get", "iis",
                            &o2lite_csget_handler, NULL, false, true);
+    o2_method_new_internal("/_o2/o2lite/st", "s",
+                           &o2_bridge_st_handler, NULL, false, true);
+    o2_method_new_internal("/_o2/o2lite/ls", "",
+                           &o2_bridge_ls_handler, NULL, false, true);
     // in principle, we should test return values on all of the above,
     // but in practice, they will all succeed unless we are in deep trouble.
     return o2_method_new_internal("/_o2/o2lite/cs/cs", "",
-                                  &o2lite_cscs_handler, NULL, false, true);
+                                  &o2_bridge_cscs_handler, NULL, false, true);
 }
 
 #endif
-
-

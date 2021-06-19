@@ -1,0 +1,125 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>O2 Test</title>
+<script>
+// This web page sends a simple websocket message -- it will be
+// rejected by the O2 server since it is not formatted as an
+// O2lite-over-websocket message
+
+var ETX = String.fromCharCode(3);   // ASCII end-of-text delimiter
+var WSURI = "ws://THE.LOC.ALH.OST:PORTNO/o2ws";  // Websocket address
+var o2Websocket = false;       // the websocket, if open
+var o2Application = false;     // the application name, if o2_initialize'd
+var o2PendingApplication = false; // if initialization waiting on websocket,
+                               // this var has the desired application name.
+var o2Verbose = true;          // enables console logging
+var o2_enable_status_msgs = false;
+
+function o2_initialize(appName) {
+    if (!o2Websocket) {
+        o2PendingApplication = appName;
+        o2Websocket = new WebSocket(WSURI);
+        o2Websocket.onopen = function(evt) { o2OpenHandler(evt); };
+        o2Websocket.onclose = function(evt) { o2CloseHandler(evt) };
+        o2Websocket.onmessage = function(evt) { o2MessageHandler(evt) };
+        o2Websocket.onerror = function(evt) { 
+            on_o2_error("O2 API error: " + evt) };
+    } else {
+        o2WsSend("As" + appName + ETX); 
+        o2PendingApplication = false;
+    }
+}
+
+function o2WsSend(message) {
+    if (!o2Websocket) {
+        o2ErrorMessage("Cannot send message. Wait until on_o2_initialize()\n" +
+            "is called or until o2Application is non-false before sending\n" +
+            "O2 commands and messages. Message is: " + message);
+    } else {
+        if (o2_enable_status_msgs) {
+            o2_status_msg("SENT: " + message); 
+        }
+        o2Websocket.send(message); 
+    }
+}
+
+function o2OpenHandler(evt) {
+    if (o2_enable_status_msgs) {
+        o2_status_msg("CONNECTED");
+    }
+    if (o2PendingApplication) {
+        o2_initialize(o2PendingApplication);
+    }
+}
+
+function o2CloseHandler(evt) {
+    if (o2_enable_status_msgs) {
+        o2_status_msg("DISCONNECTED");
+    }
+    o2Application = null;  // it's possible the server is still 
+         // running O2, but we don't know that
+    o2Websocket = null;
+}
+
+function o2MessageHandler(evt) {
+    if (o2_enable_status_msgs) {
+        o2_status_msg("RESPONSE: " + evt.data);
+    }
+}
+
+function o2WsSend(message) {
+    if (!o2Websocket) {
+        o2ErrorMessage("Cannot send message. Wait until on_o2_initialize()\n" +
+            "is called or until o2Application is non-false before sending\n" +
+            "O2 commands and messages. Message is: " + message);
+    } else {
+        if (o2_enable_status_msgs) {
+            o2_status_msg("SENT: " + message); 
+        }
+        o2Websocket.send(message); 
+    }
+}
+
+function o2WsInit() {
+    wsOutput = document.getElementById("wsOutput");
+    o2_enable_status_msgs = true;
+    o2_initialize("test");
+}
+
+function o2_status_msg(message) {
+    var pre = document.createElement("p"); 
+    pre.style.wordWrap = "break-word"; 
+    pre.innerHTML = message; 
+    wsOutput.appendChild(pre); 
+}
+
+function on_o2_error(message) {
+    o2_status_msg('<span style="color: red;">ERROR:</span> ' +
+                  message);
+}
+
+function o2ErrorMessage(desc) {
+    var msg = "O2 API error: " + desc
+    if (o2Payload) {
+        msg += " in o2Payload " + o2Payload;
+        o2Payload = false;
+    }
+    if (o2Verbose)
+        console.log(msg);
+    on_o2_error(msg); // send message to client as well
+    return true;
+}
+
+window.addEventListener("load", o2WsInit, false);
+</script>
+</head>
+
+<body>
+<h1>O2 Test</h1>
+This is a test.
+  <div id="wsOutput"></div>
+
+</body>
+</html>

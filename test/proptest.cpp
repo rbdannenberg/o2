@@ -24,7 +24,6 @@
 #include <assert.h>
 #include <string.h>
 #include "o2.h"
-#define streql(a, b) (strcmp(a, b) == 0)
 
 
 #define N_ADDRS 20
@@ -97,7 +96,7 @@ int main(int argc, const char * argv[])
     int port;
     O2err err = o2_get_addresses(&pip, &iip, &port);
     assert(err == O2_SUCCESS);
-    sprintf(procname, "%s:%s:%x", pip, iip, port);
+    sprintf(procname, "%s:%s:%04x", pip, iip, port);
     assert(streql(o2_service_process(one), "_o2"));
     assert(o2_service_tapper(one) == NULL);
 
@@ -117,7 +116,7 @@ int main(int argc, const char * argv[])
     // get the value from service 1
     const char *gp = o2_service_getprop(one, "attr0");
     assert(streql(gp, "value0"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
     // fail to get the value from service 2
     gp = o2_service_getprop(two, "attr0");
     assert(gp == NULL);
@@ -144,7 +143,7 @@ int main(int argc, const char * argv[])
     lookup();
     gp = o2_service_getprop(one, "attr1");
     assert(streql(gp, "newvalue1"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
 
     // remove the value
     assert(o2_service_property_free("one", "attr1") == O2_SUCCESS);
@@ -170,19 +169,19 @@ int main(int argc, const char * argv[])
         "attr5:value5;attr4:value4;attr3:value3;attr2:value2;attr1:value1;attr0:value0;"));
     gp = o2_service_getprop(one, "attr1");
     assert(streql(gp, "value1"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr2");
     assert(streql(gp, "value2"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr3");
     assert(streql(gp, "value3"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr4");
     assert(streql(gp, "value4"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr5");
     assert(streql(gp, "value5"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
 
     // remove attrs 1 3 5
     assert(o2_services_list_free() == O2_SUCCESS);
@@ -195,10 +194,10 @@ int main(int argc, const char * argv[])
     lookup();
     gp = o2_service_getprop(one, "attr2");
     assert(streql(gp, "value2"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr4");
     assert(streql(gp, "value4"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr1");
     assert(o2_service_getprop(one, "attr1") == NULL);
     gp = o2_service_getprop(one, "attr3");
@@ -217,16 +216,16 @@ int main(int argc, const char * argv[])
     lookup();
     gp = o2_service_getprop(one, "attr1");
     assert(streql(gp, "\\;\\:\\\\"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr2");
     assert(streql(gp, "\\:value2\\;"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr3");
     assert(streql(gp, "val\\\\\\\\ue3"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr4");
     assert(streql(gp, "\\\\\\\\\\;\\:value4"));
-    O2_FREE(gp);
+    O2_FREE((char *) gp);
     assert(o2_services_list_free() == O2_SUCCESS);
 
     o2_finish();

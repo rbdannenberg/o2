@@ -11,7 +11,6 @@
 #include <assert.h>
 #include <ctype.h>
 
-#define streql(a, b) (strcmp(a, b) == 0)
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 

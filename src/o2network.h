@@ -54,44 +54,47 @@ typedef int SOCKET;  // In O2, we'll use SOCKET to denote the type of a socket
 // restore the field. For UDP, the length is always assigned to the
 // packet length, so only length bytes of payload are in the packet.
 
-typedef struct o2n_message {
+typedef struct O2netmsg {
     union {
-        struct o2n_message *next; ///< link for application use
+        struct O2netmsg *next; ///< link for application use
         int64_t pad_if_needed;    ///< make sure allocated is 8-byte aligned
     };
     int32_t length;               ///< length of message in data part
     char payload[4];              ///< data
-} o2n_message, *o2n_message_ptr;
+} O2netmsg, *O2netmsg_ptr;
 
 // macro to make a byte pointer
 #define PTR(addr) ((char *) (addr))
 
 /// how many bytes are used by next and length fields before data
-#define O2N_MESSAGE_EXTRA (offsetof(o2n_message, payload))
+#define O2N_MESSAGE_EXTRA (offsetof(O2netmsg, payload))
 
 /// how big should whole O2message be to leave len bytes for the data part?
 #define O2N_MESSAGE_SIZE_FROM_DATA_SIZE(len) ((len) + O2N_MESSAGE_EXTRA)
 #define O2N_MESSAGE_ALLOC(len) \
-        ((o2n_message_ptr) O2_MALLOC(O2N_MESSAGE_SIZE_FROM_DATA_SIZE(len)))
+        ((O2netmsg_ptr) O2_MALLOC(O2N_MESSAGE_SIZE_FROM_DATA_SIZE(len)))
 
 // net_tag values
-// server socket to receive UDP messages: (0x40000)
+// server socket to receive UDP messages: (0x200000)
 #define NET_UDP_SERVER (O2TAG_HIGH << 1)
 
-// server port for accepting TCP connections: (0x80000)
+// server port for accepting TCP connections: (0x400000)
 #define NET_TCP_SERVER (O2TAG_HIGH << 2)
 
-// client side socket during async connection: (0x100000)
+// client side socket during async connection: (0x800000)
 #define NET_TCP_CONNECTING (O2TAG_HIGH << 3)
 
-// client side of a TCP connection: (0x200000)
+// client side of a TCP connection: (0x1000000)
 #define NET_TCP_CLIENT (O2TAG_HIGH << 4)
 
-// server side accepted TCP connection: (0x400000)
+// server side accepted TCP connection: (0x2000000)
 #define NET_TCP_CONNECTION (O2TAG_HIGH << 5)
 
-// o2n_close_socket() has been called on this socket: (0x800000)
+// o2n_close_socket() has been called on this socket: (0x4000000)
 #define NET_INFO_CLOSED (O2TAG_HIGH << 6)
+
+// an input file for asynchronous reads -- treated as a socket (0x8000000)
+#define NET_INFILE (O2TAG_HIGH << 7)
 
 // Any open, sendable TCP socket (NET_TCP_SERVER is not actually sendable
 // as a socket, but if we get the Proc_info that owns this, it is the 
@@ -121,7 +124,7 @@ public:
     virtual O2err accepted(Fds_info *conn) = 0;
     virtual O2err connected() {
             printf("ERROR: connected called by mistake\n"); return O2_FAIL; }
-    virtual O2err deliver(o2n_message_ptr msg) = 0;
+    virtual O2err deliver(O2netmsg_ptr msg) = 0;
     // since Net_interface is a just an interface (set of methods), it is
     // always multiple-inherited along with some other class that you can
     // actually delete. This remove method converts "this" to the proper
@@ -131,40 +134,52 @@ public:
     virtual void remove() = 0;
 };
 
+typedef enum {READ_O2, READ_RAW, READ_CUSTOM} Read_type;
 
-// an abstract class -- subclass with application-specific message/event handlers
+
+// an abstract class -- subclass with application-specific
+//     message/event handlers
 //
 class Fds_info : public O2obj {
   public:
     int net_tag;    // the type of socket: see list above
     int fds_index;  // the index of this object in the fds and fds_info arrays
-    bool delete_me;  // set to true when socket should be removed (note that
-                    //   removing array elements while scanning for events would
-                    // be very tricky, so we make a second cleanup pass).
-    bool raw_flag;  // if true, message data is sent as is with no length
-                    // count (unless it is in the message data). Incoming
-                    // bytes are formed into o2n_messages with length field
-                    // and bytes, but there is no segmentation of the byte 
-                    // stream as a sequence of alternating length fields and
-                    // message payloads. Only meaningful for TCP since UDP
+    int delete_me;  // set to 1 to request the socket should be removed 
+                    // set to 2 when the socket is not blocked (is writable)
+                    // (note that removing array elements while scanning for 
+                    // events would be very tricky, so we make a second
+                    // cleanup pass).
+    Read_type read_type;  // READ_RAW means message data is sent as is with
+                    // no length count (unless it is in the message data).
+                    // Incoming bytes are formed into O2netmsgs with length
+                    // field and bytes, but there is no segmentation of the
+                    // byte stream as a sequence of alternating length fields
+                    // and message payloads. Only meaningful for TCP since UDP
                     // connections are inherently packetized.
+                    // READ_CUSTOM means the Net_interface deliver method is
+                    // responsible for reading from the socket.
+                    // READ_O2 means o2network.h reads length counts, buffers
+                    // incoming messages until complete, and then delivers the
+                    // message by calling Net_interface deliver method.
     int32_t in_length;    // incoming message length
-    o2n_message_ptr in_message;  // message data from TCP stream goes here
+    O2netmsg_ptr in_message;  // message data from TCP stream goes here
     int in_length_got;    // how many bytes of length have been read?
     int in_msg_got;       // how many bytes of message have been read?
     
-    o2n_message_ptr out_message; // list of pending output messages with
+    O2netmsg_ptr out_message; // list of pending output messages with
                                  //      data in network byte order
     int out_msg_sent;     // how many bytes of message have been sent?
     int port;       // used to save port number if this is a UDP receive socket,
                     // or the server port if this is a process
     Net_interface *owner;
 
-    Fds_info(SOCKET sock, int net_tag, int port);
+    Fds_info(SOCKET sock, int net_tag, int port, Net_interface *own);
     ~Fds_info();
 
-    static Fds_info *create_tcp_client(const char *ip, int port);
-    static Fds_info *create_tcp_client(Net_address *remote_addr);
+    static Fds_info *create_tcp_client(const char *ip, int port,
+                                       Net_interface *own);
+    static Fds_info *create_tcp_client(Net_address *remote_addr,
+                                       Net_interface *own);
 
     // create a UDP server port. Set reuse to true unless this is a discovery
     // port. We want discovery ports to be unique and not shared. Other
@@ -172,16 +187,16 @@ class Fds_info : public O2obj {
     // might allow the process to reopen a recently used port.
     static Fds_info *create_udp_server(int *port, bool reuse);
 
-    static Fds_info *create_tcp_server(int port);
+    static Fds_info *create_tcp_server(int *port, Net_interface *own);
     O2err connect(const char *ip, int tcp_port);
     O2err can_send();
-    O2err send_tcp(bool block, o2n_message_ptr msg);
+    O2err send_tcp(bool block, O2netmsg_ptr msg);
 
     // Send a message. Named "enqueue" to emphasize that this is asynchronous.
     // Follow this call with o2n_send(info, true) to force a blocking
     // (synchronous) send.
     // msg must be in network byte order
-    void enqueue(o2n_message_ptr msg);
+    void enqueue(O2netmsg_ptr msg);
 
     // Take next step to send a message. If block is true, this call will 
     // block until all queued messages are sent or an error or closed
@@ -198,26 +213,26 @@ class Fds_info : public O2obj {
     void message_cleanup();
     Fds_info *cleanup(const char *error, SOCKET sock);
     void reset();
-    void close_socket();
+    void close_socket(bool now);
 
 #ifndef O2_NO_DEBUG
     static const char *tag_to_string(int tag);
+#endif
     SOCKET get_socket();
 };
-#endif
 
 extern Vec<Fds_info *> o2n_fds_info;
 
 extern bool o2n_network_enabled;  // network connections are permitted
 extern bool o2n_network_found;    // local area network exists
 // if !o2n_network_found, o2n_internal_ip will be "7f000001" (localhost)
-extern char o2n_public_ip[O2N_IP_LEN];
-extern char o2n_internal_ip[O2N_IP_LEN];
+extern char o2n_public_ip[O2N_IP_LEN];     // in 8 hex characters
+extern char o2n_internal_ip[O2N_IP_LEN];   // in 8 hex characters
 
 // initialize this module
 O2err o2n_initialize();
 
-o2n_message_ptr o2n_message_new(int size);
+O2netmsg_ptr O2netmsg_new(int size);
     
 // prepare to exit this module
 void o2n_finish(void);
@@ -236,18 +251,18 @@ void o2n_free_deleted_sockets(void);
 // poll for messages
 O2err o2n_recv(void);
 
-O2err o2n_send_udp(Net_address *ua, o2n_message_ptr msg);
+O2err o2n_send_udp(Net_address *ua, O2netmsg_ptr msg);
 
 O2err o2n_send_udp_via_socket(SOCKET socket, Net_address *ua,
-                              o2n_message_ptr msg);
+                              O2netmsg_ptr msg);
 
 #define o2n_send_udp_via_info(info, ua, msg) \
     o2n_send_udp_via_socket(info->get_socket(), ua, msg);
 
 // send a UDP message to localhost
-void o2n_send_udp_local(int port, o2n_message_ptr msg);
+void o2n_send_udp_local(int port, O2netmsg_ptr msg);
 
-ssize_t o2n_send_broadcast(int port, o2n_message_ptr msg);
+ssize_t o2n_send_broadcast(int port, O2netmsg_ptr msg);
 
 // create a socket for UDP broadcasting messages
 SOCKET o2n_broadcast_socket_new();

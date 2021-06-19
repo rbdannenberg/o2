@@ -29,8 +29,6 @@ void pollsome()
     }
 }
 
-
-#define streql(a, b) (strcmp(a, b) == 0)
 const char *expected_warning = "";
 int warning_count = -1;  // warnings are numbered from 0 because I added
 // a test at the beginning and wanted to keep all the wired-in test numbers

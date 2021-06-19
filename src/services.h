@@ -58,6 +58,8 @@ class Services_entry : public O2node {
     void remove_if_empty();
     
     static Services_entry **find(const char *service_name);
+    static Service_provider *find_local_entry(const char *service_name);
+
 
     /**
      *  \brief Use initial part of an O2 address to find an o2_service using

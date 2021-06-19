@@ -120,7 +120,6 @@ public:
     // Bridge_info that share this protocol.
     Vec<Bridge_info *> instances;
 
-    // TODO: implement me  /// close transport:
     virtual ~Bridge_protocol();
 
     virtual O2err bridge_poll() { return O2_SUCCESS; }
@@ -161,6 +160,9 @@ public:
     virtual ~Bridge_info() { proto->remove_instance(id); }
   
     virtual O2err send(bool block) = 0;
+
+    O2err send_to_taps(O2message_ptr msg);
+
 #ifndef O2_NO_DEBUG
     virtual void show(int indent);
 #endif
@@ -172,9 +174,19 @@ public:
         return (o2_clock_is_synchronized && IS_SYNCED(this)) ?
                O2_BRIDGE : O2_BRIDGE_NOTIME;
     }
-
 };    
 
+void o2_bridge_csget_handler(o2_msg_data_ptr msgdata, int seqno,
+                             const char *replyto);
+void o2_bridge_cscs_handler();
+void o2_bridge_cscs_handler(o2_msg_data_ptr msgdata, const char *types,
+                            O2arg_ptr *argv, int argc, const void *user_data);
+void o2_bridge_sv_handler(o2_msg_data_ptr msgdata, const char *types,
+                          O2arg_ptr *argv, int argc, const void *user_data);
+void o2_bridge_st_handler(o2_msg_data_ptr msgdata, const char *types,
+                          O2arg_ptr *argv, int argc, const void *user_data);
+void o2_bridge_ls_handler(o2_msg_data_ptr msgdata, const char *types,
+                          O2arg_ptr *argv, int argc, const void *user_data);
 
 /// \brief print a representation of the bridge for debugging.
 void o2_bridge_show(Bridge_info *bridge);

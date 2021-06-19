@@ -115,7 +115,8 @@ allocate and free functions, atomic lock-free queues and classes.
 
 * Network Layer:
 
-network provides an asynchronous socket library with abstractions for sending and receiving messages. Defines o2n_message and Net_interface class
+network provides an asynchronous socket library with abstractions for sending
+and receiving messages. Defines O2netmsg and Net_interface class
 
 * O2 Layer:
 
@@ -166,9 +167,9 @@ of connection (TCP, UDP, etc.) O2node is subclassed to create:
             deleting either a Proxy_info or an Fds_info will delete
             the partner as well.
 
-
-
-The object initiating the closure first sets the fds_info and owner pointers to NULL so the objects are not cross-linked. Then, the other object is deleted. If the pointer to the other o
+The object initiating the closure first sets the fds_info and owner pointers
+to NULL so the objects are not cross-linked. Then, the other object is
+deleted.
 
 * Bridge Layer
 
@@ -415,20 +416,22 @@ M, but the discovery protocol works with either direction.
 A possible optimization is the following: After discovery, processes
 exchange local service information through !_o2/sv messages. We could
 include remote process names as well since these are service names in
-the form IP:Port, identifiable by a leading digit. For each of these,
+the form @IP:IP:Port, identifiable by a leading '@'. For each of these,
 the receiver could check to see if the service exists. If not, it
 could treat this as a newly discovered process. On the down side, the
 N^2 !_o2/sv messages now grow to contain O(N) services (each), making
-the data exchanged through discovery grow to N^3.
+the data exchanged through discovery grow to N^3. Bonjour apparently
+uses this scheme of sending known services in messages, but these are
+broadcast messages so sending N services to N processes only costs
+1 message with N services.
 
 The address for discovery messages is !_o2/dy, and the arguments are:
-    hub flag (int32)
     ensemble name (string)
     public ip (string)
     internal ip (string)
-    tcp (int32)
+    tcp port (int32)
     upd port (int32)
-    sync (T or F)
+    dy flag (int32) (see below)
 
 Once a discovery message is received (usually via UDP), in either
 direction, a TCP connection is established. Since the higher
@@ -442,6 +445,56 @@ back to the server. The client sends a discovery message again.
 
 When a TCP connection is connected or accepted, the process sends
 a list of services to !_o2/sv at the remote process.
+
+Distributed Services Database
+-----------------------------
+
+A key design element is that every process can perform a local lookup
+to map a service given in a message address to the process that offers
+the service. Therefore, every process has a complete index mapping all
+services to their providers. When two providers offer the same service
+(name), *both* providers are known to all other processes, and
+messages are sent to the process with the highest address.
+
+Similarly, every tap of every service is known to every process. It
+may seem that this is overkill, since only the actual service provider
+sends messages to the service tappers. However, the actual service
+provider can change if a service is created, thus any process can
+become the tappee by becoming the service provider for a tapped
+service.  (Note: an alternative design would be when the service
+provider changes, any tappers for the service would send tap request
+messages to the new service provider. This would create a window in
+which tap messages could be missed.)
+
+This distributed service index is subject to race conditions where
+changes take time to propagate and during that time, messages may be
+misdirected. The only guarantee is that if there are no new changes,
+all processes will *eventually* acquire consistent information. In
+practice, changes propagate quickly (tens of ms or less) except
+possibly in the case where a crashed process might not be noticed
+until a TCP timeout occurs.
+
+Consistency is guaranteed as follows: First, all processes form a
+fully connected graph. When a process joins the ensemble, discovery
+guarantees that it connects directly to every other process. When
+connection occurs, *all* local service information is exchanged. Once
+connected, any change to the local services is transmitted to *all*
+other processes. When a connection is lost to a process, *all*
+services offered by that process are deleted. If the deleted process
+was the active provider of a service, another provider of the service
+can be immediatly determined locally by every surviving process.
+
+Taps are treated similarly. The "owner" of the tap is the tapper, so
+the tapper sends information to other processes about the taps it has
+asserted. The "tappees" simply keep track of the taps. (They are
+stored with services so when a message is delivered locally to the
+service, a tap message is also sent to each tapper.) When a remote
+process is deleted, the local process removes all records of taps
+asserted by that process. (Taps are always associated with a single
+process. A higher provider address does not override a tap; i.e. two
+processes can create local services named "mytap" and use calls to
+`o2_tap` to tap a service named "spied-upon." Any message delivered
+locally to "spied-upon" will then be sent to *both* "mytap" services.)
 
 Process Creation
 ----------------
@@ -666,9 +719,10 @@ one. For example, if the tap directs message copies to "s1" of process
 P1, message copies will be sent there even if a message directly to
 service "s1" would go to process P2 (because "s1" is offered by both
 P1 and P2, but the pip:iip:port name of P2 is greater than that of
-P1. The main reason for this policy is that it allows taps to be
+P1.) The main reason for this policy is that it allows taps to be
 removed when the process dies.  Without the process specification, it
-would be ambiguous who the tap belongs to.
+would be ambiguous who the tap belongs to. (See also "Distributed
+Service Database")
 
 
 Remote Process Name: Allocation, References, Freeing
@@ -794,6 +848,7 @@ See ../doc/o2lite.txt for details.
 #include "discovery.h"
 #include "properties.h"
 #include "pathtree.h"
+#include "o2zcdisc.h"
 
 const char *o2_ensemble_name = NULL;
 char o2_hub_addr[O2_MAX_PROCNAME_LEN];
@@ -849,13 +904,13 @@ O2err o2_initialize(const char *ensemble_name)
     // to the actual message bytes, we are in big trouble, so this is a
     // basic sanity check on the compiler (and we assume the optimizing
     // compiler will follow suit):
-    assert(offsetof(o2n_message, payload) == offsetof(o2n_message, length) + 4);
+    assert(offsetof(O2netmsg, payload) == offsetof(O2netmsg, length) + 4);
     assert(offsetof(O2msg_data, misc) == offsetof(O2msg_data, length) + 4);
     assert(offsetof(O2msg_data, timestamp) ==
            offsetof(O2msg_data, length) + 8);
     assert(offsetof(O2msg_data, address) ==
            offsetof(O2msg_data, length) + 16);
-    assert(offsetof(o2n_message, length) == offsetof(O2message, data));
+    assert(offsetof(O2netmsg, length) == offsetof(O2message, data));
     
     o2_stun_query_running = false;
     
@@ -919,11 +974,15 @@ O2err o2_initialize(const char *ensemble_name)
 void o2_init_phase2()
 {
     o2_processes_initialize();
-    o2_discovery_init_phase2();
     o2_clock_init_phase2(); // install handlers for clock sync
-
+    o2_discovery_init_phase2();
     // start the discovery and MQTT setup
+#ifndef O2_NO_O2DISCOVERY
     o2_send_discovery_at(o2_local_time());
+#endif
+#ifndef O2_NO_ZEROCONF
+    o2_zcdisc_initialize();
+#endif
 #ifndef O2_NO_MQTT
     if (o2_mqtt_waiting_for_public_ip) {
         o2_mqtt_initialize();
@@ -984,8 +1043,9 @@ static void send_one_sv_msg(Proxy_info *proc, const char *service_name,
 /** notify all known processes that a service has been added or
  * deleted. If adding a service and tapper is not empty or null,
  * then the new service is tapper, which is tapping service_name.
+ * Notices go to remote processes, but not to bridges.
  */
-void o2_notify_others(const char *service_name, int added,
+void o2_notify_others(const char *service_name, bool added,
                       const char *tapper, const char *properties,
                       int send_mode)
 {
@@ -998,6 +1058,10 @@ void o2_notify_others(const char *service_name, int added,
     // processes about it. To find all other processes, use the
     // o2_ctx->fds_info table since all but a few of the
     // entries are connections to processes
+    //TODO: debugging code
+    if (!added && streql(service_name, "publish0") && streql(tapper, "copy0"))
+        printf("publish0: remove tapped by copy0\n");
+    //TODO: above is debugging code to be removed
     for (int i = 0; i < o2n_fds_info.size(); i++) {
         Fds_info *info = o2n_fds_info[i];
         Proxy_info *proc = (Proxy_info *) (info->owner);
@@ -1075,7 +1139,7 @@ void o2_message_drop_warning(const char *warn, o2_msg_data_ptr msg)
 {
     printf("Warning: %s,\n    message is ", warn);
 #ifdef O2_NO_DEBUG
-    printf("%s (%s)", msg->address, O2_MSGDATA_TYPES(msg));
+    printf("%s (%s)", msg->address, o2_msg_data_types(msg));
 #else
     o2_msg_data_print(msg);
 #endif
@@ -1113,9 +1177,6 @@ O2err o2_tap(const char *tappee, const char *tapper, O2tap_send_mode send_mode)
     char padded_tappee[NAME_BUF_LEN];
     o2_string_pad(padded_tappee, tappee);
     O2err err = o2_tap_new(padded_tappee, o2_ctx->proc, tapper, send_mode);
-    if (err == O2_SUCCESS) {
-        o2_notify_others(padded_tappee, true, tapper, NULL, send_mode);
-    }
     return err;
 }
 
@@ -1127,11 +1188,7 @@ O2err o2_untap(const char *tappee, const char *tapper)
     }
     char padded_tappee[NAME_BUF_LEN];
     o2_string_pad(padded_tappee, tappee);
-    O2err err = o2_tap_remove(padded_tappee, o2_ctx->proc, tapper);
-    if (err == O2_SUCCESS) {
-        o2_notify_others(padded_tappee, false, tapper, NULL, 0);
-    }
-    return err;
+    return o2_tap_remove(padded_tappee, o2_ctx->proc, tapper);
 }
 
 /* DEBUGGING:
@@ -1321,7 +1378,7 @@ O2err o2_finish()
     // socket AND the tcp server sockets point to o2_ctx->proc, and both
     // will try to delete o2_ctx->proc. There's no reference counting, so
     // remove one reference before proceeding:
-    o2_discovery_udp_server->owner = NULL;
+    o2_udp_server->owner = NULL;
 
     // Close all the sockets.
     if (o2_ctx) {
@@ -1341,7 +1398,7 @@ O2err o2_finish()
                               o2_debug_prefix, i, info->net_tag,            \
                               Fds_info::tag_to_string(info->net_tag), \
                               info->port));
-            info->close_socket();
+            info->close_socket(true);
         }
         o2n_free_deleted_sockets(); // deletes process_info structs
         // now that there are no more sockets, we can free local process,
@@ -1368,7 +1425,7 @@ O2err o2_finish()
 
 
 #ifndef __APPLE__
-void o2strcpy(char *__restrict dst, const char *__restrict src,
+void o2_strcpy(char *__restrict dst, const char *__restrict src,
               size_t dstsize)
 {
     strncpy(dst, src, dstsize);

@@ -87,7 +87,7 @@ int o2_gtsched_started = false;  // cannot use o2_gtsched until clock is in sync
 void o2_sched_finish(O2sched_ptr s)
 {
     for (int i = 0; i < O2_SCHED_TABLE_LEN; i++) {
-        o2_message_list_free(s->table[i]);
+        o2_message_list_free(&s->table[i]);
     }
     o2_gtsched_started = false;
 }
@@ -148,7 +148,7 @@ O2err o2_schedule(O2sched_ptr s)
 
 // This is the "public" scheduler - assume ownership of msg, then
 //     call o2_schedule().
-int o2_schedule_msg(O2sched_ptr scheduler, O2message_ptr msg)
+O2err o2_schedule_msg(O2sched_ptr scheduler, O2message_ptr msg)
 {
     o2_prepare_to_deliver(msg);
     return o2_schedule(scheduler);

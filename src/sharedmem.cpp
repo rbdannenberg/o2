@@ -274,12 +274,14 @@ public:
     virtual O2err send(bool block) {
         int tcp_flag;
         O2message_ptr msg = pre_send(&tcp_flag);
+        // send taps first because we will lose ownership of msg to o2sm
+        O2err err = send_to_taps(msg);
         // we have a message to send to the service via shared
         // memory -- find queue and add the message there atomically
         printf("O2sm_info sending to thread %s\n", msg->data.address);
         outgoing.push((O2list_elem_ptr) msg);
         o2_message_source = NULL;  // clean up to help debugging
-        return O2_SUCCESS;
+        return err;
     }
     
     void poll_outgoing();
@@ -343,8 +345,8 @@ static O2message_ptr get_messages_reversed(O2queue *head)
 // exists-flag, service-flag, and tapper-or-properties string.
 // This is almost identical to o2lite_sv_handler.
 //
-void o2sm_sv_handler(o2_msg_data_ptr msgdata, const char *types,
-                        O2arg_ptr *argv, int argc, const void *user_data)
+static void o2sm_sv_handler(o2_msg_data_ptr msgdata, const char *types,
+                            O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2err rslt = O2_SUCCESS;
 
@@ -391,8 +393,8 @@ void o2sm_sv_handler(o2_msg_data_ptr msgdata, const char *types,
 
 
 // Handler for "/_o2/o2sm/fin" message
-void o2sm_fin_handler(o2_msg_data_ptr msgdata, const char *types,
-                      O2arg_ptr *argv, int argc, const void *user_data)
+static void o2sm_fin_handler(o2_msg_data_ptr msgdata, const char *types,
+                             O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2sm_fin_handler gets", NULL, msgdata, NULL, NULL));
     delete o2_message_source;
@@ -433,7 +435,7 @@ O2err o2sm_service_new(const char *service, const char *properties)
 {
     if (!properties) {
         properties = "";
-    }
+    } else assert(properties[0] == ';');
     return o2sm_send_cmd("!_o2/o2sm/sv", 0.0, "isiisi", o2_ctx->binst->id,
                          service, true, true, properties, 0);
 }
@@ -508,6 +510,10 @@ O2err o2sm_method_new(const char *path, const char *typespec,
         hnode = hnode.tree_insert_node(name);
         assert(hnode);
         o2_mem_check(hnode);
+#ifndef o2_mem_check
+    x x x
+#endif
+
         // node is now the node for the path up to name
     }
     // node is now where we should put the final path name with the handler;

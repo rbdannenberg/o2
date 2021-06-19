@@ -10,15 +10,18 @@ requiring liblo library (only enabled if TESTS_BUILD is ON)")
 set(TESTS_MIDI_EXAMPLE OFF CACHE BOOL "Compile midiclient & midiserver, 
 requiring portmidi library")
 
-set(BUILD_WITH_PATTERN_SUPPORT ON CACHE BOOL "Allow pattern matching")
+set(BUILD_WITH_DEBUG_SUPPORT ON CACHE BOOL
+                         "Allow debug flags to control printing info")  
+set(BUILD_WITH_PATTERN_SUPPORT ON CACHE BOOL "Allow pattern matching")  
 set(BUILD_WITH_OSC_SUPPORT ON CACHE BOOL "Include OSC support")
 set(BUILD_WITH_HUB_SUPPORT ON CACHE BOOL "Include o2_hub() discovery")
 set(BUILD_WITH_BUNDLE_SUPPORT ON CACHE BOOL "Allow message bundles")
-set(BUILD_WITH_BRIDGE_SUPPORT ON CACHE BOOL "Allow other transport add-ons")
+set(BUILD_WITH_BRIDGE_SUPPORT ON CACHE BOOL "Allow other transport add-ons")  
+set(BUILD_WITH_WEBSOCKET_SUPPORT ON CACHE BOOL "Support O2 over websockets")  
 set(BUILD_WITH_SHAREDMEM_SUPPORT ON CACHE BOOL
     "Include shared memory bridge API, requires bridge support")
 set(BUILD_WITH_MESSAGE_PRINT OFF CACHE BOOL
-"Provide O2message_print even in non-debug builds (it is always provided in debug builds)")
+"Provide o2_message_print even in non-debug builds (it is always provided in debug builds)")
 
 set(BUILD_WITH_O2LITE_DISCOVERY ON CACHE BOOL
 "Added code to o2lite clients for faster discovery")
@@ -33,11 +36,18 @@ set(BUILD_WITH_O2LITE_CLOCKSYNC ON CACHE BOOL
 # Newer compilers will try to enforce char[4] in memcpy and strcpy
 #  unless we turn off this behavior with the following macro definition:
 add_definitions("-D_FORTIFY_SOURCE=0")
+# add_definitions("-DO2_NO_ZEROCONF") 
+add_definitions("-DO2_NO_O2DISCOVERY") 
 
-if(BUILD_WITH_PATTERN_SUPPORT)
-else(BUILD_WITH_PATTERN_SUPPORT)
-  add_definitions("-DO2_NO_PATTERNS")
-endif(BUILD_WITH_PATTERN_SUPPORT)
+if(BUILD_WITH_DEBUG_SUPPORT) 
+else(BUILD_WITH_DEBUG_SUPPORT) 
+  add_definitions("-DO2_NO_DEBUG") 
+endif(BUILD_WITH_DEBUG_SUPPORT) 
+
+if(BUILD_WITH_PATTERN_SUPPORT) 
+else(BUILD_WITH_PATTERN_SUPPORT) 
+  add_definitions("-DO2_NO_PATTERNS") 
+endif(BUILD_WITH_PATTERN_SUPPORT) 
 
 if(BUILD_WITH_OSC_SUPPORT)
 else(BUILD_WITH_OSC_SUPPORT)
@@ -54,11 +64,20 @@ else(BUILD_WITH_BUNDLE_SUPPORT)
   add_definitions("-DO2_NO_BUNDLES")
 endif(BUILD_WITH_BUNDLE_SUPPORT)
 
-if(BUILD_WITH_BRIDGE_SUPPORT)
-else(BUILD_WITH_BRIDGE_SUPPORT)
-  add_definitions("-DO2_NO_BRIDGES")
-endif(BUILD_WITH_BRIDGE_SUPPORT)
+if (BUILD_WITH_WEBSOCKET_SUPPORT)  
+  set(BUILD_WITH_BRIDGE_SUPPORT ON CACHE BOOL 
+      "Allow other transport add-ons" FORCE)
+  message(STATUS 
+    "Forcing BUILD_WITH_BRIDGE_SUPPORT needed by BUILD_WITH_WEBSOCKET_SUPPORT")
+else (BUILD_WITH_WEBSOCKET_SUPPORT)  
+  add_definitions("-DO2_NO_WEBSOCKETS")  
+endif (BUILD_WITH_WEBSOCKET_SUPPORT)  
 
+if(BUILD_WITH_BRIDGE_SUPPORT)  
+else(BUILD_WITH_BRIDGE_SUPPORT)  
+  add_definitions("-DO2_NO_BRIDGES")  
+endif(BUILD_WITH_BRIDGE_SUPPORT)  
+ 
 if(BUILD_WITH_SHAREDMEM_SUPPORT)
 else(BUILD_WITH_SHAREDMEM_SUPPORT)
   add_definitions("-DO2_NO_SHAREDMEM")
@@ -86,7 +105,7 @@ if(UNIX)
   endif(APPLE)
 endif(UNIX)
 
-#set(CMAKE_CXX_FLAGS "-stdlib=libc++ -D_POSIX_C_SOURCE=201112L" )
+#set(CMAKE_CXX_FLAGS "-stdlib=libc++ -D_POSIX_C_SOURCE=201112L)
 #set(CMAKE_EXE_LINKER_FLAGS "-stdlib=libc++")
 
 # o2
@@ -108,7 +127,10 @@ set(O2_SRC
   src/mqttcomm.cpp src/mqttcomm.h
   src/msgsend.cpp src/msgsend.h
   src/msgprint.cpp
-  src/o2network.cpp src/o2network.h
+  src/o2network.cpp src/o2network.h 
+  src/websock.cpp src/websock.h
+  src/o2sha1.cpp src/o2sha1.h
+  src/o2zcdisc.cpp
   src/o2.cpp src/o2.h src/o2base.h src/o2internal.h
   src/o2osc.cpp src/o2osc.h
   src/pathtree.cpp src/pathtree.h
@@ -157,7 +179,7 @@ set(LIBRARIES o2_static ${EXTRA_LIBS} CACHE INTERNAL "")
 set(O2LITE_LIBS o2lite_static ${EXTRA_LIBS} CACHE INTERNAL "")
 
 if(TESTS_BUILD)
-message(STATUS "Building test programs")
+message(STATUS "Building test programs") 
 
 set(BUILD_STATIC_LIB TRUE CACHE BOOL "Build a static lib -- currently the only thing supported, turning OFF probably gives you a static library without a static runtime library option.")
 
@@ -393,10 +415,14 @@ add_executable(o2liteserv test/o2liteserv.c)
 target_include_directories(o2liteserv PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(o2liteserv ${O2LITE_LIBS})
 
-add_executable(o2litehost test/o2litehost.cpp)
-target_include_directories(o2litehost PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(o2litehost ${LIBRARIES})
-
+add_executable(o2litehost test/o2litehost.cpp)  
+target_include_directories(o2litehost PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(o2litehost ${LIBRARIES})  
+ 
+add_executable(websockhost test/websockhost.cpp)  
+target_include_directories(websockhost PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(websockhost ${LIBRARIES})  
+ 
 add_executable(stuniptest test/stuniptest.cpp)
 target_include_directories(stuniptest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(stuniptest ${LIBRARIES})
@@ -405,10 +431,18 @@ add_executable(mqttclient test/mqttclient.cpp)
 target_include_directories(mqttclient PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(mqttclient ${LIBRARIES})
 
-add_executable(mqttserver test/mqttserver.cpp)
-target_include_directories(mqttserver PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(mqttserver ${LIBRARIES})
-
+add_executable(mqttserver test/mqttserver.cpp)  
+target_include_directories(mqttserver PRIVATE ${CMAKE_SOURCE_DIR}/src)  
+target_link_libraries(mqttserver ${LIBRARIES})  
+ 
+add_executable(unipub test/unipub.cpp)   
+target_include_directories(unipub PRIVATE ${CMAKE_SOURCE_DIR}/src)   
+target_link_libraries(unipub ${LIBRARIES})  
+  
+add_executable(unisub test/unisub.cpp)   
+target_include_directories(unisub PRIVATE ${CMAKE_SOURCE_DIR}/src)   
+target_link_libraries(unisub ${LIBRARIES})  
+  
 endif(TESTS_BUILD)
 
 if(UNIX)
@@ -419,6 +453,7 @@ if(UNIX)
   else(APPLE)
     # linux
     set(CMAKE_C_FLAGS "-std=c11 -mcx16")
+    add_compile_options(-fno-exceptions -fno-rtti -fno-stack-protector -fomit-frame-pointer -ffunction-sections -fdata-sections -Wl,-gc-sections -fmerge-all-constants -Wl,-z,norelro -Wl,-hash-style=gnu) 
     set(PTHREAD pthread CACHE INTERNAL "")
     # EXTRA_LO_LIBS is libraries needed by Liblo applications
     set(EXTRA_LO_LIBS asound ${PTHREAD} m CACHE INTERNAL "")

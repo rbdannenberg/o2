@@ -1,0 +1,343 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>O2 Test</title>
+<script src="o2ws.js"></script>
+<script>
+function app_init() {
+    wsResult = document.getElementById("wsResult"); 
+    wsStatus = document.getElementById("wsStatus"); 
+    wsOutput = document.getElementById("wsOutput"); 
+    o2ws_status_msgs_enable = true;
+    o2ws_status_msg("Initializing O2ws with " + WSURI);
+    o2ws_initialize("test");
+    // create handler for server status messages
+    o2ws_method_new("/_o2/st", "si", true, status_handler, null); 
+    o2ws_method_new("/_o2/ls", "siss", true, list_status_handler, null); 
+    o2ws_set_services("one");
+    o2ws_method_new("/one/sync", "i", true, service_one, null); 
+    set_state("START");
+    step(0);
+    watchdog();
+}
+
+
+var state = "START";
+var two_status = null;
+
+function set_state(s) {
+    if (state != "STOPPED") {  // cannot exit final state
+        state = s;
+        wsState.innerHTML = state;
+    }
+}
+
+
+function fail_test(msg) {
+    set_state("STOPPED");
+    o2ws_on_error(msg);
+}
+
+
+function must_be(test, msg) { if (!test) fail_test(msg); }
+
+
+var last_step_time = 1000000;  // no timeout yet
+
+// watchdog alerts us when nothing happens in 10s
+//
+function watchdog() {
+    var now = o2ws_local_time();
+    if (last_step_time + 10 < now && state != "STOPPED") {
+        fail_test("watchdog time says nothing is happening, last state " +
+                  state + " last step " + last_step_time + " now " + now);
+    } else {
+        setTimeout(watchdog, 10000);
+    }
+}
+
+
+function service_one(address, typespec, info) {
+    var i = o2ws_get_int32();
+    console.log("service_one: sync_value is " + i);
+    sync_value = i;
+}
+
+
+// sync: both processes run up to where they synchronize. Then each
+// blocks until the other reaches the sync point. If other reaches it
+// first, sync_value will be N when we call sync_start(N). We send N
+// to release the remote process and proceed immediately.
+// If we get there first, we release other, but start polling for N
+// until we get it.
+
+var sync_value = -1, sync_expected = null;
+var sync_success_state = null;
+
+function sync_start(i, next) {
+    o2ws_send_cmd("/two/sync", 0, "i", i); 
+    if (sync_value == i) { // other process is already there at i
+        set_state(next);
+        step(100); 
+    } else {
+        must_be(sync_value < i, "sync_start error: sync_value " +
+                sync_value + " expected " + i);
+        sync_expected = i;
+        sync_success_state = next;
+        set_state("SYNC" + i);
+        step(25);
+    }
+}
+
+function sync_run() {
+    if (sync_value < sync_expected) {
+        step(25);
+    } else {
+        must_be(sync_value == sync_expected, "Sync failed: value " +
+                sync_value + " expected " + sync_expected);
+        set_state(sync_success_state);
+        step(100);
+    }
+}
+
+function step(timeout = 0) {
+    if (timeout > 0) {
+        setTimeout(step, timeout, 0);
+        return;
+    }
+    console.log("in step, state is " + state);
+    if (state == "START") {
+        o2ws_send_cmd("/_o2/ws/st", 0, "s", "two"); 
+        set_state("WCL");
+        two_status = null;
+    } else if (state == "WCL") {
+        if (two_status == O2_REMOTE && o2ws_clock_synchronized) {
+            // for debugging, stop sending clock get messages:
+            // o2ws_disable_clock_ping = true; 
+            set_state("GS0");
+            step(1000);
+        } else {  // get status after short wait
+            set_state("START");
+            step(250);
+        }
+    } else if (state == "GS0") {
+        get_status("LK0");
+    } else if (state == "LK0") {  // wait for and check list services function
+        must_be(one_prop == "", "LK0 bad one_prop"); 
+        must_be(two_prop == "", "LK0 bad two_prop"); 
+        sync_start(0, "GO0");
+    } else if (state == "SYNC0") {
+        sync_run(); 
+    } else if (state == "GO0") {
+        o2ws_set_properties("one", "attr1:value1;"); 
+        sync_start(1, "GO1"); 
+    } else if (state == "SYNC1") {
+        sync_run(); 
+    } else if (state == "GO1") {
+        get_status("LK1");
+    } else if (state == "LK1") {
+       must_be(one_prop == "attr1:value1;", "LK1 bad one_prop"); 
+       must_be(two_prop == "attr2:value2;", "LK1 bad two_prop");
+       sync_start(2, "GO2");
+    } else if (state == "SYNC2") {
+        sync_run(); 
+    } else if (state == "GO2") {
+       o2ws_set_properties("one", "attr0:onevalue1one;attr1:value1;"); 
+       sync_start(3, "GO3");
+    } else if (state == "SYNC3") {
+        sync_run(); 
+    } else if (state == "GO3") {
+        get_status("LK3"); 
+    } else if (state == "LK3") {
+       must_be(one_prop == "attr0:onevalue1one;attr1:value1;",
+               "LK3 bad one_prop"); 
+       sync_start(4, "GO4"); 
+    } else if (state == "SYNC4") {
+        sync_run(); 
+    } else if (state == "GO4") {
+        o2ws_set_properties("one", "attr0:newvalue1;attr1:value1;"); 
+        sync_start(5, "GO5"); 
+    } else if (state == "SYNC5") {
+        sync_run(); 
+    } else if (state == "GO5") {
+        get_status("LK5"); 
+    } else if (state == "LK5") {
+       must_be(one_prop == "attr0:newvalue1;attr1:value1;", "LK5 bad one_prop");
+       must_be(two_prop == "attr0:newvalue2;attr2:value2;", "LK5 bad two_prop");
+       sync_start(6, "GO6"); 
+    } else if (state == "SYNC6") {
+        sync_run(); 
+    } else if (state == "GO6") {
+        o2ws_set_properties("one", "attr1:value1;"); 
+        sync_start(7, "GO7"); 
+    } else if (state == "SYNC7") {
+        sync_run(); 
+    } else if (state == "GO7") {
+        get_status("LK7");
+    } else if (state == "LK7") {
+       must_be(one_prop == "attr1:value1;", "LK7 bad one_prop"); 
+       must_be(two_prop == "attr2:value2;", "LK7 bad two_prop"); 
+       sync_start(8, "GO8");
+    } else if (state == "SYNC8") {
+        sync_run(); 
+    } else if (state == "GO8") {
+        o2ws_set_properties("one", 
+          "attr1:value1;attr2:value2;attr3:value3;attr4:value4;attr5:value5;"); 
+        sync_start(9, "GO9"); 
+    } else if (state == "SYNC9") {
+        sync_run(); 
+    } else if (state == "GO9") {
+        get_status("LK9"); 
+    } else if (state == "LK9") {
+        must_be(one_prop ==
+            "attr1:value1;attr2:value2;attr3:value3;attr4:value4;attr5:value5;",
+            "LK9 bad one_prop"); 
+        must_be(two_prop ==
+            "attr5:value5;attr4:value4;attr3:value3;attr2:value2;attr1:value1;",
+            "LK9 bad two_prop"); 
+        sync_start(10, "GO10");
+    } else if (state == "SYNC10") {
+        sync_run(); 
+    } else if (state == "GO10") {
+        o2ws_set_properties("one", "attr2:value2;attr4:value4;"); 
+        sync_start(11, "GO11"); 
+    } else if (state == "SYNC11") {
+        sync_run(); 
+    } else if (state == "GO11") {
+        get_status("LK11"); 
+    } else if (state == "LK11") {
+        must_be(one_prop == "attr2:value2;attr4:value4;" ||
+                one_prop == "attr4:value4;attr2:value2;", "LK11 bad one_prop"); 
+        must_be(two_prop == "attr2:value2;attr4:value4;" ||
+                two_prop == "attr4:value4;attr2:value2;", "LK11 bad two_prop"); 
+       sync_start(12, "GO12");
+    } else if (state == "SYNC12") {
+        sync_run(); 
+    } else if (state == "GO12") {
+        o2ws_set_properties("one",
+            "attr1:\\\\\\;\\\\\\:\\\\\\\\;" + 
+            "attr2:\\\\\\:value2\\\\\\;;" +
+            "attr3:val\\\\\\\\\\\\\\\\ue3;" + 
+            "attr4:\\\\\\\\\\\\\\\\\\\\\\;\\\\\\:value4;");
+            sync_start(13, "GO13"); 
+    } else if (state == "SYNC13") {
+        sync_run(); 
+    } else if (state == "GO13") {
+        get_status("LK13"); 
+    } else if (state == "LK13") {
+        must_be(one_prop == "attr1:\\\\\\;\\\\\\:\\\\\\\\;" +
+                            "attr2:\\\\\\:value2\\\\\\;;" +
+                            "attr3:val\\\\\\\\\\\\\\\\ue3;" + 
+                            "attr4:\\\\\\\\\\\\\\\\\\\\\\;\\\\\\:value4;",
+                "LK13 bad one_prop");
+        must_be(two_prop == "attr4:\\\\\\\\\\\\\\\\\\\\\\;\\\\\\:value4;" +
+                "attr3:val\\\\\\\\\\\\\\\\ue3;" + 
+                "attr2:\\\\\\:value2\\\\\\;;attr1:\\\\\\;\\\\\\:\\\\\\\\;",
+                "LK13 bad two_prop");
+       sync_start(14, "GO14"); 
+    } else if (state == "SYNC14") {
+        sync_run(); 
+    } else if (state == "GO14") {
+        display_result("SUCCESS");
+        o2ws_send_cmd("/websockhost/stop", 0, "");
+        set_state("SHUTDOWN");
+        step(250);
+    }
+}
+
+
+function status_handler(address, typespec, info) {
+    var service_name = o2ws_get_string();
+    var service_status = o2ws_get_int32();
+    if (service_name == "two") {
+        o2ws_status_msg("two status is " + service_status);
+        two_status = service_status;
+    }
+    step();
+}
+
+
+var one_type, two_type, one_prop, two_prop, got_status_list;
+
+function get_status(next_state) {
+    one_type = null;
+    two_type = null;
+    one_prop = null;
+    two_prop = null;
+    got_status_list = false;
+    o2ws_send_cmd("!_o2/ws/ls", 0, ""); 
+    set_state(next_state);
+}
+
+
+function list_status_handler(address, typespec, info) {
+    var service_name = o2ws_get_string();
+    var service_type = o2ws_get_int32();
+    var process_name = o2ws_get_string(); 
+    var properties = o2ws_get_string(); 
+    o2ws_status_msg("list_status_handler: " + service_name +
+                     " type " + service_type + " process " +
+                     process_name + " properties " + properties);
+    if (service_name == "") {
+        if (one_type != O2_BRIDGE || two_type != O2_REMOTE) {
+            fail_test("failed to get type for services one or two " +
+                      one_type + " " + two_type);
+        }
+        got_status_list = true;
+        step(250); 
+    } else if (service_name == "one") {
+        if (process_name != "_o2")
+            fail_test("process_name for one is " + process_name);
+        one_type = service_type;
+        one_prop = properties; 
+    } else if (service_name == "two") {
+        two_type = service_type 
+        two_prop = properties; 
+    }
+}
+
+
+function make_paragraph(content) {
+    var par = document.createElement("p"); 
+    par.style.wordWrap = "break-word"; 
+    par.innerHTML = content;
+    return par;
+}
+
+
+function display_result(msg) {
+    wsResult.innerHTML = msg;
+}
+
+function o2ws_status_msg(message) {
+    wsStatus.innerHTML = "<p>" + message + "</p>";
+    console.log("Status: " + message);
+}
+
+function o2ws_on_error(message) {
+    console.log("ERROR: " + message);
+    wsOutput.appendChild(make_paragraph(
+            '<span style="color: red;">ERROR:</span> ' + message));
+}
+
+function client_stop_handler(timestamp, typespec, info) {
+    // tell the server to die
+    o2ws_send_start("/websockhost/stop", 0, "");
+    o2ws_send_finish();
+}
+
+
+window.addEventListener("load", app_init, false);
+console.log("Finished loading index.htm scripts");
+</script>
+</head>
+
+<body>
+<h1>O2 propsend Test</h1>
+  <h3 id="wsResult"></h3>
+  <p>State: <span id="wsState"></span></p>
+  <div id="wsStatus"></div>
+  <div id="wsOutput"></div>
+</body>
+</html>

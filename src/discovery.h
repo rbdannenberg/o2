@@ -17,10 +17,8 @@
 // how many ports to search.
 #define PORT_MAX  16
 
-extern O2message_ptr o2_discovery_msg;
-
 extern SOCKET o2_discovery_socket;
-extern Fds_info *o2_discovery_udp_server;
+extern Fds_info *o2_udp_server;
 
 #ifndef O2_NO_HUB
 extern char o2_hub_addr[O2_MAX_PROCNAME_LEN]; // @public:internal:port of hub
@@ -37,6 +35,7 @@ void o2_discovery_init_phase2();
 
 O2err o2_discovery_finish(void);
 
+#ifndef O2_NO_O2DISCOVERY
 /**
  *  Discover function will send the discover messages and deal with all the discover
  *  messages sent to the discover socket. Record all the information in the
@@ -49,6 +48,7 @@ void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
                     O2arg_ptr *argv, int argc, const void *user_data);
 
 void o2_send_discovery_at(O2time when);
+#endif
 
 O2err o2_send_services(Proxy_info *proc);
 
@@ -67,12 +67,12 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
 
 // call this if you have a (padded) O2string for name:
 O2err o2_discovered_a_remote_process_name(const char *name,
-                    const char *internal_ip, int port, int dy);
+        const char *internal_ip, int tcp_port, int udp_port, int dy);
 
 // call this if you have just individual address components OR if
 // dy is O2_CALLBACK:
 O2err o2_discovered_a_remote_process(const char *public_ip,
-                    const char *internal_ip, int port, int dy);
+        const char *internal_ip, int tcp_port, int udp_port, int dy);
 
 O2message_ptr o2_make_dy_msg(Proc_info *proc, bool tcp_flag, bool swap_flag,
                              int dy_flag);

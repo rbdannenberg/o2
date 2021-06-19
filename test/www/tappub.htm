@@ -1,0 +1,230 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>tappub Test</title>
+<script src="o2ws.js"></script>
+<script>
+// tappub.htm is based on tappub.cpp. See tappub.cpp for description
+//    of the test. Basically, this tests taps used for
+//    publish/subscribe.
+// Run this:
+//    cd ~/o2/test
+//    ../Debug/websockhost
+//    [and in another terminal]
+//    ../Debug/tapsub
+//    [and in a browser]
+//    http://test.local:8080/tappub.htm
+//
+// Expected behavior:
+//    my services are:
+//        publish0, publish1, publish2
+//        subscribe0 subscribed to publish0
+//    tapsup discovers publish0,
+//    waits a bit
+//    taps publish0 through publish2 (n_addrs)
+//    waits a bit
+//    sends messages to publishN
+//    each tap message received by subscribeN generates a new message
+//    after 200 messages, -1 is sent and running = false
+//    
+
+var N_ADDRS = 3;
+var MAX_MSG_COUNT = 200;
+
+function app_init() {
+    wsResult = document.getElementById("wsResult"); 
+    wsStatus = document.getElementById("wsStatus"); 
+    wsOutput = document.getElementById("wsOutput"); 
+    o2ws_status_msgs_enable = true;
+    o2ws_status_msg("Initializing O2ws with " + WSURI);
+    o2ws_initialize("test");
+    var i;
+    var services = ""
+    for (i = 0; i < N_ADDRS; i++) {
+        var path = "publish" + i;
+        services = services + path + ",";
+        o2ws_method_new("/" + path + "/i", "i", true, server_test, null); 
+    }
+
+    services = services + "subscribe0";
+    o2ws_set_services(services); 
+    o2ws_method_new("/subscribe0/i", "i", true, copy_i, null); 
+    o2ws_tap("publish0:subscribe0:R");
+    o2ws_method_new("/_o2/ls", "siss", true, service_info, null);
+    wait_for_messages();
+}
+
+var running = true;
+
+function wait_for_messages() {
+    if (running) {
+        setTimeout(wait_for_messages, 100);
+    } else {
+        // running set false after we received -1
+        // remove our publish0 tap (not supported by o2ws_ call, but we
+        // can do it anyway:
+        o2ws_send_start("!_o2/ws/sv", 0, "siisi", true);
+        o2ws_add_string("publish0");
+        o2ws_add_int32(0);  // remove the tap
+        o2ws_add_int32(0);  // this is a tap
+        o2ws_add_string("subscribe0");
+        o2ws_add_int32(0);  // tap_mode is unused 
+        o2ws_send_finish();
+        // now we wait for 1 second to remove the taps:
+        setTimeout(check_non_tappers, 1000);
+    }
+}
+
+var msg_count = 0; // counts messages coming into /publish<i> 
+var running = true;  
+ 
+function server_test(timestamp, address, typespec, info) {
+    // caller has already checked for arg count and type match
+    if (!running) {
+        o2ws_status_msg("server_test got another message: ignored"); 
+        return; 
+    }
+    var i = o2ws_get_int32(); 
+    if (msg_count < 10) {
+        o2ws_status_msg("server message " + msg_count + " is " + i); 
+    }
+    if (i === -1) {
+        o2ws_status_msg("server_test got " + address + ", i = " + i);
+        running = false;
+    } else if (msg_count !== i) {
+            o2ws_error("server msg_count " + msg_count + " != " + i);
+    }
+    msg_count++;
+    if (msg_count % 100 === 0) {
+        o2ws_status_msg("server received " + msg_count + " messages");
+    }
+}
+
+
+var copy_count = 0;
+
+function copy_i(timestamp, address, typespec, info) {
+    if (!running) {
+        o2ws_status_msg("copy_i got another message: ignored"); 
+        return; 
+    }
+    var i = o2ws_get_int32(); 
+    if (copy_count < 5 * N_ADDRS) {
+        o2ws_status_msg("copy_i got " + address + " i = " + i);
+    }
+    if (i !== -1 && i !== copy_count) {
+        o2ws_error("copy_i got bad value " + i + " expected " + copy_count);
+   }
+   copy_count += N_ADDRS;
+}
+
+
+var tappers_exist = Array(N_ADDRS).fill(null);
+var tappees_exist = Array(N_ADDRS).fill(null);
+
+// this replaces o2_services_list() in tappub.cpp:
+function check_non_tappers() {
+    o2ws_send("/_o2/ws/ls", 0, "");
+    // allow 1s for all status info to return. Then make sure we found
+    // all the expected services:
+    setTimeout(check_for_services, 1000);
+}
+
+// replies from /_o2/ws/ls come here:
+function service_info(timestamp, address, typespec, info) {
+    var name = o2ws_get_string();
+    var service_type = o2ws_get_int32();
+    var process_name = o2ws_get_string();
+    var tapper_name = o2ws_get_string();
+    for (var i = 0; i < N_ADDRS; i++) {
+        tappers_exist[i] |= search_for_non_tapper("subscribe" + i,
+                                        name, service_type);
+        tappees_exist[i] |= search_for_non_tapper("publish" + i,
+                                        name, service_type);
+    }
+}
+
+
+function search_for_non_tapper(service, name, service_type) {
+    if (name == service) {
+        if (service_type === O2_TAP) {
+            o2ws_error("service " + service + " is a tap.");
+        }
+        return true;
+    }
+    return false;
+}
+
+
+function check_for_services() {
+    for (i = 0; i < N_ADDRS; i++) {
+        if (!tappers_exist[i]) {
+            o2ws_error("non_tapper subscribe" + i + " not found."); 
+        }
+        if (!tappees_exist[i]) {
+            o2ws_error("non_tapper publish" + i + " not found."); 
+        }
+    }
+    // finish up with some checks:
+    if (Math.trunc(copy_count / N_ADDRS) !==
+        Math.trunc(MAX_MSG_COUNT / N_ADDRS) + 1) {
+        o2ws_error("copy_count value (" + copy_count + ") is wrong."); 
+    }
+    if (msg_count != MAX_MSG_COUNT + 1) {
+        o2ws_error("msg_count value (" + msg_count + ") is wrong."); 
+    }
+    setTimeout(tappub_finish, 1000);
+}
+
+
+function make_paragraph(content) {
+    var par = document.createElement("p"); 
+    par.style.wordWrap = "break-word"; 
+    par.innerHTML = content;
+    return par;
+}
+
+
+function display_result(msg) {
+    wsResult.innerHTML = msg;
+}
+
+
+function o2ws_status_msg(message) {
+    wsStatus.innerHTML = "<p>" + message + "</p>";
+    console.log("Status: " + message); 
+}
+
+
+function o2ws_error(message) {
+    wsOutput.appendChild(make_paragraph(
+            '<span style="color: red;">ERROR:</span> ' + message));
+    console.log("Error: " + message); 
+}
+
+
+
+
+function tappub_finish() {
+    o2ws_status_msg("SERVER DONE"); 
+    // tell the server to die
+    o2ws_send_start("/websockhost/stop", 0, "", true);
+    o2ws_send_finish();
+    display_result("SUCCESS");
+    o2ws_finish();
+}
+
+
+window.addEventListener("load", app_init, false);
+console.log("Finished loading index.htm scripts");
+</script>
+</head>
+
+<body>
+<h1>O2 statusclient Test</h1>
+  <h3 id="wsResult"></h3>
+  <div id="wsStatus"></div>
+  <div id="wsOutput"></div>
+</body>
+</html>

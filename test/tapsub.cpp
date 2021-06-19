@@ -1,15 +1,23 @@
 //  tapsub.c - subscriber to tappub.c, a test for taps acrosss processes
 //
 //  see tappub.c for details
+//
+// my services are:
+//     subscribe0, subscribe1, subscribe2
+//         subscribe0 taps publish0
+//         subscribe1 taps publish1
+//         subscribe2 taps publish2
+//     copy0 (taps publish0)
 
 #include "o2.h"
+#include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>  // atoi
 #include <string.h>
 #include <assert.h>
-#define streql(a, b) (strcmp(a, b) == 0)
 
-int MAX_MSG_COUNT = 1000;
+// send this many messages followed by -1
+int MAX_MSG_COUNT = 200;
 
 char **server_addresses;
 int n_addrs = 3;
@@ -18,7 +26,10 @@ int use_tcp = false;
 int msg_count = 0;
 bool running = true;
 
-void search_for_non_tapper(const char *service, bool must_exist)
+// search for service. The service must either exist (expected==true)
+//    or not exist (expected==false). If it exists, it must not be
+//    tapped.
+void search_for_non_tapper(const char *service, bool expected)
 {
     bool found_it = false;
     int i = 0;
@@ -28,15 +39,22 @@ void search_for_non_tapper(const char *service, bool must_exist)
         // tap on the service.
         const char *name = o2_service_name(i);
         if (!name) {
-            if (must_exist != found_it) {
-                printf("search_for_non_tapper %s must_exist %s\n",
-                       service, must_exist ? "true" : "false");
-                assert(false);
+            if (expected != found_it) {
+                printf("search_for_non_tapper %s expected %s\n",
+                       service, expected ? "true" : "false");
+                o2_print_path_tree();
             }
+            assert(expected == found_it);
             return;
         }
         if (streql(name, service)) { // must not show as a tap
-            assert(o2_service_type(i) != O2_TAP);
+            int st = o2_service_type(i);
+            if (st == O2_TAP) {
+                printf("Unexpected that %s has a TAP (%s)\n", service,
+                       o2_service_tapper(i));
+                o2_print_path_tree();
+            }
+            assert(st != O2_TAP);
             assert(!o2_service_tapper(i));
             found_it = true;
         }
@@ -47,11 +65,13 @@ void search_for_non_tapper(const char *service, bool must_exist)
 
 void run_for_awhile(double dur)
 {
+    printf("rfa start %g\n", o2_time_get());
     double now = o2_time_get();
     while (o2_time_get() < now + dur) {
         o2_poll();
         o2_sleep(2);
     }
+    printf("rfa stop %g\n", o2_time_get());
 }
 
     
@@ -65,19 +85,15 @@ void client_test(o2_msg_data_ptr data, const char *types,
     if (msg_count < 10) {
         printf("client message %d is %d\n", msg_count, argv[0]->i32);
     }
-    if (argv[0]->i32 != -1) {
-        assert(msg_count == argv[0]->i32);
-    }
     msg_count++;
-    int i = msg_count;
-
-    // server will shut down when it gets data == -1
-    if (msg_count >= MAX_MSG_COUNT) {
-        i = -1;
+    if (argv[0]->i32 == -1) {
+        assert(msg_count == MAX_MSG_COUNT + 1);
         running = false;
+    } else {
+        assert(msg_count == argv[0]->i32 + 1);
+        int i = msg_count < MAX_MSG_COUNT ? msg_count : -1;
+        o2_send_cmd(server_addresses[msg_count % n_addrs], 0, "i", i);
     }
-    o2_send_cmd(server_addresses[msg_count % n_addrs], 0, "i", i);
-
     if (msg_count % 100 == 0) {
         printf("client received %d messages\n", msg_count);
     }
@@ -86,7 +102,7 @@ void client_test(o2_msg_data_ptr data, const char *types,
 static int copy_count = 0;
 
 void copy_i(o2_msg_data_ptr data, const char *types,
-                 O2arg_ptr *argv, int argc, const void *user_data)
+            O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
     if (copy_count < 5 * n_addrs) { // print the first 5 messages
@@ -103,7 +119,8 @@ int main(int argc, const char *argv[])
 {
     printf("Usage: tapsub [debugflags] [n_addrs]\n"
            "    see o2.h for flags, use a for all, - for none\n"
-           "    n_addrs is number of addresses to use, default 3\n");
+           "    n_addrs is number of addresses to use, default %d\n",
+           n_addrs);
     if (argc >= 2) {
         if (argv[1][0] != '-') {
             o2_debug_flags(argv[1]);
@@ -171,8 +188,8 @@ int main(int argc, const char *argv[])
     }
 
     // we have now sent a message with i=500
+    printf("Finished %d messages at %g\n", msg_count, o2_time_get());
     // shut down all taps
-    // now install all taps
     for (int i = 0; i < n_addrs; i++) {
         char tappee[32];
         char tapper[32];
@@ -193,15 +210,17 @@ int main(int argc, const char *argv[])
         sprintf(tappee, "publish%d", i);
         sprintf(tapper, "subscribe%d", i);
         search_for_non_tapper(tapper, true);
-        search_for_non_tapper(tappee, true); // might as well check
+        // Both processes stop about the same time, so processN is still
+        // around:
+        search_for_non_tapper(tappee, true);
     }
     search_for_non_tapper("copy0", true);
 
     // another second to deliver shutdown message to tappub
     run_for_awhile(1);
 
-    assert(msg_count >= 500 - 1);
-    assert(copy_count >= 500 / n_addrs - 1);
+    assert(msg_count == MAX_MSG_COUNT + 1);
+    assert(copy_count / n_addrs == (MAX_MSG_COUNT / n_addrs + 1));
     for (int i = 0; i < n_addrs; i++) O2_FREE(server_addresses[i]);
     O2_FREE(server_addresses);
     o2_finish();

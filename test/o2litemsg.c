@@ -24,8 +24,6 @@ This test:
 #include "o2lite.h"
 #include <string.h>
 
-#define streql(a, b) (strcmp(a, b) == 0)
-
 // these are duplicate declarations to access "private" stuff in o2lite.c:
 extern char tcpinbuf[MAX_MSG_LEN];
 extern char outbuf[MAX_MSG_LEN];

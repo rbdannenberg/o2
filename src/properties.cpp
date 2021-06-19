@@ -8,6 +8,7 @@
 #include "services.h"
 #include "message.h"
 #include "msgsend.h"
+#include "o2osc.h"
 
 typedef struct service_info {
     O2string name;
@@ -37,7 +38,14 @@ O2err o2_services_list()
             service_info_ptr sip = service_list.append_space(1);
             sip->name = o2_heapify(entry->key);
             sip->process = o2_heapify(spp->service->get_proc_name());
-            sip->service_type = (ISA_PROC(spp->service) ? O2_REMOTE : O2_LOCAL);
+            if (ISA_PROC(spp->service)) sip->service_type = O2_REMOTE;
+#ifndef O2_NO_BRIDGE
+            else if (ISA_BRIDGE(spp->service)) sip->service_type = O2_BRIDGE;
+#endif
+#ifndef O2_NO_OSC
+            else if (ISA_OSC(spp->service)) sip->service_type = O2_TO_OSC;
+#endif
+            else sip->service_type = O2_LOCAL;
             sip->properties = spp->properties;
             if (sip->properties) { // need to own string if any
                 sip->properties = o2_heapify(sip->properties);
@@ -58,13 +66,13 @@ O2err o2_services_list()
 
 #define SERVICE_INFO(sl, i) DA_GET_ADDR(service_list, service_info, i)
 
-int o2_services_list_free()
+O2err o2_services_list_free()
 {
     for (int i = 0; i < service_list.size(); i++) {
         service_info_ptr sip = &service_list[i];
-        O2_FREE(sip->name);
-        O2_FREE(sip->process);
-        if (sip->properties) O2_FREE(sip->properties);
+        O2_FREE((char *) sip->name);
+        O2_FREE((char *) sip->process);
+        if (sip->properties) O2_FREE((char *) sip->properties);
     }
     service_list.clear();
     return O2_SUCCESS;
@@ -248,8 +256,7 @@ static void encode_value_to(char *p, const char *v)
 
 // returns true if properties string has changed
 //
-static bool service_property_free(Service_provider *spp,
-                                  const char *attr)
+static bool service_property_free(Service_provider *spp, const char *attr)
 {
     // see if attr already exists. If so, just remove it in place.
     const char *attr_end = find_attribute_end(attr, spp->properties);
@@ -269,37 +276,69 @@ static bool service_property_free(Service_provider *spp,
 }
 
 
-// add property at front of old properties; assume old properties does
-// not contain attr
-// 
-static void service_property_add(Service_provider *spp, const char *attr,
-                                 const char *value)
+O2err o2_set_service_properties(Service_provider *spp, const char *service,
+                               char *properties)
 {
-    // allocate space for new properties string
-    // need attr, ':', escaped value, ';', existing string, eos
-    size_t attr_len = strlen(attr);
-    size_t value_len = value_encoded_len(value);
-    const char *old_p = spp->properties;
-    // we want the old properties to be a real string to avoid checking for NULL
-    if (!old_p) old_p = ";";
-    int len =  (int) (attr_len + value_len + strlen(old_p) + 3);
-    if (len > O2_MAX_MSG_SIZE) {
-        return; // property cannot grow too large,
-    }           // even O2_MAX_MSG_SIZE is too big
-    char *p = O2_MALLOCNT(len, char);
-    p[0] = ';';
-    strcpy(p + 1, attr);
-    p[1 + attr_len] = ':'; // "1 +" is for leading ';'
-    encode_value_to(p + 2 + attr_len, value);
-    p[attr_len + value_len + 2] = ';'; // "+ 2" is for ';' and ':'
-    // when copying spp->properties, skip the leading ';' because we
-    // already inserted that. We could have appended the new property
-    // instead or prepending and things would work out a little cleaner,
-    // but since attr has just changed, maybe lookups of attr are more
-    // likely and putting it first will make lookups faster
-    strcpy(p + attr_len + value_len + 3, old_p + 1);
     if (spp->properties) O2_FREE(spp->properties);
-    spp->properties = p;
+    spp->properties = properties;
+    assert(!properties || properties[0] == ';');
+    o2_notify_others(service, true, NULL, properties, 0);
+    if (o2_ctx->proc->key) {  // no notice until we have a name
+        o2_send_cmd("!_o2/si", 0.0, "siss", service, o2_status(service),
+                    o2_ctx->proc->key, properties ? properties + 1 : "");
+    }
+    return O2_SUCCESS;
+}
+
+
+// remove current attr:value from properties and if value != NULL,
+// add new attr:value to the front of properties.
+// 
+static void service_property_add(Service_provider *spp, const char *service,
+                                 const char *attr, const char *value)
+{
+    // instead of replacing, which requires more work to break the string
+    // into components, we remove old attr, then insert new attr:value
+    bool changed = service_property_free(spp, attr);
+    char *p = spp->properties;
+    if (value) { // we have a new attr:value
+        // allocate space for new properties string
+        // need attr, ':', escaped value, ';', existing string, eos
+        size_t attr_len = strlen(attr);
+        size_t value_len = value_encoded_len(value);
+        const char *old_p = p;
+        // we want the old properties to be a real string to avoid checking for NULL
+        if (!old_p) old_p = ";";
+        int len =  (int) (attr_len + value_len + strlen(old_p) + 3);
+        if (len > O2_MAX_MSG_SIZE) {
+            return; // property cannot grow too large,
+        }           // even O2_MAX_MSG_SIZE is too big
+        p = O2_MALLOCNT(len, char);
+        p[0] = ';';
+        strcpy(p + 1, attr);
+        p[1 + attr_len] = ':'; // "1 +" is for leading ';'
+        encode_value_to(p + 2 + attr_len, value);
+        p[attr_len + value_len + 2] = ';'; // "+ 2" is for ';' and ':'
+        // when copying spp->properties, skip the leading ';' because we
+        // already inserted that. We could have appended the new property
+        // instead or prepending and things would work out a little cleaner,
+        // but since attr has just changed, maybe lookups of attr are more
+        // likely and putting it first will make lookups faster
+        strcpy(p + attr_len + value_len + 3, old_p + 1);
+        changed = true;
+        o2_set_service_properties(spp, service, p);  // replaces old_p
+    } else if (changed) {
+        p = spp->properties;      // tricky: set_service_properties will
+        spp->properties = NULL;   // free old properties if they exist.
+        o2_set_service_properties(spp, service, p);
+    } // else asked to delete non-existent attribute, so nothing to do
+}
+
+O2err o2_service_provider_set_property(Service_provider *spp,
+        const char *service, const char *attr, const char *value)
+{
+    service_property_add(spp, service, attr, value);
+    return O2_SUCCESS;
 }
 
 
@@ -307,27 +346,11 @@ O2err o2_service_set_property(const char *service, const char *attr,
                               const char *value)
 {
     // find service_provider struct matching service
-    Services_entry *services = *Services_entry::find(service);
-    if (!services) {
-        return O2_FAIL;
+    Service_provider *spp = Services_entry::find_local_entry(service);
+    if (spp) {
+        return o2_service_provider_set_property(spp, service, attr, value);
     }
-    // need to find locally provided service in service list
-    for (int i = 0; i < services->services.size(); i++) {
-        Service_provider *spp = &services->services[i];
-        if (!ISA_PROC(spp->service)) {
-            service_property_free(spp, attr);
-            // this test allows us to free attr by passing in value == NULL:
-            if (value) service_property_add(spp, attr, value);
-            o2_notify_others(service, true, NULL, spp->properties, 0);
-            if (o2_ctx->proc->key) {  // no notice until we have a name
-                o2_send_cmd("!_o2/si", 0.0, "siss", service, O2_FAIL,
-                            o2_ctx->proc->key,
-                            spp->properties ? spp->properties + 1 : "");
-            }
-            return O2_SUCCESS;
-        }
-    }
-    return O2_FAIL; // failed to find local service
+    return O2_FAIL;
 }
 
 

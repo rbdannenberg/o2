@@ -86,7 +86,7 @@ void o2_msg_data_print(o2_msg_data_ptr msg)
                 data_next += sizeof(double);
                 break;
             case O2_SYMBOL:
-                printf(" '%s", data_next);
+                printf(" '%s'", data_next);
                 data_next += o2_strsize(data_next);
                 break;
             case O2_CHAR:
@@ -159,7 +159,7 @@ void o2_msg_data_print(o2_msg_data_ptr msg)
 }
 
 
-void O2message_print(O2message_ptr msg)
+void o2_message_print(O2message_ptr msg)
 {
     o2_msg_data_print(&msg->data);
 }

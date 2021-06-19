@@ -18,7 +18,9 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-#define streql(a, b) (strcmp(a, b) == 0)
+#ifndef streql
+#define streql(a, b) (strcmp((a), (b)) == 0)
+#endif
 
 /**
  * \brief Suspend for n milliseconds
@@ -82,7 +84,7 @@ extern void ((*o2_free_ptr)(void *));
  * implementations of O2_MALLOCT, O2_MALLOCNT, etc.
  */
 #ifndef O2_MALLOC
-#ifdef NO_O2_DEBUG
+#ifdef O2_NO_DEBUG
 #define O2_MALLOC(x) (*o2_malloc_ptr)(x)
 #define O2_MALLOCNT(n, typ) ((typ *) ((*o2_malloc_ptr)((n) * sizeof(typ))))
 #else
@@ -101,10 +103,10 @@ void *o2_dbg_malloc(size_t size, const char *file, int line);
 
 /** \brief free memory allocated by #O2_MALLOC */
 #ifndef O2_FREE
-#ifdef NO_O2_DEBUG
+#ifdef O2_NO_DEBUG
 #define O2_FREE(x) (*o2_free_ptr)(x)
 #else
-void o2_dbg_free(const void *obj, const char *file, int line);
+void o2_dbg_free(void *obj, const char *file, int line);
 #define O2_FREE(x) o2_dbg_free(x, __FILE__, __LINE__)
 #endif
 #endif
@@ -112,7 +114,7 @@ void o2_dbg_free(const void *obj, const char *file, int line);
 
 /** \brief allocate and zero memory (see #O2_MALLOC) */
 #ifndef O2_CALLOC
-#ifdef NO_O2_DEBUG
+#ifdef O2_NO_DEBUG
 void *o2_calloc(size_t n, size_t s);
 #define O2_CALLOC(n, s) o2_calloc(n, s)
 #define O2_CALLOCNT(n, typ) ((typ *) o2_calloc(n, sizeof(typ)))
@@ -132,7 +134,7 @@ void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
 
 // if debugging is on, default is O2MEM_DEBUG
 #ifndef O2MEM_DEBUG
-#ifdef NO_O2_DEBUG
+#ifdef O2_NO_DEBUG
 // set to 0 for no memory debug mode
 #define O2MEM_DEBUG 0
 #else
@@ -144,11 +146,12 @@ void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
     
 // if O2_MEMDEBUG, extra checks are made for memory consistency,
 // and you can check any pointer using o2_mem_check(ptr):
-#ifdef O2MEM_DEBUG
+#if O2MEM_DEBUG
 void o2_mem_check(void *ptr);
-#else
-#define o2_mem_check(ptr) 0 // make #o2_mem_check a noop
+#else   // make #o2_mem_check a noop
+#define o2_mem_check(ptr) 0
 #endif
+
 
 #ifdef __cplusplus
 }

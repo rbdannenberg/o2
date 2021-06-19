@@ -1,0 +1,60 @@
+debug.srp created srp.log for error report...
+runtime exception handler called
+exception is: [31;49minvalid keyword parameter[39;49m
+frame variables: {}
+frame pc: -1
+frame method: <callin_method>
+frame class: nil
+
+Debugger invoked.
+-----------------------------------------------------
+Method [32;49m<callin_method>[39;49m in class [34;49mnil[39;49m
+-----------------------------------------------------
+Method [32;49m<immediate command 0>[39;49m in class [34;49mnil[39;49m, char 792 in file 
+    /Users/rbd/o2/test/srp/mqttsender.srp
+  27: main()
+          ^
+-----------------------------------------------------
+Method [32;49mmain[39;49m in class [34;49mnil[39;49m, char 445 in file 
+    /Users/rbd/o2/test/srp/mqttsender.srp
+Frame variables: {retain: 't', i: nil}
+  17:     mqtt = Mqtt(server = "mqtt.eclipseprojects.io")
+                      ^
+-----------------------------------------------------
+Method [32;49m<callin_method>[39;49m in class [34;49mnil[39;49m
+[31;49minvalid keyword parameter[39;49m
+1> Resume execution...
+-> t
+foo: a = nil, b = nil
+-> nil
+foo: a = 1, b = nil
+-> nil
+foo: a = nil, b = 1
+-> nil
+foo: a = 1, b = 2, c = 3
+-> nil
+
+^
+Error in <stdin>, line 15, near "'
+
+": expected newline
+foo(1, c = 3)
+^
+Error in <stdin>, line 15, near "foo": nested method or function definitions not allowed
+foo: a = 1, b = nil, c = 3
+-> nil
+foo(optional a, keyword b, optional c)
+             ^
+Error in <stdin>, line 18, near "a": expected comma
+def foo(optional a, keyword b, optional c)
+    ^
+Error in <stdin>, line 18, near "foo": nested method or function definitions not allowed
+def foo(optional a, keyword b, optional c)
+                               ^
+Error in <stdin>, line 19, near "optional": formal type out of order
+def foo(keyword b, optional c)
+    ^
+Error in <stdin>, line 19, near "foo": nested method or function definitions not allowed
+def foo(keyword b, optional c)
+                   ^
+Error in <stdin>, line 20, near "optional": formal type out of order

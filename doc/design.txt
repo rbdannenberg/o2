@@ -115,8 +115,37 @@ handler to
         status becomes either PROCESS_OK or PROCESS_NO_CLOCK.
       We send the !_o2/in initialization message using 
       - o2_send_by_tcp. 
-    We then send services to the remote process.  
+    We then send services to the remote process.
 
+
+Connect and Status
+------------------
+We want to create @public:local:port service names as soon as we
+"discover" a process so that a future discovery does not try to make a
+second connection. Adding "@..." as a service serves to prevent
+re-discovery of the same process.
+
+However, with Bonjour/ZeroConf, we can "discover" a non-existent
+process. This service can exist briefly as a TCP connection that is
+asynchronously connecting.  Unfortunately, the original implementation
+of discovery would announce this immediatly via an /_o2/si message,
+allowing the application to send messages. (Any messages would block
+or be queued and eventually freed when the connection hangs up.)
+
+To avoid this anomalous behavior, note that there can only be one
+process overing any given "@..." service, so it is OK to add the
+service. However, when a service becomes "active" (first on services
+list, i.e. when the "@..." service is created), we must check to see
+if the service is truly connected before sending /_o2/si.
+
+Later, when the socket becomes connected, we must send /_o2/si.
+
+Also, when o2_status() is called, we must report O2_FAIL for any
+not-yet-connected process.
+
+For MQTT connections, we will assume that discovery is only through
+MQTT, so if a process name exists as a service, we will assume the
+process exists.
 
 Services
 --------
@@ -214,7 +243,8 @@ Messages
 Extensions
 ----------
 
-o2_tap(const char *tappee, const char *tapper) -- request a copy of 
+o2_tap(const char *tappee, const char *tapper,
+       O2tap_send_mode send_mode) -- request a copy of 
     each message delivered to tappee (a service). The message is
     retransmitted to tapper (another service) by replacing the
     service name in the address and sending the message. The
@@ -228,7 +258,7 @@ o2_tap(const char *tappee, const char *tapper) -- request a copy of
     When a message is received for the service and the actual provider
     is remote, just send the message to the actual provider. If the
     actual provider is local, resend the message to each tapper (if
-    any). The messages are sent reliably.
+    any). The messages are sent  reliably or not depending on send_mode.
 
     The tapper will see all messages actually delivered to the service
     in the order in which they are delivered, and with the original
@@ -290,7 +320,13 @@ o2_tap(const char *tappee, const char *tapper) -- request a copy of
     ("publishes") messages by sending to each of the subscribers. The
     publisher can also monitor the status of subscribers. When the
     subscriber (a service name) no longer exists, the publisher can
-    drop the subscriber from its list.
+    drop the subscriber from its list.  A simpler scheme uses taps:
+    The publisher creates the publication as a local service.
+    Subscribers subscribe to the service. To publish, just send a
+    local message to the publication service name. All tappers will
+    receive a copy of the message. Of course, all messages to the
+    service are tapped, so you are really publishing to the whole
+    address space below the service.
 
 !_o2/si "sis" service_name new_status ip_port
     This message is internally generated for the benefit of the
@@ -328,3 +364,148 @@ The web page should display a table of
 Also display a list of messages received from the tappees. Messages
 should be displayed as timestamp, original address (reconstructed from
 the actual address), typestring, and data values.
+
+Bonjour
+-------
+
+Goal: Provide an O2lite interface through WebSockets to browsers.
+
+Browser will open ws://ensemble-name.local. to get a websocket. As
+with all O2lite connections, there is no preference for the host --
+any one will do. Once connected, the browser can use O2lite to offer
+services and to reach any O2 service in the ensemble.
+
+But this does not work -- apparently, you can connect via HTTP using
+the local host name, e.g. rbd-mac.local. works to connect to a local
+server, but if I register another name with dns-sd, e.g.
+  dns-sd -R o2test _http local 8888
+and try to visit http://o2test.local.:80/, the browser does not
+resolve the name.  
+
+Possible solution: Use bonjour api to create A record for a new host
+name, and use port 8080. Then open the name as http://name.local.:8080
+The HTTP service there could then serve a page with
+ws://xxx.x.x.x:port/ws as a web socket, so we have a direct IP address
+for opening the O2lite-over-websocket connection.
+
+This works:
+dns-sd -P "o2test" _o2proc._tcp. local 80 o2test.local 192.168.1.166 some text
+and allows the URL http://o2test.local. to open a web page. Using the
+URL ws://o2test.local.:80/ws fails as a websocket address even though
+ws://rbd-mac.local.:80/ws works using the actual assigned host name.
+ws:192.168.1.166:80/ws DOES work in this case.   
+
+If this works, we could actually replace O2's discovery with Bonjour.
+Obsolete, see next paragraph:
+    The goal would be to make a new type _o2ensemble._tcp where
+    ensemble is the ensemble name, and have O2 processes create
+    services where the service name is the process name,
+    e.g. @xxxxxxxx:yyyyyyyy:zzzz. We can announce the service as being
+    at port zzzz to avoid collisions in case Bonjour cares.
+That's pretty much all there is to it, but we still need some dy
+(discovery) message handling for MQTT protocol connections and for the
+case where broadcasting is disabled.
+
+Except on macOS, applications must declare the services they browse,
+so we cannot use O2 ensemble names as service types since they are not
+known in advance. Therefore we must use a fixed service name (but
+there will be many offers, so they'll get numbered.) So instead, use:
+      _o2proc._tcp
+Then, services might as well be the ensemble name with digits
+appended. (So don't name your ensemble "foo (1)"). Each o2proc can
+then add the process name as text.
+
+Getting information from Bonjour is a little more difficult than in
+O2's original discovery mechanism. You can only get one resolve
+callback for each name, and each O2 process will have a different
+name: "ensname", "ensname (2)", "ensname (3)", etc. Thus we have to
+"resolve" each name to information individually. To keep from
+opening 100 sockets to get information, we should handle them
+sequentially, but names from browse may come in a burst, so we
+need to store all the names in some sort of queue; then we can
+sequentially get a name from the queue and resolve it to get an
+IP address. Finally, we can directly contact the process make a
+TCP connection using the existing discovery message (/_o2/dy).
+
+What if we do not get a browse event? E.g. perhaps a process dies and
+comes back up, but the lifetime of the service info is such that
+nothing changes with Bonjour and no event is generated. In that case,
+we would drop our connection to the process and it would be up to the
+other process to re-establish connections. That seems OK -- when the
+process comes up, all names will be new and it will connect to all of
+them. It *does* mean that higher IP addresses need to initiate
+connections by sending O2_DY_CALLBACK messages as we do now.
+
+This simplifies resolving names. We can just use a Vec and push/pop
+names there. All we need to store is a string, so we just need a
+Vec<const char *> structure.
+
+For O2lite, we also have to announce services consistent with
+Bonjour. It looks like ESP32 has a library.
+
+For O2lite on macOS/Win/Linux, we'll have to use Bonjour, so it's not
+so "lite" to do discovery, but it's all hidden in the o2lite library and
+mostly handled by the Bonjour server.
+
+
+Executable Size
+---------------
+Here are some executable sizes. Created with Xcode, with optimization
+on.
+"OSC penalty" means how much more memory is used for O2 compared to
+liblo. "Basic OSC penalty" is to get minimal OSC from O2. "Full OSC
+penalty" is to get full OSC implementation from O2.
+
+"All vs. liblo" is the size of full O2 vs liblo.
+
+
+Minimal (no patterns, osc, hub, bundles, o2lite, shared mem, or zeroconf)
+  o2client            142880
+  o2server            142816
+  lo_oscsend           84064     avg: 84152
+  lo_oscrecv           84240
+                                58696   70%
+OSC  
+  o2client            148720
+  o2server            148672
+                                 5848    3.4%    
+Basic OSC penalty               64544   77%
+
+Patterns
+  o2client            153088
+  o2server            148896     
+                                 2296    1.5%
+Bundles  
+  o2client            153232     
+  o2server            153184     
+                                 2216    1.5%
+Full OSC penalty                69056   82%
+Hub
+  o2client            161408
+  o2server            161360
+                                 8176    5.3%
+O2lite
+  o2client            165872  
+  o2server            165808  
+                                 4456    2.7%  
+Shared mem
+  o2client            165872  
+  o2server            165808  
+                                    0    0%
+Zeroconf instead of O2discovery
+  o2client            167168 
+  o2server            167120 
+                                 5576    3.4%  
+All but Hub, Bundles, Patterns
+  o2client            162672
+  o2server            162608      
+                      162240
+
+All vs. Liblo
+                                78488   93%
+
+Message Print and Debug
+  o2client            198048 
+  o2server            198000
+  
+

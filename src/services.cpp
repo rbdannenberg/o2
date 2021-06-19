@@ -127,12 +127,14 @@ O2err Services_entry::service_provider_new(O2string service_name,
         // now we know this is a remote service and we can set the properties
         O2_DBd(printf("%s service_provider_new service exists %s\n",
                       o2_debug_prefix, service_name));
-        active = ss->services[0].service == (O2node *) proc;
+        // service becomes the active one
+        active = (ss->services[0].service == (O2node *) proc);
         if (spp->properties) O2_FREE(spp->properties);
+        assert(!properties || properties[0] == ';');
         spp->properties = (char *) properties;
     } else if (spp) { // it is an error to replace an existing local service
-        // you must call o2_service_free() first
-        assert(!properties);
+        // you must call o2_service_free() first. E.g. a bridge cannot coopt
+        // an existing local service.
         return O2_SERVICE_EXISTS;
     } else {
         // Now we know it's safe to add a service and we have a place to put it
@@ -143,7 +145,10 @@ O2err Services_entry::service_provider_new(O2string service_name,
         // service provider, BUT if there are any other service providers, it
         // means that discovery is running, and that can only happen after we
         // have a full pip:iip:port name.
-        active = ss->add_service(proc->key, service, (char *) properties);
+        active = ss->add_service(proc->key, service, (char *) properties) &&
+                  proc->fds_info &&
+                  (proc->fds_info->net_tag & (NET_TCP_SERVER | NET_TCP_CLIENT |
+                                              NET_TCP_CONNECTION));
         O2_DBG(printf("%s ** new service %s is %p (%s) active %d\n",
                       o2_debug_prefix, ss->key, service,
                       o2_tag_to_string(service->tag), active));
@@ -161,6 +166,16 @@ O2err Services_entry::service_provider_new(O2string service_name,
                     proc_name, properties ? properties + 1 : "");
     }
     return O2_SUCCESS;
+}
+
+
+Service_provider *Services_entry::find_local_entry(const char *service_name)
+{
+    Services_entry *services = *find(service_name);
+    if (services) {
+        return services->proc_service_find(o2_ctx->proc);
+    }
+    return NULL;
 }
 
 
@@ -228,7 +243,7 @@ O2node *Services_entry::service_find(const char *service_name,
     return (*services)->services[0].service;
 }
 
-
+// ownership of tapper is transferred from caller to this function
 O2err Services_entry::insert_tap(O2string tapper, Proxy_info *proc,
                                  O2tap_send_mode send_mode)
 {
@@ -236,6 +251,10 @@ O2err Services_entry::insert_tap(O2string tapper, Proxy_info *proc,
     tap->tapper = tapper;
     tap->proc = proc;
     tap->send_mode = send_mode;
+    // if we are the tapper, notify everyone we are asserting a tap:
+    if (proc == o2_ctx->proc) {
+        o2_notify_others(key, true, tapper, NULL, send_mode);
+    }
     return O2_SUCCESS;
 }
 
@@ -399,7 +418,7 @@ O2err Services_entry::service_remove(const char *srv_name,
     // we removed the service at index; let the world know
     o2_do_not_reenter++; // protect data structures
     // send notification message
-    o2_send_cmd("!_o2/si", 0.0, "siss", srv_name, O2_FAIL,
+    o2_send_cmd("!_o2/si", 0.0, "siss", srv_name, O2_UNKNOWN,
                 proc->get_proc_name(), "");
 
     // if we deleted active service, pick a new one
@@ -434,6 +453,22 @@ O2err Services_entry::service_remove(const char *srv_name,
         o2_notify_others(name, false, NULL, NULL, 0);
     }
     o2_do_not_reenter--;
+    // what if this service was a tapper? We have no direct access to
+    // services being tapped, so we have to search all taps for a match.
+    // since this might cause us to rehash services, first make a list
+    Vec<Services_entry *> services_list;
+    Services_entry::list_services(services_list);
+    for (int j = 0; j < services_list.size(); j++) {
+        Services_entry *services = services_list[j];
+        // Do we need to worry about a service being removed before we
+        // examine it for taps? No, because only removing the last tap
+        // will cause the service to be freed.
+        // Free tap using tap_remove. To speed up search, we test for
+        // zero taps before calling the search function:
+        if (services->taps.size() > 0) {
+            services->tap_remove(proc, srv_name);
+        }
+    }
     return O2_SUCCESS;
 }
 
@@ -494,8 +529,12 @@ O2err Services_entry::tap_remove(Proxy_info *proc, const char *tapper)
     for (int i = 0; i < taps.size(); i++) {
         Service_tap *tap = &taps[i];
         if (tap->proc == proc && (!tapper || streql(tap->tapper, tapper))) {
-            O2_FREE(tap->tapper);
+            O2_FREE((char *) tap->tapper);
             taps.remove(i);
+            // if we are the tapper, inform everyone to remove out tap:
+            if (proc == o2_ctx->proc) {
+                o2_notify_others(key, false, tapper, NULL, 0);
+            }
             result = O2_SUCCESS;
             if (tapper) break; // only removing one tap, so we're done now
         }
@@ -600,7 +639,7 @@ Services_entry::~Services_entry()
     // free the taps
     for (int i = 0; i < taps.size(); i++) {
         Service_tap *info = &taps[i];
-        O2_FREE(info->tapper);
+        O2_FREE((char *) info->tapper);
     }
 }
 
@@ -613,7 +652,7 @@ void Services_entry::show(int indent)
     indent++;
     for (int i = 0; i < services.size(); i++) {
         O2node *node = services[i].service;
-        printf("%s@%p %s\n", o2_tag_to_string(node->tag), node, node->key);
+        // printf("%s@%p %s\n", o2_tag_to_string(node->tag), node, node->key);
         services[i].service->show(indent);
     }
     for (int i = 0; i < taps.size(); i++) {
@@ -645,5 +684,6 @@ bool Services_entry::add_service(O2string our_ip_port,
     Service_provider *target = &services[index];
     target->service = service;
     target->properties = properties;
+    assert(!properties || properties[0] == ';');
     return (index == 0); // new service
 }

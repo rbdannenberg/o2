@@ -52,26 +52,27 @@ int main(int argc, const char * argv[])
             printf("Port specified as 0, enter new value: ");
             port = atoi((const char *) fgets(input, 100, stdin));
         }
-        printf("Using %s:%s:%x as hub.\n", pip, iip, port);
+        printf("Using %s:%s:%04x as hub.\n", pip, iip, port);
     } else if (argc > 5) {
         printf("WARNING: statusclient too many command line argments\n");
     }
     o2_service_new("client");
     o2_method_new("/client/stop", "", &stop_handler, NULL, false, true);
 
+#ifndef O2_NO_HUB
     if (port > 0)
-        o2_hub(pip, iip, port);
-
+        o2_hub(pip, iip, port, port);
+#endif
     const char *pipaddr;
     const char *iipaddr;
     int tcp_port;
     O2err err = o2_get_addresses(&pipaddr, &iipaddr, &tcp_port);
     assert(err == O2_SUCCESS);
-    printf("My address is %s:%s:%x\n", pipaddr, iipaddr, tcp_port);
+    printf("My address is %s:%s:%04x\n", pipaddr, iipaddr, tcp_port);
     
     while (running) {
         o2_poll();
-        o2_sleep(POLL_PERIOD); // 2ms
+        o2_sleep(POLL_PERIOD);
     }
     // exit without calling o2_finish() -- this is a test for behavior when
     // the client crashes. Will the server still remove the service?

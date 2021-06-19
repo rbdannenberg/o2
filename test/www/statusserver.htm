@@ -1,0 +1,212 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>O2 Test</title>
+<script src="o2ws.js"></script>
+<script>
+function app_init() {
+    wsResult = document.getElementById("wsResult"); 
+    wsStatus = document.getElementById("wsStatus"); 
+    wsOutput = document.getElementById("wsOutput"); 
+    o2ws_status_msgs_enable = true;
+    o2ws_status_msg("Initializing O2ws with " + WSURI);
+    o2ws_initialize("test");
+    // create handler for server status messages
+    o2ws_method_new("/_o2/st", "si", true, status_handler, null); 
+    o2ws_method_new("/_o2/ls", "siss", true, list_status_handler, null); 
+    set_state("START");
+    step(0);
+    watchdog();
+}
+
+// Tricky to do this sequencing with asynchronous callbacks:
+// Synchronous:
+//      expected_status = <what to wait for>
+//      wait_for_status_to_be(expected_status)
+//      <do_next_step>
+// Asynchronous: use state transition table.
+// initially, state = START
+// START: send /_o2/ws/st; state = WCL; client_status = null
+// WCL: if (client_status == O2_REMOTE) state = GO; step()@1
+//      else state = START; step()@0.25;
+// GO: send !client/stop; send /_o2/ws/st; client_status = null; state = WNCL; 
+// WNCL: if (client_status == O2_FAIL) SUCCESS
+//       else state = GO; step()@0.25;
+
+var state = "START";
+var client_status = null;
+var count = 0;
+
+function set_state(s) {
+    if (state != "STOPPED") {  // cannot exit final state
+        state = s;
+        wsState.innerHTML = state;
+    }
+}
+
+
+function fail_test(msg) {
+    set_state("STOPPED");
+    o2ws_on_error(msg);
+}
+
+
+var last_step_time = 1000000;  // no timeout yet
+
+// watchdog alerts us when nothing happens in 10s
+//
+function watchdog() {
+    var now = o2ws_local_time();
+    if (last_step_time + 10 < now && state != "STOPPED") {
+        fail_test("watchdog time says nothing is happening, last state " +
+                  state + " last step " + last_step_time + " now " + now);
+    } else {
+        setTimeout(watchdog, 10000);
+    }
+}
+
+
+function step(timeout = 0) {
+    if (timeout > 0) {
+        setTimeout(step, timeout, 0);
+        return;
+    }
+    console.log("in step, state is " + state);
+    if (state == "START") {
+        console.log("in step, sending /_o2/ws/st count " + count); 
+        o2ws_send_cmd("/_o2/ws/st", 0, "s", "client"); 
+        count++; 
+        set_state("WCL");
+        client_status = null;
+    } else if (state == "WCL") {
+        if (client_status == O2_REMOTE && o2ws_clock_synchronized) {
+            // for debugging, stop sending clock get messages:
+            // o2ws_disable_clock_ping = true; 
+            o2ws_send_cmd("!_o2/ws/ls", 0, "");
+            set_state("GO1");
+            step(1000);
+        } else {  // get status after short wait
+            set_state("START");
+            step(250);
+        }
+    } else if (state == "GO1") {  // wait for and check list services function
+        if (replies_expected == 0 && end_of_status_list) {
+            o2ws_status_msg("Passed list services test"); 
+            set_state("GO");
+            step();
+        } else {
+            step(250);  // try again
+        }
+    } else if (state == "GO") {
+        o2ws_send_cmd("!client/stop", 0, ""); 
+        count++; 
+        set_state("WNCLQUERY");
+        step();
+    } else if (state == "WNCLQUERY") {
+        console.log("in step, sending /_o2/ws/st count " + count); 
+        o2ws_send_cmd("!_o2/ws/st", 0, "s", "client"); 
+        count++; 
+        set_state("WNCL");
+    } else if (state == "WNCL") {
+        if (client_status == O2_UNKNOWN) {
+            display_result("SUCCESS");
+            o2ws_send_cmd("/websockhost/stop", 0, "");
+            count++; 
+            set_state("SHUTDOWN");
+        } else {
+            set_state("WNCLQUERY");
+        }
+        step(250);
+    } else if (state == "SHUTDOWN") {
+       o2ws_finish();
+       set_state("STOPPED");
+    }
+}
+
+
+function status_handler(address, typespec, info) {
+    var service_name = o2ws_get_string();
+    var service_status = o2ws_get_int32();
+    if (service_name == "client") {
+        o2ws_status_msg("client status is " + service_status);
+        client_status = service_status;
+    }
+    step();
+}
+
+
+var expected_replies = {"_cs": [4, "_o2"], "_o2": [4, "_o2"],
+                        "websockhost": [4, "_o2"], "client": [5, "@"]}
+var replies_expected = 4;
+var end_of_status_list = false;
+
+function list_status_handler(address, typespec, info) {
+    var service_name = o2ws_get_string();
+    var service_type = o2ws_get_int32();
+    var process_name = o2ws_get_string(); 
+    var properties = o2ws_get_string(); 
+    o2ws_status_msg("list_status_handler: " + service_name +
+                     " type " + service_type + " process " +
+                     process_name + " properties " + properties);
+    if (service_name == "") {
+        end_of_status_list = true;
+    } else if (expected_replies.hasOwnProperty(service_name)) {
+        var expected = expected_replies[service_name];
+        if (expected.length == 2 && expected[0] == service_type &&
+            (expected[1] == process_name ||
+             (expected[1] == "@" && process_name[0] == "@"))) {
+            replies_expected--;  // found one expected service
+            console.log("Expected reply in list_status_handler"); 
+        } else {
+            o2ws_status_msg("Unexpected reply in list_status_handler (parameters)"); 
+        }
+        expected.push(true);  // signal that we've seen it before
+    } else {
+        console.log("Unexpected reply in list_status_handler (service_name)"); 
+    }
+}
+
+
+function make_paragraph(content) {
+    var par = document.createElement("p"); 
+    par.style.wordWrap = "break-word"; 
+    par.innerHTML = content;
+    return par;
+}
+
+
+function display_result(msg) {
+    wsResult.innerHTML = msg;
+}
+
+function o2ws_status_msg(message) {
+    wsStatus.innerHTML = "<p>" + message + "</p>";
+    console.log("Status: " + message);
+}
+
+function o2ws_on_error(message) {
+    wsOutput.appendChild(make_paragraph(
+            '<span style="color: red;">ERROR:</span> ' + message));
+}
+
+function client_stop_handler(timestamp, typespec, info) {
+    // tell the server to die
+    o2ws_send_start("/websockhost/stop", 0, "");
+    o2ws_send_finish();
+}
+
+
+window.addEventListener("load", app_init, false);
+console.log("Finished loading index.htm scripts");
+</script>
+</head>
+
+<body>
+<h1>O2 statusserver Test</h1>
+  <h3 id="wsResult"></h3>
+  <p>State: <span id="wsState"></span></p>
+  <div id="wsStatus"></div>
+  <div id="wsOutput"></div>
+</body>
+</html>

@@ -130,12 +130,59 @@
 // to prevent deep recursion, messages go into a queue if we are already
 // delivering a message via o2_msg_deliver:
 int o2_do_not_reenter = 0; // counter to allow nesting
+
 // we have two pending queues: one for normal messages and one for
 // local delivery (needed for taps)
-typedef struct pending {
-    O2message_ptr head;
-    O2message_ptr tail;
-} pending, *pending_ptr;
+Pending_msgs_queue o2_pending_local;
+Pending_msgs_queue o2_pending_anywhere;
+
+
+#ifndef O2_NO_DEBUG
+const char *pending_msgs_name(Pending_msgs_queue *p)
+{
+    return ((p == &o2_pending_anywhere) ? "anywhere" : "local");
+}
+#endif
+
+Pending_msgs_queue::Pending_msgs_queue()
+{
+    head = NULL; tail = NULL;
+}
+
+void Pending_msgs_queue::enqueue(O2message_ptr msg)
+{
+    if (tail) {
+        tail->next = msg;
+        tail = msg;
+    } else {
+        head = tail = msg;
+    }
+}
+
+O2message_ptr Pending_msgs_queue::dequeue() {
+    O2message_ptr msg = head;
+    assert(msg);
+    if (head == tail) {
+        head = tail = NULL;
+    } else {
+        head = head->next;
+    }
+    #ifndef O2_NO_DEBUG
+    extern void *o2_mem_watch;
+    if (msg == o2_mem_watch) {
+        printf("Pending_msgs_queue::dequeue %p == o2_mem_watch\n", msg);
+    }
+    #endif
+    O2_DBl(o2_dbg_msg("Pending_msgs_queue::dequeu", msg, &msg->data, "from",
+                      pending_msgs_name(this)));
+    return msg;
+}
+
+bool Pending_msgs_queue::empty()
+{
+    return head == NULL;
+}
+
 
 // When a message is pulled from pending to be delivered, it is saved
 // here in case the user calls exit() before the message can be freed.
@@ -168,10 +215,6 @@ void o2_drop_message(const char *warn, bool free_the_msg)
     }
 }
 
-
-#define PENDING_EMPTY {NULL, NULL}
-static pending pending_anywhere = PENDING_EMPTY;
-static pending pending_local = PENDING_EMPTY;
 
 // push a message onto the o2_ctx->msgs list
 //
@@ -217,16 +260,11 @@ void o2_send_local(O2node *service, Services_entry *ss)
 {
     if (o2_do_not_reenter) {
         O2message_ptr msg = o2_postpone_delivery();
-        pending_ptr p = ((msg->data.misc & O2_TAP_FLAG) ? &pending_local :
-                                                          &pending_anywhere);
+        Pending_msgs_queue *p = ((msg->data.misc & O2_TAP_FLAG) ?
+                                 &o2_pending_local : &o2_pending_anywhere);
         O2_DBl(o2_dbg_msg("o2_send_local defer", msg, &msg->data, "from",
-                             (p == &pending_anywhere) ? "anywhere" : "local"));
-        if (p->tail) {
-            p->tail->next = msg;
-            p->tail = msg;
-        } else {
-            p->head = p->tail = msg;
-        }
+                             (p == &o2_pending_anywhere) ? "anywhere" : "local"));
+        p->enqueue(msg);
     } else {
         o2_do_not_reenter++;
         o2_msg_deliver(service, ss);
@@ -234,32 +272,13 @@ void o2_send_local(O2node *service, Services_entry *ss)
     }
 }
 
-static O2message_ptr pending_dequeue(pending_ptr p)
-{
-    O2message_ptr msg = p->head;
-    if (p->head == p->tail) {
-        p->head = p->tail = NULL;
-    } else {
-        p->head = p->head->next;
-    }
-#ifndef O2_NO_DEBUG
-    extern void *o2_mem_watch;
-    if (msg == o2_mem_watch) {
-        printf("pending_dequeue has dequeued %p == o2_mem_watch\n", msg);
-    }
-#endif
-    O2_DBl(o2_dbg_msg("pending_dequeue", msg, &msg->data, "from",
-                      (p == &pending_anywhere) ? "anywhere" : "local"));
-    return msg;
-}
-
 void o2_deliver_pending()
 {
-    while (pending_anywhere.head) {
-        o2_message_send(pending_dequeue(&pending_anywhere));
+    while (!o2_pending_anywhere.empty()) {
+        o2_message_send(o2_pending_anywhere.dequeue());
     }
-    while (pending_local.head) {
-        O2message_ptr msg = pending_dequeue(&pending_local);
+    while (!o2_pending_local.empty()) {
+        O2message_ptr msg = o2_pending_local.dequeue();
         Services_entry *services = *Services_entry::find_from_msg(msg);
         Service_provider *spp;
         if (services && (spp = services->proc_service_find(o2_ctx->proc)) &&
@@ -278,16 +297,16 @@ void o2_free_pending_msgs()
     while (o2_ctx->msgs) {
         o2_complete_delivery();
     }
-    while (pending_anywhere.head) {
-        O2_FREE(pending_dequeue(&pending_anywhere));
+    while (!o2_pending_anywhere.empty()) {
+        O2_FREE(o2_pending_anywhere.dequeue());
     }
-    while (pending_local.head) {
-        O2_FREE(pending_dequeue(&pending_local));
+    while (!o2_pending_local.empty()) {
+        O2_FREE(o2_pending_local.dequeue());
     }
 
 }
 
-
+#ifndef O2_NO_BUNDLES
 static O2err o2_embedded_msgs_deliver(o2_msg_data_ptr msg)
 {
     char *end_of_msg = O2_MSG_DATA_END(msg);
@@ -306,6 +325,7 @@ static O2err o2_embedded_msgs_deliver(o2_msg_data_ptr msg)
     }
     return O2_SUCCESS;
 }
+#endif
 
 
 void msg_send_to_tap(Service_tap *tap)
@@ -451,7 +471,7 @@ void o2_msg_deliver(O2node *service, Services_entry *ss)
                                        // not have a handler
             // leave 4 bytes of extra room at the end to fill with zeros by
             // setting n to size - 8 instead of size - 4:
-            o2strcpy(tmp_addr + 4, slash_ptr, O2_MAX_PROCNAME_LEN - 8);
+            o2_strcpy(tmp_addr + 4, slash_ptr, O2_MAX_PROCNAME_LEN - 8);
             // make sure address is padded to 32-bit word to make O2string:
             // first, find pointer to the byte AFTER the EOS character:
             char *endptr = tmp_addr + 6 + strlen(tmp_addr + 5);
@@ -489,15 +509,8 @@ void o2_msg_deliver(O2node *service, Services_entry *ss)
         delivered = true;
     }
 
-    msg->data.misc |= O2_TAP_FLAG;
-    msg->data.misc += (1 << 8);  // increment TTL field
     // STEP 6: if there are tappers, send the message to them as well
-    //         (can't tap a tap msg)
-    if ((msg->data.misc >> 8) <= O2_MAX_TAP_FORWARDING) {
-        for (int i = 0; i < ss->taps.size(); i++) {
-            msg_send_to_tap(&ss->taps[i]);
-        }
-    }
+    o2_send_to_taps(msg, ss);
 
     // STEP 7: remove the message from the stack and free it
   done:
@@ -509,6 +522,20 @@ void o2_msg_deliver(O2node *service, Services_entry *ss)
 }
 
 
+void o2_send_to_taps(O2message_ptr msg, Services_entry *ss)
+{
+    msg->data.misc |= O2_TAP_FLAG;
+    msg->data.misc += (1 << 8);  // increment TTL field
+    if ((msg->data.misc >> 8) <= O2_MAX_TAP_FORWARDING) {
+        for (int i = 0; i < ss->taps.size(); i++) {
+            msg_send_to_tap(&ss->taps[i]);
+        }
+    }
+}
+
+
+
+
 // This function is invoked by macros o2_send and o2_send_cmd.
 // It expects arguments to end with O2_MARKER_A and O2_MARKER_B
 O2err o2_send_marker(const char *path, double time, int tcp_flag,
@@ -518,11 +545,8 @@ O2err o2_send_marker(const char *path, double time, int tcp_flag,
     va_start(ap, typestring);
 
     O2message_ptr msg;
-    O2err rslt = o2_message_build(&msg, time, NULL, path,
-                                  typestring, tcp_flag, ap);
-    if (rslt != O2_SUCCESS) {
-        return rslt; // could not allocate a message!
-    }
+    RETURN_IF_ERROR(o2_message_build(&msg, time, NULL, path,
+                                     typestring, tcp_flag, ap));
     O2_DB((msg->data.address[1] == '_' || msg->data.address[1] == '@') ?
           O2_DBS_FLAG : O2_DBs_FLAG,  // either non-system (s) or system (S)
           printf("%s sending%s (%p) ", o2_debug_prefix,

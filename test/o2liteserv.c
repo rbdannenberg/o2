@@ -24,8 +24,6 @@ This test:
 #include "o2lite.h"
 #include <string.h>
 
-#define streql(a, b) (strcmp(a, b) == 0)
-
 int n_addrs = 20;
 bool running = true;
 int msg_count = 0;
@@ -81,9 +79,18 @@ void sift_han(o2l_msg_ptr msg, const char *types, void *data, void *info)
 }
 
 
+void time_check()
+{
+    if (o2l_local_time() > 30) {
+        printf("o2liteserv timeout FAILURE exiting now\n");
+        exit(1);
+    }
+}
+
+
 int main(int argc, const char * argv[])
 {
-    printf("Usage: o2liteserv [tcp] [debug]\n"
+    printf("Usage: o2liteserv [tcp]\n"
            "    pass t to test with TCP, u (default) for UDP\n");
     if (argc >= 2) {
         if (strchr(argv[1], 't' )) {
@@ -101,6 +108,7 @@ int main(int argc, const char * argv[])
     o2l_method_new("/sift", "sift", true, &sift_han, (void *) 111);
 
     while (o2l_bridge_id < 0) { // not connected
+        time_check();
         o2l_poll();
         o2_sleep(2); // 2ms
     }
@@ -114,6 +122,7 @@ int main(int argc, const char * argv[])
     o2l_send();
 
     while (o2l_time_get() < 0) { // not synchronized
+        time_check();
         o2l_poll();
         o2_sleep(2); // 2ms
     }
@@ -121,6 +130,7 @@ int main(int argc, const char * argv[])
 
     o2l_time start_wait = o2l_time_get();
     while (start_wait + 1 > o2l_time_get() && !sift_called) {
+        time_check();
         o2l_poll();
         o2_sleep(2);
     }
@@ -145,6 +155,7 @@ int main(int argc, const char * argv[])
     o2l_set_services("sift,server");
 
     while (running) {
+        time_check();
         o2l_poll();
         o2_sleep(2);
     }

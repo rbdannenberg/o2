@@ -37,11 +37,16 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
 {
     const char *service_name = argv[0]->s;
     int status = argv[1]->i32;
-    const char *status_string = o2_status_to_string(status);
     const char *process = argv[2]->s;
     const char *properties = argv[3]->s;
-    printf("service_info_handler called: %s at %s status %s properties %s\n", 
+#ifndef O2_NO_DEBUG
+    const char *status_string = o2_status_to_string(status);
+    printf("service_info_handler called: %s at %s status %s properties %s\n",
            service_name, process, status_string, properties);
+#else
+    printf("service_info_handler called: %s at %s status %d properties %s\n",
+           service_name, process, status, properties);
+#endif
     if (!properties || properties[0]) {
         printf("FAILURE -- expected empty string for properties\n");
     }
@@ -59,7 +64,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
     char my_proc_name[O2_MAX_PROCNAME_LEN];
     if (!my_pip) my_pip = "none";
     if (!my_iip) my_iip = "none";
-    snprintf(my_proc_name, O2_MAX_PROCNAME_LEN, "@%s:%s:%x", my_pip, my_iip,
+    snprintf(my_proc_name, O2_MAX_PROCNAME_LEN, "@%s:%s:%04x", my_pip, my_iip,
              my_port);
 
     // (2) get the name from o2_context (now part of O2 API):

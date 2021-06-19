@@ -21,7 +21,7 @@ class Stun_info : public Proxy_info {
     // Implement the Net_interface
     O2err accepted(Fds_info *conn) { return O2_FAIL; };  // not TCP
     O2err connected() { return O2_FAIL; }  // not a TCP client
-    O2err deliver(o2n_message_ptr msg);
+    O2err deliver(O2netmsg_ptr msg);
 };
 
 

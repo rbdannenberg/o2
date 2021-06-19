@@ -55,7 +55,7 @@ def findLineInString(line, aString):
     return ('\n' + line + '\n') in aString
 
 
-class RunInBackground(threading.Thread):
+class runInBackground(threading.Thread):
     def __init__(self, command):
         self.command = command
         self.output = ""
@@ -130,15 +130,21 @@ def dostall():
     print("\b\b\b\b\b\b\b\b\b\b\b", end="")
 
 
-def runDouble(prog1, out1, prog2, out2, stall=False):
-    global allOK
-    print((prog1 + '+' + prog2).rjust(30) + ": ", end='', flush=True)
-    p1 = RunInBackground(prog1)
+def startDouble(prog1, prog2, url=""):
+    name2 = prog2 if url == "" else url
+    print((prog1 + '+' + name2).rjust(30) + ": ", end='', flush=True)
+    p1 = runInBackground(prog1)
     p1.start()
-    p2 = RunInBackground(prog2)
+    p2 = runInBackground(prog2)
     p2.start()
+    return (p1, p2)
+
+
+def finishDouble(prog1, p1, out1, prog2, p2, out2, stall):
+    global allOK
     p1.join()
     p2.join()
+    time.sleep(1)  # debugging test: is there a race to get stdout?
     if stall: dostall()
     portsOK, countmsg = checkports(False, False)
     if findLineInString(out1, p1.output):
@@ -169,11 +175,28 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
     return allOK
 
 
+def runDouble(prog1, out1, prog2, out2, stall=False):
+    global allOK
+    p1p2 = startDouble(prog1, prog2)
+    return finishDouble(prog1, p1p2[0], out1, prog2, p1p2[1], out2, stall)
+
+
+def runWsTest(prog1, out1, url, out2, stall=False):
+    global allOK
+    p1p2 = startDouble(prog1, "websockhost", url)
+    os.system("open http://test.local:8080/" + url);
+    return finishDouble(prog1, p1p2[0], out1, "websockhost", p1p2[1], 
+                        out2, stall)
+
+
 def runAllTests():
     print("Initial discovery port status ...")
     checkports(True, True)
     extensions = input("Run pattern match and bundle tests? [y,n]: ")
     extensions = "y" in extensions.lower()
+    websocketsTests = input("Run websocket tests? [y,n]: ")
+    websocketsTests = "y" in websocketsTests.lower()
+
     print("Running regression tests for O2 ...")
 
     if not runTest("stuniptest", quit_on_port_loss=True): return
@@ -185,6 +208,25 @@ def runAllTests():
     if not runTest("arraytest"): return
     if not runTest("bridgeapi"): return
     if not runTest("o2litemsg"): return
+
+    if websocketsTests:
+        if not runWsTest("proprecv", "DONE", 
+                         "propsend.htm", "WEBSOCKETHOST DONE"): return
+        if not runWsTest("propsend", "DONE", 
+                         "proprecv.htm", "WEBSOCKETHOST DONE"): return
+        if not runWsTest("tapsub", "CLIENT DONE", 
+                         "tappub.htm", "WEBSOCKETHOST DONE"): return
+        if not runWsTest("tappub", "SERVER DONE", 
+                         "tapsub.htm", "WEBSOCKETHOST DONE"): return
+        if not runWsTest("o2server - 20t", "SERVER DONE", 
+                         "o2client.htm", "WEBSOCKETHOST DONE"): return
+        if not runWsTest("statusclient", "CLIENT DONE", 
+                         "statusserver.htm", "WEBSOCKETHOST DONE"): return
+        if not runWsTest("statusserver", "SERVER DONE", 
+                         "statusclient.htm", "WEBSOCKETHOST DONE"): return
+        if not runWsTest("o2litehost 500t d", "CLIENT DONE", 
+                         "wsserv.htm", "WEBSOCKETHOST DONE"): return
+
     if extensions:
         if not runTest("bundletest"): return
         if not runTest("patterntest"): return
@@ -201,6 +243,10 @@ def runAllTests():
                      "appfollow", "APPFOLLOW DONE"): return
     if not runDouble("o2client", "CLIENT DONE",
                      "o2server", "SERVER DONE"): return
+    # run with TCP instead of UDP
+    # I should fix the command line arguments here to be more regular:
+    if not runDouble("o2client 1000t", "CLIENT DONE",
+                     "o2server - 20t", "SERVER DONE"): return
     if not runDouble("nonblocksend", "CLIENT DONE",
                      "nonblockrecv", "SERVER DONE"): return
     if not runDouble("o2unblock", "CLIENT DONE",
@@ -219,11 +265,13 @@ def runAllTests():
                      "proprecv", "DONE"): return
     if not runDouble("tappub", "SERVER DONE",
                      "tapsub", "CLIENT DONE"): return
+    if not runDouble("unipub", "SERVER DONE",
+                     "unisub", "CLIENT DONE"): return
     if not runDouble("dropclient", "DROPCLIENT DONE",
                      "dropserver", "DROPSERVER DONE"): return
-    if not runDouble("o2litehost 500t", "CLIENT DONE",
+    if not runDouble("o2litehost 500t d", "CLIENT DONE",
                      "o2liteserv t", "SERVER DONE"): return
-    if not runDouble("o2litehost 500", "CLIENT DONE",
+    if not runDouble("o2litehost 500 d", "CLIENT DONE",
                      "o2liteserv u", "SERVER DONE"): return
     if not runDouble("o2client 1000t", "CLIENT DONE",
                      "shmemserv u", "SERVER DONE"): return

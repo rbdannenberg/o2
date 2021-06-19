@@ -1,0 +1,18 @@
+debug.srp created srp.log for error report...
+runtime exception handler called
+exception is: [31;49mglobal variable is unbound - ox42d2[39;49m
+frame variables: {}
+frame pc: -1
+frame method: <callin_method>
+frame class: nil
+
+Debugger invoked.
+-----------------------------------------------------
+Method [32;49m<callin_method>[39;49m in class [34;49mnil[39;49m
+-----------------------------------------------------
+Method [32;49m<immediate command 0>[39;49m in class [34;49mnil[39;49m, char 11 in <stdin>
+-----------------------------------------------------
+Method [32;49m<callin_method>[39;49m in class [34;49mnil[39;49m
+[31;49mglobal variable is unbound - ox42d2[39;49m
+1> Resume execution...
+-> 1234

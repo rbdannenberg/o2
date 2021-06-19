@@ -1,0 +1,135 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>O2client Test</title>
+<script src="o2ws.js"></script>
+<script>
+var N_ADDRS = 20;
+var MAX_MSG_COUNT = 1000;
+
+function app_init() {
+    wsResult = document.getElementById("wsResult"); 
+    wsStatus = document.getElementById("wsStatus"); 
+    wsOutput = document.getElementById("wsOutput"); 
+    o2ws_status_msgs_enable = true;
+    o2ws_status_msg("Initializing O2ws with " + WSURI);
+    o2ws_initialize("test");
+    o2ws_set_services("client");
+    var i;
+    for (i = 0; i < N_ADDRS; i++) {
+        var path = "/client/benchmark/" + i; 
+        o2ws_method_new(path, "i", true, client_test, null); 
+    }
+    server_addresses = [];
+    for (i = 0; i < N_ADDRS; i++) {
+        var path = "/server/benchmark/" + i; 
+        server_addresses.push(path);
+    }
+    // create handler for server status messages
+    o2ws_method_new("/_o2/st", "si", true, status_handler, null);
+    server_found = false;
+    poll_for_server();
+}
+
+function status_handler(timestamp, address, typespec, info) {
+    var service_name = o2ws_get_string();
+    var service_status = o2ws_get_int32();
+    if (service_name == "server" && service_status == O2_REMOTE) {
+        server_found = true;
+    }
+}
+
+function poll_for_server() {
+    if (server_found && o2ws_clock_synchronized) {
+        // I'm not sure why o2client.cpp waits, but maybe it is safer
+        // to give some time to the server process to recognize the
+        // client service (us) exists before sending and expecting a
+        // reply.
+        o2ws_status_msg("We discovered the server.\ntime is " +
+                        o2ws_time_get()); 
+        setTimeout(here_we_go, 1000);
+    } else {
+        if (!server_found) {
+            o2ws_send_cmd("/_o2/ws/st", 0, "s", "server");
+        }
+        setTimeout(poll_for_server, 250);
+    }
+}
+
+
+function here_we_go() {
+    o2ws_status_msg("Here we go! ...\ntime is " + o2ws_time_get()); 
+    o2ws_send_cmd("!server/benchmark/0", 0, "i", 1); 
+}
+
+function make_paragraph(content) {
+    var par = document.createElement("p"); 
+    par.style.wordWrap = "break-word"; 
+    par.innerHTML = content;
+    return par;
+}
+
+
+function display_result(msg) {
+    wsResult.innerHTML = msg;
+}
+
+function o2ws_status_msg(message) {
+    wsStatus.innerHTML = "<p>" + message + "</p>";
+    console.log("Status: " + message);
+}
+
+function o2ws_error(message) {
+    wsOutput.appendChild(make_paragraph(
+            '<span style="color: red;">ERROR:</span> ' + message));
+}
+
+var msg_count = 0;
+var running = true;
+
+function client_test(timestamp, address, typespec, info) {
+    if (!running) {
+        o2ws_status_msg("client test got another message: ignored");
+        return; 
+    }
+    msg_count++;
+    var i = msg_count + 1;
+    if (msg_count >= MAX_MSG_COUNT) {
+        i = -1;
+        running = false;
+        setTimeout(finish, 1000);
+    }
+    o2ws_send_cmd(server_addresses[msg_count % N_ADDRS], 0, "i", i);
+    if (msg_count % 10000 == 0) {
+        o2ws_status_msg("client received " + msg_count +
+    "messages");
+    }
+    if (msg_count < 100) {
+        o2ws_status_msg("client message " + msg_count + " is " +
+                        o2ws_get_int32());
+    }
+}
+
+
+function finish() {
+    // tell the server to die
+    o2ws_send_start("/websockhost/stop", 0, "", true);
+    o2ws_send_finish();
+    display_result("SUCCESS");
+    o2ws_finish();
+}
+
+
+window.addEventListener("load", app_init, false);
+console.log("Finished loading index.htm scripts");
+</script>
+</head>
+
+<body>
+<h1>O2 statusclient Test</h1>
+  <h3 id="wsResult"></h3>
+  <div id="wsStatus"></div>
+  <div id="wsOutput"></div>
+</body>
+</html>

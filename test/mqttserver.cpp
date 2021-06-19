@@ -117,8 +117,13 @@ int main(int argc, const char *argv[])
     int wait_count = 0;
     while (o2_status("client") != O2_FAIL) {
         if ((wait_count % 1000) == 0) {
+#ifndef O2_NO_DEBUG
             printf("server waiting for client disconnect, client status %s\n",
                    o2_status_to_string(o2_status("client")));
+#else
+            printf("server waiting for client disconnect, client status %d\n",
+                   o2_status("client"));
+#endif
         }
         o2_poll();
         o2_sleep(2); // 2ms // as fast as possible

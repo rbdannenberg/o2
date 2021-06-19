@@ -171,18 +171,18 @@ O2err o2_osc_port_new(const char *service_name, int port, int tcp_flag)
     Osc_info *osc = new Osc_info(service_name, port, NULL,
             tcp_flag ? O2TAG_OSC_TCP_SERVER : O2TAG_OSC_UDP_SERVER);
     if (tcp_flag) {
-        osc->fds_info = Fds_info::create_tcp_server(port);
+        osc->fds_info = Fds_info::create_tcp_server(&port, osc);
         O2_DBc(osc->co_info(osc->fds_info, "created OSC_TCP_SERVER"));
     } else {
         osc->fds_info = Fds_info::create_udp_server(&port, true);
         O2_DBc(osc->co_info(osc->fds_info, "created OSC_UDP_SERVER"));
+        osc->fds_info->owner = osc;
     }
     if (!osc->fds_info) { // failure, remove osc
-        O2_FREE(osc->key);
+        O2_FREE((char *) (osc->key));
         O2_FREE(osc);
         return O2_FAIL;
     }
-    osc->fds_info->owner = osc;
     return O2_SUCCESS;
 }
 
@@ -243,7 +243,7 @@ O2err o2_osc_port_free(int port_num)
         if (osc && (osc->tag & (O2TAG_OSC_UDP_SERVER| O2TAG_OSC_TCP_SERVER |
                                 O2TAG_OSC_TCP_CONNECTION)) &&
             osc->port == port_num) {
-            info->close_socket();
+            info->close_socket(true);
             rslt = O2_SUCCESS;
         }
     }
@@ -275,8 +275,7 @@ O2err o2_osc_delegate(const char *service_name, const char *ip,
                        (O2TAG_OSC_UDP_CLIENT | O2TAG_OWNED_BY_TREE));
     O2err rslt;
     if (tcp_flag) {
-        osc->fds_info = Fds_info::create_tcp_client(ip, port_num);
-        osc->fds_info->owner = osc;
+        osc->fds_info = Fds_info::create_tcp_client(ip, port_num, osc);
         rslt = osc->fds_info ? O2_SUCCESS : O2_FAIL;
         O2_DBc(osc->co_info(osc->fds_info, "created TCP CLIENT for OSC"));
     } else {
@@ -322,7 +321,7 @@ static O2message_ptr osc_bundle_to_o2(int32_t len, char *oscmsg,
             o2msg = osc_to_o2(embedded_len, embedded, service);
         }
         if (!o2msg) {
-            o2_message_list_free(msg_list);
+            o2_message_list_free(&msg_list);
             return NULL;
         }
         o2msg->next = NULL; // make sure link is initialized
@@ -399,7 +398,7 @@ static O2message_ptr osc_to_o2(int32_t len, char *oscmsg, O2string service)
 // forward an OSC message to an O2 service
 // precondition: message is in NETWORK byte order
 // message is o2_ctx->msgs
-O2err Osc_info::deliver(o2n_message_ptr msg)
+O2err Osc_info::deliver(O2netmsg_ptr msg)
 {
     char *msg_data = msg->payload;
     O2_DBO(
@@ -470,7 +469,11 @@ bool Osc_info::schedule_before_send()
     O2message_ptr msg = o2_current_message(); // get the "active" message
     // this is a bit complicated: send immediately if it is a bundle
     // or is not scheduled in the future. Otherwise use O2 scheduling.
+#ifndef O2_NO_BUNDLES
     return !IS_BUNDLE(&msg->data);
+#else
+    return true;
+#endif
 }
 
 
@@ -497,7 +500,7 @@ O2err Osc_info::send(bool block)
     }
     int32_t osc_len;
     char *osc_msg = o2_msg_data_get(&osc_len);
-    o2n_message_ptr o2n_msg = (o2n_message_ptr) msg; // reuse as o2n message
+    O2netmsg_ptr o2n_msg = (O2netmsg_ptr) msg; // reuse as o2n message
     // copy the osc message into the msg container to pass to o2n layer
     assert(o2n_msg->length >= osc_len); // sanity check, don't overrun message
     o2n_msg->length = osc_len;

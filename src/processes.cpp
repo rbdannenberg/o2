@@ -141,9 +141,9 @@ O2err Proc_info::send(bool block) {
     if (!msg) {
         rslt = O2_NO_SERVICE;
     } else if (tcp_flag) {
-        rslt = fds_info->send_tcp(block, (o2n_message_ptr) msg);
+        rslt = fds_info->send_tcp(block, (O2netmsg_ptr) msg);
     } else {  // send via UDP
-        rslt = o2n_send_udp(&udp_address, (o2n_message_ptr) msg);
+        rslt = o2n_send_udp(&udp_address, (O2netmsg_ptr) msg);
         if (rslt != O2_SUCCESS) {
             O2_DBn(printf("Proxy_info::send error, port %d\n",
                           udp_address.get_port()));
@@ -200,6 +200,16 @@ O2err Proc_info::accepted(Fds_info *conn)
 // a connect() call completed, we are now connected
 O2err Proc_info::connected()
 {
+    // if we know the name of the process, then it has just achieved status
+    // when we completed connection. Report the status change using /_o2/si
+    if (key) {
+        Services_entry **ss = (Services_entry **) o2_ctx->path_tree.lookup(key);
+        assert(ss);
+        Services_entry *se = *ss;
+        Service_provider *spp = &se->services[0];
+        o2_send_cmd("!_o2/si", 0.0, "siss", key, status(NULL),
+                    key, spp->properties ? spp->properties + 1 : "");
+    }
     return O2_SUCCESS;
 }
 
@@ -217,15 +227,15 @@ void Proc_info::show(int indent)
 // to connect to a remote proc, tag is PROC_NOCLOCK,
 // tag can also be PROC_TEMP, OSC_TCP_SERVER or OSC_TCP_CLIENT
 // For tag PROC_NOCLOCK, ip is domain name, localhost, or dot format
-Proc_info *Proc_info::create_tcp_proc(int tag, const char *ip, int port)
+Proc_info *Proc_info::create_tcp_proc(int tag, const char *ip, int *port)
 {
     // create proc_info to pass to network layer
     Proc_info *proc = new Proc_info();
     proc->tag = tag;
     if (tag == O2TAG_PROC_TCP_SERVER) {
-        proc->fds_info = Fds_info::create_tcp_server(port);
+        proc->fds_info = Fds_info::create_tcp_server(port, proc);
     } else if (tag == O2TAG_PROC || tag == O2TAG_PROC_TEMP) {
-        proc->fds_info = Fds_info::create_tcp_client(ip, port);
+        proc->fds_info = Fds_info::create_tcp_client(ip, *port, proc);
     } else {
         assert(false);
     }
@@ -233,7 +243,6 @@ Proc_info *Proc_info::create_tcp_proc(int tag, const char *ip, int port)
         delete proc;
         return NULL;
     }
-    proc->fds_info->owner = proc;
     return proc;
 }
 
@@ -246,18 +255,20 @@ Proc_info *Proc_info::create_tcp_proc(int tag, const char *ip, int port)
 // assumes o2n_initialize() was called
 void o2_processes_initialize()
 {
-    int port = o2_discovery_udp_server->port;
-    assert(o2_ctx->proc);
+    assert(o2_ctx->proc->fds_info);
+    int port = o2_ctx->proc->fds_info->port;
     char name[O2_MAX_PROCNAME_LEN];
     snprintf(name, O2_MAX_PROCNAME_LEN,
-             "@%s:%s:%x", o2n_public_ip, o2n_internal_ip, port);
+             "@%s:%s:%04x", o2n_public_ip, o2n_internal_ip, port);
     o2_ctx->proc->key = o2_heapify(name);
     O2_DBG(printf("\n====================================================\n"
                   "%s Local Process Name is %s\n"
                   "====================================================\n\n",
                   o2_debug_prefix, o2_ctx->proc->key));
-    o2_discovery_udp_server->owner = o2_ctx->proc;
-    o2_ctx->proc->udp_address.set_port(o2_discovery_udp_server->port);
+    // finally, connect o2_udp_server to local proc to begin processing
+    // incoming UDP messages:
+    o2_udp_server->owner = o2_ctx->proc;
+    o2_ctx->proc->udp_address.set_port(o2_udp_server->port);
 }
 
 

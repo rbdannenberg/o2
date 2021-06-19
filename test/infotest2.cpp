@@ -14,8 +14,6 @@
 #include <string.h>
 #include <ctype.h>
 
-#define streql(a, b) (strcmp(a, b) == 0)
-
 #define N_ADDRS 10
 
 
@@ -147,8 +145,13 @@ int check_service(const char *service, const char *ip_port, int status)
                     (group[i + 1][0] == 'R' && streql(ip_port, remote_ip_port)) ||
                     (group[i + 1][0] == 'X');
             if (!good_ip_port) {
+#ifndef O2_NO_DEBUG
                 printf("Bad ip_port %s for service %s, status %s\n",
                        ip_port, service, o2_status_to_string(status));
+#else
+                printf("Bad ip_port %s for service %s, status %d\n",
+                       ip_port, service, status);
+#endif
             }
             if ((status == O2_LOCAL_NOTIME && streql(group[i+1], "LN")) ||
                 (status == O2_LOCAL && streql(group[i+1], "L")) ||
@@ -164,15 +167,24 @@ int check_service(const char *service, const char *ip_port, int status)
                 }
                 return true;
             } else {
-                printf("Bad status %s for %s, expected %s\n",
-                       o2_status_to_string(status), service, group[i + 1]);
+#ifndef O2_NO_DEBUG
+printf("Bad status %s for %s, expected %s\n",
+       o2_status_to_string(status), service, group[i + 1]);
+#else
+                printf("Bad status %d for %s, expected %s\n",
+                       status, service, group[i + 1]);
+#endif
                 return false; // bad status
             }
         }
         i += 2;
     }
+#ifndef O2_NO_DEBUG
     printf("Service %s not expected, status is %s.\n", service,
            o2_status_to_string(status));
+#else
+    printf("Service %s not expected, status is %d.\n", service, status);
+#endif
     return false; // did not find the service
 }
 
@@ -182,12 +194,18 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
 {
     const char *service_name = argv[0]->s;
     int status = argv[1]->i32;
-    const char *status_string = o2_status_to_string(status);
     const char *ip_port = argv[2]->s;
     const char *properties = argv[3]->s;
+#ifndef O2_NO_DEBUG
+    const char *status_string = o2_status_to_string(status);
     printf("service_info_handler called: %s at %s status %s msg %d "
-           "properties %s\n", 
+           "properties %s\n",
            service_name, ip_port, status_string, si_msg_count, properties);
+#else
+    printf("service_info_handler called: %s at %s status %d msg %d "
+           "properties %s\n",
+           service_name, ip_port, status, si_msg_count, properties);
+#endif
     if (!properties || properties[0]) {
         printf("FAILURE -- expected empty string for properties\n");
     }

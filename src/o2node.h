@@ -17,6 +17,8 @@ subclasses. We do a little of both in O2 implementation. Here
 are all the possible tag values:
 */
 
+// these tags are mutually exclusive, so if you want to
+// figure out one thing to call a node, these bits sort it out:
 #define O2TAG_EMPTY 1  // just an O2node that redirects to full path table
 #define O2TAG_HASH 2
 #define O2TAG_HANDLER 4
@@ -31,19 +33,29 @@ are all the possible tag values:
 #define O2TAG_OSC_UDP_CLIENT 0x800
 #define O2TAG_OSC_TCP_CLIENT 0x1000
 #define O2TAG_OSC_TCP_CONNECTION 0x2000
-#define O2TAG_BRIDGE 0x4000  // includes O2lite, O2sm
-#define O2TAG_STUN 0x8000
-#define O2TAG_TYPE_BITS ((O2TAG_STUN << 1) - 1)  // mask to get just the type
+#define O2TAG_HTTP_SERVER  0x4000
+#define O2TAG_HTTP_READER  0x8000
+
+// all O2TAG_BRIDGE means a Bridge_info, subclassed by
+//    O2lite_info, O2sm_info, Htpp_conn (handling webscockets)
+//    These are distinguished by Bridge_info->proto == one of
+//    o2lite_protocol, o2sm_protocol, o2ws_protocol
+#define O2TAG_BRIDGE      0x10000
+
+#define O2TAG_STUN        0x20000
+#define O2TAG_ZC          0x40000 // zeroconf interface (Zc_info)
+#define O2TAG_TYPE_BITS ((O2TAG_ZC << 1) - 1)  // mask to get just the type
 
 // The following (2) bits are used for properties. We could have implemented
 // virtual methods to get each property or even stored the SYNCED property
 // as a boolean, but this seems easier.
-#define O2TAG_SYNCED 0x10000  // sync state of PROC, MQTT, BRIDGE
+#define O2TAG_SYNCED 0x80000  // sync state of PROC, MQTT, BRIDGE, websocket
 // Some objects are owned by the path_tree and must be deleted when removed
 // from the tree. Other objects can be shared by multiple entries in the
 // path_tree and are owned by an Fds_info object. Set the initial tag with or
 // without this bit accordingly:
-#define O2TAG_OWNED_BY_TREE 0x20000
+#define O2TAG_OWNED_BY_TREE 0x100000
+
 #define O2TAG_HIGH O2TAG_OWNED_BY_TREE
 
 
@@ -56,7 +68,8 @@ are all the possible tag values:
 #define ISA_OSC_UDP_CLIENT(x)      ((x)->tag & O2TAG_OSC_UDP_CLIENT)
 #define ISA_OSC_TCP_CLIENT(x)      ((x)->tag & O2TAG_OSC_TCP_CLIENT)
 #define ISA_BRIDGE(x)   ((x)->tag & O2TAG_BRIDGE)
-#define ISA_STUN_CLIENT(x) ((x)->tag == O2TAG_STUN)
+#define ISA_HTTP_SERVER(x) ((x)->tag & O2TAG_HTTP_SERVER)
+#define ISA_STUN_CONN(x) ((x)->tag == O2TAG_STUN)
 
 
 // ISA_PROXY tells us if the node, considered as a service provider,
@@ -126,7 +139,7 @@ class O2node : public O2obj {
         key = (key_ ? o2_heapify(key_) : NULL);
         next = NULL;
     }
-    virtual ~O2node() { if (key) O2_FREE(key); }
+    virtual ~O2node() { if (key) O2_FREE((char *) key); }
     
     // Get the process that offers this service. If not remote, it's
     // just _o2, so that's the default. Proc_info overrides this method:
@@ -285,7 +298,9 @@ public:
     void delete_fds_info() {
         if (fds_info) {
             fds_info->owner = NULL;  // remove socket-to-node_info pointer
-            fds_info->close_socket();  // shut down the connection
+            // not sure who calls this or why, so do a "polite" close where
+            // we wait for socket to become writeable before closing it
+            fds_info->close_socket(false);  // shut down the connection
         }
     }
 
@@ -313,7 +328,7 @@ public:
     virtual O2err send(bool block) {
         o2_drop_message("Proxy::send called by mistake", true);
         return O2_FAIL; }
-    virtual O2err deliver(o2n_message_ptr msg);
+    virtual O2err deliver(O2netmsg_ptr msg);
     // returns message to send, or null if O2_NO_SERVICE:
     O2message_ptr pre_send(int *tcp_flag);
 #ifndef O2_NO_DEBUG
@@ -333,7 +348,7 @@ extern Proxy_info *o2_message_source;
 
 
 #ifdef O2_NO_DEBUG
-#define TO_HANDLER_ENTRY((node) ((Handler_entry *) node)
+#define TO_HANDLER_ENTRY(node) ((Handler_entry *) node)
 #else
 #define TO_HANDLER_ENTRY(node) (assert(ISA_HANDLER(node)), \
                                 (Handler_entry *) node)

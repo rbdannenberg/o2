@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>O2 Test</title>
+<script src="o2ws.js"></script>
+<script>
+function o2WsInit() {
+    wsOutput = document.getElementById("wsOutput");
+    o2ws_status_msgs_enable = true;
+    o2ws_status_msg("Initializing O2ws with " + WSURI);
+    o2ws_initialize("test");
+    o2ws_set_services("o2ws1,o2ws2");
+}
+
+function o2ws_status_msg(message) {
+    var pre = document.createElement("p"); 
+    pre.style.wordWrap = "break-word"; 
+    pre.innerHTML = message; 
+    wsOutput.appendChild(pre); 
+}
+
+function o2ws_error(message) {
+    o2ws_status_msg('<span style="color: red;">ERROR:</span> ' +
+                  message);
+}
+
+window.addEventListener("load", o2WsInit, false);
+console.log("Finished loading index.htm scripts");
+</script>
+</head>
+
+<body>
+<h1>O2 Test</h1>
+This is a test.
+  <div id="wsOutput"></div>
+
+</body>
+</html>

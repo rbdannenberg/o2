@@ -1,10 +1,11 @@
-// o2litehost.c - o2 process based on o2client.c that talks to o2liteserv.c
+// o2litehost.cpp - o2 process based on o2client.cpp that talks 
+//                  to o2liteserv.cpp
 //
 // Roger B. Dannenberg
 // July 2020
 //
 // see o2server.c for details of the client-server protocol
-// run this program with test/o2liteserv, which is based on o2server.c
+// run this program with test/o2liteserv, which is based on o2server.cpp
 
 
 #include "o2.h"
@@ -47,6 +48,16 @@ void client_test(o2_msg_data_ptr data, const char *types,
 }
 
 
+void time_check()
+{
+    if (o2_local_time() > 30) {
+        o2_finish();
+        printf("o2litehost timeout FAILURE exiting now\n");
+        exit(1);
+    }
+}
+
+
 int main(int argc, const char *argv[])
 {
     printf("Usage: o2litehost [maxmsgs] [debugflags]\n"
@@ -70,7 +81,9 @@ int main(int argc, const char *argv[])
     }
 
     o2_initialize("test");
+#ifndef O2_NO_BRIDGES
     o2lite_initialize(); // enable o2lite - this test is used with o2liteserv
+#endif
     o2_clock_set(NULL, NULL); // become the master clock
     o2_service_new("client");
     
@@ -89,20 +102,26 @@ int main(int argc, const char *argv[])
     }
 
     while (o2_status("server") < O2_BRIDGE_NOTIME) {
+        time_check();
         o2_poll();
         o2_sleep(2); // 2ms
     }
     printf("We discovered the server.\ntime is %g.\n", o2_time_get());
 
-
-    while (o2_status("server") != O2_BRIDGE) {
+    int stat = 0;
+    // allow O2_REMOTE here so that we can test websocket server
+    // (wsserv.htm) in addition to o2liteserv.c
+    while (stat != O2_BRIDGE && stat != O2_REMOTE) {
+        time_check();
         o2_poll();
         o2_sleep(2); // 2ms
+        stat = o2_status("server");
     }
     printf("The server has clock sync.\ntime is %g.\n", o2_time_get());
     
     double now = o2_time_get();
     while (o2_time_get() < now + 1) {
+        time_check();
         o2_poll();
         o2_sleep(2);
     }
@@ -113,6 +132,7 @@ int main(int argc, const char *argv[])
     else o2_send("!server/benchmark/0", 0, "i", 1);
     
     while (running) {
+        time_check();
         o2_poll();
         o2_sleep(2); // 2ms (you could delete this line for benchmarking)
     }

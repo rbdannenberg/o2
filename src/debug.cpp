@@ -13,10 +13,12 @@
 const char *o2_debug_prefix = "O2:";
 int o2_debug = 0;
 
-static const char *debug_chars = "crsRSkdhtTlmoOqg";
+static const char *debug_chars = "crsRSkdhtTlmoOqwg";
+#endif
 
 void o2_debug_flags(const char *flags)
 {
+#ifndef O2_NO_DEBUG
     o2_debug = 0;
     int flag = 1;
     const char *dcptr = debug_chars;
@@ -31,8 +33,10 @@ void o2_debug_flags(const char *flags)
     if (strchr(flags, 'a')) o2_debug |= O2_DBa_FLAGS;
     if (strchr(flags, 'A')) o2_debug |= O2_DBA_FLAGS;
     if (strchr(flags, 'N')) o2n_network_enabled = false;
+#endif
 }
 
+#ifndef O2_NO_DEBUG
 void o2_dbg_msg(const char *src, O2message_ptr msg, o2_msg_data_ptr data,
                 const char *extra_label, const char *extra_data)
 {
@@ -66,12 +70,20 @@ const char *o2_tag_to_string(int tag)
         case O2TAG_OSC_UDP_CLIENT:     return "OSC_UDP_CLIENT";
         case O2TAG_OSC_TCP_CLIENT:     return "OSC_TCP_CLIENT";
         case O2TAG_OSC_TCP_CONNECTION: return "OSC_TCP_CONNECTION";
+        case O2TAG_HTTP_SERVER:        return "HTTP_SERVER";
+        case O2TAG_HTTP_READER:        return "HTTP_READER";
         case O2TAG_BRIDGE:             return "BRIDGE";
+        case O2TAG_ZC:                 return "ZEROCONF";
         case O2TAG_STUN:               return "STUN_CLIENT";
         default:                       return Fds_info::tag_to_string(tag);
     }
 }
 
+// this wrapper allows test code to show some internals for debugging
+void o2_print_path_tree()
+{
+    o2_ctx->show_tree();
+}
 
 #endif
 

@@ -55,8 +55,8 @@ public:
     }
     
     // msg owned by callee, send by TCP to MQTT broker:
-    virtual O2err msg_send(o2n_message_ptr msg, bool block) = 0;
-    O2err msg_send(o2n_message_ptr msg) { return msg_send(msg, true); }
+    virtual O2err msg_send(O2netmsg_ptr msg, bool block) = 0;
+    O2err msg_send(O2netmsg_ptr msg) { return msg_send(msg, true); }
     // data is owned by caller, an MQTT publish message has arrived. Handle it:
     virtual void deliver_mqtt_msg(const char *topic, int topic_len,
                                   uint8_t *payload, int payload_len) = 0;

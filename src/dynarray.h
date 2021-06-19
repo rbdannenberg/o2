@@ -25,7 +25,6 @@ typedef struct dyn_array {
     o2_mem_check((a).array); \
     DA_ZERO(a, typ); }
 
-
 /* get a pointer to the first item of array. The type of
  each element is typ. */
 #define DA(a, typ) (o2_mem_check((a).array), (typ *) ((a).array))

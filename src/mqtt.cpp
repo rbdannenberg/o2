@@ -35,7 +35,7 @@ static MQTT_info *mqtt_info = NULL;
 
 class O2_MQTTcomm : public MQTTcomm {
 public:
-    O2err msg_send(o2n_message_ptr msg, bool block) {
+    O2err msg_send(O2netmsg_ptr msg, bool block) {
         return mqtt_info->fds_info->send_tcp(block, msg); }
     // data is owned by caller, an MQTT publish message has arrived. Handle it:
     void deliver_mqtt_msg(const char *topic, int topic_len,
@@ -128,9 +128,8 @@ O2err o2_mqtt_initialize()
     mqtt_ping_at(o2_local_time() + 10.0);  // send keep-alive every 10s
     // make MQTT broker connection
     mqtt_info = new MQTT_info(NULL, O2TAG_MQTT);
-    mqtt_info->fds_info = Fds_info::create_tcp_client(&mqtt_address);
-    mqtt_info->fds_info->owner = mqtt_info;
-    mqtt_info->fds_info->raw_flag = true;
+    mqtt_info->fds_info = Fds_info::create_tcp_client(&mqtt_address, mqtt_info);
+    mqtt_info->fds_info->read_type = READ_RAW;
     O2_DBc(mqtt_info->co_info(mqtt_info->fds_info,
                               "created TCP CLIENT for MQTT broker"));
 
@@ -297,24 +296,29 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
     char *end = payload + payload_len;
     char *public_ip = payload + 1;
     char *internal_ip = NULL;
-    char *port_num = NULL;
+    char *tcp_port_num = NULL;
+    char *udp_port_num = NULL;
     char *action = NULL;
     char *end_ptr = find_before(public_ip, ':', end);
-    if (end_ptr ) {
+    if (end_ptr) {
         *end_ptr  = 0;
         internal_ip = end_ptr  + 1;
-        end_ptr  = find_before(internal_ip, ':', end);
-        if (end_ptr ) {
-            *end_ptr  = 0;
-            port_num = end_ptr  + 1;
-            end_ptr  = find_before(port_num, '/', end);
-            if (end_ptr ) {
+        end_ptr = find_before(internal_ip, ':', end);
+        if (end_ptr) {
+            *end_ptr = 0;
+            tcp_port_num = end_ptr + 1;
+            end_ptr = find_before(tcp_port_num, ':', end);
+            if (end_ptr) {
                 *end_ptr = 0;
-                action = end_ptr + 1;
+                udp_port_num = end_ptr + 1;
+                end_ptr = find_before(udp_port_num, '/', end);
+                if (end_ptr) {
+                    *end_ptr = 0;
+                    action = end_ptr + 1;
+                }
             }
         }
     }
-    char port_string[8];
     if (!action ||  // careful: "dy" and "cs" are not zero-terminated
         !((action[0] == 'd' && action[1] == 'y') ||   // "dy"
           (action[0] == 'c' && action[1] == 's'))) {  // "cs"
@@ -325,16 +329,15 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
 #endif
         return;
     }
-    // copy port field so it can be zero-terminated:
-    memcpy(port_string, port_num, action - port_num);
-    int port = o2_hex_to_int(port_string);
-    O2_DBq(printf("%s o2_mqtt_disc_handler got %s %s %x\n", o2_debug_prefix,
-                  public_ip, internal_ip, port));
+    int tcp_port = o2_hex_to_int(tcp_port_num);
+    int udp_port = o2_hex_to_int(udp_port_num);
+    O2_DBq(printf("%s o2_mqtt_disc_handler got %s %s %x %x\n", o2_debug_prefix,
+                  public_ip, internal_ip, tcp_port, udp_port));
     
     // we need the name for the remote process with zero padding for lookup
     char name[O2_MAX_PROCNAME_LEN];
     snprintf(name, O2_MAX_PROCNAME_LEN, "@%s:%s:%s%c%c%c%c",
-             public_ip, internal_ip, port_string, 0, 0, 0, 0);
+             public_ip, internal_ip, tcp_port_num, 0, 0, 0, 0);
     assert(o2_ctx->proc->key);
     
     if (streql(name, o2_ctx->proc->key)) {
@@ -360,14 +363,14 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
         if (cmp < 0) {
             O2_DBq(printf("%s o2_mqtt_disc_handler 1A\n", o2_debug_prefix));
             o2_discovered_a_remote_process_name(name, internal_ip,
-                                                port, O2_DY_INFO);
+                                  tcp_port, udp_port, O2_DY_INFO);
         } else { // (cmp > 0) -- CASE 1B: we are the server
             // CASE 1B1: we can receive a connection request
             if (streql(o2n_public_ip, o2n_internal_ip)) {
                 O2_DBq(printf("%s o2_mqtt_disc_handler 1B1\n",
                               o2_debug_prefix));
                 o2_discovered_a_remote_process_name(name, internal_ip,
-                                               port, O2_DY_INFO);
+                                      tcp_port, udp_port, O2_DY_INFO);
                 proc_discovered = false;  // waiting for them to connect
             } else {  // CASE 1B2: must create an MQTT connection
                 O2_DBq(printf("%s o2_mqtt_disc_handler 1B2\n",
@@ -387,7 +390,7 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
                 O2_DBq(printf("%s o2_mqtt_disc_handler 2A2\n",
                               o2_debug_prefix));
                 o2_discovered_a_remote_process_name(name, internal_ip,
-                                                    port, O2_DY_INFO);
+                                      tcp_port, udp_port, O2_DY_INFO);
             }
         } else if (cmp < 0) {  // CASE 2B: we are the client
             create_mqtt_connection(name, true);
@@ -407,7 +410,8 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
     }
     // reconstruct payload just to be non-destructive:
     if (internal_ip) internal_ip[-1] = ':';
-    if (port_num) port_num[-1] = ':';
+    if (tcp_port_num) tcp_port_num[-1] = ':';
+    if (udp_port_num) udp_port_num[-1] = ':';
     if (action) action[-1] = '/';
 
     // now, if this discovery message ended with /cs, we need to establish
@@ -462,7 +466,7 @@ void O2_MQTTcomm::deliver_mqtt_msg(const char *topic, int topic_len,
 }
 
 
-O2err MQTT_info::deliver(o2n_message_ptr o2n_msg)
+O2err MQTT_info::deliver(O2netmsg_ptr o2n_msg)
 {
     O2message_ptr msg = (O2message_ptr) o2n_msg;
     char *data = (char *) &msg->data.misc;

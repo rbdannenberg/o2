@@ -43,7 +43,7 @@ class Osc_info : public Proxy_info {
     // Implement the Net_interface:
     O2err accepted(Fds_info *conn);
     O2err connected();
-    O2err deliver(o2n_message_ptr msg);
+    O2err deliver(O2netmsg_ptr msg);
 
 #ifndef O2_NO_DEBUG
     void show(int indent);

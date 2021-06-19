@@ -1,0 +1,22 @@
+O2obj - new, delete - o2obj.*
+  O2node - tag, key - o2node.*
+    Services_entry - - o2node.*
+    Handler_entry - - o2node.*
+    Hash_node - - o2node.*
+    Proxy_info - o2n_info_ptr, send - o2node.*
+    (multiple inheritance with Net_interface
+      Proc_info - - processes.*
+      OSC_info - - o2osc.*
+      Bridge_info (was Bridge_inst) - - bridge.*
+        O2lite_info - - bridge.*
+        O2sm_info - - sharedmem.*
+        Http_conn - - websocket.*, http connections AND websocket bridge 
+      Http_server - - websocket.*, http server
+  Fds_info - - network.*
+  Bridge_protocol - - bridge.h
+    O2lite_protocol
+    O2sm_protocol
+  Service_provider
+  Service_tap
+O2sched
+Net_interface - network.h

@@ -3,6 +3,78 @@
 // Roger B. Dannenberg
 // July 2020
 
+/** The O2lite protocol is a subset of O2. O2lite clients always
+ * connect to a host called the "sponsor" running a full O2
+ * implementation, never another O2lite client.  Due to the
+ * peer-to-peer nature of O2, once connected, the O2lite host can send
+ * messages to O2 services and also provide a service to the O2
+ * ensemble. An O2lite host's services appear as services of the
+ * sponsor, and therefore an O2lite service name cannot conflict with
+ * a sponsor's service or the service of another O2lite host connected
+ * to the same sponsor. Attempts to create conflicting services will
+ * fail.
+ *
+ * O2lite offers a subset of functions available in O2.  The
+ * functionality on the sponsor side limits what O2lite can do. There
+ * are further limitations of this o2lite implementation, but this
+ * does not mean extensions are not allowed. For portability and
+ * interoperation, one should not assume greater functionality than
+ * offered in this implementation. (These implementation restrictions
+ * particularly include a restricted set of types in messages, no
+ * pattern matching, and no support for bundles.)
+ *
+ * The O2lite protocol and O2 implementation of it support these
+ * features:
+ *    - create service (advertised on the sponsor side, messages are 
+ *        forwarded to the O2lite side)
+ *    - clock synchronization
+ *    - send messages of any kind, including bundles, with any data types
+ *    - every O2lite host is given a "bridge ID." The O2lite host can
+ *        also obtain the O2 sponsor's full name. By combining them, the
+ *        O2lite host can create a globally unique name of the form
+ *        "@4a6dfb76:c0a801a6:fc1d:2", which has the public IP, local IP,
+ *        port number of the sponsor, and bridge ID of the O2lite host.
+ * This O2lite implementation has these restrictions:
+ *    - no pattern matching for incoming messages
+ *    - no bundle construction or handling
+ *    - no type coercion -- message handlers can specify a type string 
+ *        that must match exactly or the message will be dropped, or 
+ *        message handlers can specify no types, in which case no types
+ *        are checked and all messages are dispatched to the handler.
+ *    - properties are not supported.
+ *    - O2lite host has two status bits: connected and synchronized. There
+ *        is no per-service status information, although a work-around is
+ *        to poll services for status information.
+ *    - message types are:
+ *        - string
+ *        - time
+ *        - double
+ *        - float
+ *        - int32
+ *    - message handlers are expected to call `o2l_get_float()`,
+ *        `o2l_get_int()`, etc. in order to extract data from messages.
+ *        O2lite does not construct an argument vector.
+ *    - O2lite does not have a general scheduler. It only provides
+ *        o2_local_time and o2l_get_time() (global time after clock sync).
+ */ 
+
+// Define (or undefine) these macros to select features (default in parens)
+//
+// O2_NO_O2DISCOVERY -- O2 is not using built-in discovery; (defined)
+// O2_NO_ZEROCONF -- O2 is not using ZeroConf for discovery; (undefined)
+// O2L_NO_BROADCAST -- O2lite does not broadcast to speed up discovery
+//     (undefined), but this has no effect if O2_NO_O2DISCOVERY, which is
+//     defined by default. Note that with the default ZeroConf discovery,
+//     the ZeroConf protocol ALWAYS uses broadcast (even if O2L_NO_BROADCAST)
+// O2L_NO_CLOCKSYNC -- O2lite does not synchronize with host (undefined)
+
+#if defined(O2_NO_O2DISCOVERY) && !defined(O2L_NO_BROADCAST)
+#define O2L_NO_BROADCAST 1
+#endif
+#if !defined(O2_NO_O2DISCOVERY) && !defined(O2_NO_ZEROCONF)
+#error O2_NO_O2DISCOVERY and O2_NO_ZEROCONF are defined, therefore no discovery
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -202,7 +274,7 @@ void o2l_set_services(const char *services);
  * An o2lite process could do the same, but if it is using NAT, it might
  * share an IP address with an O2 process. A safer way is to take the
  * IP:port name of the O2 host and append the bridge id, e.g. something
- * like "192.168.1.3:61354:2", which is guaranteed to be unique, at least
+ * like "@4a6dfb76:c0a801a6:fc1d:2", which is guaranteed to be unique, at least
  * until you disconnect, at which point another bridge process can reuse
  * the bridge id.
  */

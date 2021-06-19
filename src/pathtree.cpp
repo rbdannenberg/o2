@@ -71,9 +71,7 @@ bool o2_find_handlers_rec(char *remaining, char *name,
                 delivered = o2_find_handlers_rec(slash + 1, name,
                                                  entry, msg, types);
             } else if (!slash && ISA_HANDLER(entry)) {
-                char *path_end = remaining + strlen(remaining);
-                path_end = O2MEM_BIT32_ALIGN_PTR(path_end);
-                ((Handler_entry *) entry)->invoke(msg, path_end + 5);
+                ((Handler_entry *) entry)->invoke(msg, o2_msg_data_types(msg));
                 delivered = true; // either delivered or warning issued
             }
         }
@@ -94,7 +92,9 @@ O2err o2_method_new_internal(const char *path, const char *typespec,
     // some variables that might not even be used are declared here
     // to avoid compiler warnings related to jumping over initializations
     // (this seems to be a GNU C++ compiler problem)
-    Handler_entry *full_path_handler; 
+#ifndef O2_NO_PATTERNS
+    Handler_entry *full_path_handler;
+#endif
     O2string types_copy;
     Handler_entry *handler;
     O2node *node;
@@ -458,7 +458,7 @@ O2err o2_method_free(const char *path)
         return O2_BAD_NAME;
     }
     char name[NAME_BUF_LEN];
-    o2strcpy(name, path, NAME_BUF_LEN);
+    o2_strcpy(name, path, NAME_BUF_LEN);
     // search path elements as tree nodes -- to get the keys, replace each
     // "/" with EOS and o2_heapify to copy it, then restore the "/"
     char *remaining = name + 1; // skip the initial "/"
@@ -552,7 +552,7 @@ void o2_handler_entry_finish(Handler_entry *handler)
     if (handler->type_string)
         O2_FREE((void *) handler->type_string);
     if (handler->key) {        // key can be NULL if this is a global handler
-        O2_FREE(handler->key); // for everything in the service.
+        O2_FREE((char *) handler->key); // for everything in the service.
     }
 }
 

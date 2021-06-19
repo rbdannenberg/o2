@@ -8,12 +8,13 @@
 #include <string.h>
 #include <ctype.h>
 #ifdef WIN32
+#define PLATFORM_WIN32
 #include <stdlib.h>
 #include <Winsock2.h>
 #include <iphlpapi.h>
 
-#else
-
+#elif (defined(__unix__) || defined(__APPLE__))
+#define PLATFORM_UNIX
 #include <sys/socket.h>
 #include <unistd.h>    // define close()
 #include <netdb.h>
@@ -28,6 +29,7 @@
 #include "o2base.h"
 #include "hostip.h"
 
+#if (defined(PLATFORM_WIN32) || defined(PLATFORM_UNIX))
 // this can be turned off before calling o2n_initialize():
 bool o2n_network_enabled = true;
 // this will be turned on if we find an internal IP address, but
@@ -110,6 +112,7 @@ void o2n_get_internal_ip(void)
         strcpy(o2n_internal_ip, "7f000001");  // localhost
     }
 }
+#endif
 
 
 static int hex_to_nibble(char hex)
@@ -123,11 +126,12 @@ static int hex_to_nibble(char hex)
     return 0;
 }
 
-static int hex_to_byte(const char *hex)
+
+// this one is used elsewhere so it is not static
+int o2_hex_to_byte(const char *hex)
 {
     return (hex_to_nibble(hex[0]) << 4) + hex_to_nibble(hex[1]);
 }
-
 
 
 unsigned int o2_hex_to_int(const char *hex)
@@ -146,10 +150,10 @@ unsigned int o2_hex_to_int(const char *hex)
 //   dot must be a string of length 16 or more
 void o2_hex_to_dot(const char *hex, char *dot)
 {
-    int i1 = hex_to_byte(hex);
-    int i2 = hex_to_byte(hex + 2);
-    int i3 = hex_to_byte(hex + 4);
-    int i4 = hex_to_byte(hex + 6);
+    int i1 = o2_hex_to_byte(hex);
+    int i2 = o2_hex_to_byte(hex + 2);
+    int i3 = o2_hex_to_byte(hex + 4);
+    int i4 = o2_hex_to_byte(hex + 6);
     snprintf(dot, 16, "%d.%d.%d.%d", i1, i2, i3, i4);
 }
 

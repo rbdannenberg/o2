@@ -40,7 +40,6 @@ public:
     Demo_protocol() : Bridge_protocol("Demo") { }
     virtual ~Demo_protocol() { demo_protocol_destructed = true; }
 
-    /// o2sm needs no polling function since it shares the o2n_ API?
     virtual O2err bridge_poll() {
         O2err rslt = O2_SUCCESS;
         // deliver just the last on each poll
@@ -59,6 +58,16 @@ public:
 };
 
 Bridge_protocol *demo_protocol = NULL;
+
+static void print_status(int stat)
+{
+#ifndef O2_NO_DEBUG
+    printf("Status of bridge is %s\n", o2_status_to_string((O2status) stat));
+#else
+    printf("Status of bridge is %d\n", stat);
+#endif
+}
+
 
 class Demo_info : public Bridge_info {
 public:
@@ -151,7 +160,7 @@ int main(int argc, const char * argv[])
 
     // view the service status
     int stat = o2_status("demobridge1");
-    printf("Status of bridge is %s\n", o2_status_to_string((O2status) stat));
+    print_status(stat);
     assert(stat == O2_BRIDGE_NOTIME);
     // send to the service
     o2_send("/demobridge1/test", 0, "i", 23); // no clock, no sync
@@ -161,7 +170,7 @@ int main(int argc, const char * argv[])
     // send a message to the service
     o2_clock_set(NULL, NULL);
     stat = o2_status("demobridge1");
-    printf("Status of bridge is %s\n", o2_status_to_string((O2status) stat));
+    print_status(stat);
     assert(stat == O2_BRIDGE);
     o2_send("/demobridge1/test", 0, "i", 34); // clock, no sync
     assert(message_int == 34);
@@ -184,7 +193,7 @@ int main(int argc, const char * argv[])
     // change the bridge status to internal scheduling
     demo_info->no_scheduling_here = false;
     stat = o2_status("demobridge1");
-    printf("Status of bridge is %s\n", o2_status_to_string((O2status) stat));
+    print_status(stat);
     assert(stat == O2_BRIDGE);
 
     // send an untimed message
