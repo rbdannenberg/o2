@@ -1,5 +1,8 @@
 // o2lite.c -- a simple o2lite client library
 //
+// Roger B. Dannenberg
+// Jul-Aug 2020, Jun 2021 updated for Avahi
+//
 // This illustrates a bare-bones o2lite client implementation.
 // It call system network functions directly rather than network.c
 // used in O2 to simplify things, but all network calls are
@@ -24,9 +27,8 @@
 //      o2_service_properties())
 // After all service information has been sent, an end-of-services message
 // is sent with service name "", type 0, process name "", properties "".
-
-// Roger B. Dannenberg
-// Jul-Aug 2020
+//
+// Discovery uses Bonjour (or Avahi for Linux).
 
 #include "o2lite.h"
 #include <string.h>
@@ -379,13 +381,19 @@ unsigned short o2_port_map[PORT_MAX] = {
                                 57571, 53472, 51779, 63714, 53304, 61696,
                                 50665, 49404, 64828, 54859 };
 #else // assume ZeroConf
+#ifndef __linux__
 DNSServiceRef browse_ref = NULL;
 SOCKET browse_sock = INVALID_SOCKET;
 DNSServiceRef resolve_ref = NULL;
 SOCKET resolve_sock = INVALID_SOCKET;
 o2l_time resolve_timeout = 0;
 o2l_time browse_timeout = BROWSE_TIMEOUT;
+#else
+
+
 #endif
+#endif
+
 
 static int bind_recv_socket(SOCKET sock, int *port)
 {
@@ -680,6 +688,7 @@ static void add_socket(SOCKET s)
 }
 
 #ifndef O2_NO_ZEROCONF
+#ifndef __linux__
 static void zc_handle_event(SOCKET *sock, DNSServiceRef *sd_ref,
                             const char *msg)
 {
@@ -691,7 +700,10 @@ static void zc_handle_event(SOCKET *sock, DNSServiceRef *sd_ref,
         *sock = INVALID_SOCKET;
     }
 }
+#else
 #endif
+#endif
+
 
 void network_poll()
 {
@@ -700,8 +712,12 @@ void network_poll()
     add_socket(udp_recv_sock);
     add_socket(tcp_sock);
 #ifndef O2_NO_ZEROCONF
+#ifndef __linux__
     add_socket(browse_sock);
     add_socket(resolve_sock);
+#else
+
+#endif
 #endif
     int total;
     if ((total = select(nfds, &read_set, NULL, NULL,
@@ -722,6 +738,7 @@ void network_poll()
         read_from_udp();
     }
 #ifndef O2_NO_ZEROCONF
+#ifndef __linux__
     if (browse_sock != INVALID_SOCKET) {
         if (FD_ISSET(browse_sock, &read_set)) {
             zc_handle_event(&browse_sock, &browse_ref, "ServiceBrowse");
@@ -732,6 +749,9 @@ void network_poll()
             zc_handle_event(&resolve_sock, &resolve_ref, "ServiceResolve");
         }
     }
+#else
+
+#endif
 #endif
 }
 
@@ -1119,6 +1139,7 @@ static void o2l_id_handler(o2l_msg_ptr msg, const char *types,
 }
 
 #ifndef O2_NO_ZEROCONF
+#ifndef __linux__
 // check for len-char hex string
 static bool check_hex(const char *addr, int len)
 {
@@ -1262,6 +1283,10 @@ static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         LIST_PUSH(pending_services, ps);
     }
 }
+#else
+/*********** Linux Avahi Implementation *************/
+
+#endif
 #endif
 
 
@@ -1272,6 +1297,7 @@ static void o2l_discovery_initialize(const char *ensemble)
     time_for_discovery_send = o2l_local_time();
     o2l_method_new("!_o2/dy", "sssiii", true, &o2l_dy_handler, NULL);
 #else
+#ifndef __linux__
     // set up ZeroConf discovery -- our goal is to find any O2 host
     // in the ensemble, so service type is "_o2proc._tcp". Then, we
     // have to resolve a service to get the proc name, IP, and ports.
@@ -1291,6 +1317,9 @@ static void o2l_discovery_initialize(const char *ensemble)
     } else {
         browse_sock = DNSServiceRefSockFD(browse_ref);
     }
+#else
+    
+#endif
 #endif
 }
 
@@ -1314,6 +1343,7 @@ void o2l_poll()
 #endif
 
 #ifndef O2_NO_ZEROCONF
+#ifndef __linux__
     // start resolving if timeout
     if (tcp_sock == INVALID_SOCKET) {
         if (pending_services && o2l_local_now > resolve_timeout) {
@@ -1335,6 +1365,9 @@ void o2l_poll()
             o2l_discovery_initialize(o2l_ensemble);
         }
     }
+#else
+
+#endif
 #endif
 
     network_poll();

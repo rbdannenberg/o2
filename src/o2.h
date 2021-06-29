@@ -286,6 +286,7 @@ separator characters. Attribute names are alphanumeric.
 ///   - O - open sound control messages
 ///   - q - show MQTT messages
 ///   - w - for tracing websockets activity
+///   - z - for tracing Zeroconf (Bonjour, Avahi)
 ///   - g - print general status info, not much detail
 ///   - n - all network flags (no malloc or scheduling): rRsS
 ///   - a - all debug flags except m (malloc/free)

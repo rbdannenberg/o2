@@ -13,7 +13,7 @@
 const char *o2_debug_prefix = "O2:";
 int o2_debug = 0;
 
-static const char *debug_chars = "crsRSkdhtTlmoOqwg";
+static const char *debug_chars = "crsRSkdhtTlmoOqwzg";
 #endif
 
 void o2_debug_flags(const char *flags)

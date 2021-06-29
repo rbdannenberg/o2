@@ -839,6 +839,7 @@ void Fds_info::reset()
 // if now, then close socket immediately. If !now, which happens when we
 // send an error response via HTTP (there may be other examples), then
 // wait for the pending messages to be sent; then close the socket
+// if read_type is READ_CUSTOM, we do not actually close the socket
 void Fds_info::close_socket(bool now)
 {
     reset();
@@ -950,14 +951,14 @@ O2err o2n_recv()
                 Fds_info *fi = o2n_fds_info[i];
                 if (fi->net_tag & NET_TCP_CONNECTING) { // connect completed
                     fi->net_tag = NET_TCP_CLIENT;
-                    O2_DBo(printf("%s connection completed, socket %ld index %d\n",
-                        o2_debug_prefix, (long)socket, i));
+                    O2_DBo(printf("%s connection completed, socket %ld index "
+                                  "%d\n", o2_debug_prefix, (long)socket, i));
                     // tell next layer up that connection is good, e.g. O2 sends
                     // notification that a new process is connected
                     if (fi->owner) fi->owner->connected();
                 }
                 if (fi->delete_me == 1) {
-                    delete_me == 2;
+                    delete_me = 2;
                     #ifdef SHUT_WR
                         shutdown(sock, SHUT_WR);
                     #endif
@@ -1020,7 +1021,9 @@ O2err o2n_recv()
                 if (fi->owner) fi->owner->connected();
             }
             // now we have a completed connection and events has POLLOUT
-            if (fi->delete_me == 1) {
+            if (fi->owner && fi->write_type == WRITE_CUSTOM) {
+                fi->owner->writeable();
+            } else if (fi->delete_me == 1) {
                 fi->delete_me = 2;
                 #ifdef SHUT_WR
                     shutdown(pfd->fd, SHUT_WR);
@@ -1287,4 +1290,16 @@ const char *Fds_info::tag_to_string(int tag)
 SOCKET Fds_info::get_socket()
 {
     return o2n_fds[fds_index].fd;
+}
+
+
+short Fds_info::get_events()
+{
+    return o2n_fds[fds_index].revents;
+}
+
+
+void Fds_info::set_events(short events)
+{
+    o2n_fds[fds_index].events = events;
 }

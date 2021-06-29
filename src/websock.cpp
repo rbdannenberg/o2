@@ -12,6 +12,7 @@
 #include "services.h"
 #include "message.h"
 #include "msgsend.h"
+#include <inttypes.h>
 
 
 #define WSOP_TEXT 1
@@ -30,6 +31,29 @@
 #define TO_O2WS(node) ((Http_conn *) (node))
 #else
 #define TO_O2WS(node) (assert(ISA_O2WS(node)), ((Http_conn *) (node)))
+#endif
+
+
+#if __linux__
+// linux does not define strnstr.
+char *strnstr(const char *haystack, const char *needle, size_t len)
+{
+    while (len > 0) {
+        int i = 0;
+        while (needle[i] && i < len && needle[i] == haystack[i]) {
+            i++;
+        }
+        if (needle[i] == 0) {
+            return (char *) haystack;
+        } else if (i == len) {
+            return NULL;
+        } // else needle[i] != haystack[i], so try next position
+        len--;
+        haystack++;
+    }
+    // in case len == 0 and needle is "":
+    return (needle[0] == 0 ? (char *) haystack : NULL);
+}
 #endif
 
 
@@ -194,9 +218,7 @@ Http_server::Http_server(int port, const char *root_) :
     }
     // register with zeroconf
 #ifndef O2_NO_ZEROCONF
-    o2_zc_register_record(port);  // returns Zc_info, but Zc_info will
-            // delete itself when ports are destroyed, and if/when that
-            // happens the Zc_info will be deleted.
+    o2_zc_register_record(port);
 #endif
 
 /*
@@ -252,7 +274,6 @@ Http_conn::Http_conn(Fds_info *conn, const char *root_, int port_) :
     confirmed_ensemble = false;
     fds_info = conn;
     fds_info->read_type = READ_RAW;
-    inbuf = NULL;
     outgoing = NULL;
 }
 
@@ -615,7 +636,7 @@ O2err Http_conn::send(bool block)
             sprintf(timestr, "%d\003", o2_get_next(typecode)->i);
             break;
           case O2_INT64:
-            sprintf(timestr, "%lld\003", o2_get_next(typecode)->h);
+            sprintf(timestr, "%" PRId64 "\003", o2_get_next(typecode)->h);
             break;
           case O2_FLOAT:
             sprintf(timestr, "%g\003", o2_get_next(typecode)->f);

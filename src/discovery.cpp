@@ -14,7 +14,9 @@
 #include "o2sched.h"
 #include "pathtree.h"
 
-#ifndef O2_NO_O2DISCOVERY
+#ifdef O2_NO_O2DISCOVERY
+#include "o2zcdisc.h"
+#else
 // These parameters hit all 16 ports in 3.88s, then all 16 again by 30s,
 // Then send every 4s to ports up to our index. So if we are able to open
 // the first discovery port, we send a discovery message every 4s to that
@@ -191,6 +193,11 @@ void o2_discovery_init_phase2()
 
 O2err o2_discovery_finish(void)
 {
+#ifndef O2_NO_ZEROCONF
+#ifdef __linux__
+    zc_cleanup();
+#endif
+#endif
     return O2_SUCCESS;
 }
 

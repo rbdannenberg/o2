@@ -9,6 +9,7 @@
 
 int main(int argc, const char * argv[])
 {
+    printf("stuniptest [debugflags] - test if O2 obtains public IP\n");
     if (argc == 2) {
         o2_debug_flags(argv[1]);
     }
@@ -42,6 +43,11 @@ int main(int argc, const char * argv[])
             printf("FAILED\n");
         }
     }
+    // TODO: remove this shutdown and delay
+    void zc_cleanup();
+    zc_cleanup();
+    for (int i = 0; i < 5000; i++) { o2_poll(); o2_sleep(2); } // 10s delay
+    
     o2_finish();
     return 0;
 }

@@ -1,1 +1,1 @@
-./regression_run_two.sh: line 15: wait: pid 7090 is not a child of this shell
+Segmentation fault

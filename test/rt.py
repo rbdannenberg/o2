@@ -32,6 +32,7 @@ if platform.system() == "Darwin":
     STALL_SEC = 1  # I don't think we need to stall for macOS
     IS_OSX = True
     input("macOS tip: turn Firewall OFF to avoid orphaned ports ")
+    HTMLOPEN = "open "
 
 allOK = True
 
@@ -50,6 +51,7 @@ else:
 # library copied to ../Debug, but tests are built in ..
 if platform.system() == 'Linux':
     BIN=".."
+    HTMLOPEN = "xdg-open "
 
 def findLineInString(line, aString):
     return ('\n' + line + '\n') in aString
@@ -184,7 +186,7 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
 def runWsTest(prog1, out1, url, out2, stall=False):
     global allOK
     p1p2 = startDouble(prog1, "websockhost", url)
-    os.system("open http://test.local:8080/" + url);
+    os.system(HTMLOPEN + "http://test.local:8080/" + url);
     return finishDouble(prog1, p1p2[0], out1, "websockhost", p1p2[1], 
                         out2, stall)
 

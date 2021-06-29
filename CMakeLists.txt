@@ -101,7 +101,11 @@ if(UNIX)
   else(APPLE) # must be Linux
 # struct addrinfo not defined by default, so fix it here:
     add_definitions("-D_POSIX_C_SOURCE=201112L")
-    set(EXTRA_LIBS m atomic) # needed by liblo
+    set(EXTRA_LIBS m atomic avahi-client avahi-common rt) # needed by liblo
+    link_directories(BEFORE avahi-0.7/avahi-common/.libs
+                     avahi-0.7/avahi-core/.libs
+                     avahi-0.7/avahi-utils/.libs
+                     avahi-0.7/avahi-client/.libs)
   endif(APPLE)
 endif(UNIX)
 

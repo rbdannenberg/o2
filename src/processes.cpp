@@ -258,8 +258,11 @@ void o2_processes_initialize()
     assert(o2_ctx->proc->fds_info);
     int port = o2_ctx->proc->fds_info->port;
     char name[O2_MAX_PROCNAME_LEN];
-    snprintf(name, O2_MAX_PROCNAME_LEN,
-             "@%s:%s:%04x", o2n_public_ip, o2n_internal_ip, port);
+    int ret = snprintf(name, O2_MAX_PROCNAME_LEN,
+                       "@%s:%s:%04x", o2n_public_ip, o2n_internal_ip, port);
+    if (ret < 0) {      // truncation occurred. Without this test, gcc warns
+        assert(false);  // that truncation *might* occur without a check
+    }
     o2_ctx->proc->key = o2_heapify(name);
     O2_DBG(printf("\n====================================================\n"
                   "%s Local Process Name is %s\n"

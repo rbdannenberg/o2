@@ -125,6 +125,10 @@ public:
     virtual O2err connected() {
             printf("ERROR: connected called by mistake\n"); return O2_FAIL; }
     virtual O2err deliver(O2netmsg_ptr msg) = 0;
+
+    // override writeable iff WRITE_CUSTOM:
+    virtual O2err writeable() { return O2_SUCCESS; };
+
     // since Net_interface is a just an interface (set of methods), it is
     // always multiple-inherited along with some other class that you can
     // actually delete. This remove method converts "this" to the proper
@@ -135,7 +139,7 @@ public:
 };
 
 typedef enum {READ_O2, READ_RAW, READ_CUSTOM} Read_type;
-
+typedef enum {WRITE_O2, WRITE_CUSTOM} Write_type;
 
 // an abstract class -- subclass with application-specific
 //     message/event handlers
@@ -149,6 +153,7 @@ class Fds_info : public O2obj {
                     // (note that removing array elements while scanning for 
                     // events would be very tricky, so we make a second
                     // cleanup pass).
+
     Read_type read_type;  // READ_RAW means message data is sent as is with
                     // no length count (unless it is in the message data).
                     // Incoming bytes are formed into O2netmsgs with length
@@ -161,6 +166,16 @@ class Fds_info : public O2obj {
                     // READ_O2 means o2network.h reads length counts, buffers
                     // incoming messages until complete, and then delivers the
                     // message by calling Net_interface deliver method.
+
+    Write_type write_type;  // WRITE_O2 means o2network.h delivers messages
+                    // with length counts. Messages can be pending without
+                    // blocking and O2 provides a way to block to avoid
+                    // accumulating a long queue of outgoing messages.
+                    // WRITE_CUSTOM means the Net_interface writeable method
+                    // is called when the socket is writeable, and the 
+                    // socket creator is responsible for setting events
+                    // and writing to the socket. (Used for Avahi_info).
+
     int32_t in_length;    // incoming message length
     O2netmsg_ptr in_message;  // message data from TCP stream goes here
     int in_length_got;    // how many bytes of length have been read?
@@ -175,6 +190,9 @@ class Fds_info : public O2obj {
 
     Fds_info(SOCKET sock, int net_tag, int port, Net_interface *own);
     ~Fds_info();
+
+    void set_events(short events);
+    short get_events();
 
     static Fds_info *create_tcp_client(const char *ip, int port,
                                        Net_interface *own);

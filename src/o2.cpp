@@ -1380,6 +1380,7 @@ O2err o2_finish()
     // remove one reference before proceeding:
     o2_udp_server->owner = NULL;
 
+    o2_discovery_finish();
     // Close all the sockets.
     if (o2_ctx) {
         for (int i = 0; i < o2n_fds_info.size(); i++) {
@@ -1409,7 +1410,7 @@ O2err o2_finish()
 
     o2_sched_finish(&o2_gtsched);
     o2_sched_finish(&o2_ltsched);
-    o2_discovery_finish();
+    //o2_discovery_finish();
     o2_clock_finish();
     o2_services_list_finish();
     o2_free_pending_msgs(); // free any undelivered messages

@@ -35,6 +35,7 @@
 #define O2_DBoO(x)
 #define O2_DBq(x)
 #define O2_DBw(x)
+#define O2_DBz(x)
 #define O2_DBG(x)
 // special multiple category tests:
 #define O2_DBoO(x)
@@ -66,8 +67,9 @@ void o2_print_path_tree();
 #define O2_DBO_FLAG 0x2000
 #define O2_DBq_FLAG 0x4000
 #define O2_DBw_FLAG 0x8000
-#define O2_DBg_FLAG 0x10000
-#define O2_DBG_FLAGS 0x1FFFF
+#define O2_DBz_FLAG   0x10000
+#define O2_DBg_FLAG 0x20000
+#define O2_DBG_FLAGS 0x3FFFF
 // All flags but malloc, schedulers, o2_msg_deliver, enabled by "A"
 #define O2_DBA_FLAGS (O2_DBG_FLAGS-O2_DBm_FLAG-O2_DBl_FLAG-O2_DBt_FLAG-O2_DBT_FLAG)
 // All flags but DBm (malloc/free) and DBl (o2_msg_deliver) enabled by "a"
@@ -94,6 +96,7 @@ void o2_print_path_tree();
 #define O2_DBO(x) O2_DB(O2_DBO_FLAG, x)
 #define O2_DBq(x) O2_DB(O2_DBq_FLAG, x)
 #define O2_DBw(x) O2_DB(O2_DBw_FLAG, x)
+#define O2_DBz(x) O2_DB(O2_DBz_FLAG, x)
 
 // O2_DBg is specifically NOT defined. Instead, 'g' is assumed
 // if ANY debugging is enabled (including O2_DBg_FLAG).
