@@ -118,7 +118,17 @@ typedef int SOCKET;  // In O2, we'll use SOCKET to denote the type of a socket
 #include "CoreAudio/HostTime.h"
 static uint64_t start_time;
 #elif __linux__
+#include <avahi-client/client.h>
+#include <avahi-client/lookup.h>
+#include <avahi-client/publish.h>
+#include <avahi-common/alternative.h>
+#include <avahi-common/simple-watch.h>
+#include <avahi-common/malloc.h>
+#include <avahi-common/error.h>
+
 static long start_time;
+void o2_poll_avahi();
+
 #endif
 
 /*********************************ESP32********************************/
@@ -381,16 +391,26 @@ unsigned short o2_port_map[PORT_MAX] = {
                                 57571, 53472, 51779, 63714, 53304, 61696,
                                 50665, 49404, 64828, 54859 };
 #else // assume ZeroConf
+
+o2l_time browse_timeout = BROWSE_TIMEOUT;
+
 #ifndef __linux__
 DNSServiceRef browse_ref = NULL;
 SOCKET browse_sock = INVALID_SOCKET;
 DNSServiceRef resolve_ref = NULL;
 SOCKET resolve_sock = INVALID_SOCKET;
 o2l_time resolve_timeout = 0;
-o2l_time browse_timeout = BROWSE_TIMEOUT;
 #else
+// These globals keep everything we are allocating -- it's not stated
+// in Avahi docs what happens to objects passed into it, so we'll
+// free them ourselves if we are not explicitly told to free them by
+// Avahi. If Avahi takes ownership and frees either _name or _text
+// objects, we may end up freeing dangling pointers. Hopefully, this
+// will be detected in testing and not released. Yikes... why isn't
+// Avahi documented sufficiently for reliable use?
 
-
+static char *zc_name = NULL;
+static bool zc_running = false;
 #endif
 #endif
 
@@ -716,7 +736,7 @@ void network_poll()
     add_socket(browse_sock);
     add_socket(resolve_sock);
 #else
-
+    o2_poll_avahi();
 #endif
 #endif
     int total;
@@ -749,8 +769,6 @@ void network_poll()
             zc_handle_event(&resolve_sock, &resolve_ref, "ServiceResolve");
         }
     }
-#else
-
 #endif
 #endif
 }
@@ -1139,7 +1157,6 @@ static void o2l_id_handler(o2l_msg_ptr msg, const char *types,
 }
 
 #ifndef O2_NO_ZEROCONF
-#ifndef __linux__
 // check for len-char hex string
 static bool check_hex(const char *addr, int len)
 {
@@ -1152,15 +1169,6 @@ static bool check_hex(const char *addr, int len)
     return true;
 }
 
-typedef struct pending_service_struct {
-    char *name;
-    struct pending_service_struct *next;
-} pending_service_type;
-
-pending_service_type *pending_services = NULL;
-pending_service_type *active_service = NULL;
-#define LIST_PUSH(list, node) (node)->next = (list); (list) = (node);
-#define LIST_POP(list, node) (node) = (list); (list) = (list)->next;
 
 static bool is_valid_proc_name(char *name, int port,
                                char *internal_ip, int *udp_port)
@@ -1193,6 +1201,16 @@ static bool is_valid_proc_name(char *name, int port,
     return true;
 }
 
+#ifndef __linux__
+typedef struct pending_service_struct {
+    char *name;
+    struct pending_service_struct *next;
+} pending_service_type;
+
+pending_service_type *pending_services = NULL;
+pending_service_type *active_service = NULL;
+#define LIST_PUSH(list, node) (node)->next = (list); (list) = (node);
+#define LIST_POP(list, node) (node) = (list); (list) = (list)->next;
 
 static void stop_resolving()
 {
@@ -1285,6 +1303,215 @@ static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
 }
 #else
 /*********** Linux Avahi Implementation *************/
+// note on naming: Avahi uses "avahi" prefix, so all of our
+// avahi-related names in O2 use "zc".
+
+static AvahiServiceBrowser *zc_sb = NULL;
+static AvahiClient *zc_client = NULL;  // global access to avahi-client API
+
+// AvahiPoll structure so Avahi can watch sockets:
+static AvahiSimplePoll *zc_poll = NULL;
+
+
+// helper to deal with multiple free functions:
+#define FREE_WITH(variable, free_function) \
+    if (variable) { \
+        free_function(variable); \
+        variable = NULL; \
+    }
+
+
+static void zc_shutdown()
+{
+    O2LDB printf("o2lite: zc_shutdown\n");
+    FREE_WITH(zc_sb, avahi_service_browser_free);
+    FREE_WITH(zc_client, avahi_client_free);
+    FREE_WITH(zc_poll, avahi_simple_poll_free);
+    FREE_WITH(zc_name, avahi_free);
+    zc_running = false;
+}
+
+
+void zc_cleanup()
+{
+    zc_shutdown();
+}
+
+
+static void zc_resolve_callback(AvahiServiceResolver *r,
+                                AVAHI_GCC_UNUSED AvahiIfIndex interface,
+                                AVAHI_GCC_UNUSED AvahiProtocol protocol,
+                                AvahiResolverEvent event,
+                                const char *name, const char *type,
+                                const char *domain, const char *host_name,
+                                const AvahiAddress *address,
+                                uint16_t port, AvahiStringList *txt,
+                                AvahiLookupResultFlags flags,
+                                AVAHI_GCC_UNUSED void* userdata)
+{
+    int udp_send_port;
+    assert(r);
+    /* Called whenever a service has been resolved successfully or timed out */
+    switch (event) {
+        case AVAHI_RESOLVER_FAILURE:
+            fprintf(stderr, "(Resolver) Failed to resolve service '%s' of "
+                    "type '%s' in domain '%s': %s\n", name, type, domain,
+                    avahi_strerror(avahi_client_errno(
+                                       avahi_service_resolver_get_client(r))));
+            break;
+        case AVAHI_RESOLVER_FOUND: {
+            char a[AVAHI_ADDRESS_STR_MAX], *t;
+            O2LDB printf("o2lite: Avahi resolve service '%s' of type '%s' in "
+                    "domain '%s':\n", name, type, domain);
+            avahi_address_snprint(a, sizeof(a), address);
+            for (AvahiStringList *asl = txt; asl; asl = asl->next) {
+                char text[128];
+                if (strncmp((char *) asl->text, "name=", 5) == 0 &&
+                    asl->size == 33) {  // found "name="; proc name len is 28
+                    char name[32];
+                    strncpy(name, (char *) asl->text + 5, 28);
+                    name[28] = 0;  // make sure name is zero-terminated
+                    O2LDB printf("o2lite: found name %s\n", name);
+                    char internal_ip[O2N_IP_LEN];
+                    int udp_port = 0;
+                    if (is_valid_proc_name(name, port, internal_ip,
+                                           &udp_send_port)) {
+                        char iip_dot[16];
+                        o2l_hex_to_dot(internal_ip, iip_dot);
+                        address_init(&udp_server_sa, iip_dot, udp_send_port,
+                                     false);
+                        network_connect(iip_dot, port);
+                    }
+                }
+
+            }
+        }
+    }
+    avahi_service_resolver_free(r);
+}
+
+
+static void zc_browse_callback(AvahiServiceBrowser *b,
+                               AvahiIfIndex interface,
+                               AvahiProtocol protocol,
+                               AvahiBrowserEvent event,
+                               const char *name,
+                               const char *type,
+                               const char *domain,
+                               AVAHI_GCC_UNUSED AvahiLookupResultFlags flags,
+                               void* userdata)
+{
+    AvahiClient *c = (AvahiClient *) userdata;
+    assert(b);
+    /* Called whenever a new services becomes available on the LAN or 
+       is removed from the LAN */
+    switch (event) {
+        case AVAHI_BROWSER_FAILURE:
+            fprintf(stderr, "(Browser) %s\n", avahi_strerror(
+                     avahi_client_errno(avahi_service_browser_get_client(b))));
+            zc_shutdown();
+            return;
+        case AVAHI_BROWSER_NEW:
+            O2LDB printf("o2lite: (Avahi Browser) NEW: service '%s' of type "
+                         "'%s' in domain '%s'\n", name, type, domain);
+            /* We ignore the returned resolver object. In the callback
+               function we free it. If the server is terminated before
+               the callback function is called the server will free
+               the resolver for us. */
+            if (!(avahi_service_resolver_new(c, interface, protocol, name,
+                        type, domain, AVAHI_PROTO_UNSPEC, (AvahiLookupFlags) 0,
+                        zc_resolve_callback, c)))
+                fprintf(stderr, "Failed to resolve service '%s': %s\n",
+                        name, avahi_strerror(avahi_client_errno(c)));
+            break;
+        case AVAHI_BROWSER_REMOVE:
+            O2LDB printf("o2lite: (Avahi Browser) REMOVE: service '%s' of "
+                         "type '%s' in domain '%s'\n", name, type, domain);
+            break;
+        case AVAHI_BROWSER_ALL_FOR_NOW:
+        case AVAHI_BROWSER_CACHE_EXHAUSTED:
+            O2LDB printf("o2lite: (Avahi Browser) %s\n",
+                          event == AVAHI_BROWSER_CACHE_EXHAUSTED ?
+                          "CACHE_EXHAUSTED" : "ALL_FOR_NOW");
+            break;
+    }
+}
+
+
+static void zc_client_callback(AvahiClient *c, AvahiClientState state,
+                               AVAHI_GCC_UNUSED void * userdata)
+{
+    assert(c);
+    /* Called whenever the client or server state changes */
+    if (state == AVAHI_CLIENT_FAILURE) {
+        fprintf(stderr, "Avahi client failure: %s\n",
+                avahi_strerror(avahi_client_errno(c)));
+        zc_shutdown();
+    }
+}
+
+
+#include <avahi-common/simple-watch.h>
+
+
+// Start discovery with avahi-client API
+// Assumes we have an ensemble name and proc name with public IP
+//
+int o2l_avahi_initialize()
+{
+    int error;
+    if (zc_running) {
+        return O2L_ALREADY_RUNNING;
+    }
+    O2LDB printf("o2lite: o2l_avahi_initialize\n");
+    zc_running = true;
+    // need a copy because if there is a collision, zc_name is freed
+    zc_name = avahi_strdup(o2l_ensemble);
+
+    // create poll object
+    if (!(zc_poll = avahi_simple_poll_new())) {
+        fprintf(stderr, "Avahi failed to create simple poll object.\n");
+        goto fail;
+    }
+    // create client
+    zc_client = avahi_client_new(avahi_simple_poll_get(zc_poll),
+                                 (AvahiClientFlags) 0,
+                                 &zc_client_callback, NULL, &error);
+    if (!zc_client) {
+        fprintf(stderr, "Avahi failed to create client: %s\n",
+                avahi_strerror(error));
+        goto fail;
+    }
+    
+    // Create the service browser
+    if (!(zc_sb = avahi_service_browser_new(zc_client, AVAHI_IF_UNSPEC,
+                      AVAHI_PROTO_UNSPEC, "_o2proc._tcp", NULL,
+                      (AvahiLookupFlags) 0, zc_browse_callback, zc_client))) {
+        fprintf(stderr, "Avahi failed to create service browser: %s\n",
+                avahi_strerror(avahi_client_errno(zc_client)));
+        goto fail;
+    }
+    return O2L_SUCCESS;
+ fail:
+    zc_shutdown();
+    return O2L_FAIL;
+}
+
+
+void o2_poll_avahi()
+{
+    if (zc_poll && zc_running) {
+        int ret = avahi_simple_poll_iterate(zc_poll, 0);
+        if (ret == 1) {
+            zc_running = false;
+            printf("o2_poll_avahi got quit from avahi_simple_poll_iterate\n");
+        } else if (ret < 0) {
+            zc_running = false;
+            fprintf(stderr, "Error: avahi_simple_poll_iterate returned %d\n",
+                    ret);
+        }
+    }
+}
 
 #endif
 #endif
@@ -1318,7 +1545,7 @@ static void o2l_discovery_initialize(const char *ensemble)
         browse_sock = DNSServiceRefSockFD(browse_ref);
     }
 #else
-    
+    o2l_avahi_initialize();
 #endif
 #endif
 }
@@ -1366,10 +1593,14 @@ void o2l_poll()
         }
     }
 #else
-
+    if (o2l_local_now > browse_timeout) {
+        O2LDB printf("No activity, restarting Avahi client\n");
+        zc_shutdown();
+        browse_timeout = o2l_local_now + BROWSE_TIMEOUT;  // try every 20s
+        o2l_discovery_initialize(o2l_ensemble);
+    }
 #endif
 #endif
-
     network_poll();
 }
 

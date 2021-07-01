@@ -43,11 +43,6 @@ int main(int argc, const char * argv[])
             printf("FAILED\n");
         }
     }
-    // TODO: remove this shutdown and delay
-    void zc_cleanup();
-    zc_cleanup();
-    for (int i = 0; i < 5000; i++) { o2_poll(); o2_sleep(2); } // 10s delay
-    
     o2_finish();
     return 0;
 }

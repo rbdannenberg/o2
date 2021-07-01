@@ -165,7 +165,8 @@ add_library(o2lite_static STATIC ${O2LITE_SRC})
 
 if(BUILD_WITH_O2LITE_DISCOVERY)
 else(BUILD_WITH_O2LITE_DISCOVERY)
-  target_compile_definitions(o2lite_static, "-DO2L_NO_DISCOVERY")
+  target_compile_definitions(o2lite_static,
+          "-DO2L_NO_DISCOVERY -DO2LDEBUG=1")
 endif(BUILD_WITH_O2LITE_DISCOVERY)
 
 if(BUILD_WITH_O2LITE_CLOCKSYNC)

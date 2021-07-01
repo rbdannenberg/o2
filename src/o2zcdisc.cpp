@@ -21,6 +21,55 @@
 #include "pathtree.h"
 #include "o2zcdisc.h"
 
+// check for len-char hex string
+static bool check_hex(const char *addr, int len)
+{
+    for (int i = 0; i < len; i++) {
+        char c = addr[i];
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+
+// check for valid name since we will try to use name as IP addresses
+// returns true if format is valid. Also returns the udp_port number
+// extracted from the end of name, and modifies name by padding with
+// zeros after the tcp_port (erasing most of the field with udp_port)
+// so that name, on return, is an O2string suitable for service lookup.
+static bool is_valid_proc_name(char *name, int port,
+                               char *internal_ip, int *udp_port)
+{
+    if (!name) return false;
+    if (strlen(name) != 28) return false;
+    if (name[0] != '@') return false;
+    // must have 8 lower case hex chars starting at name[1] followed by ':'
+    if (!check_hex(name + 1, 8)) return false;
+    if (name[9] != ':') return false;
+    if (!check_hex(name + 10, 8)) return false;
+    if (name[18] != ':') return false;
+    // internal IP is copied to internal_ip
+    o2_strcpy(internal_ip, name + 10, 9);
+    // must have 4-digit hex tcp port number matching port
+    if (!check_hex(name + 19, 4)) return false;
+    int top = o2_hex_to_byte(name + 19);
+    int bot = o2_hex_to_byte(name + 21);
+    int tcp_port = (top << 8) + bot;
+    if (tcp_port != port) return false;  // name must be consistent
+    if (name[23] != ':') return false;
+    // must find 4-digit hex udp port number
+    if (!check_hex(name + 24, 4)) return false;
+    top = o2_hex_to_byte(name + 24);
+    bot = o2_hex_to_byte(name + 26);
+    *udp_port = (top << 8) + bot;
+    // pad O2 name with zeros to a word boundary (only one zero needed)
+    name[23] = 0;
+    return true;
+}
+
+
 #ifdef __APPLE__
 
 /*****************************************/
@@ -119,53 +168,6 @@ O2err Bonjour_info::deliver(O2netmsg_ptr msg) {
     return O2_SUCCESS;
 }
 
-// check for len-char hex string
-static bool check_hex(const char *addr, int len)
-{
-    for (int i = 0; i < len; i++) {
-        char c = addr[i];
-        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
-            return false;
-        }
-    }
-    return true;
-}
-
-// check for valid name since we will try to use name as IP addresses
-// returns true if format is valid. Also returns the udp_port number
-// extracted from the end of name, and modifies name by padding with
-// zeros after the tcp_port (erasing most of the field with udp_port)
-// so that name, on return, is an O2string suitable for service lookup.
-static bool is_valid_proc_name(char *name, int port,
-                               char *internal_ip, int *udp_port)
-{
-    if (!name) return false;
-    if (strlen(name) != 28) return false;
-    if (name[0] != '@') return false;
-    // must have 8 lower case hex chars starting at name[1] followed by ':'
-    if (!check_hex(name + 1, 8)) return false;
-    if (name[9] != ':') return false;
-    if (!check_hex(name + 10, 8)) return false;
-    if (name[18] != ':') return false;
-    // internal IP is copied to internal_ip
-    o2_strcpy(internal_ip, name + 10, 9);
-    // must have 4-digit hex tcp port number matching port
-    if (!check_hex(name + 19, 4)) return false;
-    int top = o2_hex_to_byte(name + 19);
-    int bot = o2_hex_to_byte(name + 21);
-    int tcp_port = (top << 8) + bot;
-    if (tcp_port != port) return false;  // name must be consistent
-    if (name[23] != ':') return false;
-    // must find 4-digit hex udp port number
-    if (!check_hex(name + 24, 4)) return false;
-    top = o2_hex_to_byte(name + 24);
-    bot = o2_hex_to_byte(name + 26);
-    *udp_port = (top << 8) + bot;
-    // pad O2 name with zeros to a word boundary (only one zero needed)
-    name[23] = 0;
-    return true;
-}
-
 
 void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                          uint32_t interface_index, DNSServiceErrorType err,
@@ -195,8 +197,8 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         if (!found_it) {
             fprintf(stderr, "zc_resolve_callback could not find this name %s\n",
                     (char *) context);
+            fprintf(stderr, "    proc name: %s\n", name);
         }
-        fprintf(stderr, "    proc name: %s\n", name);
         char internal_ip[O2N_IP_LEN];
         int udp_port = 0;
         if (is_valid_proc_name(name, port, internal_ip, &udp_port)) {
@@ -412,307 +414,23 @@ O2err o2_zcdisc_initialize()
 /* SECTION 2: avahi-client API implementation */
 /**********************************************/
 
+#include <avahi-client/client.h>
+#include <avahi-client/lookup.h>
+#include <avahi-client/publish.h>
+#include <avahi-common/alternative.h>
+#include <avahi-common/simple-watch.h>
+#include <avahi-common/malloc.h>
+#include <avahi-common/error.h>
+
 // note on naming: Avahi uses "avahi" prefix, so all of our
 // avahi-related names in O2 use "zc".
-
-// API for Avahi to use sockets
-
-// Avahi delegates socket management and timer functions to
-// the application (this code), using callbacks and object pointers
-// as a flexible common ground.  Avahi knows about file descriptors
-// (sockets) as well.
-//
-// We define:
-//     AvahiTimeout -- the timer object given to Avahi
-//     AvahiWatch -- the socket event object given to Avahi
-// Each of these is paired with an O2 object:
-//     O2Timeout -- a timer object implemented on O2 scheduling
-//     Avahi_info -- a socket object based on Zc_info, which is
-//                   common to Avahi and Bonjour implementations
-// Note that these object reference each other:
-//     AvahiTimeout.o2_timeout points to an O2Timeout
-//     O2Timeout.avahi_timeout points back to the AvahiTimeout
-//
-//     AvahiWatch.info points to an Avahi_info
-//     Avahi_info.avahi_watch points back to the AvahiWatch
-
-
-struct AvahiWatch {
-    Avahi_info *info;
-};
-
-
-// Timeout design: Avahi can create a timeout and cancel it or
-// reschedule it.  It appears that Avahi can also free it, so it must
-// be a heap object created with avahi_new(). O2 can schedule local
-// message delivery.  When the O2 message is delivered, we need a way
-// to check if the Avahi timeout still exists and has not been
-// rescheduled.  I think the most direct solution is 2 objects:
-// AvahiTimeout and O2Timeout, which point to each other.
-//     For O2Timeout, the message will contain a blob which is the
-// address of the O2Timeout. The O2Timeout is unlinked and freed when
-// the message is received. When O2 shuts down, after we free the
-// scheduler and all pending messages, we can use a doubly linked
-// list to free all the O2Timeout objects remaining.
-//     Each O2Timeout is created for an AvahiTimeout update. The
-// objects point to each other until the event or until the timeout
-// is cancelled at which time the links are set to NULL.  Note that
-// the links are either both present or both NULL, so there are
-// never dangling pointers or confusing over whether an event is
-// pending.
-
-struct O2Timeout;
-
-struct AvahiTimeout {
-    O2Timeout *o2_timeout;
-    AvahiTimeoutCallback callback;
-    void *userdata;
-};
-
-typedef struct O2Timeout {
-    struct O2Timeout *prev;
-    struct O2Timeout *next;
-    AvahiTimeout *avahi_timeout;
-} O2Timeout;
-
-// to make initialization easy, linked list is not circular! Last node
-// points to NULL; Head's prev node is NULL:
-O2Timeout o2_timeouts = {NULL, NULL, NULL};  // list of all pending timeouts
-
-
-static short map_events_to_poll(AvahiWatchEvent events)
-{
-    return (events & AVAHI_WATCH_IN ? POLLIN : 0) |
-           (events & AVAHI_WATCH_OUT ? POLLOUT : 0) |
-           (events & AVAHI_WATCH_ERR ? POLLERR : 0) |
-           (events & AVAHI_WATCH_HUP ? POLLHUP : 0);
-}
-
-
-static AvahiWatchEvent map_events_from_poll(int events)
-{
-    const AvahiWatchEvent NONE = (AvahiWatchEvent) 0;
-    return (AvahiWatchEvent)
-           ((events & POLLIN ? AVAHI_WATCH_IN : NONE) |
-            (events & POLLOUT ? AVAHI_WATCH_OUT : NONE) |
-            (events & POLLERR ? AVAHI_WATCH_ERR : NONE) |
-            (events & POLLHUP ? AVAHI_WATCH_HUP : NONE));
-}
-
-
-static AvahiWatch *zc_watch_new(const AvahiPoll *api, int fd,
-                                AvahiWatchEvent events,
-                                AvahiWatchCallback callback, void *userdata)
-{
-    AvahiWatch *w = avahi_new(AvahiWatch, 1);
-    if (!w) {
-        return NULL;
-    }
-    w->info = new Avahi_info(w, fd, callback, userdata);
-    w->info->set_watched_events(events);
-    O2_DBz(printf("%s: zc_watch_new %p socket %d events %x\n",
-                  o2_debug_prefix, w, fd, events));
-    return w;
-}
-
-
-static void zc_watch_update(AvahiWatch *w, AvahiWatchEvent events)
-{
-    O2_DBz(printf("%s: zc_watch_update %p events %x\n",
-                  o2_debug_prefix, w, events));
-    w->info->set_watched_events(events);
-}
-
-
-static AvahiWatchEvent zc_watch_get_events(AvahiWatch *w)
-{
-    return map_events_from_poll(w->info->get_events());
-}
-
-
-static void zc_watch_free(AvahiWatch *w)
-{
-    if (w->info->fds_info) {
-        w->info->fds_info->close_socket(true);
-        // note: closing socket does not delete w->info
-        // since this is a READ_CUSTOM type Fds_info
-    }
-    O2_DBz(printf("%s: zc_watch_free %p\n", o2_debug_prefix, w));
-    w->info->avahi_watch = NULL;
-    delete w->info;
-    w->info = NULL;
-    // it appears that Avahi uses avahi_free to release w
-    // TODO: try to confirm that w is deleted by Avahi
-}    
-
-
-// handler for /_o2/at (timeout event)
-static void o2_zcdisc_timeout(const o2_msg_data_ptr msg, const char *types,
-                              O2arg_ptr *argv, int argc,
-                              const void *user_data)
-{
-    // first, get the O2timeout pointer from the blob:
-    o2_extract_start(msg);
-    O2arg_ptr arg = o2_get_next(O2_BLOB);
-    O2Timeout *o2_timeout = *(O2Timeout **) arg->b.data;
-    assert(o2_timeout);
-    AvahiTimeout *t = o2_timeout->avahi_timeout;
-
-    // dispose of o2_timeout after unlinking:
-    o2_timeout->prev->next = o2_timeout->next;
-    if (o2_timeout->next) {
-        o2_timeout->next->prev = o2_timeout->prev;
-    }
-    O2_DBz(printf("%s: timeout callback, o2_timeout %p->%p\n",
-                  o2_debug_prefix, o2_timeout, t));
-    O2_FREE(o2_timeout);
-    // remove dangling pointer to O2Timeout and notify Avahi of timeout:
-    if (t) {
-        t->o2_timeout = NULL;
-        t->callback(t, t->userdata);
-    }
-}
-
-
-static void zc_timeout_free(AvahiTimeout *t)
-{
-    O2_DBz(printf("%s: zc_timeout_free %p\n", o2_debug_prefix, t));
-    // cancel pending O2timeout if any
-    if (t && t->o2_timeout) {
-        t->o2_timeout->avahi_timeout = NULL;
-    }
-    t->o2_timeout = NULL;
-}
-
-
-static void zc_timeout_update(AvahiTimeout *t, const struct timeval *tv)
-{
-    O2_DBz(printf("%s: zc_timeout_update %p calling timeout_free...\n",
-                  o2_debug_prefix, t));
-    zc_timeout_free(t);  // does not free t; just cancels timeout event
-    if (!tv) {  // NULL tv means simply cancel the timeout event
-        return;
-    }
-    // create new O2timeout and schedule wakeup message
-    struct timeval nowtv;
-    gettimeofday(&nowtv, NULL);
-    O2time o2time = o2_local_time() + (tv->tv_sec - nowtv.tv_sec) +
-                    (tv->tv_usec - nowtv.tv_usec) * 0.000001;
-
-    t->o2_timeout = O2_MALLOCT(O2Timeout);
-    O2Timeout *o2_timeout = t->o2_timeout;
-    O2_DBz(printf("%s: zc_timeout_update t=%p->%p to local time %g\n",
-                  o2_debug_prefix, t, o2_timeout, o2time));
-    o2_timeout->avahi_timeout = t;
-    // link to front of doubly-linked list
-    o2_timeout->next = o2_timeouts.next;
-    o2_timeout->prev = &o2_timeouts;
-    o2_timeouts.next = o2_timeout;
-    if (o2_timeout->next) o2_timeout->next->prev = o2_timeout;
-
-    // schedule a message
-    o2_send_start();
-    // note that we are adding the pointer, not copying the object:
-    o2_add_blob_data((uint32_t) sizeof(o2_timeout), &o2_timeout);
-    O2message_ptr timeout_msg = o2_message_finish(o2time, "!_o2/at", true);
-    o2_schedule_msg(&o2_ltsched, timeout_msg);
-    return;
-}
-
-
-
-static AvahiTimeout *zc_timeout_new(const AvahiPoll *api,
-                                    const struct timeval *tv,
-                                    AvahiTimeoutCallback callback,
-                                    void *userdata)
-{
-    AvahiTimeout *t;
-
-    assert(api);
-    assert(callback);
-
-    if (!(t = avahi_new(AvahiTimeout, 1))) {
-        return NULL;
-    }
-
-    t->o2_timeout = NULL; // tells update there is no previous timeout
-    t->callback = callback;
-    t->userdata = userdata;
-    O2_DBz(printf("%s: zc_timeout_new created %p, calling update...\n",
-                  o2_debug_prefix, t));
-    zc_timeout_update(t, tv);
-    return t;
-
-}
-
-
-Avahi_info::Avahi_info(AvahiWatch *watch, int fd,
-                       AvahiWatchCallback callback_, void *userdata_)
-{
-    avahi_watch = watch;
-    info = new Fds_info(fd, NET_TCP_CLIENT, 0, this);
-    info->read_type = READ_CUSTOM;  // we handle everthing
-    info->write_type = WRITE_CUSTOM;
-    callback = callback_;
-    userdata = userdata_;
-}
-
-
-// I think this should only be called in response to Avahi closing
-// the socket, either because a socket error is reported or because
-// Avahi connection is shut down.  If we close the socket while 
-// Avahi is using it, I expect bad things will happen.
-//
-// Note that this deletion normally caused by zc_watch_free().
-//
-Avahi_info::~Avahi_info()
-{
-    if (avahi_watch) {
-        printf("WARNING: Avahi_info deleted but its "
-               "avahi_watch %p still exists", avahi_watch);
-        avahi_watch = NULL;  // be extra safe
-        callback = NULL;
-    }
-}
-
-void Avahi_info::set_watched_events(AvahiWatchEvent evts)
-{
-    info->set_events(map_events_to_poll(evts));
-}
-        
-
-// remove is called when POLLHUP is raised
-void Avahi_info::remove()
-{
-    fds_info = NULL; // fds_info is removing itself
-}
-
-
-O2err Avahi_info::writeable()
-{
-    // the socket has become writeable - same handling as any event
-    return deliver(NULL);
-}
-
-
-O2err Avahi_info::deliver(O2netmsg_ptr msg)
-{
-    // msg is NULL because read_type is READ_CUSTOM
-    (*callback)(avahi_watch, info->get_socket(),
-                map_events_from_poll(info->get_events()), userdata);
-    info->set_events(0);
-    return O2_SUCCESS;
-}
-
 
 static AvahiServiceBrowser *zc_sb = NULL;
 static AvahiClient *zc_client = NULL;  // global access to avahi-client API
 
 // AvahiPoll structure so Avahi can watch sockets:
-static AvahiPoll zc_poll = {NULL, zc_watch_new, zc_watch_update, 
-                            zc_watch_get_events, zc_watch_free, 
-                            zc_timeout_new, zc_timeout_update,
-                            zc_timeout_free};
+static AvahiSimplePoll *zc_poll = NULL;
+
 
 // These globals keep everything we are allocating -- it's not stated
 // in Avahi docs what happens to objects passed into it, so we'll
@@ -725,47 +443,39 @@ static AvahiPoll zc_poll = {NULL, zc_watch_new, zc_watch_update,
 static AvahiEntryGroup *zc_group = NULL;
 static AvahiEntryGroup *zc_http_group = NULL;
 static char *zc_name = NULL;
-static char *zc_text = NULL;
 static char *zc_http_name = NULL;
-static char *zc_http_text = NULL;
+static bool zc_running = false;
 
 static O2err zc_create_services(AvahiClient *c);
 
+// helper to deal with multiple free functions:
+#define FREE_WITH(variable, free_function) \
+    if (variable) { \
+        free_function(variable); \
+        variable = NULL; \
+    }
 
 static void zc_shutdown()
 {
-    if (zc_sb) {
-        avahi_service_browser_free(zc_sb);
-        zc_sb = NULL;
-    }
-    if (zc_client) {
-        avahi_client_free(zc_client);
-        zc_client = NULL;
-    }
+    O2_DBz(printf("%s zc_shutdown\n", o2_debug_prefix));
+    // (I think) these are freed by avahi_client_free later, so
+    // we remove the dangling pointers:
+    zc_group = NULL;
+    zc_http_group = NULL;
+
+    FREE_WITH(zc_sb, avahi_service_browser_free);
+    FREE_WITH(zc_client, avahi_client_free);
+    FREE_WITH(zc_poll, avahi_simple_poll_free);
+    FREE_WITH(zc_name, avahi_free);
+    FREE_WITH(zc_http_name, avahi_free);
+    zc_running = false;
 }
 
 
 void zc_cleanup()
 {
     zc_shutdown();
-    /* TODO: we need this code to clean up
-    O2Timeout *oto;
-    while ((oto = o2_timeouts.next)) {
-        o2_timeouts.next = oto->next;
-        O2_FREE(oto);
-    }
-    */
 }
-
-
-
-/*
-static Avahi_info *zc_register(const char *type_domain,  const char *host,
-                               int port, int text_end, const char *text)
-{
-    
-}
-*/
 
 
 static void zc_resolve_callback(AvahiServiceResolver *r,
@@ -790,9 +500,36 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
             break;
         case AVAHI_RESOLVER_FOUND: {
             char a[AVAHI_ADDRESS_STR_MAX], *t;
-            fprintf(stderr, "Service '%s' of type '%s' in domain '%s':\n",
-                    name, type, domain);
+            O2_DBz(printf("%s Avahi resolve service '%s' of type '%s' in "
+                    "domain '%s':\n", o2_debug_prefix, name, type, domain));
             avahi_address_snprint(a, sizeof(a), address);
+            for (AvahiStringList *asl = txt; asl; asl = asl->next) {
+                char text[128];
+                /*
+                if (asl->size < 128) {
+                    memcpy(text, asl->text, asl->size);
+                    text[asl->size] = 0;
+                    printf("TEXT ELEMENT: |%s|\n", text);
+                } else {
+                    printf("TEXT ELEMENT has length %ld\n", (long) (asl->size));
+                }
+                */
+                if (strncmp((char *) asl->text, "name=", 5) == 0 &&
+                    asl->size == 33) {  // found "name="; proc name len is 28
+                    char name[32];
+                    o2_strcpy(name, (char *) asl->text + 5, 29); // includes EOS
+                    O2_DBz(printf("%s found name %s\n", o2_debug_prefix, name));
+                    char internal_ip[O2N_IP_LEN];
+                    int udp_port = 0;
+                    if (is_valid_proc_name(name, port, internal_ip,
+                                           &udp_port)) {
+                        o2_discovered_a_remote_process_name(name, internal_ip,
+                                                   port, udp_port, O2_DY_INFO);
+                    }
+                }
+
+            }
+            /*
             t = avahi_string_list_to_string(txt);
             fprintf(stderr,
                     "\t%s:%u (%s)\n"
@@ -812,6 +549,7 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
                     !!(flags & AVAHI_LOOKUP_RESULT_MULTICAST),
                     !!(flags & AVAHI_LOOKUP_RESULT_CACHED));
             avahi_free(t);
+            */
         }
     }
     avahi_service_resolver_free(r);
@@ -839,8 +577,8 @@ static void zc_browse_callback(AvahiServiceBrowser *b,
             zc_shutdown();
             return;
         case AVAHI_BROWSER_NEW:
-            fprintf(stderr, "(Browser) NEW: service '%s' of type '%s' in "
-                    "domain '%s'\n", name, type, domain);
+            O2_DBz(printf("%s (Avahi Browser) NEW: service '%s' of type '%s' "
+                    "in domain '%s'\n", o2_debug_prefix, name, type, domain));
             /* We ignore the returned resolver object. In the callback
                function we free it. If the server is terminated before
                the callback function is called the server will free
@@ -852,14 +590,14 @@ static void zc_browse_callback(AvahiServiceBrowser *b,
                         name, avahi_strerror(avahi_client_errno(c)));
             break;
         case AVAHI_BROWSER_REMOVE:
-            fprintf(stderr, "(Browser) REMOVE: service '%s' of type '%s' in "
-                    "domain '%s'\n", name, type, domain);
+            O2_DBz(printf("%s (Avahi Browser) REMOVE: service '%s' of type '%s'"
+                    " in domain '%s'\n", o2_debug_prefix, name, type, domain));
             break;
         case AVAHI_BROWSER_ALL_FOR_NOW:
         case AVAHI_BROWSER_CACHE_EXHAUSTED:
-            fprintf(stderr, "(Browser) %s\n",
-                    event == AVAHI_BROWSER_CACHE_EXHAUSTED ?
-                    "CACHE_EXHAUSTED" : "ALL_FOR_NOW");
+            O2_DBz(printf("%s (Avahi Browser) %s\n", o2_debug_prefix,
+                          event == AVAHI_BROWSER_CACHE_EXHAUSTED ?
+                          "CACHE_EXHAUSTED" : "ALL_FOR_NOW"));
             break;
     }
 }
@@ -875,8 +613,8 @@ static void entry_group_callback(AvahiEntryGroup *g,
     switch (state) {
         case AVAHI_ENTRY_GROUP_ESTABLISHED :
             /* The entry group has been established successfully */
-            fprintf(stderr, "Service '%s' successfully established.\n",
-                    zc_name);
+            O2_DBz(printf("%s (Avahi) Service '%s' successfully established.\n",
+                          o2_debug_prefix, zc_name));
             break;
         case AVAHI_ENTRY_GROUP_COLLISION : {
             char *n;
@@ -885,8 +623,8 @@ static void entry_group_callback(AvahiEntryGroup *g,
             n = avahi_alternative_service_name(zc_name);
             avahi_free(zc_name);
             zc_name = n;
-            fprintf(stderr, "Service name collision, renaming "
-                    "service to '%s'\n", zc_name);
+            O2_DBz(printf("%s (Avahi) Service name collision, renaming "
+                          "service to '%s'\n", o2_debug_prefix, zc_name));
             /* And recreate the services */
             zc_create_services(avahi_entry_group_get_client(g));
             break;
@@ -919,28 +657,32 @@ O2err zc_commit_group(AvahiClient *c, char **name,
                     avahi_strerror(avahi_client_errno(c)));
             goto fail;
         }
-        /* If the group is empty (either because it was just created, or
-         * because it was reset previously, add our entries.  */
-        if (avahi_entry_group_is_empty(*group)) {
-            // Publish a service with type, name, and text
-            fprintf(stderr, "Adding service group '%s'\n", *name);
-            if ((ret = avahi_entry_group_add_service(*group, AVAHI_IF_UNSPEC,
-                           AVAHI_PROTO_UNSPEC, (AvahiPublishFlags) 0,
-                           *name, type, NULL, NULL, port, text, NULL)) < 0) {
-                if (ret == AVAHI_ERR_COLLISION)
-                    goto collision;
-                fprintf(stderr, "Failed to add _o2proc._tcp service: %s\n",
-                        avahi_strerror(ret));
-                goto fail;
-            }
-            /* Tell the server to register the service */
-            if ((ret = avahi_entry_group_commit(zc_group)) < 0) {
-                fprintf(stderr, "Failed to commit entry group: %s\n",
-                        avahi_strerror(ret));
-                goto fail;
-            }
+    }
+    /* If the group is empty (either because it was just created, or
+     * because it was reset previously, add our entries.  */
+    if (avahi_entry_group_is_empty(*group)) {
+        // Publish a service with type, name, and text
+        O2_DBz(printf("%s (Avahi) Adding service to group '%s'\n",
+                      o2_debug_prefix, *name));
+        if ((ret = avahi_entry_group_add_service(*group, AVAHI_IF_UNSPEC,
+                       AVAHI_PROTO_UNSPEC, (AvahiPublishFlags) 0,
+                       *name, type, NULL, NULL, port, text, NULL)) < 0) {
+            if (ret == AVAHI_ERR_COLLISION)
+                goto collision;
+            fprintf(stderr, "Failed to add _o2proc._tcp service: %s\n",
+                    avahi_strerror(ret));
+            goto fail;
         }
-    }    
+
+        /* Tell the server to register the service */
+        if ((ret = avahi_entry_group_commit(zc_group)) < 0) {
+            fprintf(stderr, "Failed to commit entry group: %s\n",
+                    avahi_strerror(ret));
+            goto fail;
+        }
+    } else {
+        printf("Debug: avahi_entry_group_is_empty() returned false\n");
+    }
     return O2_SUCCESS;
 collision:
     /* A service name collision with a local service happened. Let's
@@ -948,8 +690,8 @@ collision:
     n = avahi_alternative_service_name(*name);
     avahi_free(*name);
     *name = n;
-    fprintf(stderr, "Service name collision, renaming service to '%s'\n",
-            *name);
+    O2_DBz(printf("%s (Avahi) Service name collision, renaming service to "
+                  "'%s'\n", o2_debug_prefix, *name));
     avahi_entry_group_reset(*group);
     return zc_commit_group(c, name, group, type, port, text);
 fail:
@@ -971,7 +713,7 @@ static O2err zc_create_services(AvahiClient *c)
     sprintf(text + text_end, "%04x", o2_ctx->proc->udp_address.get_port());
     text_end += 4;
     text[text_end] = 0;
-                    
+
     return zc_commit_group(c, &zc_name, &zc_group, "_o2proc._tcp", 
                            o2_ctx->proc->fds_info->port, text);
 }
@@ -1011,7 +753,6 @@ static void zc_client_callback(AvahiClient *c, AvahiClientState state,
 }
 
 
-// DEBUG:
 #include <avahi-common/simple-watch.h>
 
 
@@ -1020,25 +761,35 @@ static void zc_client_callback(AvahiClient *c, AvahiClientState state,
 //
 O2err o2_zcdisc_initialize()
 {
-    o2_method_new_internal("/_o2/at", "b", &o2_zcdisc_timeout, NULL,
-                           false, false);
     int error;
+    if (zc_running) {
+        return O2_ALREADY_RUNNING;
+    }
+    O2_DBz(printf("%s o2_zcdisc_initialize\n", o2_debug_prefix));
+    zc_running = true;
     // need a copy because if there is a collision, zc_name is freed
     zc_name = avahi_strdup(o2_ensemble_name);
 
-    zc_client = avahi_client_new(&zc_poll, (AvahiClientFlags) 0,
+    // create poll object
+    if (!(zc_poll = avahi_simple_poll_new())) {
+        fprintf(stderr, "Avahi failed to create simple poll object.\n");
+        goto fail;
+    }
+    // create client
+    zc_client = avahi_client_new(avahi_simple_poll_get(zc_poll),
+                                 (AvahiClientFlags) 0,
                                  &zc_client_callback, NULL, &error);
     if (!zc_client) {
-        fprintf(stderr, "Failed to create Avahi client: %s\n",
+        fprintf(stderr, "Avahi failed to create client: %s\n",
                 avahi_strerror(error));
-        return O2_FAIL;
+        goto fail;
     }
     
-    /* Create the service browser */
+    // Create the service browser
     if (!(zc_sb = avahi_service_browser_new(zc_client, AVAHI_IF_UNSPEC,
                       AVAHI_PROTO_UNSPEC, "_o2proc._tcp", NULL,
                       (AvahiLookupFlags) 0, zc_browse_callback, zc_client))) {
-        fprintf(stderr, "Failed to create service browser: %s\n",
+        fprintf(stderr, "Avahi failed to create service browser: %s\n",
                 avahi_strerror(avahi_client_errno(zc_client)));
         goto fail;
     }
@@ -1046,6 +797,22 @@ O2err o2_zcdisc_initialize()
  fail:
     zc_shutdown();
     return O2_FAIL;
+}
+
+
+void o2_poll_avahi()
+{
+    if (zc_poll && zc_running) {
+        int ret = avahi_simple_poll_iterate(zc_poll, 0);
+        if (ret == 1) {
+            zc_running = false;
+            printf("o2_poll_avahi got quit from avahi_simple_poll_iterate\n");
+        } else if (ret < 0) {
+            zc_running = false;
+            fprintf(stderr, "Error: avahi_simple_poll_iterate returned %d\n",
+                    ret);
+        }
+    }
 }
 
 

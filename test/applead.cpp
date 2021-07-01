@@ -49,7 +49,7 @@ void applead(o2_msg_data_ptr msg, const char *types,
 void apphello(o2_msg_data_ptr msg, const char *types,
               O2arg_ptr *argv, int argc, const void *user_data)
 {
-    printf("applead got hello message\n");
+    printf("applead got hello message at local time %g\n", o2_local_time());
     hello_count++;
 }
 

@@ -1221,6 +1221,12 @@ O2err o2_poll()
 #ifndef O2_NO_BRIDGES
     o2_poll_bridges();
 #endif
+#ifndef O2_NO_ZEROCONF
+#ifdef __linux__
+    o2_poll_avahi();  // linux uses AvahiSimplePoll instead of O2 sockets
+    // TODO: maybe the Avahi poll rate can be lower or even scheduled
+#endif
+#endif
     o2_deliver_pending();
     return O2_SUCCESS;
 }

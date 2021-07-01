@@ -1,6 +1,6 @@
 //  appfollow.c - change ensemble test/demo
 ////
-//  see appmaster.c for details
+//  see applead.c for details
 
 
 #include "o2.h"
@@ -22,7 +22,8 @@ void appfollow(o2_msg_data_ptr msg, const char *types,
     if (ss == O2_REMOTE) {
         if (o2_time_get() < cs_time) {
             cs_time = o2_time_get();
-            printf("appfollow sync time %g, sending hello to master\n", cs_time);
+            printf("appfollow sync time %g, sending hello to server\n",
+                   cs_time);
             o2_send_cmd("!server/hello", 0, "");
         }
     }
@@ -31,9 +32,7 @@ void appfollow(o2_msg_data_ptr msg, const char *types,
         o2_stop_flag = true;
         printf("appfollow set stop flag TRUE at %g\n", o2_time_get());
     }
-    // Since the clock mirror cannot immediately send scheduled messages
-    // due to there being no global time reference, we will schedule
-    // messages directly on the local scheduler
+    // wake up and try again in 1s:
     o2_send_start();
     O2message_ptr m = o2_message_finish(o2_local_time() + 1,
                                          "!client/appfollow", true);

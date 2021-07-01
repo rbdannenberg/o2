@@ -35,35 +35,10 @@ O2err o2_zcdisc_initialize();
 
 #elif __linux__
 
-#include <avahi-client/client.h>
-#include <avahi-client/lookup.h>
-#include <avahi-client/publish.h>
-#include <avahi-common/alternative.h>
-#include <avahi-common/malloc.h>
-#include <avahi-common/error.h>
-
+O2err o2_zcdisc_initialize();
+void o2_poll_avahi();
 void zc_cleanup();
 
-class Avahi_info : public Zc_info {
-public:
-    AvahiWatch *avahi_watch;
-    AvahiWatchEvent last_event;
-    bool incallback;
-    AvahiWatchCallback callback;
-    void *userdata;
-
-    Avahi_info(AvahiWatch *watch, int fd, AvahiWatchCallback callback,
-               void *userdata);
-    ~Avahi_info();
-    AvahiWatchEvent get_events() const {
-        return incallback ? last_event : (AvahiWatchEvent) 0; }
-    void set_watched_events(AvahiWatchEvent event);
-    virtual O2err deliver(O2netmsg_ptr msg);
-    void remove();
-    virtual O2err writeable();
-};
-
-O2err o2_zcdisc_initialize();
 #endif
 
 #endif

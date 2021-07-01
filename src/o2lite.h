@@ -92,6 +92,9 @@
 /// \brief general failure return code
 #define O2L_FAIL -1
 
+/// \brief this thing you are intializing is already running
+#define O2L_ALREADY_RUNNING -5
+
 typedef float o2l_time; // could be double, but this gives 1ms accuracy
                         // for 2.3 hours, or 10ms accuracy for 23 hours
 
