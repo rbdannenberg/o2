@@ -651,7 +651,7 @@ void Services_entry::show(int indent)
     printf("\n");
     indent++;
     for (int i = 0; i < services.size(); i++) {
-        O2node *node = services[i].service;
+        // O2node *node = services[i].service;
         // printf("%s@%p %s\n", o2_tag_to_string(node->tag), node, node->key);
         services[i].service->show(indent);
     }

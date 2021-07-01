@@ -9,3 +9,5 @@ build/
 Release/
 bugs/osctest.eml
 .DS_Store
+
+/test/__pycache__/

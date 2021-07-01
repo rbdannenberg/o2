@@ -607,7 +607,7 @@ O2err Http_conn::send(bool block)
         return send_msg_later(msg);
     }
     // handle tap sending while we have msg
-    O2err taperr = send_to_taps(msg);
+    /* O2err taperr = */ send_to_taps(msg);
 
     O2_DBw(o2_dbg_msg("websock bridge outgoing", msg, &msg->data, NULL, NULL));
     o2_extract_start(&msg->data);  // prepare to extract parameters
