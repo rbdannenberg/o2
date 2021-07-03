@@ -40,13 +40,7 @@
 // link with o2_dbg_malloc.
 #include "hostip.c"
 
-#ifndef O2_NO_ZEROCONF
-
-#include <dns_sd.h>
-
-#define BROWSE_TIMEOUT 20  // restart ServiceBrowse if no activity
-
-#ifndef O2_NO_O2DISCOVERY
+#if !defined(O2_NO_ZEROCONF) && !defined(O2_NO_O2DISCOVERY)
 // O2 ensembles should adopt one of two discovery methods. If ZeroConf
 // works out, the built-in O2 discovery mechanism will be removed entirely.
 // Whatever method is used by O2, this O2lite library must do the same.
@@ -54,24 +48,6 @@
 #error One of O2_NO_ZEROCONF or O2_NO_O2DISCOVERY must be defined
 #endif
 
-#ifndef O2L_NO_BROADCAST
-// if O2_NO_O2DISCOVERY, then we should disable sending O2 discovery messages
-#define O2L_NO_BROADCAST
-#endif
-
-#endif
-
-// you can enable/disable O2LDB printing using -DO2LDEBUG=1 or =0 
-#if (!defined(O2LDEBUG))
-#ifndef NDEBUG
-// otherwise default is to enable in debug versions
-#define O2LDEBUG 1
-#else
-#define O2LDEBUG 0
-#endif
-#endif
-
-#define O2LDB if (O2LDEBUG)
 // PTR is a machine address to which you can add byte offsets
 #define PTR(addr) ((char *) (addr))
 // get address of first 32-bit word boundary at or above ptr:
@@ -81,11 +57,11 @@ void o2l_dispatch(o2l_msg_ptr msg);
 static void find_my_ip_address();
 
 static const char *o2l_services = NULL;
-static const char *o2l_ensemble = NULL;
+const char *o2l_ensemble = NULL;
 
 #ifdef WIN32
 /****************************WINDOWS***********************************/
-#include <winsock2.h> // define SOCKET, INVALID_SOCKET
+// #include <winsock2.h> -- already included in o2lite.h
 #include <ws2tcpip.h>
 #define TERMINATING_SOCKET_ERROR \
     (WSAGetLastError() != WSAEWOULDBLOCK && WSAGetLastError() != WSAEINTR)
@@ -100,16 +76,13 @@ static long start_time;
 #include <ifaddrs.h>
 #include <netinet/tcp.h>
 #include <errno.h>
-#include <sys/select.h>
+// #include <sys/select.h>  -- already included in o2lite.h
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdlib.h>
 
-typedef int SOCKET;  // In O2, we'll use SOCKET to denote the type of a socket
-#define INVALID_SOCKET -1
-#define SOCKET_ERROR -1
 #define TERMINATING_SOCKET_ERROR (errno != EAGAIN && errno != EINTR)
 #define closesocket close
 
@@ -117,18 +90,6 @@ typedef int SOCKET;  // In O2, we'll use SOCKET to denote the type of a socket
 #ifdef __APPLE__
 #include "CoreAudio/HostTime.h"
 static uint64_t start_time;
-#elif __linux__
-#include <avahi-client/client.h>
-#include <avahi-client/lookup.h>
-#include <avahi-client/publish.h>
-#include <avahi-common/alternative.h>
-#include <avahi-common/simple-watch.h>
-#include <avahi-common/malloc.h>
-#include <avahi-common/error.h>
-
-static long start_time;
-void o2_poll_avahi();
-
 #endif
 
 /*********************************ESP32********************************/
@@ -193,13 +154,9 @@ void connect_to_wifi(const char *hostname, const char *ssid, const char *pwd)
 #error expecting WIN32, __APPLE__, __linux__, or ESP32
 #endif
 
-#ifndef O2L_NO_BROADCAST
-SOCKET broadcast_sock = INVALID_SOCKET;
-struct sockaddr_in broadcast_to_addr;
-#endif
 
-int address_init(struct sockaddr_in *sa, const char *ip,
-                 int port_num, bool tcp);
+int o2l_address_init(struct sockaddr_in *sa, const char *ip,
+                     int port_num, bool tcp);
 
 
 /******* MESSAGES *********/
@@ -385,37 +342,14 @@ char o2l_remote_ip_port[16];
 #endif
 
 #ifndef O2_NO_O2DISCOVERY
-
 unsigned short o2_port_map[PORT_MAX] = {
                                 64541, 60238, 57143, 55764, 56975, 62711,
                                 57571, 53472, 51779, 63714, 53304, 61696,
                                 50665, 49404, 64828, 54859 };
-#else // assume ZeroConf
-
-o2l_time browse_timeout = BROWSE_TIMEOUT;
-
-#ifndef __linux__
-DNSServiceRef browse_ref = NULL;
-SOCKET browse_sock = INVALID_SOCKET;
-DNSServiceRef resolve_ref = NULL;
-SOCKET resolve_sock = INVALID_SOCKET;
-o2l_time resolve_timeout = 0;
-#else
-// These globals keep everything we are allocating -- it's not stated
-// in Avahi docs what happens to objects passed into it, so we'll
-// free them ourselves if we are not explicitly told to free them by
-// Avahi. If Avahi takes ownership and frees either _name or _text
-// objects, we may end up freeing dangling pointers. Hopefully, this
-// will be detected in testing and not released. Yikes... why isn't
-// Avahi documented sufficiently for reliable use?
-
-static char *zc_name = NULL;
-static bool zc_running = false;
-#endif
 #endif
 
 
-static int bind_recv_socket(SOCKET sock, int *port)
+int o2l_bind_recv_socket(SOCKET sock, int *port)
 {
     // bind server port
     memset(PTR(&server_addr), 0, sizeof server_addr);
@@ -448,60 +382,14 @@ static int bind_recv_socket(SOCKET sock, int *port)
 
 int o2l_network_initialize()
 {
-#ifdef WIN32
-    // Initialize (in Windows)
-    WSADATA wsaData;
-    WSAStartup(MAKEWORD(2, 2), &wsaData);
-#define inet_pton InetPton
-#endif // WIN32
-
-#ifndef O2L_NO_BROADCAST
-    // Initialize addr for broadcasting
-    broadcast_to_addr.sin_family = AF_INET;
-    inet_pton(AF_INET, "255.255.255.255",
-              &broadcast_to_addr.sin_addr.s_addr);
-
-    // create UDP broadcast socket
-    if ((broadcast_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        perror("allocating udp broadcast socket");
-        return O2L_FAIL;
+    if (o2n_internal_ip[0]) {  // only run this until it succeeds
+        return O2L_SUCCESS;
     }
-    // Set the socket's option to broadcast
-    int optval = true; // type is correct: int, not bool
-    if (setsockopt(broadcast_sock, SOL_SOCKET, SO_BROADCAST,
-                   (const char *) &optval, sizeof optval) == -1) {
-        perror("Set socket to broadcast");
-        return O2L_FAIL;
-    }
-#endif
-
     // create UDP send socket
     if ((udp_send_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("allocating udp send socket");
         return O2L_FAIL;
     }
-    // create UDP server socket
-    udp_recv_sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (udp_recv_sock == INVALID_SOCKET) {
-        printf("udp socket creation error");
-        return O2L_FAIL;
-    }
-#ifndef O2_NO_O2DISCOVERY
-    for (int i = 0; i < PORT_MAX; i++) {
-        udp_recv_port = o2_port_map[i];
-        if (bind_recv_socket(udp_recv_sock, &udp_recv_port) == 0) {
-            goto done;
-        }
-    }
-#else
-    udp_recv_port = 0;
-    if (bind_recv_socket(udp_recv_sock, &udp_recv_port) == 0) {
-        goto done;
-    }
-#endif
-    O2LDB printf("o2lite: could not allocate a udp recv port\n");
-    return O2L_FAIL;
-  done:
     O2LDB printf("o2lite: allocated udp recv port %d\n", udp_recv_port);
     find_my_ip_address();
     return O2L_SUCCESS;
@@ -510,7 +398,8 @@ int o2l_network_initialize()
 
 // initializes tcp_server_sa with server address and port
 //
-int address_init(struct sockaddr_in *sa, const char *ip, int port_num, bool tcp)
+int o2l_address_init(struct sockaddr_in *sa, const char *ip, int port_num,
+                     bool tcp)
 {
     char port[24];
     sprintf(port, "%d", port_num);
@@ -573,15 +462,17 @@ void o2l_send_services()
 }
 
 
-// connect TCP port to O2 IP:port server address
-void network_connect(const char *ip, int port)
+// connect our TCP port to O2 IP:port server address - this is the final
+// step of successful discovery
+void o2l_network_connect(const char *ip, int port)
 {
-    address_init(&tcp_server_sa, ip, port, true); // sets tcp_server_sa
+    o2l_address_init(&tcp_server_sa, ip, port, true); // sets tcp_server_sa
     O2LDB printf("connecting to %s port %d\n", ip, port);
     tcp_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (connect(tcp_sock, (struct sockaddr *) &tcp_server_sa,
                 sizeof tcp_server_sa) == -1) {
-        perror("o2lite network_connect");
+        perror("o2lite o2l_network_connect");
+        tcp_sock = INVALID_SOCKET;
         return;
     }
 #ifdef __APPLE__
@@ -697,7 +588,7 @@ static fd_set read_set;
 static int nfds;
 struct timeval no_timeout = {0, 0};
 
-static void add_socket(SOCKET s)
+void o2l_add_socket(SOCKET s)
 {
     if (s != INVALID_SOCKET) {
         FD_SET(s, &read_set);
@@ -707,38 +598,15 @@ static void add_socket(SOCKET s)
     }
 }
 
-#ifndef O2_NO_ZEROCONF
-#ifndef __linux__
-static void zc_handle_event(SOCKET *sock, DNSServiceRef *sd_ref,
-                            const char *msg)
-{
-    DNSServiceErrorType err = DNSServiceProcessResult(*sd_ref);
-    if (err) {
-        printf("Error %d from DNSServiceProcessResult for %s\n", err, msg);
-        DNSServiceRefDeallocate(*sd_ref);
-        *sd_ref = NULL;
-        *sock = INVALID_SOCKET;
-    }
-}
-#else
-#endif
-#endif
-
 
 void network_poll()
 {
     nfds = 0;
     FD_ZERO(&read_set);
-    add_socket(udp_recv_sock);
-    add_socket(tcp_sock);
-#ifndef O2_NO_ZEROCONF
-#ifndef __linux__
-    add_socket(browse_sock);
-    add_socket(resolve_sock);
-#else
-    o2_poll_avahi();
-#endif
-#endif
+    o2l_add_socket(udp_recv_sock);
+    o2l_add_socket(tcp_sock);
+    o2ldisc_poll();
+
     int total;
     if ((total = select(nfds, &read_set, NULL, NULL,
                         &no_timeout)) == SOCKET_ERROR) {
@@ -757,20 +625,8 @@ void network_poll()
         // O2LDB printf("o2lite: network_poll got UDP msg\n");
         read_from_udp();
     }
-#ifndef O2_NO_ZEROCONF
-#ifndef __linux__
-    if (browse_sock != INVALID_SOCKET) {
-        if (FD_ISSET(browse_sock, &read_set)) {
-            zc_handle_event(&browse_sock, &browse_ref, "ServiceBrowse");
-        }
-    }
-    if (resolve_sock != INVALID_SOCKET) {
-        if (FD_ISSET(resolve_sock, &read_set)) {
-            zc_handle_event(&resolve_sock, &resolve_ref, "ServiceResolve");
-        }
-    }
-#endif
-#endif
+
+    o2ldisc_events(&read_set);
 }
 
 
@@ -1126,17 +982,19 @@ static void o2l_dy_handler(o2l_msg_ptr msg, const char *types,
         return;
     }
     const char *ens = o2l_get_string();
+    int version = o2l_get_int32();
     o2l_get_string();  // assume host is local; ignore public
     const char *iip = o2l_get_string();  // here is the internal (local) IP
     int tcp_port = o2l_get_int32();
     int udp_port = o2l_get_int32();
-    if (parse_error || !streql(ens, o2l_ensemble)) {
+    if (parse_error || !streql(ens, o2l_ensemble) ||
+        (version & 0xFF0000) != (O2L_VERSION & 0xFF0000)) {
         return; // error parsing message
     }
     char iip_dot[16];
-    o2l_hex_to_dot(iip, iip_dot);
-    address_init(&udp_server_sa, iip_dot, udp_port, false);
-    network_connect(iip_dot, tcp_port);
+    o2_hex_to_dot(iip, iip_dot);
+    o2l_address_init(&udp_server_sa, iip_dot, udp_port, false);
+    o2l_network_connect(iip_dot, tcp_port);
 }
 #endif
 
@@ -1157,6 +1015,8 @@ static void o2l_id_handler(o2l_msg_ptr msg, const char *types,
 }
 
 #ifndef O2_NO_ZEROCONF
+// These functions are shared by Avahi and Bonjour implementations
+
 // check for len-char hex string
 static bool check_hex(const char *addr, int len)
 {
@@ -1170,7 +1030,7 @@ static bool check_hex(const char *addr, int len)
 }
 
 
-static bool is_valid_proc_name(char *name, int port,
+bool o2l_is_valid_proc_name(char *name, int port,
                                char *internal_ip, int *udp_port)
 {
     if (!name) return false;
@@ -1201,354 +1061,33 @@ static bool is_valid_proc_name(char *name, int port,
     return true;
 }
 
-#ifndef __linux__
-typedef struct pending_service_struct {
-    char *name;
-    struct pending_service_struct *next;
-} pending_service_type;
 
-pending_service_type *pending_services = NULL;
-pending_service_type *active_service = NULL;
-#define LIST_PUSH(list, node) (node)->next = (list); (list) = (node);
-#define LIST_POP(list, node) (node) = (list); (list) = (list)->next;
-
-static void stop_resolving()
+// parses a version string of the form "123.45.067". Returns an
+// integer encoding, e.g. "2.3.4" becomes 0x00020304. If there is
+// any syntax error, zero is returned.
+int o2l_parse_version(const char *vers, int vers_len)
 {
-    // clean up previous resolve attempt:
-    if (resolve_ref) {
-        DNSServiceRefDeallocate(resolve_ref);
-        resolve_sock = INVALID_SOCKET;
-        resolve_ref = NULL;
-    }
-    if (active_service) {
-        O2_FREE(active_service->name);
-        O2_FREE(active_service);
-    }
-}
-
-
-static void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
-                         uint32_t interface_index, DNSServiceErrorType err,
-                         const char *fullname, const char *hosttarget,
-                         uint16_t port, uint16_t txt_len,
-                         const unsigned char *txt_record, void *context)
-{
-    int udp_send_port;
-    port = ntohs(port);
-    uint8_t proc_name_len;
-    const char *proc_name = (const char *) TXTRecordGetValuePtr(txt_len,
-                                    txt_record, "name", &proc_name_len);
-    if (proc_name_len == 28) {  // names are fixed length -- reject if invalid
-        char name[32];
-        memcpy(name, proc_name, 28);
-        name[28] = 0;
-
-        char internal_ip[O2N_IP_LEN];
-        if (is_valid_proc_name(name, port, internal_ip, &udp_send_port)) {
-            char iip_dot[16];
-            o2l_hex_to_dot(internal_ip, iip_dot);
-            address_init(&udp_server_sa, iip_dot, udp_send_port, false);
-            network_connect(iip_dot, port);
-            if (tcp_sock) {  // we are connected; stop browsing ZeroConf
-                if (browse_ref) {
-                    DNSServiceRefDeallocate(browse_ref);
-                }
-                browse_ref = NULL;
-                browse_sock = INVALID_SOCKET;
-                while (pending_services) {
-                    LIST_POP(pending_services, active_service);
-                    stop_resolving();  // existing code to free active_service
-                }
-            }
+    int version = 0;
+    int version_shift = 16;
+    int field = 0;
+    while (vers_len > 0) {
+        if (isdigit(*vers)) {
+            field = (field * 10) + *vers - '0';
+            if (field > 255) return 0;
+        } else if (*vers == '.') {
+            version += (field << version_shift);
+            field = 0;
+            version_shift -= 8;
+            if (version_shift < 0) return 0;
         }
+        vers++;
+        vers_len--;
     }
-    stop_resolving();
-    resolve_timeout = o2l_local_now;  // so start_resolving() will be called
+    version += (field << version_shift);
+    return version;
 }
-
-
-static void start_resolving()
-{
-    DNSServiceErrorType err;
-    stop_resolving();
-    LIST_POP(pending_services, active_service);
-    
-    err = DNSServiceResolve(&resolve_ref, 0, kDNSServiceInterfaceIndexAny,
-                       active_service->name, "_o2proc._tcp.", "local",
-                       zc_resolve_callback, (void *) active_service->name);
-    browse_timeout = o2l_local_now + BROWSE_TIMEOUT;
-    if (err) {
-        fprintf(stderr, "DNSServiceResolve returned %d\n", err);
-        DNSServiceRefDeallocate(resolve_ref);
-        resolve_ref = NULL;
-    } else {
-        resolve_sock = DNSServiceRefSockFD(resolve_ref);
-        resolve_timeout = o2l_local_now + 1; //  try for 1s
-    }
-}
-
-static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
-                uint32_t interfaceIndex, DNSServiceErrorType err,
-                const char *name, const char *regtype,
-                const char *domain, void *context)
-{
-    // match if ensemble name is a prefix of name, e.g. "ensname (2)"
-    if ((flags & kDNSServiceFlagsAdd) &&
-        (strncmp(o2l_ensemble, name, strlen(o2l_ensemble)) == 0)) {
-        pending_service_type *ps = O2_MALLOCT(pending_service_type);
-        ps->name = O2_MALLOCNT(strlen(name) + 1, char);
-        strcpy(ps->name, name);
-        LIST_PUSH(pending_services, ps);
-    }
-}
-#else
-/*********** Linux Avahi Implementation *************/
-// note on naming: Avahi uses "avahi" prefix, so all of our
-// avahi-related names in O2 use "zc".
-
-static AvahiServiceBrowser *zc_sb = NULL;
-static AvahiClient *zc_client = NULL;  // global access to avahi-client API
-
-// AvahiPoll structure so Avahi can watch sockets:
-static AvahiSimplePoll *zc_poll = NULL;
-
-
-// helper to deal with multiple free functions:
-#define FREE_WITH(variable, free_function) \
-    if (variable) { \
-        free_function(variable); \
-        variable = NULL; \
-    }
-
-
-static void zc_shutdown()
-{
-    O2LDB printf("o2lite: zc_shutdown\n");
-    FREE_WITH(zc_sb, avahi_service_browser_free);
-    FREE_WITH(zc_client, avahi_client_free);
-    FREE_WITH(zc_poll, avahi_simple_poll_free);
-    FREE_WITH(zc_name, avahi_free);
-    zc_running = false;
-}
-
-
-void zc_cleanup()
-{
-    zc_shutdown();
-}
-
-
-static void zc_resolve_callback(AvahiServiceResolver *r,
-                                AVAHI_GCC_UNUSED AvahiIfIndex interface,
-                                AVAHI_GCC_UNUSED AvahiProtocol protocol,
-                                AvahiResolverEvent event,
-                                const char *name, const char *type,
-                                const char *domain, const char *host_name,
-                                const AvahiAddress *address,
-                                uint16_t port, AvahiStringList *txt,
-                                AvahiLookupResultFlags flags,
-                                AVAHI_GCC_UNUSED void* userdata)
-{
-    int udp_send_port;
-    assert(r);
-    /* Called whenever a service has been resolved successfully or timed out */
-    switch (event) {
-        case AVAHI_RESOLVER_FAILURE:
-            fprintf(stderr, "(Resolver) Failed to resolve service '%s' of "
-                    "type '%s' in domain '%s': %s\n", name, type, domain,
-                    avahi_strerror(avahi_client_errno(
-                                       avahi_service_resolver_get_client(r))));
-            break;
-        case AVAHI_RESOLVER_FOUND: {
-            char a[AVAHI_ADDRESS_STR_MAX], *t;
-            O2LDB printf("o2lite: Avahi resolve service '%s' of type '%s' in "
-                    "domain '%s':\n", name, type, domain);
-            avahi_address_snprint(a, sizeof(a), address);
-            for (AvahiStringList *asl = txt; asl; asl = asl->next) {
-                char text[128];
-                if (strncmp((char *) asl->text, "name=", 5) == 0 &&
-                    asl->size == 33) {  // found "name="; proc name len is 28
-                    char name[32];
-                    strncpy(name, (char *) asl->text + 5, 28);
-                    name[28] = 0;  // make sure name is zero-terminated
-                    O2LDB printf("o2lite: found name %s\n", name);
-                    char internal_ip[O2N_IP_LEN];
-                    int udp_port = 0;
-                    if (is_valid_proc_name(name, port, internal_ip,
-                                           &udp_send_port)) {
-                        char iip_dot[16];
-                        o2l_hex_to_dot(internal_ip, iip_dot);
-                        address_init(&udp_server_sa, iip_dot, udp_send_port,
-                                     false);
-                        network_connect(iip_dot, port);
-                    }
-                }
-
-            }
-        }
-    }
-    avahi_service_resolver_free(r);
-}
-
-
-static void zc_browse_callback(AvahiServiceBrowser *b,
-                               AvahiIfIndex interface,
-                               AvahiProtocol protocol,
-                               AvahiBrowserEvent event,
-                               const char *name,
-                               const char *type,
-                               const char *domain,
-                               AVAHI_GCC_UNUSED AvahiLookupResultFlags flags,
-                               void* userdata)
-{
-    AvahiClient *c = (AvahiClient *) userdata;
-    assert(b);
-    /* Called whenever a new services becomes available on the LAN or 
-       is removed from the LAN */
-    switch (event) {
-        case AVAHI_BROWSER_FAILURE:
-            fprintf(stderr, "(Browser) %s\n", avahi_strerror(
-                     avahi_client_errno(avahi_service_browser_get_client(b))));
-            zc_shutdown();
-            return;
-        case AVAHI_BROWSER_NEW:
-            O2LDB printf("o2lite: (Avahi Browser) NEW: service '%s' of type "
-                         "'%s' in domain '%s'\n", name, type, domain);
-            /* We ignore the returned resolver object. In the callback
-               function we free it. If the server is terminated before
-               the callback function is called the server will free
-               the resolver for us. */
-            if (!(avahi_service_resolver_new(c, interface, protocol, name,
-                        type, domain, AVAHI_PROTO_UNSPEC, (AvahiLookupFlags) 0,
-                        zc_resolve_callback, c)))
-                fprintf(stderr, "Failed to resolve service '%s': %s\n",
-                        name, avahi_strerror(avahi_client_errno(c)));
-            break;
-        case AVAHI_BROWSER_REMOVE:
-            O2LDB printf("o2lite: (Avahi Browser) REMOVE: service '%s' of "
-                         "type '%s' in domain '%s'\n", name, type, domain);
-            break;
-        case AVAHI_BROWSER_ALL_FOR_NOW:
-        case AVAHI_BROWSER_CACHE_EXHAUSTED:
-            O2LDB printf("o2lite: (Avahi Browser) %s\n",
-                          event == AVAHI_BROWSER_CACHE_EXHAUSTED ?
-                          "CACHE_EXHAUSTED" : "ALL_FOR_NOW");
-            break;
-    }
-}
-
-
-static void zc_client_callback(AvahiClient *c, AvahiClientState state,
-                               AVAHI_GCC_UNUSED void * userdata)
-{
-    assert(c);
-    /* Called whenever the client or server state changes */
-    if (state == AVAHI_CLIENT_FAILURE) {
-        fprintf(stderr, "Avahi client failure: %s\n",
-                avahi_strerror(avahi_client_errno(c)));
-        zc_shutdown();
-    }
-}
-
-
-#include <avahi-common/simple-watch.h>
-
-
-// Start discovery with avahi-client API
-// Assumes we have an ensemble name and proc name with public IP
-//
-int o2l_avahi_initialize()
-{
-    int error;
-    if (zc_running) {
-        return O2L_ALREADY_RUNNING;
-    }
-    O2LDB printf("o2lite: o2l_avahi_initialize\n");
-    zc_running = true;
-    // need a copy because if there is a collision, zc_name is freed
-    zc_name = avahi_strdup(o2l_ensemble);
-
-    // create poll object
-    if (!(zc_poll = avahi_simple_poll_new())) {
-        fprintf(stderr, "Avahi failed to create simple poll object.\n");
-        goto fail;
-    }
-    // create client
-    zc_client = avahi_client_new(avahi_simple_poll_get(zc_poll),
-                                 (AvahiClientFlags) 0,
-                                 &zc_client_callback, NULL, &error);
-    if (!zc_client) {
-        fprintf(stderr, "Avahi failed to create client: %s\n",
-                avahi_strerror(error));
-        goto fail;
-    }
-    
-    // Create the service browser
-    if (!(zc_sb = avahi_service_browser_new(zc_client, AVAHI_IF_UNSPEC,
-                      AVAHI_PROTO_UNSPEC, "_o2proc._tcp", NULL,
-                      (AvahiLookupFlags) 0, zc_browse_callback, zc_client))) {
-        fprintf(stderr, "Avahi failed to create service browser: %s\n",
-                avahi_strerror(avahi_client_errno(zc_client)));
-        goto fail;
-    }
-    return O2L_SUCCESS;
- fail:
-    zc_shutdown();
-    return O2L_FAIL;
-}
-
-
-void o2_poll_avahi()
-{
-    if (zc_poll && zc_running) {
-        int ret = avahi_simple_poll_iterate(zc_poll, 0);
-        if (ret == 1) {
-            zc_running = false;
-            printf("o2_poll_avahi got quit from avahi_simple_poll_iterate\n");
-        } else if (ret < 0) {
-            zc_running = false;
-            fprintf(stderr, "Error: avahi_simple_poll_iterate returned %d\n",
-                    ret);
-        }
-    }
-}
-
-#endif
 #endif
 
-
-static void o2l_discovery_initialize(const char *ensemble)
-{
-    o2l_ensemble = ensemble;
-#ifndef O2_NO_O2DISCOVERY
-    time_for_discovery_send = o2l_local_time();
-    o2l_method_new("!_o2/dy", "sssiii", true, &o2l_dy_handler, NULL);
-#else
-#ifndef __linux__
-    // set up ZeroConf discovery -- our goal is to find any O2 host
-    // in the ensemble, so service type is "_o2proc._tcp". Then, we
-    // have to resolve a service to get the proc name, IP, and ports.
-    // We'll start DNSServiceBrowse and make a list of incoming services.
-    // We'll start DNSServiceResolve one service at a time until we find
-    // a host. Allow 1s for each service to return a resolution. Host
-    // connection will just time out on its own. Unlike the more elaborate
-    // scheme in the O2 implementation, if a service times out, we just
-    // go on to the next one without any retries later.
-    DNSServiceErrorType err = DNSServiceBrowse(&browse_ref, 0,
-                 kDNSServiceInterfaceIndexAny,
-                 "_o2proc._tcp.", NULL, zc_browse_callback, NULL);
-    if (err) {
-        fprintf(stderr, "DNSServiceBrowse returned %d\n", err);
-        DNSServiceRefDeallocate(browse_ref);
-        browse_ref = NULL;
-    } else {
-        browse_sock = DNSServiceRefSockFD(browse_ref);
-    }
-#else
-    o2l_avahi_initialize();
-#endif
-#endif
-}
 
 void o2l_poll()
 {
@@ -1571,46 +1110,29 @@ void o2l_poll()
 
 #ifndef O2_NO_ZEROCONF
 #ifndef __linux__
-    // start resolving if timeout
-    if (tcp_sock == INVALID_SOCKET) {
-        if (pending_services && o2l_local_now > resolve_timeout) {
-            start_resolving();
-        // in principle, if we just leave the browser open, we'll see
-        // anything new that appears. But we have nothing else to do.
-        // And a full restart seems more robust when all else fails.
-        // So if there's nothing to resolve, and no activity for 20s,
-        // restart the ServiceBrowse operation.
-        } else if (!pending_services && o2l_local_now > browse_timeout) {
-            O2LDB printf("No activity, restarting ServiceBrowse\n");
-            stop_resolving();
-            if (browse_ref) {
-                DNSServiceRefDeallocate(browse_ref);
-                browse_ref = NULL;
-                browse_sock = INVALID_SOCKET;
-            }
-            browse_timeout = o2l_local_now + BROWSE_TIMEOUT;  // try every 20s
-            o2l_discovery_initialize(o2l_ensemble);
-        }
-    }
 #else
-    if (o2l_local_now > browse_timeout) {
-        O2LDB printf("No activity, restarting Avahi client\n");
-        zc_shutdown();
-        browse_timeout = o2l_local_now + BROWSE_TIMEOUT;  // try every 20s
-        o2l_discovery_initialize(o2l_ensemble);
-    }
 #endif
 #endif
     network_poll();
 }
 
 
-void o2l_initialize(const char *ensemble)
+int o2l_initialize(const char *ensemble)
 {
     o2l_method_new("!_o2/id", "i", true, &o2l_id_handler, NULL);
-    o2l_network_initialize();
-    o2l_discovery_initialize(ensemble);
+
+    // create UDP server socket before o2ldisc_init:
+    udp_recv_sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (udp_recv_sock == INVALID_SOCKET) {
+        printf("o2lite: udp socket creation error");
+        return O2L_FAIL;
+    }
+
+    if (o2ldisc_init(ensemble) == O2L_SUCCESS) {
+        o2l_network_initialize();
+    }
 #ifndef O2L_NO_CLOCKSYNC
     o2l_clock_initialize();
 #endif
+    return O2L_SUCCESS;
 }

@@ -572,13 +572,14 @@ O2err Http_conn::handle_websocket_msg(const char **error)
     */
 
     ws_msg_len = -1;
-    return o2_message_send(to_send);
+    o2_message_send(to_send);  // this may return an error such as O2_NO_SERVICE
+    return O2_SUCCESS;  // but we still report success to avoid closing websocket
   bad_message:
     O2_DBw(printf("%s websocket bridge bad_message\n", o2_debug_prefix));
     // now we need to remove the message from inbuf
     inbuf.drop_front(payload + payload_len - msg);
     ws_msg_len = -1;
-    return O2_SUCCESS;
+    return O2_INVALID_MSG;
 }
 
 
@@ -726,9 +727,13 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
                 // we really should send a close frame with code 1009 here
                 fds_info->close_socket(true);
                 return O2_SUCCESS;
-            } else if (handle_websocket_msg(&text) != O2_SUCCESS) {
-                text = "Websocket or protocol error";
-                goto report_error;
+            } else {
+                O2err err = handle_websocket_msg(&text);
+                if (err) {
+                    text = "Websocket or protocol error: ";
+                    text2 = o2_error_to_string(err);
+                    goto report_error;
+                }
             }                    
         }
         return O2_SUCCESS;  // wait for a complete message
@@ -820,6 +825,7 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     assert(payload_len <= content_len + 150);  // confirm we allocated enough
     msg->length = payload_len;
     fds_info->send_tcp(false, msg);
+    printf("Closing web socket: %s%s\n", text, text2);
     fds_info->close_socket(false);
     return O2_SUCCESS;
 }

@@ -39,9 +39,9 @@
 //         message. p1 and must match types in type and number.
 //     o2ws_send_cmd(address, time, types, p1, p2, p3, ...) - send a 
 //         message. p1 and must match types in type and number.
-//     o2ws_send_start(address, time, types, tcp) - start a message; this
-//         must be followed by o2ws_add_* calls for each parameter
-//         mentioned in types.
+//     o2ws_send_start(address, time, types, tcp = true) - start a message;
+//         this must be followed by o2ws_add_* calls for each parameter
+//         mentioned in types, then o2ws_send_finish() to send the message.
 //     o2ws_send_finish() - call this after message parameters have been added
 //     o2ws_add_string(s) - add a string parameter 
 //     o2ws_add_time(time) - add a time parameter (times are doubles)
@@ -561,7 +561,7 @@ function o2ws_send_args(types, args) {
 }
 
 
-function o2ws_send_start(address, time, types, tcp) {
+function o2ws_send_start(address, time, types, tcp = true) {
     if (typeof address !== "string" || typeof time !== "number" ||
         typeof types !== "string" || typeof tcp !== "boolean") {
         o2ws_on_error("Bad parameter to o2ws_send_start");

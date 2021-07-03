@@ -62,6 +62,7 @@ static int my_tcp_port = -1; // port we grabbed, for TCP (maybe also UDP)
 static bool hub_needs_public_ip = false;
 static char hub_pip[O2N_IP_LEN];
 static char hub_iip[O2N_IP_LEN];
+static int hub_version;
 static int hub_tcp_port;
 static int hub_udp_port;
 
@@ -176,8 +177,8 @@ void o2_discovery_init_phase2()
     if (hub_needs_public_ip) {
         snprintf(o2_hub_addr, O2_MAX_PROCNAME_LEN, "@%s:%s:%04x%c%c%c%c",
                  hub_pip, hub_iip, hub_tcp_port, 0, 0, 0, 0);
-        o2_discovered_a_remote_process(hub_pip, hub_iip, hub_tcp_port,
-                                       hub_udp_port, O2_DY_INFO);
+        o2_discovered_a_remote_process(hub_version, hub_pip, hub_iip,
+                             hub_tcp_port, hub_udp_port, O2_DY_INFO);
         hub_needs_public_ip = false;  // unlock o2_hub() for additional calls
     }
     o2_method_new_internal("/_o2/hub", "", &o2_hub_handler,
@@ -186,7 +187,7 @@ void o2_discovery_init_phase2()
 #endif
     o2_method_new_internal("/_o2/sv", NULL, &o2_services_handler,
                            NULL, false, false);
-    o2_method_new_internal("/_o2/dy", "sssiii", &o2_discovery_handler,
+    o2_method_new_internal("/_o2/dy", "sissiii", &o2_discovery_handler,
                            NULL, false, false);
 }
 
@@ -232,6 +233,7 @@ O2message_ptr o2_make_dy_msg(Proc_info *proc, bool tcp_flag, bool swap_flag,
     udp_port = proc->udp_address.get_port();
 
     int err = o2_send_start() || o2_add_string(o2_ensemble_name) ||
+        o2_add_int32(O2_VERSION) ||
         o2_add_string(public_ip) || o2_add_string(internal_ip) ||
         o2_add_int32(tcp_port) || o2_add_int32(udp_port) ||
         o2_add_int32(dy_flag);
@@ -300,11 +302,12 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2_discovery_handler gets", NULL, msg, NULL, NULL));
-    O2arg_ptr ens_arg, pip_arg, iip_arg, tcp_arg, udp_arg, dy_arg;
+    O2arg_ptr ens_arg, vers_arg, pip_arg, iip_arg, tcp_arg, udp_arg, dy_arg;
     // get the arguments: ensemble name, ip as string,
     //                    port, discovery port
     o2_extract_start(msg);
     if (!(ens_arg = o2_get_next(O2_STRING)) ||
+        !(vers_arg = o2_get_next(O2_INT32)) ||
         !(pip_arg = o2_get_next(O2_STRING)) ||
         !(iip_arg = o2_get_next(O2_STRING)) ||
         !(tcp_arg = o2_get_next(O2_INT32)) ||
@@ -313,6 +316,7 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
         return;
     }
     const char *ens = ens_arg->s;
+    int version = vers_arg->i32;
     const char *public_ip = pip_arg->s;
     const char *internal_ip = iip_arg->s;
     int tcp_port = tcp_arg->i32;
@@ -324,8 +328,8 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
                       ens, o2_ensemble_name));
         return;
     }
-    o2_discovered_a_remote_process(public_ip, internal_ip, tcp_port, udp_port,
-                                   dy);
+    o2_discovered_a_remote_process(version, public_ip, internal_ip, tcp_port,
+                                   udp_port, dy);
 }
 
 
@@ -339,7 +343,7 @@ void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
 //        the connection. Then we can behave like O2_DY_INFO.
 //
 // public_ip and internal_ip are in hex notation
-O2err o2_discovered_a_remote_process(const char *public_ip,
+O2err o2_discovered_a_remote_process(int version, const char *public_ip, 
         const char *internal_ip, int tcp_port, int udp_port, int dy)
 {
     // note: in the case of o2_hub(), there may be no incoming discovery
@@ -363,16 +367,21 @@ O2err o2_discovered_a_remote_process(const char *public_ip,
 
     O2_DBd(printf("    o2_discovery_handler: remote %s local %s\n",
                   name, o2_ctx->proc->key));
-    return o2_discovered_a_remote_process_name(name, internal_ip, tcp_port,
-                                               udp_port, dy);
+    return o2_discovered_a_remote_process_name(name, version, internal_ip,
+                                               tcp_port, udp_port, dy);
 }
 
 
-O2err o2_discovered_a_remote_process_name(const char *name,
+O2err o2_discovered_a_remote_process_name(const char *name, int version,
         const char *internal_ip, int tcp_port, int udp_port, int dy)
 {
     Proc_info *proc = NULL;
     O2message_ptr reply_msg = NULL;
+    if ((version & 0xFF0000) != (O2_VERSION & 0xFF0000)) {
+        O2_DBd(printf("Remote process %s ignored because %x is incompatible "
+                      "with our version %x\n", name, version, O2_VERSION));
+        return O2_FAIL;
+    }
     if (dy == O2_DY_INFO) {
         assert(o2_ctx->proc->key);
         int compare = strcmp(o2_ctx->proc->key, name);
@@ -773,10 +782,11 @@ void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
 // o2_hub() - this should be like a discovery message handler that
 //     just discovered a remote process, except we want to tell the
 //     remote process that it is designated as our hub.
+// version is the version number of the hub -- it must be compatible
 // public_ip and internal_ip are dot addresses, e.g. "127.0.0.1"
 // or a domain name
 //
-O2err o2_hub(const char *public_ip, const char *internal_ip,
+O2err o2_hub(int version, const char *public_ip, const char *internal_ip,
              int tcp_port, int udp_port)
 {
     if (!o2_ensemble_name) {
@@ -801,11 +811,12 @@ O2err o2_hub(const char *public_ip, const char *internal_ip,
     if (o2n_public_ip[0]) {
         snprintf(o2_hub_addr, O2_MAX_PROCNAME_LEN, "@%s:%s:%04x%c%c%c%c",
                  pip, iip, tcp_port, 0, 0, 0, 0);
-        return o2_discovered_a_remote_process(pip, iip, tcp_port,
+        return o2_discovered_a_remote_process(version, pip, iip, tcp_port,
                                               udp_port, O2_DY_INFO);
     } else {
         o2_strcpy(hub_pip, pip, O2N_IP_LEN);
         o2_strcpy(hub_iip, iip, O2N_IP_LEN);
+        hub_version = version;
         hub_tcp_port = tcp_port;
         hub_udp_port = udp_port;
         hub_needs_public_ip = true;

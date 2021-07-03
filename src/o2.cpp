@@ -399,6 +399,39 @@ by calling o2_can_send(service).
 
 Discovery
 ---------
+Discovery is now based on ZeroConf (aka Bonjour or Avahi). 
+The basic idea is to publish services where the protocol is
+_o2proc._tcp, and named for the O2 ensemble (but names must
+be different for each process, so if the ensemble is "foo",
+the service names will be "foo", "foo (2)", "foo (3)", etc.
+A text record has the form "name=@xxxxxxxx:yyyyyyyy:zzzz:wwww"
+where the first part is the full O2 proc name, and the final
+":wwww" is the process UDP port number.
+    A second text record has the form "vers=2.1.3". The major
+version must match or the process is ignored.
+    Once a process has been discovered using ZeroConf, and
+the text is successfully parsed, we call
+o2_discovered_a_remote_process_name(name, version, internal_ip,
+port, udp_port, O2_DY_INFO), which makes a TCP connection to 
+the discovered process (if no connection exists already).
+TCP is asymetric, so we designate the server as the one with
+the higher name (using string comparison). If the server 
+discovers the client, it makes a connection and sends a 
+DY_CALLBACK message, which the client hangs up on and then
+connects back to the server. This and everything that follows
+are consistent with the original discovery without ZeroConf,
+and more details are given below.
+
+The following paragraphs are about the old discovery protocol.
+
+Discovery without ZeroConf
+--------------------------
+O2 can be compiled with either O2_NO_O2DISCOVERY (default) or
+O2_NO_ZEROCONF. Both should work, but they are not compatible, 
+so you should only use O2_NO_ZEROCONF when you do not have
+ZeroConf available and where *every* O2 application can be 
+linked with a special build of O2 where O2_NO_ZEROCONF was defined.
+
 Discovery messages are sent to discovery ports or TCP ports. 
 Discovery ports come from a list of unassigned port numbers. Every 
 process opens the first port on the list that is available as a receive 
@@ -427,6 +460,7 @@ broadcast messages so sending N services to N processes only costs
 
 The address for discovery messages is !_o2/dy, and the arguments are:
     ensemble name (string)
+    version (int32)
     public ip (string)
     internal ip (string)
     tcp port (int32)
@@ -556,7 +590,7 @@ Implementation using discovery (!o2_ctx->using_a_hub)
             o2_create_tcp_proc(PROC_TEMP, ip, tcp); (null name,
                     might change tag later)
             IF THIS IS THE SERVER:
-                o2_make_dy_msg() - make the /_o2_dy message to send
+                o2_make_dy_msg() - make the /_o2/dy message to send
                 send the /_o2/dy message via TCP using PROC_TEMP
             IF THIS IS THE CLIENT:
                 send O2_DY_CONNECT reply
@@ -1011,6 +1045,7 @@ const char *o2_get_proc_name()
     return o2_ctx->proc->key;
 }
 
+
 static void send_one_sv_msg(Proxy_info *proc, const char *service_name,
                             int added, const char *tapper,
                             const char *properties, int send_mode)
@@ -1428,6 +1463,44 @@ O2err o2_finish()
     o2_mem_finish();  // free memory heap before removing o2_ctx
     o2_ctx = NULL;
     return O2_SUCCESS;
+}
+
+
+int o2_version(char *version)
+{
+    if (version) {
+        sprintf(version, "%u.%u.%u",
+                (unsigned int) ((O2_VERSION >> 16) & 0xFF),
+                (unsigned int) ((O2_VERSION >>  8) & 0xFF),
+                (unsigned int) ((O2_VERSION >>  0) & 0xFF));
+    }
+    return O2_VERSION;
+}
+
+
+// parses a version string of the form "123.45.067". Returns an
+// integer encoding, e.g. "2.3.4" becomes 0x00020304. If there is
+// any syntax error, zero is returned.
+int o2_parse_version(const char *vers, int vers_len)
+{
+    int version = 0;
+    int version_shift = 16;
+    int field = 0;
+    while (vers_len > 0) {
+        if (isdigit(*vers)) {
+            field = (field * 10) + *vers - '0';
+            if (field > 255) return 0;
+        } else if (*vers == '.') {
+            version += (field << version_shift);
+            field = 0;
+            version_shift -= 8;
+            if (version_shift < 0) return 0;
+        }
+        vers++;
+        vers_len--;
+    }
+    version += (field << version_shift);
+    return version;
 }
 
 

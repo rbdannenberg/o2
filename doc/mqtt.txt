@@ -42,9 +42,9 @@ Subscribe to:
     O2-ens/disc
     O2-ens/@pip:iip:port
 Discovery message:
-    topic: O2-ens/disc, payload: @pip:iip:port:udpport/dy
+    topic: O2-ens/disc, payload: @pip:iip:port:udpport/dy/vers
 Clock sync message (when a process gets clock sync):
-    topic: O2-ens/disc, payload: @pip:iip:port:udpport/cs
+    topic: O2-ens/disc, payload: @pip:iip:port:udpport/cs/vers
 Send O2 message via MQTT:
     topic: O2-ens/@pip:iip:port, payload: an_O2_message_starting_with_
                                         _the_misc_field_(after_length)

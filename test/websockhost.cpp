@@ -13,6 +13,7 @@
 #include <assert.h>
 
 bool running = true;
+bool one_minute_max = false;
 
 void stop_handler(o2_msg_data_ptr data, const char *types,
                   O2arg_ptr *argv, int argc, const void *user_data)
@@ -24,10 +25,14 @@ void stop_handler(o2_msg_data_ptr data, const char *types,
 int main(int argc, const char *argv[])
 {
     printf("Usage: websockhost [debugflags]\n"
-           "    see o2.h for flags, use a for all, - for none\n");
+           "    see o2.h for flags, use a for all, - for none\n"
+           "    Extra flag '@' means exit after 60 seconds\n");
     if (argc >= 2) {
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);
+        if (strchr(argv[1], '@')) {
+            one_minute_max = true;
+        }
     }
     if (argc > 2) {
         printf("WARNING: websockhost ignoring extra command line argments\n");
@@ -47,11 +52,19 @@ int main(int argc, const char *argv[])
 
     o2_clock_set(NULL, NULL); // become the master clock
     while (running) {
+        if (one_minute_max && o2_local_time() > 60) {
+            printf("timed out after 1 minute");
+            break;
+        }
         o2_poll();
         o2_sleep(2); // 2ms (you could delete this line for benchmarking)
     }
     o2_finish();
 #endif
-    printf("WEBSOCKETHOST DONE\n");
+    if (one_minute_max && o2_local_time() > 60) {
+        printf("WEBSOCKETHOST TIMED OUT\n");
+    } else {
+        printf("WEBSOCKETHOST DONE\n");
+    }
     return 0;
 }

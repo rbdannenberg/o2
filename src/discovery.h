@@ -66,12 +66,12 @@ void o2_services_handler(o2_msg_data_ptr msg, const char *types,
               O2arg_ptr *argv, int argc, const void *user_data);
 
 // call this if you have a (padded) O2string for name:
-O2err o2_discovered_a_remote_process_name(const char *name,
+O2err o2_discovered_a_remote_process_name(const char *name, int version,
         const char *internal_ip, int tcp_port, int udp_port, int dy);
 
 // call this if you have just individual address components OR if
 // dy is O2_CALLBACK:
-O2err o2_discovered_a_remote_process(const char *public_ip,
+O2err o2_discovered_a_remote_process(int version, const char *public_ip,
         const char *internal_ip, int tcp_port, int udp_port, int dy);
 
 O2message_ptr o2_make_dy_msg(Proc_info *proc, bool tcp_flag, bool swap_flag,

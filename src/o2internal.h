@@ -249,5 +249,7 @@ O2err o2_tap_remove(O2string tappee, Proxy_info *process,
 
 void o2_init_phase2();
 
+int o2_parse_version(const char *vers, int vers_len);
+
 #endif /* O2INTERNAL_H */
 /// \endcond

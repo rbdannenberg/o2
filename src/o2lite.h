@@ -58,21 +58,44 @@
  *        o2_local_time and o2l_get_time() (global time after clock sync).
  */ 
 
-// Define (or undefine) these macros to select features (default in parens)
-//
-// O2_NO_O2DISCOVERY -- O2 is not using built-in discovery; (defined)
-// O2_NO_ZEROCONF -- O2 is not using ZeroConf for discovery; (undefined)
-// O2L_NO_BROADCAST -- O2lite does not broadcast to speed up discovery
-//     (undefined), but this has no effect if O2_NO_O2DISCOVERY, which is
-//     defined by default. Note that with the default ZeroConf discovery,
-//     the ZeroConf protocol ALWAYS uses broadcast (even if O2L_NO_BROADCAST)
-// O2L_NO_CLOCKSYNC -- O2lite does not synchronize with host (undefined)
+// Discovery options:
+//     o2discovery -- o2's original built-in protocol (default is false)
+//         broadcast -- use broadcast to speed things up (default is true)
+//     zeroconf -- use ZeroConf for discovery (default is true)
+//     clocksync -- o2lite should synchronize with host (can be used with
+//         either o2discovery or zeroconf) (default is true)
+// Note that macros are "true" if defined, "false" if undefined, and most
+//     are inverted, e.g. O2_NO_O2DISCOVERY rather than
+//     O2_O2DISCOVERY, because most options are for disabling features;
+//     thus, most macros are undefined.
+// Here are the macros with their default values:
+//     O2_NO_O2DISCOVERY -- O2 is not using built-in discovery; (defined)
+//     O2_NO_ZEROCONF -- O2 is not using ZeroConf for discovery; (undefined)
+//     O2L_NO_BROADCAST -- O2lite does not broadcast to speed up discovery
+//         (undefined). This has no effect if O2_NO_O2DISCOVERY, which is
+//         defined by default. The ZeroConf protocol ALWAYS uses broadcast
+//         (even if O2L_NO_BROADCAST); it's internal to ZeroConf.
+//     O2L_NO_CLOCKSYNC -- O2lite does not synchronize with host (undefined)
+
+#define O2L_VERSION 0x020000
+
+// you can enable/disable O2LDB printing using -DO2LDEBUG=1 or =0 
+#if (!defined(O2LDEBUG))
+#ifndef NDEBUG
+// otherwise default is to enable in debug versions
+#define O2LDEBUG 1
+#else
+#define O2LDEBUG 0
+#endif
+#endif
+
+#define O2LDB if (O2LDEBUG)
 
 #if defined(O2_NO_O2DISCOVERY) && !defined(O2L_NO_BROADCAST)
 #define O2L_NO_BROADCAST 1
 #endif
 #if !defined(O2_NO_O2DISCOVERY) && !defined(O2_NO_ZEROCONF)
-#error O2_NO_O2DISCOVERY and O2_NO_ZEROCONF are defined, therefore no discovery
+#error O2_NO_O2DISCOVERY and O2_NO_ZEROCONF are defined - no discovery
 #endif
 
 #include <stdbool.h>
@@ -189,9 +212,10 @@ void o2l_poll();
  * @param ensemble the O2 ensemble name. This string is owned by o2lite
  *                 until it finishes. Typically the name is a literal
  *                 string. o2lite will not modify or free this string.
+ * @return O2L_SUCCESS normally or O2L_FAIL if initialization fails
  */
 
-void o2l_initialize(const char *ensemble);
+int o2l_initialize(const char *ensemble);
 
 /// \brief call between #o2l_send_start and #o2l_send to add a string.
 void o2l_add_string(const char *s);
@@ -214,7 +238,7 @@ void o2l_add_int32(int32_t i);
 /**
  * \brief call between #o2l_send_start and #o2l_send to check for overflow.
  *
- * Returns true if there was an error either in unpacking a message with
+ * @return true if there was an error either in unpacking a message with
  * o2l_get_ functions or packing a message with o2l_add_ functions. The
  * error is cleared when a handler is called and when #o2l_send_start is
  * called, so if you are creating a new message as you unpack parameters
@@ -320,3 +344,69 @@ extern int o2l_bridge_id;
 #define o2lswap32(i) (i)
 #define o2lswap64(i) (i)
 #endif
+
+
+/************************************************************/
+/****************** Discovery API ***************************/
+/************************************************************/
+
+#ifdef WIN32
+#include <winsock2.h>
+#else
+#include <sys/select.h>
+#endif
+
+// There are about 4 different discovery implementations, even for O2lite.
+// To avoid massive amounts of conditional compilation to support each
+// protocol, the implementations are separated into multiple files:
+//     o2liteavahi.c -- Avahi (linux only)
+//     o2litebonjour.c -- Avahi (Apple, Windows)
+//     o2liteo2disc.c -- Apple, Windows, Linux o2 discovery (non-standard)
+// All files use conditional compilation at the top level so they may be
+// compiled and linked together, but you only need to link with one, e.g.
+// o2liteavahi.c for linux, o2litebonjour.c for Apple and Windows.
+//
+// Each file implements these functions which are called from o2lite.c:
+
+// o2ldisc_init() -- called in o2l_initialize() for
+//     implementation-specific actions
+int o2ldisc_init(const char *ensemble);
+
+// o2ldisc_poll() -- called before select(), which polls sockets. Here, you
+//     can add_socket() to add to the read_set passed to select or poll for
+//     timeouts.
+void o2ldisc_poll();
+
+// o2ldisc_events() -- called to check for incoming messages or socket errors
+void o2ldisc_events(fd_set *readset);
+
+/**********************************************************************/
+/* Internal symbols declared for use by Discovery API Implementations */
+/**********************************************************************/
+#define INVALID_SOCKET -1
+#define SOCKET_ERROR -1
+typedef int SOCKET;  // we use SOCKET to denote the type of a socket
+
+extern SOCKET tcp_sock;
+extern const char *o2l_ensemble;
+extern struct sockaddr_in udp_server_sa;
+extern int udp_recv_port;
+extern SOCKET udp_recv_sock;
+
+bool o2l_is_valid_proc_name(char *name, int port,
+                            char *internal_ip, int *udp_port);
+
+int o2l_parse_version(const char *vers, int vers_len);
+
+int o2l_address_init(struct sockaddr_in *sa, const char *ip, int port_num,
+                     bool tcp);
+
+int o2l_network_initialize();
+
+void o2l_network_connect(const char *ip, int port);
+
+void o2l_add_socket(SOCKET s);
+
+int o2l_bind_recv_socket(SOCKET sock, int *port);
+
+

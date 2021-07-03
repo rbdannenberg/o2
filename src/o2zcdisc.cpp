@@ -15,11 +15,13 @@
 /* SECTION 0: include files */
 /****************************/
 
+#include <ctype.h>
 #include "o2internal.h"
 #include "discovery.h"
 #include "hostip.h"
 #include "pathtree.h"
 #include "o2zcdisc.h"
+
 
 // check for len-char hex string
 static bool check_hex(const char *addr, int len)
@@ -181,10 +183,17 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
     uint8_t proc_name_len;
     const char *proc_name = (const char *) TXTRecordGetValuePtr(txt_len,
                                     txt_record, "name", &proc_name_len);
-    if (proc_name_len == 28) {  // names are fixed length -- reject if invalid
-        char name[32];
-        o2_strcpy(name, proc_name, proc_name_len + 1);  // extra 1 for EOS
-        // remove name from resolve_pending
+    char name[32];
+    char internal_ip[O2N_IP_LEN];
+    int udp_port = 0;
+
+    // names are fixed length -- reject if invalid:
+    if (!proc_name || proc_name_len != 28) {
+        goto no_discovery;
+    }
+    o2_strcpy(name, proc_name, proc_name_len + 1);  // extra 1 for EOS
+    O2_DBz(printf("%s got a TXT field: name=%s\n", o2_debug_prefix, name));
+    {   // remove name from resolve_pending
         int i;
         bool found_it = false;
         for (i = 0; i < resolve_pending.size(); i++) {
@@ -194,18 +203,34 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                 break;
             }
         }
+
         if (!found_it) {
             fprintf(stderr, "zc_resolve_callback could not find this name %s\n",
                     (char *) context);
             fprintf(stderr, "    proc name: %s\n", name);
         }
-        char internal_ip[O2N_IP_LEN];
-        int udp_port = 0;
-        if (is_valid_proc_name(name, port, internal_ip, &udp_port)) {
-            o2_discovered_a_remote_process_name(name, internal_ip,
-                                                port, udp_port, O2_DY_INFO);
-        }
     }
+    if (!is_valid_proc_name(name, port, internal_ip, &udp_port)) {
+        goto no_discovery;
+    }
+    {   // check for compatible version number
+        int version;
+        uint8_t vers_num_len;
+        const char *vers_num = (const char *) TXTRecordGetValuePtr(txt_len,
+                                         txt_record, "vers", &vers_num_len);
+        O2_DBz(if (vers_num) {
+                   printf("%s got a TXT field: vers=", o2_debug_prefix);
+                   for (int i = 0; i < vers_num_len; i++) {
+                       printf("%c", vers_num[i]); }
+                   printf("\n"); });
+        if (!vers_num ||
+            (version = o2_parse_version(vers_num, vers_num_len)) == 0) {
+            goto no_discovery;
+        }
+        o2_discovered_a_remote_process_name(name, version, internal_ip,
+                                            port, udp_port, O2_DY_INFO);
+    }   // fall through to clean up resolve_info...
+  no_discovery:
     if (resolve_info) {
         resolve_info->info->close_socket(true);
         resolve_info = NULL;
@@ -299,6 +324,11 @@ static Bonjour_info *zc_register(const char *type_domain,  const char *host,
                 "O2 discovery is not possible.\n", err);
         return NULL;
     }
+    O2_DBz(printf("%s Registered port %d with text:\n", o2_debug_prefix, port);
+           for (int i = 0; i < text_end; ) {
+               printf("    ");
+               for (int j = 0; j < text[i]; j++) printf("%c", text[i + 1 + j]);
+               printf("\n"); i += 1 + text[i]; });
     // make a handler for the socket that was returned
     return new Bonjour_info(sd_ref);
 }
@@ -370,21 +400,36 @@ O2err o2_zcdisc_initialize()
 {
     // Publish a service with type _o2proc._tcp, name ensemblename
     // and text record name=@xxxxxxxx:yyyyyyyy:zzzz
-    char text[64];
+    char text[80];
     strcpy(text + 1, "name=");
     int text_end = 6 + strlen(o2_ctx->proc->key);
     strcpy(text + 6, o2_ctx->proc->key);  // proc->key is (currently) 24 bytes
     // for discovery, we need udp port too, so append it after ':'
     text[text_end++] = ':';
     sprintf(text + text_end, "%04x", o2_ctx->proc->udp_address.get_port());
-    text_end += 4; 
+    text_end += 4;
     text[0] = text_end - 1;  // text[0] (length) does not include itself
+
+    // now add vers=2.0.0
+    int vers_loc = text_end + 1;
+    strcpy(text + vers_loc, "vers=");
+    char *vers_num = text + vers_loc + 5;
+    o2_version(vers_num);
+    text_end = vers_loc + 5 + strlen(vers_num);
+    text[vers_loc - 1] = text_end - vers_loc;
+    
     fprintf(stderr, "Setting up DNSServiceRegister\n");
-    Bonjour_info *zcreg = zc_register("_o2proc._tcp.", NULL,
-                                 o2_ctx->proc->fds_info->port, text_end, text);
+    int port = o2_ctx->proc->fds_info->port;
+    Bonjour_info *zcreg =
+            zc_register("_o2proc._tcp.", NULL, port, text_end, text);
     if (zcreg == NULL) {
         return O2_FAIL;
     }
+    O2_DBz(printf("%s Registered port %d with text:\n", o2_debug_prefix, port);
+           for (int i = 0; i < text_end; ) {
+               printf("    ");
+               for (int j = 0; j < text[i]; j++) printf("%c", text[i + 1 + j]);
+               printf("\n"); i += 1 + text[i]; });
 
     // create a browser
     DNSServiceRef sd_ref;
@@ -503,53 +548,32 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
             O2_DBz(printf("%s Avahi resolve service '%s' of type '%s' in "
                     "domain '%s':\n", o2_debug_prefix, name, type, domain));
             avahi_address_snprint(a, sizeof(a), address);
+            char name[32];
+            char internal_ip[O2N_IP_LEN];
+            int udp_port = 0;
+            int version = 0;
+            name[0] = 0;
             for (AvahiStringList *asl = txt; asl; asl = asl->next) {
-                char text[128];
-                /*
-                if (asl->size < 128) {
-                    memcpy(text, asl->text, asl->size);
-                    text[asl->size] = 0;
-                    printf("TEXT ELEMENT: |%s|\n", text);
-                } else {
-                    printf("TEXT ELEMENT has length %ld\n", (long) (asl->size));
-                }
-                */
                 if (strncmp((char *) asl->text, "name=", 5) == 0 &&
                     asl->size == 33) {  // found "name="; proc name len is 28
-                    char name[32];
                     o2_strcpy(name, (char *) asl->text + 5, 29); // includes EOS
-                    O2_DBz(printf("%s found name %s\n", o2_debug_prefix, name));
-                    char internal_ip[O2N_IP_LEN];
-                    int udp_port = 0;
-                    if (is_valid_proc_name(name, port, internal_ip,
-                                           &udp_port)) {
-                        o2_discovered_a_remote_process_name(name, internal_ip,
-                                                   port, udp_port, O2_DY_INFO);
-                    }
+                    O2_DBz(printf("%s got a TXT field name=%s\n",
+                                  o2_debug_prefix, name));
                 }
-
+                if (strncmp((char *) asl->txt, "vers=", 5) == 0) {
+                    O2_DBz(printf("%s got a TXT field: vers=", o2_debug_prefix);
+                           for (int i = 0; i < asl->size; i++) {
+                                printf("%c", asl->text[i]); }
+                           printf("\n"));
+                    version = parse_version((char *) asl->text + 5,
+                                            asl->size - 5);
+                }
             }
-            /*
-            t = avahi_string_list_to_string(txt);
-            fprintf(stderr,
-                    "\t%s:%u (%s)\n"
-                    "\tTXT=%s\n"
-                    "\tcookie is %u\n"
-                    "\tis_local: %i\n"
-                    "\tour_own: %i\n"
-                    "\twide_area: %i\n"
-                    "\tmulticast: %i\n"
-                    "\tcached: %i\n",
-                    host_name, port, a,
-                    t,
-                    avahi_string_list_get_service_cookie(txt),
-                    !!(flags & AVAHI_LOOKUP_RESULT_LOCAL),
-                    !!(flags & AVAHI_LOOKUP_RESULT_OUR_OWN),
-                    !!(flags & AVAHI_LOOKUP_RESULT_WIDE_AREA),
-                    !!(flags & AVAHI_LOOKUP_RESULT_MULTICAST),
-                    !!(flags & AVAHI_LOOKUP_RESULT_CACHED));
-            avahi_free(t);
-            */
+            if (name[0] && version &&
+                is_valid_proc_name(name, port, internal_ip, &udp_port)) {
+                o2_discovered_a_remote_process_name(name, version, internal_ip,
+                                                    port, udp_port, O2_DY_INFO);
+            }
         }
     }
     avahi_service_resolver_free(r);

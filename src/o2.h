@@ -6,6 +6,9 @@
 #ifndef O2_H
 #define O2_H
 
+// Version is 2.0.0:
+#define O2_VERSION 0x020000
+
 #ifdef O2_NO_O2DISCOVERY
 #define O2_NO_HUB 1
 #endif
@@ -183,10 +186,17 @@ the IP address and port number are used to construct a string, e.g.
 
 \subsection Internal Messages
 
-`/_o2/dy "sssiii"` *ensemble_name* *public_ip* *internal_ip* *tcp_port* *udp_port* *dy* -
+`/_o2/dy "sissiii"` *ensemble_name* *version* *public_ip* *internal_ip* *tcp_port* *udp_port* *dy* -
 this message is normally sent to the discovery port, but it can also be sent
 as a result of calling #o2_hub and providing an O2 process address.
-Processes must exchange discovery messages to be connected. The *dy* 
+Processes must exchange discovery messages to be connected. The *version*
+number encodes the O2 version number of the sender as 
+((<major-vers> * 256) + <minor-vers>) * 256 + <patch-vers>, where 
+<major-vers>, <minor-vers> and <patch-vers> follow the O2 semantic 
+versioning scheme, e.g. version 2.3.4 would have version number 0x0234.
+Thus, each component of the 3-part version number ranges from 0 through 255.
+Connections are completed only if the major version numbers match.
+The *dy* 
 parameter is O2_DY_INFO, O2_DY_HUB, O2_DY_REPLY, O2_DY_CALLBACK, 
 O2_DY_CONNECT, or O2_DY_O2LITE, depending on the expected response.
 
@@ -809,6 +819,19 @@ O2err o2_initialize(const char *ensemble_name);
 
 
 /**
+ * \brief get O2 version number
+ *
+ * If version is not NULL, a version string is written in the form 
+ * major.minor.patch, where fields are up to 3 digits. Thus, the length
+ * of version must be at least 12 bytes (including EOS).
+ *
+ * @return integer representation, e.g. version 2.160.3 is represented by 
+ *     0x02A003.
+ */
+int o2_version(char *version);
+
+
+/**
  * \brief Tell O2 how to allocate/free memory.
  *
  * In many C library implementations, the standard implementation of
@@ -920,6 +943,7 @@ O2time o2_set_discovery_period(O2time period);
  * result in duplicate messages when new processes join the O2 
  * ensemble, but duplicate messages are ignored.
  * 
+ * @param version is the version number of of the hub, e.g. 0x20103 for 2.1.3
  * @param public_ip the public IP address of the hub or NULL
  * @param internal_ip the local IP address of the hub
  * @param tcp_port the port number of the hub's TCP port
@@ -928,7 +952,7 @@ O2time o2_set_discovery_period(O2time period);
  * @return #O2_SUCCESS if success, #O2_FAIL if not,
  *         #O2_NOT_INITIALIZED if O2 is not initialized.
  */
-O2err o2_hub(const char *public_ip, const char *internal_ip,
+O2err o2_hub(int version, const char *public_ip, const char *internal_ip,
              int tcp_port, int udp_port);
 #endif
 

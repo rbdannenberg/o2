@@ -40,7 +40,7 @@ function o2ws_on_error(message) {
  
 function client_stop_handler(timestamp, typespec, info) {
     // tell the server to die
-    o2ws_send_start("/websockhost/stop", 0, "");
+    o2ws_send_start("/websockhost/stop", 0, "", true);
     o2ws_send_finish();
     display_result("SUCCESS");
     o2ws_finish();

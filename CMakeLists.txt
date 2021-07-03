@@ -159,6 +159,9 @@ set(O2LITE_SRC
   src/o2lite.c src/o2lite.h
   src/o2sleep.c
 # src/hostip.c src/hostip.h -- included in o2lite.c
+# These are various implementations of the o2ldisc API.
+# It is OK to include them all since conditionals will select one:
+  src/o2liteo2disc.c src/o2liteavahi.c src/o2litebonjour.c
   )
 
 add_library(o2lite_static STATIC ${O2LITE_SRC})

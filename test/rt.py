@@ -57,6 +57,11 @@ def findLineInString(line, aString):
     return ('\n' + line + '\n') in aString
 
 
+def kill_process(process, command):
+    print("\nTimeout: killing", command)
+    process.kill()
+
+
 class runInBackground(threading.Thread):
     def __init__(self, command):
         self.command = command
@@ -72,7 +77,8 @@ class runInBackground(threading.Thread):
         process = subprocess.Popen(args,
                                    shell=False, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
-        timer = Timer(TIMEOUT_SEC, process.kill)
+        timer = Timer(TIMEOUT_SEC, kill_process,
+                      args=[process, self.command])
         try:
             timer.start()
             (self.output, self.errout) = process.communicate()
@@ -185,7 +191,7 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
 
 def runWsTest(prog1, out1, url, out2, stall=False):
     global allOK
-    p1p2 = startDouble(prog1, "websockhost", url)
+    p1p2 = startDouble(prog1, "websockhost a@", url)
     os.system(HTMLOPEN + "http://test.local:8080/" + url);
     return finishDouble(prog1, p1p2[0], out1, "websockhost", p1p2[1], 
                         out2, stall)
@@ -211,11 +217,18 @@ def runAllTests():
     if not runTest("bridgeapi"): return
     if not runTest("o2litemsg"): return
 
+    if not runDouble("o2litehost 500t d", "CLIENT DONE",
+                     "o2liteserv t", "SERVER DONE"): return
+    if not runDouble("o2litehost 500 d", "CLIENT DONE",
+                     "o2liteserv u", "SERVER DONE"): return
+
     if websocketsTests:
+        if not runWsTest("propsend a", "DONE", 
+                         "proprecv.htm", "WEBSOCKETHOST DONE"): return
+        if not runWsTest("o2litehost 500t da", "CLIENT DONE", 
+                         "wsserv.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("proprecv", "DONE", 
                          "propsend.htm", "WEBSOCKETHOST DONE"): return
-        if not runWsTest("propsend", "DONE", 
-                         "proprecv.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("tapsub", "CLIENT DONE", 
                          "tappub.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("tappub", "SERVER DONE", 
@@ -226,8 +239,6 @@ def runAllTests():
                          "statusserver.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("statusserver", "SERVER DONE", 
                          "statusclient.htm", "WEBSOCKETHOST DONE"): return
-        if not runWsTest("o2litehost 500t d", "CLIENT DONE", 
-                         "wsserv.htm", "WEBSOCKETHOST DONE"): return
 
     if extensions:
         if not runTest("bundletest"): return
@@ -271,10 +282,6 @@ def runAllTests():
                      "unisub", "CLIENT DONE"): return
     if not runDouble("dropclient", "DROPCLIENT DONE",
                      "dropserver", "DROPSERVER DONE"): return
-    if not runDouble("o2litehost 500t d", "CLIENT DONE",
-                     "o2liteserv t", "SERVER DONE"): return
-    if not runDouble("o2litehost 500 d", "CLIENT DONE",
-                     "o2liteserv u", "SERVER DONE"): return
     if not runDouble("o2client 1000t", "CLIENT DONE",
                      "shmemserv u", "SERVER DONE"): return
     if extensions:

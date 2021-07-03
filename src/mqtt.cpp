@@ -77,9 +77,11 @@ O2err o2_mqtt_send_disc()
     }
     O2_DBq(printf("%s publishing to O2-%s/disc with payload %s\n",
                   o2_debug_prefix, o2_ensemble_name, o2_ctx->proc->key));
+    char suffix[20];
+    strcpy(suffix, o2_clock_is_synchronized ? "/cs/" : "/dy/");
+    o2_version(suffix + 4);  // append version number
     mqtt_comm.publish("disc", (const uint8_t *) o2_ctx->proc->key,
-                      (int) strlen(o2_ctx->proc->key),
-                      o2_clock_is_synchronized ? "/cs" : "/dy", 0, false);
+                      (int) strlen(o2_ctx->proc->key), suffix, 0, false);
     // check for expired MQTT processes
     for (int i = 0; i < o2_mqtt_procs.size(); i++) {
         MQTT_info *mqtt = o2_mqtt_procs[i];
@@ -284,7 +286,7 @@ void send_callback_via_mqtt(const char *name)
 }
 
 // handler for mqtt discovery message
-// payload should be of the form @xxxxxxxx:yyyyyyyy:ddddd/dy
+// payload should be of the form @xxxxxxxx:yyyyyyyy:ddddd/dy/vers
 // or @xxxxxxxx:yyyyyyyy:ddddd/cs
 // payload may be altered and restored by this function, hence not const
 //
@@ -299,6 +301,7 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
     char *tcp_port_num = NULL;
     char *udp_port_num = NULL;
     char *action = NULL;
+    char *vers_num = NULL;
     char *end_ptr = find_before(public_ip, ':', end);
     if (end_ptr) {
         *end_ptr  = 0;
@@ -315,11 +318,16 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
                 if (end_ptr) {
                     *end_ptr = 0;
                     action = end_ptr + 1;
+                    end_ptr = find_before(action, '/', end);
+                    if (end_ptr) {
+                        *end_ptr = 0;
+                        vers_num = end_ptr + 1;
+                    }
                 }
             }
         }
     }
-    if (!action ||  // careful: "dy" and "cs" are not zero-terminated
+    if (!action || !vers_num ||
         !((action[0] == 'd' && action[1] == 'y') ||   // "dy"
           (action[0] == 'c' && action[1] == 's'))) {  // "cs"
 #ifndef NDEBUG
@@ -327,6 +335,15 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
         printf("o2_mqtt_disc_handler could not parse payload:\n%s\n",
                payload);
 #endif
+        return;
+    }
+    int version;
+    if (!(version = o2_parse_version(vers_num, end - vers_num))) {
+        #ifndef NDEBUG
+                // PRINT FOR DEBUGGING ONLY: payload IS NOT TERMINATED AND UNSAFE:
+                printf("o2_mqtt_disc_handler could not parse payload "
+                       "version (%s):\n%s\n", vers_num, payload);
+        #endif
         return;
     }
     int tcp_port = o2_hex_to_int(tcp_port_num);
@@ -362,14 +379,14 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
         // CASE 1A: we are the client
         if (cmp < 0) {
             O2_DBq(printf("%s o2_mqtt_disc_handler 1A\n", o2_debug_prefix));
-            o2_discovered_a_remote_process_name(name, internal_ip,
+            o2_discovered_a_remote_process_name(name, version, internal_ip,
                                   tcp_port, udp_port, O2_DY_INFO);
         } else { // (cmp > 0) -- CASE 1B: we are the server
             // CASE 1B1: we can receive a connection request
             if (streql(o2n_public_ip, o2n_internal_ip)) {
                 O2_DBq(printf("%s o2_mqtt_disc_handler 1B1\n",
                               o2_debug_prefix));
-                o2_discovered_a_remote_process_name(name, internal_ip,
+                o2_discovered_a_remote_process_name(name, version, internal_ip,
                                       tcp_port, udp_port, O2_DY_INFO);
                 proc_discovered = false;  // waiting for them to connect
             } else {  // CASE 1B2: must create an MQTT connection
@@ -389,7 +406,7 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
             } else {  // (cmp < 0) -- CASE 2A2: we are the client
                 O2_DBq(printf("%s o2_mqtt_disc_handler 2A2\n",
                               o2_debug_prefix));
-                o2_discovered_a_remote_process_name(name, internal_ip,
+                o2_discovered_a_remote_process_name(name, version, internal_ip,
                                       tcp_port, udp_port, O2_DY_INFO);
             }
         } else if (cmp < 0) {  // CASE 2B: we are the client

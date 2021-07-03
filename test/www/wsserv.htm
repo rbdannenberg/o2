@@ -141,14 +141,30 @@ function watchdog() {
     }
 }    
 
+var timeout_count = 0;
 
 function step(timeout = 0) {
     last_step_time = o2ws_local_time();
-    if (timeout > 0) {
-        setTimeout(step, timeout, 0);
-        return;
-    }
-    console.log("in step, state is " + state);
+    if (typeof timeout === 'number') {
+        // should not be an existing timeout
+        if (timeout_count > 0) {
+            var msg = "ERROR: timeout_count != 0: " + timeout_count;
+            console.log(msg);
+            o2ws_on_error(msg);
+        }            
+        if (timeout > 0) {
+            timeout_count += 1;
+            setTimeout(step, timeout, "now"); 
+            return;
+        }  // else fall through and run step()
+    } else if (timeout == "now") {  // timeout has expired
+        timeout_count -= 1;  // fall through and run step()
+    } else {
+        var msg = "ERROR: timeout value is: " + timeout;
+        console.log(msg);
+        o2ws_on_error(msg);
+    }        
+    console.log("in step, state is " + state); 
     if (state == "START") {
         if (o2ws_bridge_id == null) {
             step(250);
@@ -156,7 +172,7 @@ function step(timeout = 0) {
             o2ws_send_cmd("/sift", 0, "sift", "this is a test", 1234,
                           123.4, 567.89);
             set_state("CLKWAIT");
-            step();
+            step(0);
         }
     } else if (state == "CLKWAIT") {
         if (o2ws_clock_synchronized && sift_called) {
@@ -185,11 +201,13 @@ function step(timeout = 0) {
     } else if (state == "GO") {
         if (!running) {
             display_result("SUCCESS");
+            console.log("sending /websockhost/stop @ " + o2ws_local_time());
             o2ws_send_cmd("/websockhost/stop", 0, "");
             set_state("SHUTDOWN");
         }
         step(250);
     } else if (state == "SHUTDOWN") {
+        console.log("calling o2ws_finish() @ " + o2ws_local_time()); 
         o2ws_finish();
         set_state("STOPPED");
     }
