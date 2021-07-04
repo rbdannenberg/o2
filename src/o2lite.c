@@ -90,6 +90,8 @@ static long start_time;
 #ifdef __APPLE__
 #include "CoreAudio/HostTime.h"
 static uint64_t start_time;
+#else
+static long start_time;
 #endif
 
 /*********************************ESP32********************************/

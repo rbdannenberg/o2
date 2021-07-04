@@ -560,13 +560,13 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
                     O2_DBz(printf("%s got a TXT field name=%s\n",
                                   o2_debug_prefix, name));
                 }
-                if (strncmp((char *) asl->txt, "vers=", 5) == 0) {
+                if (strncmp((char *) asl->text, "vers=", 5) == 0) {
                     O2_DBz(printf("%s got a TXT field: vers=", o2_debug_prefix);
                            for (int i = 0; i < asl->size; i++) {
                                 printf("%c", asl->text[i]); }
                            printf("\n"));
-                    version = parse_version((char *) asl->text + 5,
-                                            asl->size - 5);
+                    version = o2_parse_version((char *) asl->text + 5,
+                                               asl->size - 5);
                 }
             }
             if (name[0] && version &&

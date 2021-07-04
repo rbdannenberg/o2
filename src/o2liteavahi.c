@@ -3,7 +3,13 @@
 // Roger B. Dannenberg
 // July 2021
 
+/*********** Linux Avahi Implementation *************/
+// note on naming: Avahi uses "avahi" prefix, so all of our
+// avahi-related names in O2 use "zc".
+
+#include <string.h>
 #include "o2lite.h"
+#include "hostip.h"
 
 #ifndef O2_NO_ZEROCONF
 #ifdef __linux__
@@ -39,36 +45,7 @@ void o2_poll_avahi();
 
 static char *zc_name = NULL;
 static bool zc_running = false;
-
-void o2l_discovery_poll()
-{
-    // start resolving if timeout
-    if (tcp_sock == INVALID_SOCKET) {
-        if (o2l_local_now > browse_timeout) {  // no tcp_sock after 20s
-            O2LDB printf("No activity, restarting Avahi client\n");
-            zc_shutdown();
-            browse_timeout = o2l_local_now + BROWSE_TIMEOUT;  // try every 20s
-            o2l_discovery_initialize(o2l_ensemble);
-        }
-    }
-
-    if (zc_poll && zc_running) {
-        int ret = avahi_simple_poll_iterate(zc_poll, 0);
-        if (ret == 1) {
-            zc_running = false;
-            printf("o2_poll_avahi got quit from avahi_simple_poll_iterate\n");
-        } else if (ret < 0) {
-            zc_running = false;
-            fprintf(stderr, "Error: avahi_simple_poll_iterate returned %d\n",
-                    ret);
-        }
-    }
-}
-
-
-/*********** Linux Avahi Implementation *************/
-// note on naming: Avahi uses "avahi" prefix, so all of our
-// avahi-related names in O2 use "zc".
+static o2l_time browse_timeout = BROWSE_TIMEOUT;
 
 static AvahiServiceBrowser *zc_sb = NULL;
 static AvahiClient *zc_client = NULL;  // global access to avahi-client API
@@ -93,6 +70,32 @@ static void zc_shutdown()
     FREE_WITH(zc_poll, avahi_simple_poll_free);
     FREE_WITH(zc_name, avahi_free);
     zc_running = false;
+}
+
+
+void o2l_discovery_poll()
+{
+    // start resolving if timeout
+    if (tcp_sock == INVALID_SOCKET) {
+        if (o2l_local_now > browse_timeout) {  // no tcp_sock after 20s
+            O2LDB printf("No activity, restarting Avahi client\n");
+            zc_shutdown();
+            browse_timeout = o2l_local_now + BROWSE_TIMEOUT;  // try every 20s
+            o2ldisc_init(o2l_ensemble);
+        }
+    }
+
+    if (zc_poll && zc_running) {
+        int ret = avahi_simple_poll_iterate(zc_poll, 0);
+        if (ret == 1) {
+            zc_running = false;
+            printf("o2_poll_avahi got quit from avahi_simple_poll_iterate\n");
+        } else if (ret < 0) {
+            zc_running = false;
+            fprintf(stderr, "Error: avahi_simple_poll_iterate returned %d\n",
+                    ret);
+        }
+    }
 }
 
 
@@ -140,7 +143,7 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
                     strncpy(name, (char *) asl->text + 5, 28);
                     name[28] = 0;  // make sure name is zero-terminated
                     O2LDB(printf("o2lite: got a TXT field name=%s\n", name));
-                } else if (strncmp((char *) asl->txt, "vers=", 5) == 0) {
+                } else if (strncmp((char *) asl->text, "vers=", 5) == 0) {
                     O2LDB { printf("o2lite: got a TXT field: vers=");
                             for (int i = 0; i < asl->size; i++) {
                                 printf("%c", asl->text[i]); }
@@ -150,11 +153,12 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
                 }
             }
             if (name[0] && version &&
-                is_valid_proc_name(name, port, internal_ip, &udp_send_port)) {
+                o2l_is_valid_proc_name(name, port, internal_ip,
+                                       &udp_send_port)) {
                 char iip_dot[16];
                 o2_hex_to_dot(internal_ip, iip_dot);
-                address_init(&udp_server_sa, iip_dot, udp_send_port, false);
-                network_connect(iip_dot, port);
+                o2l_address_init(&udp_server_sa, iip_dot, udp_send_port, false);
+                o2l_network_connect(iip_dot, port);
             }
         }
     }
