@@ -489,6 +489,7 @@ static AvahiEntryGroup *zc_group = NULL;
 static AvahiEntryGroup *zc_http_group = NULL;
 static char *zc_name = NULL;
 static char *zc_http_name = NULL;
+static int zc_http_port = 0;
 static bool zc_running = false;
 
 static O2err zc_create_services(AvahiClient *c);
@@ -507,7 +508,8 @@ static void zc_shutdown()
     // we remove the dangling pointers:
     zc_group = NULL;
     zc_http_group = NULL;
-
+    zc_http_port = 0;
+    
     FREE_WITH(zc_sb, avahi_service_browser_free);
     FREE_WITH(zc_client, avahi_client_free);
     FREE_WITH(zc_poll, avahi_simple_poll_free);
@@ -554,6 +556,7 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
             int version = 0;
             name[0] = 0;
             for (AvahiStringList *asl = txt; asl; asl = asl->next) {
+                printf("resolve callback text: %s\n", asl->text);
                 if (strncmp((char *) asl->text, "name=", 5) == 0 &&
                     asl->size == 33) {  // found "name="; proc name len is 28
                     o2_strcpy(name, (char *) asl->text + 5, 29); // includes EOS
@@ -561,7 +564,7 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
                                   o2_debug_prefix, name));
                 }
                 if (strncmp((char *) asl->text, "vers=", 5) == 0) {
-                    O2_DBz(printf("%s got a TXT field: vers=", o2_debug_prefix);
+                    O2_DBz(printf("%s got a TXT field: ", o2_debug_prefix);
                            for (int i = 0; i < asl->size; i++) {
                                 printf("%c", asl->text[i]); }
                            printf("\n"));
@@ -631,8 +634,7 @@ static void entry_group_callback(AvahiEntryGroup *g,
                                  AvahiEntryGroupState state,
                                  AVAHI_GCC_UNUSED void *userdata)
 {
-    assert(g == zc_group || zc_group == NULL);
-    zc_group = g;
+    //TODO remove: zc_group = g;
     /* Called whenever the entry group state changes */
     switch (state) {
         case AVAHI_ENTRY_GROUP_ESTABLISHED :
@@ -670,7 +672,7 @@ static void entry_group_callback(AvahiEntryGroup *g,
 
 O2err zc_commit_group(AvahiClient *c, char **name,
                       AvahiEntryGroup **group, const char *type, int port,
-                      const char *text)
+                      const char *text1, const char *text2)
 {
     char *n;
     int ret;
@@ -685,21 +687,24 @@ O2err zc_commit_group(AvahiClient *c, char **name,
     /* If the group is empty (either because it was just created, or
      * because it was reset previously, add our entries.  */
     if (avahi_entry_group_is_empty(*group)) {
-        // Publish a service with type, name, and text
-        O2_DBz(printf("%s (Avahi) Adding service to group '%s'\n",
-                      o2_debug_prefix, *name));
+        // Publish a service with type, name, and text. Note that text1
+        // and/or text2 might be NULL. avahi_entry_group_add_service will
+        // ignore anything after NULL:
+        O2_DBz(printf("%s (Avahi) Adding service to group, name '%s' "
+                      "type '%s'\n",
+                      o2_debug_prefix, *name, type));
         if ((ret = avahi_entry_group_add_service(*group, AVAHI_IF_UNSPEC,
-                       AVAHI_PROTO_UNSPEC, (AvahiPublishFlags) 0,
-                       *name, type, NULL, NULL, port, text, NULL)) < 0) {
+                     AVAHI_PROTO_UNSPEC, (AvahiPublishFlags) 0,
+                     *name, type, NULL, NULL, port, text1, text2, NULL)) < 0) {
             if (ret == AVAHI_ERR_COLLISION)
                 goto collision;
-            fprintf(stderr, "Failed to add _o2proc._tcp service: %s\n",
-                    avahi_strerror(ret));
+            fprintf(stderr, "Failed to add _o2proc._tcp service %s: %s\n",
+                    *name, avahi_strerror(ret));
             goto fail;
         }
 
         /* Tell the server to register the service */
-        if ((ret = avahi_entry_group_commit(zc_group)) < 0) {
+        if ((ret = avahi_entry_group_commit(*group)) < 0) {
             fprintf(stderr, "Failed to commit entry group: %s\n",
                     avahi_strerror(ret));
             goto fail;
@@ -717,7 +722,7 @@ collision:
     O2_DBz(printf("%s (Avahi) Service name collision, renaming service to "
                   "'%s'\n", o2_debug_prefix, *name));
     avahi_entry_group_reset(*group);
-    return zc_commit_group(c, name, group, type, port, text);
+    return zc_commit_group(c, name, group, type, port, text1, text2);
 fail:
     return O2_FAIL;
 }
@@ -728,18 +733,24 @@ static O2err zc_create_services(AvahiClient *c)
     int ret;
     assert(c);
     // and text record name=@xxxxxxxx:yyyyyyyy:zzzz
-    char text[64];
-    strcpy(text, "name=");
-    int text_end = 5 + strlen(o2_ctx->proc->key);
-    strcpy(text + 5, o2_ctx->proc->key);  // proc->key is 24 bytes
+    char name[64];
+    strcpy(name, "name=");
+    int name_end = 5 + strlen(o2_ctx->proc->key);
+    strcpy(name + 5, o2_ctx->proc->key);  // proc->key is 24 bytes
+    printf("zc_create_services proc->key %s\n", o2_ctx->proc->key);
     // for discovery, we need udp port too, so append it after ':'
-    text[text_end++] = ':';
-    sprintf(text + text_end, "%04x", o2_ctx->proc->udp_address.get_port());
-    text_end += 4;
-    text[text_end] = 0;
+    name[name_end++] = ':';
+    sprintf(name + name_end, "%04x", o2_ctx->proc->udp_address.get_port());
+    name_end += 4;
+    name[name_end] = 0;
+
+    char vers[64];
+    strcpy(vers, "vers=");
+    char *vers_num = vers + 5;
+    o2_version(vers_num);
 
     return zc_commit_group(c, &zc_name, &zc_group, "_o2proc._tcp", 
-                           o2_ctx->proc->fds_info->port, text);
+                           o2_ctx->proc->fds_info->port, name, vers);
 }
 
 
@@ -817,6 +828,11 @@ O2err o2_zcdisc_initialize()
                 avahi_strerror(avahi_client_errno(zc_client)));
         goto fail;
     }
+
+    // register web server port
+    if (zc_http_port) {
+        o2_zc_register_record(zc_http_port);
+    }
     return O2_SUCCESS;
  fail:
     zc_shutdown();
@@ -842,22 +858,26 @@ void o2_poll_avahi()
 
 void o2_zc_register_record(int port)
 {
-    char ipdot[O2N_IP_LEN];
-    o2_hex_to_dot(o2n_internal_ip, ipdot);
-    in_addr_t addr = inet_addr(ipdot);
+    zc_http_port = port;
+    if (zc_running) {
+        char ipdot[O2N_IP_LEN];
+        o2_hex_to_dot(o2n_internal_ip, ipdot);
+        in_addr_t addr = inet_addr(ipdot);
 
-    char fullname[64];
-    o2_strcpy(fullname, o2_ensemble_name, 64);
-    int len = strlen(fullname);
-    if (len > 63 - 6) {
-        return;
+        char fullname[64];
+        o2_strcpy(fullname, o2_ensemble_name, 64);
+        int len = strlen(fullname);
+        if (len > 63 - 6) {
+            return;
+        }
+        strcpy(fullname + len, ".local");
+        if (zc_http_name) avahi_free(zc_http_name);
+        zc_http_name = avahi_strdup(o2_ensemble_name);
+
+        assert(zc_client);
+        zc_commit_group(zc_client, &zc_http_name, &zc_http_group,
+                        "_http._tcp", port, NULL, NULL);
     }
-    strcpy(fullname + len, ".local");
-    if (zc_http_name) avahi_free(zc_http_name);
-    zc_http_name = avahi_strdup(o2_ensemble_name);
-
-    zc_commit_group(zc_client, &zc_http_name, &zc_http_group,
-                    "_http._tcp", port, "");
 }
 
 

@@ -45,6 +45,8 @@ void o2_poll_avahi();
 
 static char *zc_name = NULL;
 static bool zc_running = false;
+static bool zc_inside_poll = false;
+static bool zc_shutdown_request = false;
 static o2l_time browse_timeout = BROWSE_TIMEOUT;
 
 static AvahiServiceBrowser *zc_sb = NULL;
@@ -64,6 +66,10 @@ static AvahiSimplePoll *zc_poll = NULL;
 
 static void zc_shutdown()
 {
+    if (zc_inside_poll) {  // call back after poll returns
+        zc_shutdown_request = true;
+        return;
+    }
     O2LDB printf("o2lite: zc_shutdown\n");
     FREE_WITH(zc_sb, avahi_service_browser_free);
     FREE_WITH(zc_client, avahi_client_free);
@@ -73,12 +79,12 @@ static void zc_shutdown()
 }
 
 
-void o2l_discovery_poll()
+void o2ldisc_poll()
 {
     // start resolving if timeout
     if (tcp_sock == INVALID_SOCKET) {
         if (o2l_local_now > browse_timeout) {  // no tcp_sock after 20s
-            O2LDB printf("No activity, restarting Avahi client\n");
+            O2LDB printf("o2lite: no activity, restarting Avahi client\n");
             zc_shutdown();
             browse_timeout = o2l_local_now + BROWSE_TIMEOUT;  // try every 20s
             o2ldisc_init(o2l_ensemble);
@@ -86,7 +92,10 @@ void o2l_discovery_poll()
     }
 
     if (zc_poll && zc_running) {
+        assert(!zc_inside_poll);
+        zc_inside_poll = true;
         int ret = avahi_simple_poll_iterate(zc_poll, 0);
+        zc_inside_poll = false;
         if (ret == 1) {
             zc_running = false;
             printf("o2_poll_avahi got quit from avahi_simple_poll_iterate\n");
@@ -96,6 +105,14 @@ void o2l_discovery_poll()
                     ret);
         }
     }
+
+    if (zc_shutdown_request) {
+        zc_shutdown_request = false;
+        zc_shutdown();
+    }
+
+
+
 }
 
 
@@ -139,15 +156,15 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
             for (AvahiStringList *asl = txt; asl; asl = asl->next) {
                 if (strncmp((char *) asl->text, "name=", 5) == 0 &&
                     asl->size == 33) {  // found "name="; proc name len is 28
-                    char name[32];
                     strncpy(name, (char *) asl->text + 5, 28);
                     name[28] = 0;  // make sure name is zero-terminated
-                    O2LDB(printf("o2lite: got a TXT field name=%s\n", name));
+                    // O2LDB printf("o2lite: got a TXT field name=%s\n", name);
                 } else if (strncmp((char *) asl->text, "vers=", 5) == 0) {
-                    O2LDB { printf("o2lite: got a TXT field: vers=");
+                    /* O2LDB { printf("o2lite: got a TXT field: ");
                             for (int i = 0; i < asl->size; i++) {
                                 printf("%c", asl->text[i]); }
                             printf("\n"); }
+                    */
                     version = o2l_parse_version((char *) asl->text + 5,
                                                 asl->size - 5);
                 }
@@ -158,12 +175,13 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
                 char iip_dot[16];
                 o2_hex_to_dot(internal_ip, iip_dot);
                 o2l_address_init(&udp_server_sa, iip_dot, udp_send_port, false);
+                O2LDB printf("o2lite: found a host: %s\n", name);
                 o2l_network_connect(iip_dot, port);
             }
         }
     }
     avahi_service_resolver_free(r);
-    if (tcp_sock) {
+    if (tcp_sock != INVALID_SOCKET) {
         zc_shutdown();
     }
 }
@@ -267,21 +285,18 @@ int o2ldisc_init(const char *ensemble)
                      avahi_strerror(avahi_client_errno(zc_client)));
         goto fail;
     }
-    // ZeroConf only requires one (any) udp receive port:
-    udp_recv_port = 0;
-    if (o2l_bind_recv_socket(udp_recv_sock, &udp_recv_port) != 0) {
-        goto fail;
+    // ZeroConf only requires one (any) udp receive port. The port number
+    // is initially zero. After we bind the socket, we never close it, so
+    // if o2ldisc_init was called previously, do not try to bind again:
+    if (udp_recv_port == 0) {
+        if (o2l_bind_recv_socket(udp_recv_sock, &udp_recv_port) != 0) {
+            goto fail;
+        }
     }
     return O2L_SUCCESS;
  fail:
     zc_shutdown();
     return O2L_FAIL;
-}
-
-
-void o2ldisc_poll()
-{
-    
 }
 
 

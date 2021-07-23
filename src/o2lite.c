@@ -469,7 +469,7 @@ void o2l_send_services()
 void o2l_network_connect(const char *ip, int port)
 {
     o2l_address_init(&tcp_server_sa, ip, port, true); // sets tcp_server_sa
-    O2LDB printf("connecting to %s port %d\n", ip, port);
+    O2LDB printf("o2lite: connecting to %s port %d\n", ip, port);
     tcp_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (connect(tcp_sock, (struct sockaddr *) &tcp_server_sa,
                 sizeof tcp_server_sa) == -1) {
