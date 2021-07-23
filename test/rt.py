@@ -22,6 +22,7 @@ print_all_output = False
 
 IS_OSX = False
 TIMEOUT_SEC = 250
+LOCALDOMAIN = "local"  # but on linux, it's "localhost"
 # I saw a failure of oscbndlsend+oscbndlrecv because port 8100 could
 # not be bound, but I could then run by hand, so I am guessing that
 # maybe it was used in a previous test and linux would not reuse it
@@ -52,6 +53,7 @@ else:
 if platform.system() == 'Linux':
     BIN=".."
     HTMLOPEN = "xdg-open "
+    LOCALDOMAIN = "localhost"
 
 def findLineInString(line, aString):
     return ('\n' + line + '\n') in aString
@@ -192,7 +194,7 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
 def runWsTest(prog1, out1, url, out2, stall=False):
     global allOK
     p1p2 = startDouble(prog1, "websockhost a@", url)
-    os.system(HTMLOPEN + "http://test.local:8080/" + url);
+    os.system(HTMLOPEN + "http://test." + LOCALDOMAIN + ":8080/" + url);
     return finishDouble(prog1, p1p2[0], out1, "websockhost", p1p2[1], 
                         out2, stall)
 
@@ -217,12 +219,11 @@ def runAllTests():
     if not runTest("bridgeapi"): return
     if not runTest("o2litemsg"): return
 
-    if not runDouble("o2litehost 500t d", "CLIENT DONE",
-                     "o2liteserv t", "SERVER DONE"): return
-    if not runDouble("o2litehost 500 d", "CLIENT DONE",
-                     "o2liteserv u", "SERVER DONE"): return
-
     if websocketsTests:
+        if not runWsTest("statusclient", "CLIENT DONE", 
+                         "statusserver.htm", "WEBSOCKETHOST DONE"): return
+        if not runWsTest("statusserver", "SERVER DONE", 
+                         "statusclient.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("propsend a", "DONE", 
                          "proprecv.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("o2litehost 500t da", "CLIENT DONE", 
@@ -235,16 +236,17 @@ def runAllTests():
                          "tapsub.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("o2server - 20t", "SERVER DONE", 
                          "o2client.htm", "WEBSOCKETHOST DONE"): return
-        if not runWsTest("statusclient", "CLIENT DONE", 
-                         "statusserver.htm", "WEBSOCKETHOST DONE"): return
-        if not runWsTest("statusserver", "SERVER DONE", 
-                         "statusclient.htm", "WEBSOCKETHOST DONE"): return
 
     if extensions:
         if not runTest("bundletest"): return
         if not runTest("patterntest"): return
     if not runTest("infotest1 o"): return
     if not runTest("proptest"): return
+
+    if not runDouble("o2litehost 500t d", "CLIENT DONE",
+                     "o2liteserv t", "SERVER DONE"): return
+    if not runDouble("o2litehost 500 d", "CLIENT DONE",
+                     "o2liteserv u", "SERVER DONE"): return
 
     if not runDouble("statusclient", "CLIENT DONE",
                      "statusserver", "SERVER DONE"): return
