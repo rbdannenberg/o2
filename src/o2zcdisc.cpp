@@ -420,7 +420,7 @@ O2err o2_zcdisc_initialize()
     
     fprintf(stderr, "Setting up DNSServiceRegister\n");
     int port = o2_ctx->proc->fds_info->port;
-    Bonjour_info *zcreg =
+    Bonjour_info *zcreg = 
             zc_register("_o2proc._tcp.", NULL, port, text_end, text);
     if (zcreg == NULL) {
         return O2_FAIL;
