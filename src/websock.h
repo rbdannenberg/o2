@@ -62,6 +62,7 @@ public:
         // next for hash table use.
     // websocket info:
     bool is_web_socket;
+    bool sent_close_command;  // sent a CLOSE command
     bool confirmed_ensemble; // first message must be /_o2/ws/dy "ensemble"
     int maskx;  // index for masking key
     int payload_offset;  // state to help parse incoming data
@@ -86,6 +87,7 @@ public:
     O2err handle_websocket_msg(const char **error);
     O2err send_msg_later(O2message_ptr msg);
 
+    virtual O2err close(); // close the connection
     virtual O2err accepted(Fds_info *conn) { return O2_FAIL; }  // not a server
     virtual O2err deliver(O2netmsg_ptr msg);
     virtual O2err send(bool block);
@@ -104,11 +106,14 @@ public:
     Http_conn *conn;
     aiocb cb;  // asynchronous read control block
     
-    Http_reader(Fds_info *fds_info, Http_conn *connection, int port);
+    Http_reader(const char *c_path, Http_conn *connection, int port);
 
     ~Http_reader();
 
     virtual O2err accepted(Fds_info *conn) { return O2_FAIL; } // not a server
     virtual O2err deliver(O2netmsg_ptr msg);
+    virtual O2netmsg_ptr prepare_new_read();
+    virtual O2err read_finished();
+
 };
 #endif

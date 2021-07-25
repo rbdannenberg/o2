@@ -1254,6 +1254,7 @@ int Fds_info::read_event_handler()
                   "to %p\n", o2_debug_prefix, tag_to_string(net_tag),
                   (long) sock, fds_index, owner));
     if (owner && !delete_me) {
+        // note that for READ_CUSTOM (e.g. asynchronous file read), msg is NULL
         err = owner->deliver(msg);
     } else {
         O2_FREE(msg);

@@ -271,6 +271,7 @@ Http_conn::Http_conn(Fds_info *conn, const char *root_, int port_) :
     reader = NULL;
     next_pending = NULL;
     is_web_socket = false;
+    sent_close_command = false;
     confirmed_ensemble = false;
     fds_info = conn;
     fds_info->read_type = READ_RAW;
@@ -278,11 +279,38 @@ Http_conn::Http_conn(Fds_info *conn, const char *root_, int port_) :
 }
 
 
+// close a connection
+O2err Http_conn::close()
+{
+    if (is_web_socket && !sent_close_command) { // send WSOP_CLOSE message
+        O2netmsg_ptr o2netmsg = O2N_MESSAGE_ALLOC(32);  // the most we need
+        if (!o2netmsg) {
+            return O2_NO_MEMORY;
+        }
+        int heading_len = 2;
+        int CLOSE_STATUS = htons(1001);
+        o2netmsg->payload[0] = WSBIT_FIN | WSOP_CLOSE;
+        o2netmsg->payload[1] = 19;
+        memcpy(o2netmsg->payload + 2, &CLOSE_STATUS, 2);
+        memcpy(o2netmsg->payload + 4, "O2 server shutdown", 19);
+        o2netmsg->length = 4 + 19;
+        fds_info->send_tcp(false, o2netmsg);
+    }
+    return O2_SUCCESS;
+}
+
+
 Http_conn::~Http_conn()
 {
     if (!this) return;
-    O2_DBw(printf("%s: delete Http_conn %p\n", o2_debug_prefix, this));
-    // if we have a pending send, remove it
+    O2_DBw(printf("%s: delete Http_conn %p, is_web_socket %d sent_close_"
+                  "command %d\n", o2_debug_prefix, this, is_web_socket,
+                  sent_close_command));
+    // even though we may have sent a CLOSE command, we do not wait for it
+    // to be sent in cases where sends are pending. If the CLOSE was sent,
+    // we DO wait for the asynchronous command to complete.
+    
+    // if we have a pending send, remove it:
     ((O2ws_protocol *) proto)->remove_pending_ws_sender(this);
     // remove all pending send
     o2_message_list_free(&outgoing);
@@ -445,8 +473,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
     }
     // Opcode should indicate a text frame or close
     int opcode = (header & 15);
-    if (opcode != WSOP_TEXT && opcode != WSOP_PING &&
-               opcode != WSOP_CLOSE) {
+    if (opcode != WSOP_TEXT && opcode != WSOP_PING && opcode != WSOP_CLOSE) {
         *error = "Websocket opcode was neither CLOSE, TEXT, nor PING.";
         return O2_INVALID_MSG;
     }
@@ -493,7 +520,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
         if (payload[i] == ETX) putchar('|'); else putchar(payload[i]);
     putchar('\n');
      */
-    if (opcode == WSOP_PING || opcode == WSOP_CLOSE) {
+    if (opcode == WSOP_PING || (opcode == WSOP_CLOSE && !sent_close_command)) {
         // send payload back
         // we can only handle a PING or CLOSE if payload length less than 126
         if (payload_len < 126) {
@@ -504,12 +531,26 @@ O2err Http_conn::handle_websocket_msg(const char **error)
             memcpy(reply->payload + 2, payload, payload_len);
             reply->length = payload_len + 2;
             fds_info->send_tcp(false, reply);
-            printf("    Send PONG or CLOSE back to client\n");
+            O2_DBw(printf("%s: Sent %s back to client\n", o2_debug_prefix,
+                          (opcode == WSOP_PING ? "PONG" : "CLOSE")));
             inbuf.drop_front(payload + payload_len - msg);
             ws_msg_len = -1;
-        } // otherwise we skip it -- maybe client will hang up, hope not
-          // if so, the fix is probably to support longer Pong messages
-        return (opcode == WSOP_PING ? O2_SUCCESS : O2_INVALID_MSG);
+            if (opcode == WSOP_CLOSE) {
+                sent_close_command = true;
+                return O2_FAIL;  // this will close the socket
+            } else {
+                return O2_SUCCESS;
+            }
+        } else {
+            // otherwise we skip it -- maybe client will hang up, hope not
+            // if so, the fix is probably to support longer Pong messages
+            O2_DBw(printf("%s: websocket got opcode %d but payload_len %d "
+                          "is too long.\n", o2_debug_prefix, opcode,
+                          payload_len));
+            return O2_SUCCESS;
+        }
+    } else if (opcode == WSOP_CLOSE) { // already sent close command
+        return O2_FAIL; // this will close the socket
     }
 
     const char *fields[32];
@@ -724,15 +765,26 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
         while ((rslt = ws_msg_is_complete(&text)) == O2_SUCCESS) {
             if (rslt == O2_FAIL) return O2_SUCCESS;  // wait for another msg
             else if (rslt == O2_INVALID_MSG) {
-                // we really should send a close frame with code 1009 here
+                // TODO: we really should send a close frame with code 1009 here
                 fds_info->close_socket(true);
                 return O2_SUCCESS;
             } else {
                 O2err err = handle_websocket_msg(&text);
                 if (err) {
+                    /* When this code jumps to report_error, it outputs HTML,
+                     * but this seems wrong because we upgraded to a websocket.
+                     * I think it is better to simply close the connection.
                     text = "Websocket or protocol error: ";
                     text2 = o2_error_to_string(err);
                     goto report_error;
+                     */
+                    // here, we can either return an error and have o2network
+                    // close the connection abruptly, or we can close it
+                    // gently ourselves (ie send pending messages which might
+                    // send a CLOSE command) and return O2_SUCCESS so that
+                    // o2network does not attempt another close() operation.
+                    fds_info->close_socket(false); // allow CLOSE msg to send
+                    return O2_SUCCESS; // return O2_ERROR would close socket
                 }
             }                    
         }
@@ -789,21 +841,20 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
                       c_path, this));
         // prevent requests from looking outside of the root directory
         if (strstr(c_path, "..") == NULL) {
-            // open the file
-            inf = open(c_path, O_RDONLY | O_NONBLOCK, 0);
+            // TODO: inf should be in Http_reader, but it is in Http_conn
+            reader = new Http_reader(c_path, this, port);
             if (inf < 0) {
                 response = "404 Not Found";
                 text = "The requestedd URL was not found: ";
                 text2 = c_path + root_len + 1;
+                delete reader;
             } else {
-                printf("\n");
-                reader = new Http_reader(new Fds_info(inf, NET_INFILE, 0,
-                                                      NULL), this, port);
+                O2_DBw(printf("\n"));
                 inbuf.drop_front(msg_len);
                 return O2_SUCCESS;
             }
         } else {
-            printf(" - rejected, path contains \"..\"\n");
+            O2_DBw(printf(" - rejected, path contains \"..\"\n"));
         }
     }
     inbuf.drop_front(msg_len);
@@ -825,20 +876,29 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     assert(payload_len <= content_len + 150);  // confirm we allocated enough
     msg->length = payload_len;
     fds_info->send_tcp(false, msg);
-    printf("Closing web socket: %s%s\n", text, text2);
+    O2_DBw(printf("%s: closing web socket: %s%s\n", o2_debug_prefix,
+                  text, text2));
     fds_info->close_socket(false);
     return O2_SUCCESS;
 }
 
-
-Http_reader::Http_reader(Fds_info *fds_info_, Http_conn *connection,
+#ifdef WIN32
+#else
+Http_reader::Http_reader(const char *c_path, Http_conn *connection,
                          int port_) : Proxy_info(NULL, O2TAG_HTTP_READER)
+#endif
 {
+    conn = NULL; // needed by delete if file open fails
+    // open the file
+    connection->inf = open(c_path, O_RDONLY | O_NONBLOCK, 0);
+    if (connection->inf < 0) {
+        return;
+    }
+    fds_info = new Fds_info(connection->inf, NET_INFILE, 0, NULL);
     port = port_;
     data = NULL;
     last_ref = &data;
     data_len = 0;
-    fds_info = fds_info_;
     fds_info->read_type = READ_CUSTOM;
     fds_info->owner = this;
     conn = connection;
@@ -847,11 +907,11 @@ Http_reader::Http_reader(Fds_info *fds_info_, Http_conn *connection,
 
 Http_reader::~Http_reader()
 {
-    if (conn->inf != -1) {
-        close(conn->inf);
-        conn->inf = -1;
-    }
     if (conn) {
+        if (conn->inf != -1) {
+            close(conn->inf);
+            conn->inf = -1;
+        }
         conn->reader = NULL;
         conn = NULL;
     }
@@ -919,7 +979,21 @@ void substitute_ip_port(O2netmsg_ptr msg, int port)
     }
 }
 
+O2netmsg_ptr Http_reader::prepare_new_read()
+{
+    O2netmsg_ptr msg = O2N_MESSAGE_ALLOC(512);  // read 512 at a time
+    msg->next = NULL;
+    msg->length = 0; // until next read completes
+    *last_ref = msg;  // note that this sets data with the first message
+    return msg;
+}
 
+
+#ifndef WIN32
+// for macOS and Linux, we use aio and o2network poll code to do
+// asynchronous file read.
+
+// Handle file read event; unlike deliver() for sockets, msg is NULL
 O2err Http_reader::deliver(O2netmsg_ptr msg)
 {
     int n = 0;
@@ -929,9 +1003,8 @@ O2err Http_reader::deliver(O2netmsg_ptr msg)
         }
         n = aio_return(&cb);
         if (n <= 0) {  // if error condition, pretend it is just EOF
-            // remove last msg which received no input
             assert(*last_ref);
-            goto read_finished;     // *last_ref was the first message
+            return read_finished();     // *last_ref was the first message
         }
         msg = *last_ref;
         msg->length = n;
@@ -942,10 +1015,7 @@ O2err Http_reader::deliver(O2netmsg_ptr msg)
         last_ref = &(msg->next);
     }
     // start a new read
-    msg = O2N_MESSAGE_ALLOC(512);  // read 512 at a time
-    msg->next = NULL;
-    msg->length = 0; // until next read completes
-    *last_ref = msg;  // note that this sets data with the first message
+    msg = prepare_new_read();
 
     memset(&cb, 0, sizeof(aiocb));
     cb.aio_nbytes = 512;
@@ -956,11 +1026,18 @@ O2err Http_reader::deliver(O2netmsg_ptr msg)
     if (aio_read(&cb) != -1) {
         return O2_SUCCESS;
     }
+    return read_finished();
+}
+#endif
+
+
+O2err Http_reader::read_finished()
+{
     // if we got a read error, we'll deliver what we got so far
-read_finished:  // all content is in the list of messages at data
+    // all content is in the list of messages at data
     // we have an empty message linked at the end of the message list
     // unlink the message and use it for the reply header
-    msg = *last_ref;
+    O2netmsg_ptr msg = *last_ref;
     *last_ref = NULL;       // note that this does data=NULL if
     // data_len is the total length of data
     // make a prefix with reply info

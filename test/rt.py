@@ -220,6 +220,10 @@ def runAllTests():
     if not runTest("o2litemsg"): return
 
     if websocketsTests:
+        if not runWsTest("o2server - 20t", "SERVER DONE", 
+                         "o2client.htm", "WEBSOCKETHOST DONE"): return
+        if not runWsTest("tappub", "SERVER DONE", 
+                         "tapsub.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("statusclient", "CLIENT DONE", 
                          "statusserver.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("statusserver", "SERVER DONE", 
@@ -232,10 +236,6 @@ def runAllTests():
                          "propsend.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("tapsub", "CLIENT DONE", 
                          "tappub.htm", "WEBSOCKETHOST DONE"): return
-        if not runWsTest("tappub", "SERVER DONE", 
-                         "tapsub.htm", "WEBSOCKETHOST DONE"): return
-        if not runWsTest("o2server - 20t", "SERVER DONE", 
-                         "o2client.htm", "WEBSOCKETHOST DONE"): return
 
     if extensions:
         if not runTest("bundletest"): return

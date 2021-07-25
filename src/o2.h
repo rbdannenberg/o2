@@ -1839,6 +1839,20 @@ const char *o2_error_to_string(O2err i);
  *  Close all sockets, free all memory, and restore critical
  *  variables so that O2 behaves as if it was never initialized.
  *
+ *  Note that #o2_finish will close websockets immediately
+ *  without performing the standard websocket close
+ *  protocol. The recommended clean shutdown with
+ *  o2lite running over websockets is: If the O2 host is to
+ *  shut down, send a message from the browser to the O2
+ *  host (see `test/websockhost.cpp` and its `stop_handler`
+ *  function for example.) Then call `o2ws_finish()` in the
+ *  browser. If the O2 host is shutting down, have it call
+ *  #o2_poll() for a 100 ms or so, giving O2 a chance to
+ *  respond to the incoming websocket CLOSE command.
+ *  This will complete the shutdown on the browser side,
+ *  avoiding an exception there. Then, the O2 host can call
+ *  #o2_finish to close all sockets and free resources.
+ *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
 O2err o2_finish(void);

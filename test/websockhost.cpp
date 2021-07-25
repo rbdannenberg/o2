@@ -59,6 +59,12 @@ int main(int argc, const char *argv[])
         o2_poll();
         o2_sleep(2); // 2ms (you could delete this line for benchmarking)
     }
+    // run a bit more to close websockets
+    for (int i = 0; i < 100; i++) {
+        o2_poll();
+        o2_sleep(1);
+    }
+    printf("Calling o2_finish()\n");
     o2_finish();
 #endif
     if (one_minute_max && o2_local_time() > 60) {

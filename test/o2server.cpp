@@ -116,7 +116,14 @@ int main(int argc, const char *argv[])
     
     while (running) {
         o2_poll();
-        //o2_sleep(2); // 2ms // as fast as possible
+        o2_sleep(2); // 2ms // as fast as possible
+    }
+
+    // o2client.htm waits 1s before closing socket, so give it time
+    now = o2_time_get();
+    while (o2_time_get() < now + 2) {
+        o2_poll();
+        o2_sleep(2);
     }
 
     for (int i = 0; i < n_addrs; i++) {

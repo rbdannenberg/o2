@@ -1,4 +1,4 @@
-/* o2.c - manage o2 processes and their service lists */
+/* o2.cpp - manage o2 processes and their service lists */
 
 /* Roger B. Dannenberg
  * April 2020
@@ -852,6 +852,54 @@ not in some other structure in the list o2_ctx->msgs.
 Since this is global, we often treat o2_ctx->msgs as the "active"
 message and consider it to be an implied parameter for many delivery
 functions.
+ 
+O2lite over web sockets
+-----------------------
+Communication for O2lite to browsers is over web sockets. To offer this
+service, O2 must implement a minimal web server so that the browser can
+find the host.
+
+O2lite over web sockets is initialized by calling http_initialize().
+This creates an O2ws_protocol object for web socket communication and
+an Http_server object to act as an HTTP server. Typically, O2 will
+serve the javascript implementation of O2lite as well as the web
+application for the client. O2 also registers the HTTP service using
+Bonjour/Avahi so the client can visit <name>.local or <name>.localhost
+where name is the O2 ensemble name. Normally, only one O2 host should
+act as HTTP server and O2lite host.
+
+The client visits <name>.local. When the connection is accepted, an
+Http_conn object is created. This is a subclass of Bridge_info, which
+references and implements o2ws_protocol.
+
+The client can upgrade the connection to a web socket.
+
+Messages to clients are sometimes deferred by adding the Http_conn
+object to a list maintained by the O2ws_protocol object.  Since this
+is a bridge protocol object, it gets polled, and it checks later
+when o2_do_not_reenter is cleared and sends the next pending message.
+
+Normal HTTP requests are a bit tricky because of asynchronous file
+reading to avoid blocking to read a big web page. An HTTP request
+creates an Http_reader object which uses o2network's asynchronous
+socket polling and handling to handle file IO (for macOS and Linux).
+The entire file is read into a list of messages because the reply
+must include the length and error handling is easier if we do not
+start sending until the file is known to be complete and readable.
+After adding a header, the entire message list is transferred to 
+the o2network subsystem which asynchronously delivers messages to
+the web client. The connection is closed with a flag to send all
+pending messages first, so Http_reader can be removed immediately.
+o2network finishes by sending all the data and closing the 
+connection. O2 does not keep the HTTP connection open for another
+request.
+
+For Windows, we do not have the aio asynchronous file IO model,
+but HTTP does not have to be high performance here, so we will
+use o2ws_protocol to poll for file read completions. This is O(n)
+for n open files, but it is expected that n will be small.
+Http_reader is implemented differently for Windows. Most code
+is shared excpet for file reading.
 
 O2lite Implementation
 ---------------------
@@ -892,6 +940,11 @@ char o2_hub_addr[O2_MAX_PROCNAME_LEN];
 O2time o2_local_now = 0.0;
 O2time o2_global_now = 0.0;
 O2time o2_global_offset = 0.0;
+
+#ifndef O2_NO_DEBUG
+int o2_poll_count = 0;  // counter for testing things
+#endif
+
 
 
 #ifdef WIN32
@@ -1239,6 +1292,9 @@ static void check_messages()
 
 O2err o2_poll()
 {
+#ifndef O2_NO_DEBUG
+    o2_poll_count++;
+#endif
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }

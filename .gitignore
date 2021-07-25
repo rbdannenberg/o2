@@ -11,3 +11,5 @@ bugs/osctest.eml
 .DS_Store
 
 /test/__pycache__/
+
+/test/port_count.dat
