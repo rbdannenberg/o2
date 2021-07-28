@@ -217,6 +217,9 @@ void o2l_poll();
 
 int o2l_initialize(const char *ensemble);
 
+/// \brief shut down o2lite resources (not fully implemented)
+int o2l_finish();
+
 /// \brief call between #o2l_send_start and #o2l_send to add a string.
 void o2l_add_string(const char *s);
 
@@ -383,9 +386,11 @@ void o2ldisc_events(fd_set *readset);
 /**********************************************************************/
 /* Internal symbols declared for use by Discovery API Implementations */
 /**********************************************************************/
+#ifndef WIN32
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR -1
 typedef int SOCKET;  // we use SOCKET to denote the type of a socket
+#endif
 
 extern SOCKET tcp_sock;
 extern const char *o2l_ensemble;

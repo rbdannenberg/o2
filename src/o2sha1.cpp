@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <string.h>
 #include <stdio.h>
+#include "o2sha1.h"
 
 const char BASE64CONVERT[] = 
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
@@ -14,7 +15,7 @@ static uint32_t hash[5];
 
 static uint32_t left_rotate(int64_t n, int64_t b)
 {
-    return ((n << b) | (n >> (32 - b)));
+    return (uint32_t) ((n << b) | (n >> (32 - b)));
 }
 
 
@@ -79,7 +80,7 @@ void process_chunk(const char *chunk)
 }
 
 
-void sha1_with_magic(char sha1[32], const char *key)
+void sha1_with_magic(char sha1[32], char const *key)
 {
     hash[0] = 0x67452301;
     hash[1] = 0xEFCDAB89;
@@ -91,7 +92,7 @@ void sha1_with_magic(char sha1[32], const char *key)
     const char magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
     sha1[0] = 0;
-    int len = strlen(key) + sizeof(magic) - 1;
+    int len = (int) (strlen(key) + sizeof(magic) - 1);
     if (len >= 64) {
         return; // fails because key is too large
     }
@@ -99,7 +100,7 @@ void sha1_with_magic(char sha1[32], const char *key)
     strcat(message, magic);
 
     // pre-processing
-    message[len] = 128;
+    message[len] = (char) 128;
     for (int i = len + 1; i < 126; i++) message[i] = 0;
     int message_bit_length = len * 8;
     char t1 = message_bit_length >> 8;

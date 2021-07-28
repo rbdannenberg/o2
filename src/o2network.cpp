@@ -250,7 +250,7 @@ ssize_t o2n_send_broadcast(int port, O2netmsg_ptr msg)
 //
 SOCKET o2n_udp_send_socket_new()
 {
-    SOCKET sock = o2_socket(AF_INET, SOCK_DGRAM, 0,
+    SOCKET sock = o2_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP,
                             "o2n_udp_send_socket_new");
     if (sock == INVALID_SOCKET) {
         perror("allocating udp send socket");
@@ -933,38 +933,38 @@ O2err o2n_recv()
         return O2_SUCCESS;
     }
     for (int i = 0; i < socket_count; i++) {
-        SOCKET socket = o2n_fds[i].fd;
+        struct pollfd *pfd = &o2n_fds[i];
         
-        if (FD_ISSET(socket, &o2_except_set)) {
+        if (FD_ISSET(pfd->fd, &o2_except_set)) {
             Fds_info *fi = o2n_fds_info[i];
-            report_error("generated exception event", socket);
+            report_error("generated exception event", pfd->fd);
             fi->close_socket(true);
         } else {
-            if (FD_ISSET(socket, &o2_read_set)) {
+            if (FD_ISSET(pfd->fd, &o2_read_set)) {
                 Fds_info *fi = o2n_fds_info[i];
                 if (fi->read_event_handler()) {
-                    report_error("reported by read_event_handler", socket);
+                    report_error("reported by read_event_handler", pfd->fd);
                     fi->close_socket(true);
                 }
             }
-            if (FD_ISSET(socket, &o2_write_set)) {
+            if (FD_ISSET(pfd->fd, &o2_write_set)) {
                 Fds_info *fi = o2n_fds_info[i];
                 if (fi->net_tag & NET_TCP_CONNECTING) { // connect completed
                     fi->net_tag = NET_TCP_CLIENT;
                     O2_DBo(printf("%s connection completed, socket %ld index "
-                                  "%d\n", o2_debug_prefix, (long)socket, i));
+                                  "%d\n", o2_debug_prefix, (long)pfd->fd, i));
                     // tell next layer up that connection is good, e.g. O2 sends
                     // notification that a new process is connected
                     if (fi->owner) fi->owner->connected();
                 }
                 if (fi->delete_me == 1) {
-                    delete_me = 2;
+                    fi->delete_me = 2;
                     #ifdef SHUT_WR
                         shutdown(sock, SHUT_WR);
                     #endif
-                    o2_closesocket(sock, "o2n_close_socket");
-                    pdf->fd = INVALID_SOCKET;
-                    net_tag = NET_INFO_CLOSED;
+                    o2_closesocket(pfd->fd, "o2n_close_socket");
+                    pfd->fd = INVALID_SOCKET;
+                    fi->net_tag = NET_INFO_CLOSED;
                     o2n_socket_delete_flag = true;
                 } else if (fi->out_message) {
                     O2err rslt = fi->send(false);

@@ -22,9 +22,6 @@ struct sockaddr_in broadcast_to_addr;
 
 void o2ldisc_init(const char *ensemble)
 {
-    // Initialize (in Windows)
-    WSADATA wsaData;
-    WSAStartup(MAKEWORD(2, 2), &wsaData);
 #define inet_pton InetPton
 
     o2l_ensemble = ensemble;

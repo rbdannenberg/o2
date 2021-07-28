@@ -338,7 +338,7 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
         return;
     }
     int version;
-    if (!(version = o2_parse_version(vers_num, end - vers_num))) {
+    if (!(version = o2_parse_version(vers_num, (int) (end - vers_num)))) {
         #ifndef NDEBUG
                 // PRINT FOR DEBUGGING ONLY: payload IS NOT TERMINATED AND UNSAFE:
                 printf("o2_mqtt_disc_handler could not parse payload "

@@ -96,16 +96,29 @@ public:
 
 
 // file reader to asynchronously read web pages
+#ifdef WIN32
+class Http_reader {
+#else
 class Http_reader: public Proxy_info {
+#endif
 public:
     int port; // server port
     O2netmsg_ptr data;
     O2netmsg_ptr *last_ref;  // pointer to last msg in data, could be &data
+                             // *last_ref is where async read puts the content
     long data_len;  // how much have we read?
     Fds_info *fds_info;  // file descriptor for file to be read
     Http_conn *conn;
+#ifdef WIN32
+    HANDLE inf; // handle for the opened file to be read
+    Http_reader *next; // used to make a list of active readers
+    OVERLAPPED overlapped;
+    bool ready_for_read;
+    void poll(); // poll method for async reads
+#else
     aiocb cb;  // asynchronous read control block
-    
+#endif
+
     Http_reader(const char *c_path, Http_conn *connection, int port);
 
     ~Http_reader();
@@ -113,7 +126,8 @@ public:
     virtual O2err accepted(Fds_info *conn) { return O2_FAIL; } // not a server
     virtual O2err deliver(O2netmsg_ptr msg);
     virtual O2netmsg_ptr prepare_new_read();
-    virtual O2err read_finished();
+    virtual void read_operation_completed(int n);
+    virtual O2err read_eof();
 
 };
 #endif

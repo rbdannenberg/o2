@@ -824,8 +824,10 @@ static void o2l_clock_initialize()
     if (clock_initialized) {
         o2l_clock_finish();
     }
+#ifndef O2L_NO_CLOCKSYNC
     o2l_method_new("!_o2/cs/put", "it", true,
                    &ping_reply_handler, NULL);
+#endif
 #ifdef __APPLE__
     start_time = AudioGetCurrentHostTime();
 #elif __linux__
@@ -1121,20 +1123,36 @@ void o2l_poll()
 
 int o2l_initialize(const char *ensemble)
 {
+#ifdef WIN32
+    // Initialize (in Windows)
+    WSADATA wsaData;
+    WSAStartup(MAKEWORD(2, 2), &wsaData);
+#endif // WIN32
+
+    o2l_clock_initialize();
     o2l_method_new("!_o2/id", "i", true, &o2l_id_handler, NULL);
 
     // create UDP server socket before o2ldisc_init:
-    udp_recv_sock = socket(AF_INET, SOCK_DGRAM, 0);
+    udp_recv_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (udp_recv_sock == INVALID_SOCKET) {
-        printf("o2lite: udp socket creation error");
+        printf("o2lite: udp socket creation error\n");
         return O2L_FAIL;
     }
 
     if (o2ldisc_init(ensemble) == O2L_SUCCESS) {
         o2l_network_initialize();
     }
-#ifndef O2L_NO_CLOCKSYNC
-    o2l_clock_initialize();
+    return O2L_SUCCESS;
+}
+
+
+// We assume o2lite applications are minimal and have no need to
+// shut down cleanly, close an o2lite connection, or free resources.
+// This implementation of o2l_finish() is not complete or tested.
+int o2l_finish()
+{
+#ifdef WIN32
+    WSACleanup();
 #endif
     return O2L_SUCCESS;
 }

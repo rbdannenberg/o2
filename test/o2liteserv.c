@@ -102,7 +102,10 @@ int main(int argc, const char * argv[])
         printf("WARNING: o2liteserv ignoring extra command line argments\n");
     }
 
-    o2l_initialize("test");
+    if (o2l_initialize("test") != O2L_SUCCESS) {
+        printf("o2liteserv\nFAILURE\n");
+        exit(1);
+    }
     o2l_set_services("sift");
 
     o2l_method_new("/sift", "sift", true, &sift_han, (void *) 111);

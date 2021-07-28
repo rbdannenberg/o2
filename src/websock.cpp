@@ -1,8 +1,10 @@
 #include "o2internal.h"
 #include <sys/types.h>
-#include <aio.h>
 #include <fcntl.h>
+#ifndef WIN32
+#include <aio.h>
 #include <unistd.h>
+#endif
 #include <errno.h>
 #include <string.h>
 #include "o2zcdisc.h"
@@ -13,6 +15,7 @@
 #include "message.h"
 #include "msgsend.h"
 #include <inttypes.h>
+#include "o2sha1.h"
 
 
 #define WSOP_TEXT 1
@@ -34,8 +37,8 @@
 #endif
 
 
-#if __linux__
-// linux does not define strnstr.
+#ifndef __APPLE__
+// linux and Windows do not define strnstr.
 char *strnstr(const char *haystack, const char *needle, size_t len)
 {
     while (len > 0) {
@@ -60,6 +63,27 @@ char *strnstr(const char *haystack, const char *needle, size_t len)
 class O2ws_protocol : public Bridge_protocol {
 public:
     Http_conn *pending_ws_senders;
+#ifdef WIN32
+    Http_reader *readers;  // list of file readers to poll for async read
+
+    // insert reader to list so that it is polled to read file
+    void add_reader(Http_reader *reader) {
+        reader->next = readers;
+        readers = reader;
+    }
+
+    // remove a reader from the list of readers to poll
+    void remove_reader(Http_reader *reader) {
+        Http_reader **reader_ptr = &readers;
+        while (*reader_ptr) {
+            if (*reader_ptr == reader) {
+                *reader_ptr = reader->next;
+                return;
+            }
+            reader_ptr = &(*reader_ptr)->next;
+        }
+    }
+#endif
     O2ws_protocol() : Bridge_protocol("O2ws") {
         O2_DBw(printf("%s: new O2ws_protocol %p\n", o2_debug_prefix, this));
        pending_ws_senders = NULL;
@@ -107,6 +131,11 @@ public:
                 sender->send(false);
             }
         }
+#ifdef WIN32
+        for (Http_reader *reader = readers; reader; reader = reader->next) {
+            reader->poll();
+        }
+#endif
         return O2_SUCCESS;
     }
 
@@ -289,7 +318,7 @@ O2err Http_conn::close()
         }
         int heading_len = 2;
         int CLOSE_STATUS = htons(1001);
-        o2netmsg->payload[0] = WSBIT_FIN | WSOP_CLOSE;
+        o2netmsg->payload[0] = (char) (WSBIT_FIN | WSOP_CLOSE);
         o2netmsg->payload[1] = 19;
         memcpy(o2netmsg->payload + 2, &CLOSE_STATUS, 2);
         memcpy(o2netmsg->payload + 4, "O2 server shutdown", 19);
@@ -372,7 +401,7 @@ O2err Http_conn::websocket_upgrade(const char *key, int msg_len)
     snprintf(msg->payload, 512, "HTTP/1.1 101 Switching Protocols\r\n"
              "Upgrade: websocket\r\nConnection: Upgrade\r\n"
              "Sec-WebSocket-Accept: %s\r\n\r\n", sha1);
-    msg->length = strlen(msg->payload);
+    msg->length = (int) strlen(msg->payload);
     fds_info->send_tcp(false, msg);
     ws_msg_len = -1;  // unknown
     inbuf.drop_front(msg_len);
@@ -533,7 +562,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
             fds_info->send_tcp(false, reply);
             O2_DBw(printf("%s: Sent %s back to client\n", o2_debug_prefix,
                           (opcode == WSOP_PING ? "PONG" : "CLOSE")));
-            inbuf.drop_front(payload + payload_len - msg);
+            inbuf.drop_front((int) (payload + payload_len - msg));
             ws_msg_len = -1;
             if (opcode == WSOP_CLOSE) {
                 sent_close_command = true;
@@ -569,7 +598,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
         const char *field = fields[fx];
         switch (*types) {
             case 'i': o2_add_int32(atoi(field)); break;
-            case 'f': o2_add_float(atof(field)); break;
+            case 'f': o2_add_float((float) atof(field)); break;
             case 'd': o2_add_double(atof(field)); break;
             case 't': o2_add_time(atof(field)); break;
             case 's': 
@@ -604,7 +633,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
     printf("\n");
      */
     
-    inbuf.drop_front(payload + payload_len - msg);  // shift the input stream
+    inbuf.drop_front((int) (payload + payload_len - msg));  // shift the input stream
     
     /*
     printf("AFTER drop_front, %d left:", inbuf.size());
@@ -618,7 +647,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
   bad_message:
     O2_DBw(printf("%s websocket bridge bad_message\n", o2_debug_prefix));
     // now we need to remove the message from inbuf
-    inbuf.drop_front(payload + payload_len - msg);
+    inbuf.drop_front((int) (payload + payload_len - msg));
     ws_msg_len = -1;
     return O2_INVALID_MSG;
 }
@@ -655,15 +684,15 @@ O2err Http_conn::send(bool block)
     o2_extract_start(&msg->data);  // prepare to extract parameters
     o2_send_start();        // prepare space to build websocket message
     // <address> ETX <types> ETX <time> ETX <T/F> ETX [<value>ETX]*
-    o2_ctx->msg_data.append(msg->data.address, strlen(msg->data.address));
+    o2_ctx->msg_data.append(msg->data.address, (int) strlen(msg->data.address));
     o2_ctx->msg_data.push_back(ETX);
     const char *types = o2_msg_types(msg);
-    o2_ctx->msg_data.append(types, strlen(types));
+    o2_ctx->msg_data.append(types, (int) strlen(types));
     o2_ctx->msg_data.push_back(ETX);
     char timestr[32];
     sprintf((char *) timestr, "%.3f", msg->data.timestamp);
     // Remove extra zeros. Is there a better way to do this?
-    int len = strlen(timestr);
+    int len = (int) strlen(timestr);
     while (timestr[len - 1]  == '0') len--;  // remove trailing zeros
     if (timestr[len - 1] == '.') len--;      // remove trailing decimal point
     o2_ctx->msg_data.append(timestr, len);
@@ -693,7 +722,7 @@ O2err Http_conn::send(bool block)
           case O2_STRING: {
             const char *str = o2_get_next(typecode)->s;
             // directly copy str to msg_data because str might be long
-            o2_ctx->msg_data.append(str, strlen(str));
+            o2_ctx->msg_data.append(str, (int) strlen(str));
             timestr[0] = 3; timestr[1] = 0;
             break;
           }
@@ -701,7 +730,7 @@ O2err Http_conn::send(bool block)
             sprintf(timestr, "?\003");  // than just dropping the message
             break;
         }
-        o2_ctx->msg_data.append(timestr, strlen(timestr));
+        o2_ctx->msg_data.append(timestr, (int) strlen(timestr));
     }
     o2_complete_delivery();  // we're done with msg now
     const char *wsmsg = &o2_ctx->msg_data[0];
@@ -714,13 +743,13 @@ O2err Http_conn::send(bool block)
         return O2_FAIL;  // failed to allocate message
     }
     int heading_len = 2;
-    o2netmsg->payload[0] = WSBIT_FIN | WSOP_TEXT;
+    o2netmsg->payload[0] = (char) (WSBIT_FIN | WSOP_TEXT);
     if (len < 126) {
         // to deliver, we need to copy to an O2netmsg_ptr
         o2netmsg->payload[1] = len;
     } else if (len < 0xffff) {  // length is 126 to 16-bits
         heading_len = 4;
-        o2netmsg->payload[0] = WSBIT_FIN | WSOP_TEXT;
+        o2netmsg->payload[0] = (char) (WSBIT_FIN | WSOP_TEXT);
         o2netmsg->payload[1] = 126;
         o2netmsg->payload[2] = len >> 8;
         o2netmsg->payload[3] = len;
@@ -803,7 +832,7 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
         return O2_SUCCESS; // wait for the rest of the get request
     }
     msg_end += 4;  // the real end is after \r\n\r\n
-    msg_len = msg_end - &inbuf[0];
+    msg_len = (int) (msg_end - &inbuf[0]);
     /*
     printf("Got %d-byte header: <<", msg_len);
     for (int i = 0; i < msg_len; i++) {
@@ -828,9 +857,9 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
         inbuf.push_back(' ');
         const char *path_end = strchr(&inbuf[4], ' ');
         inbuf.pop_back();
-        size_t root_len = strlen(root);
+        int root_len = (int) strlen(root);
         path.append(root, root_len);
-        int path_len = path_end - &inbuf[4];
+        int path_len = (int) (path_end - &inbuf[4]);
         path.append(&inbuf[4], path_len);
         if (path.last() == '/') {
             path.append("index.htm", 9);
@@ -858,21 +887,21 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
         }
     }
     inbuf.drop_front(msg_len);
-  report_error:
+  // report_error:
     char content[300];
     // content len is < 150 + path, so path < 150 
     snprintf(content, 256, "<html><head><title>%s</title></head>"
              "<body><h1>Error</h1><p>%s%s</p></body></html>\r\n", 
              response, text, text2);
-    int content_len = strlen(content);
+    int content_len = int(strlen(content));
     msg = O2N_MESSAGE_ALLOC(content_len + 150);
     // 512 is plenty big, so we reuse msg->payload to write the message
     // length is 119 + response + content_len < 200, so content < 312
     sprintf(msg->payload, "<HTTP/1.1 %s \r\nServer: O2 Http_server\r\n"
             "Content-Length: %ld\r\nContent-Type: text/html\r\n"
             "Connection: Closed\r\n\r\n%s",
-            response, strlen(content), content);
-    int payload_len = strlen(msg->payload);
+            response, (long) strlen(content), content);
+    int payload_len = (int) strlen(msg->payload);
     assert(payload_len <= content_len + 150);  // confirm we allocated enough
     msg->length = payload_len;
     fds_info->send_tcp(false, msg);
@@ -882,26 +911,96 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     return O2_SUCCESS;
 }
 
+#define HTTP_FILE_READ_SIZE 512
 #ifdef WIN32
+Http_reader::Http_reader(const char* c_path, Http_conn* connection, int port_)
 #else
 Http_reader::Http_reader(const char *c_path, Http_conn *connection,
                          int port_) : Proxy_info(NULL, O2TAG_HTTP_READER)
 #endif
 {
     conn = NULL; // needed by delete if file open fails
+#ifdef WIN32
+    ready_for_read = false;  // disable reads until file is open
+    connection->inf = -1;
+    next = NULL;
+    inf = CreateFileA(c_path, GENERIC_READ, FILE_SHARE_READ, NULL,
+                      OPEN_EXISTING, FILE_FLAG_OVERLAPPED | 
+                      FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    if (inf == INVALID_HANDLE_VALUE) {
+        return;
+    }
+    connection->inf = 0;  // means read is in progress
+    memset(&overlapped, 0, sizeof(overlapped));
+    ready_for_read = true;  // tells poll to call ReadFile
+    // rely on poll() to read at most one block per polling period
+    o2ws_protocol->add_reader(this);
+#else
     // open the file
     connection->inf = open(c_path, O_RDONLY | O_NONBLOCK, 0);
     if (connection->inf < 0) {
         return;
     }
-    fds_info = new Fds_info(connection->inf, NET_INFILE, 0, NULL);
-    port = port_;
+#endif
     data = NULL;
     last_ref = &data;
+    port = port_;
     data_len = 0;
+    conn = connection;
+#ifndef WIN32
+    fds_info = new Fds_info(connection->inf, NET_INFILE, 0, NULL);
     fds_info->read_type = READ_CUSTOM;
     fds_info->owner = this;
-    conn = connection;
+#endif
+}
+
+
+void Http_reader::poll()
+{
+    bool ro_completed = false;
+    DWORD len = 0;
+    if (ready_for_read) {
+        (*last_ref)->next = prepare_new_read();
+        BOOL rslt = ReadFile(inf, &(*last_ref)->payload, HTTP_FILE_READ_SIZE, &len, &overlapped);
+        if (rslt) {
+            ro_completed = true;
+            // need to update overlapped to maintain read pointer
+            overlapped.Offset += len;
+        } else {
+            ready_for_read = false;
+            DWORD err = GetLastError();
+            if (err != ERROR_IO_PENDING) {
+                read_eof();  // EOF and error are both treated as eof
+                return;
+            }
+        }
+    }
+    // read operation can complete immediately, in which case ro_completed is 
+    // set, or read can complete later, detected by GetOverlappedResult
+    if (ro_completed || GetOverlappedResult(inf, &overlapped, &len, false)) {
+        read_operation_completed(len);
+        ready_for_read = true;
+    } else {  // could be end of file or else file read error
+        DWORD err = GetLastError();
+        if (err != ERROR_IO_PENDING) {
+            read_eof();  // EOF and error are both treated as eof
+            return;
+        }
+    }
+}
+
+
+// called when async read completes (common code for Windows, macOS & Linux)
+// n is the number of bytes read into (*last_ref)->payload
+void Http_reader::read_operation_completed(int n)
+{
+    O2netmsg_ptr msg = *last_ref;
+    msg->length = n;
+    // printf("FILE READ from %ld ||", data_len);
+    data_len += n;
+    // for (int i = 0; i < n; i++) putchar(msg->payload[i]);
+    // printf("||\n");
+    last_ref = &(msg->next);
 }
 
 
@@ -909,14 +1008,19 @@ Http_reader::~Http_reader()
 {
     if (conn) {
         if (conn->inf != -1) {
-            close(conn->inf);
+#ifdef WIN32
+            // Windows has no file to close; however, this is on the
+            // list of readers to poll, so remove to avoid dangling pointer.
+            o2ws_protocol->remove_reader(this);
+#else
+            closesocket(conn->inf);
+#endif
             conn->inf = -1;
         }
         conn->reader = NULL;
         conn = NULL;
     }
 }
-
 
 
 // Special feature to send ws://IP:port/o2ws to client
@@ -926,7 +1030,7 @@ Http_reader::~Http_reader()
 void substitute_ip_port(O2netmsg_ptr msg, int port)
 {
     const char *key = "\"ws://THE.LOC.ALH.OST:PORTNO/o2ws\"";
-    int keylen = 34;
+    const int keylen = 34;
     char *start = msg->payload;
     O2netmsg_ptr curmsg;
     char *curchr;
@@ -957,10 +1061,10 @@ void substitute_ip_port(O2netmsg_ptr msg, int port)
     char replacement[keylen + 1];
     strcpy(replacement, "\"ws://");
     o2_hex_to_dot(o2n_internal_ip, replacement + 6);
-    int next = strlen(replacement);
+    int next = (int) strlen(replacement);
     replacement[next++] = ':';
     sprintf(replacement + next, "%d", port);
-    next += strlen(replacement + next); // string increased by length of port
+    next += (int) strlen(replacement + next); // string increased by length of port
     strcpy(replacement + next, "/o2ws\"");
     next += 6;
     while (next < keylen) replacement[next++] = ' ';  // pad with spaces
@@ -981,7 +1085,7 @@ void substitute_ip_port(O2netmsg_ptr msg, int port)
 
 O2netmsg_ptr Http_reader::prepare_new_read()
 {
-    O2netmsg_ptr msg = O2N_MESSAGE_ALLOC(512);  // read 512 at a time
+    O2netmsg_ptr msg = O2N_MESSAGE_ALLOC(HTTP_FILE_READ_SIZE);
     msg->next = NULL;
     msg->length = 0; // until next read completes
     *last_ref = msg;  // note that this sets data with the first message
@@ -989,13 +1093,16 @@ O2netmsg_ptr Http_reader::prepare_new_read()
 }
 
 
-#ifndef WIN32
+
 // for macOS and Linux, we use aio and o2network poll code to do
 // asynchronous file read.
 
 // Handle file read event; unlike deliver() for sockets, msg is NULL
 O2err Http_reader::deliver(O2netmsg_ptr msg)
 {
+#ifdef WIN32
+    return O2_FAIL;  // deliver should not be called in Windows
+#else
     int n = 0;
     if (data) { // not the first read after open, so get result
         if (aio_error(&cb) == EINPROGRESS) {
@@ -1004,21 +1111,15 @@ O2err Http_reader::deliver(O2netmsg_ptr msg)
         n = aio_return(&cb);
         if (n <= 0) {  // if error condition, pretend it is just EOF
             assert(*last_ref);
-            return read_finished();     // *last_ref was the first message
+            return read_eof();     // *last_ref was the first message
         }
-        msg = *last_ref;
-        msg->length = n;
-        // printf("FILE READ from %ld ||", data_len);
-        data_len += n;
-        // for (int i = 0; i < n; i++) putchar(msg->payload[i]);
-        // printf("||\n");
-        last_ref = &(msg->next);
+        read_operation_completed(n);
     }
     // start a new read
     msg = prepare_new_read();
 
     memset(&cb, 0, sizeof(aiocb));
-    cb.aio_nbytes = 512;
+    cb.aio_nbytes = HTTP_FILE_READ_SIZE;
     cb.aio_fildes = fds_info->get_socket();
     cb.aio_offset = data_len;
     cb.aio_buf = msg->payload;
@@ -1026,12 +1127,13 @@ O2err Http_reader::deliver(O2netmsg_ptr msg)
     if (aio_read(&cb) != -1) {
         return O2_SUCCESS;
     }
-    return read_finished();
-}
+    return read_eof();
 #endif
+}
 
 
-O2err Http_reader::read_finished()
+// when entire file has been read, call this to deliver the HTTP reply
+O2err Http_reader::read_eof()
 {
     // if we got a read error, we'll deliver what we got so far
     // all content is in the list of messages at data
@@ -1041,19 +1143,24 @@ O2err Http_reader::read_finished()
     *last_ref = NULL;       // note that this does data=NULL if
     // data_len is the total length of data
     // make a prefix with reply info
+#ifdef WIN32
+    CloseHandle(inf);
+    inf = INVALID_HANDLE_VALUE;
+#else
     close(fds_info->get_socket());
+#endif
     snprintf(msg->payload, 150,
              "HTTP/1.1 200 OK\r\nServer: O2 Http_server\r\n"
             "Content-Length: %ld\r\nContent-Type: text/html\r\n"
             "Connection: Closed\r\n\r\n", data_len);
-    msg->length = strlen(msg->payload);
+    msg->length = (int) strlen(msg->payload);
     msg->next = data; data = msg;  // push
     assert(conn->fds_info->out_message == NULL);  // no output should be pending
 
     if (data_len > 36) {
         substitute_ip_port(data->next, port);
     }
-
+    
     conn->fds_info->out_message = data;  // transfer to output queue
     /*
     while (data) {
@@ -1066,7 +1173,9 @@ O2err Http_reader::read_finished()
     data = NULL;  // remove other references
     last_ref = &data;
     conn->fds_info->send(false);  // send all messages in list, non-blocking
+#ifndef WIN32
     fds_info->close_socket(false);  // removes fd from fd and fds lists
+#endif
     // now this is deleted!
     return O2_SUCCESS;
 }

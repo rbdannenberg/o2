@@ -2,6 +2,7 @@
 //
 
 #include <stdio.h>
+#include <assert.h>
 #include "o2.h"
 
 
@@ -20,7 +21,7 @@ void service_one(o2_msg_data_ptr data, const char *types,
     if (s < MAX_MESSAGES) {
         o2_send(p, 0, "i", s);
     }
-    if (s % 10000 == 0) {
+    if (s % 1000 == 0) {
         printf("Service one received %d messages\n", s);
     }
     s++;
@@ -34,7 +35,7 @@ void service_two(o2_msg_data_ptr data, const char *types,
     if (w < MAX_MESSAGES) {
         o2_send(p, 0, "i", w);
     }
-    if (w % 10000 == 0) {
+    if (w % 1000 == 0) {
         printf("Service two received %d messages\n", w);
     }
     w++;
@@ -63,6 +64,9 @@ int main(int argc, const char * argv[])
         o2_poll();
     }
     o2_finish();
+    printf("after finish, s is %d, w is %d\n", s, w);
+    assert(s == 5000);
+    assert(w == 5001);
     printf("DONE\n");
     return 0;
 }

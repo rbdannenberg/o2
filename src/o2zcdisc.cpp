@@ -72,7 +72,7 @@ static bool is_valid_proc_name(char *name, int port,
 }
 
 
-#ifdef __APPLE__
+#ifdef USE_BONJOUR
 
 /*****************************************/
 /* SECTION 1: Bonjour API implementation */
@@ -333,6 +333,9 @@ static Bonjour_info *zc_register(const char *type_domain,  const char *host,
     return new Bonjour_info(sd_ref);
 }
 
+#ifdef WIN32
+typedef unsigned long in_addr_t;
+#endif
 
 void o2_zc_register_record(int port)
 {
@@ -342,7 +345,7 @@ void o2_zc_register_record(int port)
 
     char fullname[64];
     o2_strcpy(fullname, o2_ensemble_name, 64);
-    int len = strlen(fullname);
+    int len = (int) strlen(fullname);
     if (len > 63 - 6) {
         return;
     }
@@ -402,7 +405,7 @@ O2err o2_zcdisc_initialize()
     // and text record name=@xxxxxxxx:yyyyyyyy:zzzz
     char text[80];
     strcpy(text + 1, "name=");
-    int text_end = 6 + strlen(o2_ctx->proc->key);
+    int text_end = 6 + (int) strlen(o2_ctx->proc->key);
     strcpy(text + 6, o2_ctx->proc->key);  // proc->key is (currently) 24 bytes
     // for discovery, we need udp port too, so append it after ':'
     text[text_end++] = ':';
@@ -415,7 +418,7 @@ O2err o2_zcdisc_initialize()
     strcpy(text + vers_loc, "vers=");
     char *vers_num = text + vers_loc + 5;
     o2_version(vers_num);
-    text_end = vers_loc + 5 + strlen(vers_num);
+    text_end = vers_loc + 5 + (int) strlen(vers_num);
     text[vers_loc - 1] = text_end - vers_loc;
     
     fprintf(stderr, "Setting up DNSServiceRegister\n");
@@ -453,7 +456,7 @@ O2err o2_zcdisc_initialize()
     return O2_SUCCESS;
 }
 
-#elif __linux__
+#elif USE_AVAHI
 
 /**********************************************/
 /* SECTION 2: avahi-client API implementation */

@@ -2,6 +2,15 @@
 //
 
 #ifndef O2_NO_ZEROCONF
+#ifdef __linux__
+#define USE_AVAHI 1
+#endif
+#ifdef __APPLE__
+#define USE_BONJOUR 1
+#endif
+#ifdef WIN32
+#define USE_BONJOUR 1
+#endif
 
 class Zc_info : public Proxy_info {
 public:
@@ -15,11 +24,12 @@ public:
     bool local_is_synchronized() { return false; } // not a service
 };
 
+O2err o2_zcdisc_initialize();
 
 void o2_zc_register_record(int port);
 
 
-#ifdef __APPLE__
+#ifdef USE_BONJOUR
 #include <dns_sd.h>
 
 class Bonjour_info : public Zc_info {
@@ -31,11 +41,8 @@ public:
 };
 
 
-O2err o2_zcdisc_initialize();
+#elif USE_AVAHI
 
-#elif __linux__
-
-O2err o2_zcdisc_initialize();
 void o2_poll_avahi();
 void zc_cleanup();
 
