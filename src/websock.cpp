@@ -933,7 +933,7 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
 #endif
 }
 
-
+#ifdef WIN32
 void Http_reader::poll()
 {
     bool ro_completed = false;
@@ -972,6 +972,7 @@ void Http_reader::poll()
         }
     }
 }
+#endif
 
 
 // called when async read completes (common code for Windows, macOS & Linux)
