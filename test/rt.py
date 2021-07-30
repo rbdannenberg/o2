@@ -41,7 +41,7 @@ allOK = True
 EXE = ""
 if os.name == 'nt':
     EXE = ".exe"
-
+    HTMLOPEN = "start firefox "
 
 # Find the binaries
 if os.path.isdir(os.path.join(os.getcwd(), '../Debug')):
@@ -194,7 +194,7 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
 def runWsTest(prog1, out1, url, out2, stall=False):
     global allOK
     p1p2 = startDouble(prog1, "websockhost a@", url)
-    os.system(HTMLOPEN + "http://test." + LOCALDOMAIN + ":8080/" + url);
+    os.system(HTMLOPEN + '"http://test.' + LOCALDOMAIN + ':8080/' + url + '"');
     return finishDouble(prog1, p1p2[0], out1, "websockhost", p1p2[1], 
                         out2, stall)
 

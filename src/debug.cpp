@@ -85,5 +85,31 @@ void o2_print_path_tree()
     o2_ctx->show_tree();
 }
 
+
+void o2_print_bytes(const char* prefix, const char* bytes, int len)
+{
+    printf("%s:\n", prefix);
+    int i = 0;
+    while (i < len) {
+        for (int j = 0; j < 16; j++) {  // print hex chars
+            if (i + j < len) {
+                printf(" %02x", (uint8_t)bytes[i + j]);
+            }
+            else {
+                printf("   ");
+            }
+        }
+        printf("  ");
+        for (int j = 0; j < 16; j++) {  // print ascii chars
+            if (i + j < len) {
+                uint8_t b = (uint8_t)bytes[i + j];
+                printf("%c", (b >= '!' && b <= '~' ? b : (uint8_t)'.'));
+            }
+        }
+        printf("\n");
+        i += 16;
+    }
+}
 #endif
+
 

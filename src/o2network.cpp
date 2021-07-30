@@ -1095,7 +1095,7 @@ O2err Fds_info::read_whole_message(SOCKET sock)
         assert(net_tag & NET_TCP_MASK);
         in_message = O2N_MESSAGE_ALLOC(512);
         n = (int) recvfrom(sock, in_message->payload, 512, 0, NULL, NULL);
-        // printf("READ_RAW read %d bytes\n", n);
+        printf("READ_RAW read %d bytes\n", n);
         if (n < 0) {
             goto error_exit;
         }

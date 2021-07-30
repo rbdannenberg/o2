@@ -97,7 +97,7 @@ public:
 
 // file reader to asynchronously read web pages
 #ifdef WIN32
-class Http_reader {
+class Http_reader: public O2obj {
 #else
 class Http_reader: public Proxy_info {
 #endif

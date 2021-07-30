@@ -23,32 +23,6 @@
 #define MQTT_TIMEOUT 10
 
 
-#ifndef O2_NO_DEBUG
-void print_bytes(const char *prefix, const char *bytes, int len)
-{
-    printf("%s:\n", prefix);
-    int i = 0;
-    while (i < len) {
-        for (int j = 0; j < 16; j++) {  // print hex chars
-            if (i + j < len) {
-                printf(" %02x", (uint8_t) bytes[i + j]);
-            } else {
-                printf("   ");
-            }
-        }
-        printf("  ");
-        for (int j = 0; j < 16; j++) {  // print ascii chars
-            if (i + j < len) {
-                uint8_t b = (uint8_t) bytes[i + j];
-                printf("%c", (b >= '!' && b <= '~' ? b : (uint8_t) '.'));
-            }
-        }
-        printf("\n");
-        i += 16;
-    }
-}
-#endif
-
 // use o2_ctx->msg_data to build MQTT messages
 // start by calling o2_send_start()
 // add to message with:
@@ -109,7 +83,7 @@ static O2netmsg_ptr mqtt_finish_msg(int command)
     // insert new stuff
     msg->payload[0] = command;
     memcpy(msg->payload + 1, varlen, varlen_len);
-    O2_DBq(print_bytes("mqtt_finish_msg", msg->payload, msg->length));
+    O2_DBq(o2_print_bytes("mqtt_finish_msg", msg->payload, msg->length));
     return msg;
 }
 
@@ -245,7 +219,7 @@ void MQTTcomm::deliver(const char *data, int len)
     // append the new bytes to the input buffer
     mqtt_input.append((uint8_t *) data, len);
     // done with message:
-    O2_DBq(print_bytes("MQTTcomm::received", (const char *) &mqtt_input[0],
+    O2_DBq(o2_print_bytes("MQTTcomm::received", (const char *) &mqtt_input[0],
                        mqtt_input.size()));
     bool handled = handle_first_msg();
     while (handled && mqtt_input.size() > 0) {

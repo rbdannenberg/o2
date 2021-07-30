@@ -47,6 +47,7 @@ extern const char *o2_debug_prefix;
 void o2_dbg_msg(const char *src, O2message_ptr msg, o2_msg_data_ptr data,
                 const char *extra_label, const char *extra_data);
 void o2_print_path_tree();
+void o2_print_bytes(const char* prefix, const char* bytes, int len);
 
 // Note: The ordering of these flags is coordinated with debug_chars, 
 // defined in debug.c. See o2_debug_flags() implementation there too.

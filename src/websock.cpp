@@ -249,21 +249,6 @@ Http_server::Http_server(int port, const char *root_) :
 #ifndef O2_NO_ZEROCONF
     o2_zc_register_record(port);
 #endif
-
-/*
-    // request is to serve file at path
-    page = NULL;  // failure to load a page will result in 
-    FILE *inf = fopen(path, "r");
-    if (inf) {
-        fseek(inf, 0, SEEK_END);
-        page_len = ftell(inf);
-        rewind(inf);
-        page = O2_MALLOCNT(page_len + 1, char);
-        fread((char *) page, 1, page_len, inf);
-        ((char *) page)[page_len] = 0;
-        fclose(inf);
-    }
-*/
 }
 
 
@@ -770,14 +755,8 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     const char *sec_web_key;
     Vec<char> path;
     int backup;
-    
-    /*
-    printf("Http_conn::deliver %d bytes: ", msg->length);
-    
-    for (int i = 0; i < msg->length; i++) {
-        printf("%02x ", (uint8_t) msg->payload[i]);
-    } printf("\n");
-     */
+
+    o2_print_bytes("Http_conn::deliver bytes:", msg->payload, msg->length);
     
     // get the incoming request in a contiguous array we can search.
     // keep the old size to speed up searching for \r\n\r\n:
@@ -833,14 +812,14 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     }
     msg_end += 4;  // the real end is after \r\n\r\n
     msg_len = (int) (msg_end - &inbuf[0]);
-    /*
+    
     printf("Got %d-byte header: <<", msg_len);
     for (int i = 0; i < msg_len; i++) {
         putchar(inbuf[i]);
         if (inbuf[i] == '\n') printf("    "); // indent
     }
     printf(">>\n");
-     */
+    
     // parse the request:
     sec_web_key = NULL;
     if (find_field("\r\nConnection: ", "Upgrade", msg_len) &&
@@ -874,7 +853,7 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
             reader = new Http_reader(c_path, this, port);
             if (inf < 0) {
                 response = "404 Not Found";
-                text = "The requestedd URL was not found: ";
+                text = "The requested URL was not found: ";
                 text2 = c_path + root_len + 1;
                 delete reader;
             } else {
@@ -959,17 +938,18 @@ void Http_reader::poll()
 {
     bool ro_completed = false;
     DWORD len = 0;
+    assert(inf != INVALID_HANDLE_VALUE);
     if (ready_for_read) {
         (*last_ref)->next = prepare_new_read();
         BOOL rslt = ReadFile(inf, &(*last_ref)->payload, HTTP_FILE_READ_SIZE, &len, &overlapped);
         if (rslt) {
             ro_completed = true;
-            // need to update overlapped to maintain read pointer
-            overlapped.Offset += len;
         } else {
             ready_for_read = false;
             DWORD err = GetLastError();
             if (err != ERROR_IO_PENDING) {
+                O2_DBw(printf("%s: ReadFile error %d, *last_ref %p\n",
+                       o2_debug_prefix, *last_ref, err));
                 read_eof();  // EOF and error are both treated as eof
                 return;
             }
@@ -978,11 +958,15 @@ void Http_reader::poll()
     // read operation can complete immediately, in which case ro_completed is 
     // set, or read can complete later, detected by GetOverlappedResult
     if (ro_completed || GetOverlappedResult(inf, &overlapped, &len, false)) {
+        // need to update overlapped to maintain read pointer
+        overlapped.Offset += len;
         read_operation_completed(len);
         ready_for_read = true;
     } else {  // could be end of file or else file read error
         DWORD err = GetLastError();
         if (err != ERROR_IO_PENDING) {
+            O2_DBw(printf("%s: GetOverlappedResult result %d, *last_ref %p\n",
+                o2_debug_prefix, *last_ref, err));
             read_eof();  // EOF and error are both treated as eof
             return;
         }
@@ -996,10 +980,9 @@ void Http_reader::read_operation_completed(int n)
 {
     O2netmsg_ptr msg = *last_ref;
     msg->length = n;
-    // printf("FILE READ from %ld ||", data_len);
+    o2_print_bytes("Http_reader read complete:", msg->payload, n);
     data_len += n;
-    // for (int i = 0; i < n; i++) putchar(msg->payload[i]);
-    // printf("||\n");
+
     last_ref = &(msg->next);
 }
 
@@ -1110,7 +1093,6 @@ O2err Http_reader::deliver(O2netmsg_ptr msg)
         }
         n = aio_return(&cb);
         if (n <= 0) {  // if error condition, pretend it is just EOF
-            assert(*last_ref);
             return read_eof();     // *last_ref was the first message
         }
         read_operation_completed(n);
@@ -1140,19 +1122,21 @@ O2err Http_reader::read_eof()
     // we have an empty message linked at the end of the message list
     // unlink the message and use it for the reply header
     O2netmsg_ptr msg = *last_ref;
+    assert(msg);
     *last_ref = NULL;       // note that this does data=NULL if
     // data_len is the total length of data
     // make a prefix with reply info
 #ifdef WIN32
     CloseHandle(inf);
     inf = INVALID_HANDLE_VALUE;
+    ready_for_read = false;
 #else
     close(fds_info->get_socket());
 #endif
     snprintf(msg->payload, 150,
              "HTTP/1.1 200 OK\r\nServer: O2 Http_server\r\n"
-            "Content-Length: %ld\r\nContent-Type: text/html\r\n"
-            "Connection: Closed\r\n\r\n", data_len);
+             "Content-Length: %ld\r\nContent-Type: text/html\r\n"
+             "Connection: Closed\r\n\r\n", data_len);
     msg->length = (int) strlen(msg->payload);
     msg->next = data; data = msg;  // push
     assert(conn->fds_info->out_message == NULL);  // no output should be pending
@@ -1173,7 +1157,9 @@ O2err Http_reader::read_eof()
     data = NULL;  // remove other references
     last_ref = &data;
     conn->fds_info->send(false);  // send all messages in list, non-blocking
-#ifndef WIN32
+#ifdef WIN32
+    delete this;
+#else
     fds_info->close_socket(false);  // removes fd from fd and fds lists
 #endif
     // now this is deleted!

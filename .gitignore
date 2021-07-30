@@ -10,7 +10,6 @@ Release/
 bugs/osctest.eml
 .DS_Store
 /test/__pycache__/
-<<<<<<< HEAD
 /test/port_count.dat
 /.vs
 /o2.sln
