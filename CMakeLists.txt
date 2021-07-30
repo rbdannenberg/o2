@@ -207,11 +207,14 @@ if(WIN32)
   target_link_libraries(winnbclient ${LIBRARIES})
 endif(WIN32)
 
-function(o2testprogram name)
+function(o2testprogram name) # extralibs is optional
   add_executable(${name} test/${name}.cpp)
   target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/src
   					     ${BONJOUR_INCLUDE_PATH})
   target_link_libraries(${name} ${LIBRARIES})
+  if(NOT ("${ARGV1}" STREQUAL ""))
+    target_link_libraries(${name} ${ARGV1})
+  endif(NOT ("${ARGV1}" STREQUAL ""))
   set_property(TARGET ${name} PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
 endfunction()
 
@@ -274,7 +277,7 @@ if(BUILD_WITH_BRIDGE_SUPPORT)
 endif(BUILD_WITH_BRIDGE_SUPPORT)
 
 if(BUILD_WITH_SHAREDMEM_SUPPORT)
-  o2testprogram(shmemserv)
+  o2testprogram(shmemserv ${PTHREAD})
 endif(BUILD_WITH_SHAREDMEM_SUPPORT)
 
 if(BUILD_WITH_OSC_SUPPORT)
