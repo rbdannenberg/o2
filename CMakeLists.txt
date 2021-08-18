@@ -292,9 +292,9 @@ if(BUILD_WITH_OSC_SUPPORT)
 endif(BUILD_WITH_OSC_SUPPORT)
 
 if(APPLE)
-  o2testprogram(rawtcpclient)
-  o2testprogram(rawudpserver)
-  o2testprogram(rawudpclent)
+#  o2testprogram(rawtcpclient)
+#  o2testprogram(rawudpserver)
+#  o2testprogram(rawudpclent)
 endif(APPLE)
 
 if(BUILD_WITH_HUB_SUPPORT)
