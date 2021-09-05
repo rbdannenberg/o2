@@ -77,6 +77,16 @@
 //         (even if O2L_NO_BROADCAST); it's internal to ZeroConf.
 //     O2L_NO_CLOCKSYNC -- O2lite does not synchronize with host (undefined)
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include "o2base.h"
+#include "hostip.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define O2L_VERSION 0x020000
 
 // you can enable/disable O2LDB printing using -DO2LDEBUG=1 or =0 
@@ -91,20 +101,26 @@
 
 #define O2LDB if (O2LDEBUG)
 
+#define O2LDBV if (O2LDEBUG && verbose)
+
 #if defined(O2_NO_O2DISCOVERY) && !defined(O2L_NO_BROADCAST)
 #define O2L_NO_BROADCAST 1
 #endif
-#if !defined(O2_NO_O2DISCOVERY) && !defined(O2_NO_ZEROCONF)
-#error O2_NO_O2DISCOVERY and O2_NO_ZEROCONF are defined - no discovery
+#if defined(O2_NO_O2DISCOVERY) && defined(O2_NO_ZEROCONF)
+#error O2_NO_O2DISCOVERY and O2_NO_ZEROCONF are both defined - no discovery
 #endif
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
+// default is ZEROCONF, so if necessary, disable O2_NO_O2DISCOVERY:
+#if !defined(O2_NO_O2DISCOVERY) && !defined(O2_NO_ZEROCONF)
+#define O2_NO_O2DISCOVERY
+#if !defined(O2L_NO_BROADCAST)
+#define O2L_NO_BROADCAST
+#endif
+#endif
+
 #define O2_MALLOC malloc
 #define O2_CALLOC calloc
 #define O2_FREE free
-#include "o2base.h"
 
 #define MAX_MSG_LEN 256
 #define PORT_MAX 16
@@ -135,8 +151,16 @@ typedef struct o2l_msg {
 typedef void (*o2l_handler)(o2l_msg_ptr msg, const char *types,
                             void *data, void *info);
 
+/// \brief enable extra debugging
+extern int verbose;
+
 /// \brief The current local time, maintained by #o2_poll
 extern o2l_time o2l_local_now;
+
+#ifdef ESP32
+/// \brief used for debugging ESP32 Thing implementation
+void button_poll();
+#endif
 
 /**
  * \brief start preparing a message to send by UDP or TCP
@@ -206,15 +230,33 @@ o2l_time o2l_time_get();
 /// \brief call this frequently to poll for messages.
 void o2l_poll();
 
+#if ESP32
+/// \brief WiFi connection
+///
+/// Blinks LED until connected, then prints IP address
+///
+void connect_to_wifi(const char *hostname, const char *ssid, const char *pwd);
+#endif
+
+
 /**
  * \brief call this before any other o2lite functions.
+ *
+ * esp32 requires WiFi and serial configuration: For esp32 in the
+ * Arduino environment, you should write something like:
+ *
+ * void setup() {
+ *    Serial.begin(115200);
+ *    connect_to_wifi(hostname, network_name, network_pswd);
+ *    o2l_initialize(ensemble_name);
+ *    ...
+ * }
  *
  * @param ensemble the O2 ensemble name. This string is owned by o2lite
  *                 until it finishes. Typically the name is a literal
  *                 string. o2lite will not modify or free this string.
  * @return O2L_SUCCESS normally or O2L_FAIL if initialization fails
  */
-
 int o2l_initialize(const char *ensemble);
 
 /// \brief shut down o2lite resources (not fully implemented)
@@ -323,6 +365,9 @@ extern int o2l_bridge_id;
 // define IS_BIG_ENDIAN, IS_LITTLE_ENDIAN, and swap64(i),
 // swap32(i), and swap16(i)
 #if WIN32
+#elif ESP32
+// LITTLE_ENDIAN, BYTE_ORDER are defined already
+#define IS_BIG_ENDIAN (BYTE_ORDER != LITTLE_ENDIAN)
 // WIN32 requires predefinition of IS_BIG_ENDIAN=1 or IS_BIG_ENDIAN=0
 #else
  #ifdef __APPLE__
@@ -398,15 +443,13 @@ extern struct sockaddr_in udp_server_sa;
 extern int udp_recv_port;
 extern SOCKET udp_recv_sock;
 
-bool o2l_is_valid_proc_name(char *name, int port,
+bool o2l_is_valid_proc_name(const char *name, int port,
                             char *internal_ip, int *udp_port);
 
 int o2l_parse_version(const char *vers, int vers_len);
 
 int o2l_address_init(struct sockaddr_in *sa, const char *ip, int port_num,
                      bool tcp);
-
-int o2l_network_initialize();
 
 void o2l_network_connect(const char *ip, int port);
 
@@ -415,3 +458,6 @@ void o2l_add_socket(SOCKET s);
 int o2l_bind_recv_socket(SOCKET sock, int *port);
 
 
+#ifdef __cplusplus
+}
+#endif

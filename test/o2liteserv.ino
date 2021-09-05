@@ -8,7 +8,7 @@
 // Roger B. Dannenberg
 // Aug 2020
 
-#include "src/o2lite.h"
+#include "o2lite.h"
 
 // WiFi network name and password:
 // Yes, this is really my network and password, but it's a stand-alone network
@@ -74,7 +74,7 @@ void server_test(o2l_msg_ptr msg, const char *types, void *data, void *info)
 
     msg_count++;
     o2l_send_start(client_addresses[msg_count % n_addrs], 0, "i", use_tcp);
-    o2l_put_int32(msg_count);
+    o2l_add_int32(msg_count);
     o2l_send();
 
     if (msg_count % 10000 == 0) {
@@ -130,16 +130,16 @@ void loop() {
             printf("main detected o2lite connected\n");
 
             o2l_send_start("/sift", 0, "sift", true);
-            o2l_put_string("this is a test");
-            o2l_put_int32(1234);
-            o2l_put_float(123.4);
-            o2l_put_time(567.89);
+            o2l_add_string("this is a test");
+            o2l_add_int32(1234);
+            o2l_add_float(123.4);
+            o2l_add_time(567.89);
             o2l_send();
             test_state = 1;
         }
         break;
       case 1:
-        if (o2l_time_get() > 0) { // not synchronized
+        if (o2l_time_get() > 0) { // synchronized
             printf("main detected o2lite clock sync\n");
             start_wait = o2l_time_get();
             test_state = 2;

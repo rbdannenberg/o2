@@ -3,6 +3,8 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+
 #define O2N_IP_LEN 16
 
 extern bool o2n_network_enabled;

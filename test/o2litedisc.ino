@@ -4,7 +4,9 @@
 // Roger B. Dannenberg
 // Aug 2020
 
-#include "src/o2lite.h"
+#include "Printable.h"
+#include "WiFi.h"
+#include "o2lite.h"
 
 // WiFi network name and password:
 #define NETWORK_NAME "Aylesboro"
@@ -13,7 +15,8 @@
 
 void setup() {
     Serial.begin(115200);
-    printf("This is o2litedisc\n");
+    Serial.println("this is o2litedisc");
+
     connect_to_wifi(HOSTNAME, NETWORK_NAME, NETWORK_PSWD);
     o2l_initialize("test");
 }

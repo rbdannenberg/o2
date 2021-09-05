@@ -133,7 +133,6 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
                                 AvahiLookupResultFlags flags,
                                 AVAHI_GCC_UNUSED void* userdata)
 {
-    int udp_send_port;
     assert(r);
     /* Called whenever a service has been resolved successfully or timed out */
     switch (event) {
@@ -150,7 +149,7 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
             avahi_address_snprint(a, sizeof(a), address);
             char name[32];
             char internal_ip[O2N_IP_LEN];
-            int udp_port = 0;
+            int udp_port;
             int version = 0;
             name[0] = 0;
             for (AvahiStringList *asl = txt; asl; asl = asl->next) {
@@ -171,11 +170,11 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
             }
             if (name[0] && version &&
                 o2l_is_valid_proc_name(name, port, internal_ip,
-                                       &udp_send_port)) {
+                                       &udp_port)) {
                 char iip_dot[16];
                 o2_hex_to_dot(internal_ip, iip_dot);
-                o2l_address_init(&udp_server_sa, iip_dot, udp_send_port, false);
-                O2LDB printf("o2lite: found a host: %s\n", name);
+                o2l_address_init(&udp_server_sa, iip_dot, udp_port, false);
+                O2LDB printf("o2lite: found a host: %.23s\n", name);
                 o2l_network_connect(iip_dot, port);
             }
         }
@@ -284,14 +283,6 @@ int o2ldisc_init(const char *ensemble)
         O2LDB printf("Avahi failed to create service browser: %s\n",
                      avahi_strerror(avahi_client_errno(zc_client)));
         goto fail;
-    }
-    // ZeroConf only requires one (any) udp receive port. The port number
-    // is initially zero. After we bind the socket, we never close it, so
-    // if o2ldisc_init was called previously, do not try to bind again:
-    if (udp_recv_port == 0) {
-        if (o2l_bind_recv_socket(udp_recv_sock, &udp_recv_port) != 0) {
-            goto fail;
-        }
     }
     return O2L_SUCCESS;
  fail:

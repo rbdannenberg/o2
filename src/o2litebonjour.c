@@ -111,13 +111,13 @@ static void free_pending_services()
 static void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                          uint32_t interface_index, DNSServiceErrorType err,
                          const char *fullname, const char *hosttarget,
-                         uint16_t port, uint16_t txt_len,
+                         uint16_t tcp_port, uint16_t txt_len,
                          const unsigned char *txt_record, void *context)
 {
     char name[32];
     char internal_ip[O2N_IP_LEN];
-    int udp_send_port;
-    port = ntohs(port);
+    int udp_port;
+    tcp_port = ntohs(tcp_port);
     uint8_t proc_name_len;
     const char *proc_name;
     if (tcp_sock != INVALID_SOCKET) {  // already connected to a host
@@ -132,7 +132,7 @@ static void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
     memcpy(name, proc_name, 28);
     name[28] = 0;
     O2LDB printf("o2lite: got a TXT field: name=%s\n", name);
-    if (!o2l_is_valid_proc_name(name, port, internal_ip, &udp_send_port)) {
+    if (!o2l_is_valid_proc_name(name, tcp_port, internal_ip, &udp_port)) {
         goto no_discovery;
     }
     {   // check for compatible version number
@@ -141,10 +141,9 @@ static void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         const char *vers_num = (const char *) TXTRecordGetValuePtr(txt_len,
                                          txt_record, "vers", &vers_num_len);
         O2LDB if (vers_num) {
-                  printf("o2lite: got a TXT field: vers=");
-                  for (int i = 0; i < vers_num_len; i++) {
-                      printf("%c", vers_num[i]); }
-                  printf("\n"); }
+                  printf("o2lite: got a TXT field: vers=%.*s\n", 
+                         vers_num_len, vers_num); }
+        }
         if (!vers_num ||
             (version = o2l_parse_version(vers_num, vers_num_len) == 0)) {
             goto no_discovery;
@@ -152,8 +151,8 @@ static void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
 
         char iip_dot[16];
         o2_hex_to_dot(internal_ip, iip_dot);
-        o2l_address_init(&udp_server_sa, iip_dot, udp_send_port, false);
-        o2l_network_connect(iip_dot, port);
+        o2l_address_init(&udp_server_sa, iip_dot, udp_port, false);
+        o2l_network_connect(iip_dot, tcp_port);
         if (tcp_sock) {  // we are connected; stop browsing ZeroConf
             if (browse_ref) {
                 DNSServiceRefDeallocate(browse_ref);
@@ -226,23 +225,11 @@ int o2ldisc_init(const char *ensemble)
     DNSServiceErrorType err = DNSServiceBrowse(&browse_ref, 0,
                  kDNSServiceInterfaceIndexAny,
                  "_o2proc._tcp.", NULL, zc_browse_callback, NULL);
-    if (err) goto fail;
-
-    browse_sock = DNSServiceRefSockFD(browse_ref);
-
-    // ZeroConf only requires one (any) udp receive port. Test first in
-    // case we are reinitializing discovery, in which case we keep our
-    // existing port:
-    if (udp_recv_port == 0) {
-        if (o2l_bind_recv_socket(udp_recv_sock, &udp_recv_port) != 0) {
-            O2LDB printf("o2lite: Could not allocate udp_recv_port\n");
-            goto fail_port;
-        }
+    if (!err) {
+        browse_sock = DNSServiceRefSockFD(browse_ref);
+        return O2L_SUCCESS;
     }
-    return O2L_SUCCESS;
-  fail:
     O2LDB printf("o2lite: DNSServiceBrowse returned %d\n", err);
-  fail_port:
     DNSServiceRefDeallocate(browse_ref);
     browse_ref = NULL;
     browse_sock = INVALID_SOCKET;
@@ -271,9 +258,7 @@ void o2ldisc_poll()
             }
             // try every 20s:
             browse_timeout = o2l_local_now + BROWSE_TIMEOUT;
-            if (o2ldisc_init(o2l_ensemble) == O2L_SUCCESS) {
-                o2l_network_initialize();
-            }
+            o2ldisc_init(o2l_ensemble);
         }
     }
     o2l_add_socket(browse_sock);

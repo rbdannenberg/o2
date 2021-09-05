@@ -19,3 +19,5 @@ bugs/osctest.eml
 *.vcxproj.filters
 *.cpp~
 *.h~
+
+/esp-install.bat

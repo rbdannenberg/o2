@@ -4,14 +4,32 @@
 // Jul-Aug 2020, Jun 2021 updated for Avahi
 //
 // This illustrates a bare-bones o2lite client implementation.
-// It call system network functions directly rather than network.c
-// used in O2 to simplify things, but all network calls are
-// synchronous, so this could introduce more latency than necessary.
+// To simplify things, it calls system network functions directly
+// rather than network.c. All network calls are synchronous, so 
+// this could introduce more latency than necessary.
 //
-// For ESP32, this must be named as a .cpp file because of the includes.
+// See below for using O2lite in the ESP32 Arduino environment.
 //
-// Note that o2lite clients do not have a full directory of services and
-// their status. To retrieve a service status, send the service name to
+// LIMITATIONS
+//
+// Some important differences between O2 and O2lite:
+// - O2lite connects to one O2 host as a client, not as a peer.
+// - All O2lite messages travel through the host as intermediary (if
+//   there is one host to communicate with, this is insignificant.)
+// - O2lite message creation/disassembly handles only these types:
+//   string, time, double, float, int32.
+// - O2lite services cannot conflict with services on the host.
+// - O2lite must send queries to the host to obtain the status of 
+//   services (find out how below).
+// - O2lite messages are dispatched immediately regardless of
+//   timestamps (but hosts will hold messages until their 
+//   timestamps before forwarding messages to O2lite processes).
+// - O2lite messages are limited to a length of 256 bytes.
+//
+// SERVICE STATUS
+//
+// O2lite clients do not have a full directory of services and their
+// status. To retrieve a service status, send the service name to
 // "/_o2/o2lite/st" (typespec "s"). Create a local handler for "/_o2/st"
 // with typespec "si". The parameters will be the service name and status
 // using values as specified in o2.h (see o2_status()).
@@ -28,17 +46,215 @@
 // After all service information has been sent, an end-of-services message
 // is sent with service name "", type 0, process name "", properties "".
 //
-// Discovery uses Bonjour (or Avahi for Linux).
+// O2LITE GOALS
+//
+// Not all machines have the full capabilities required to implement O2:
+// - low-latency audio processes cannot invoke heavy networking system calls
+// - browsers cannot open general sockets
+// - microcontrollers may want to minimize code and data size
+//
+// O2lite solves this by connecting to a single O2 host rather than all 
+// O2 hosts. This minimizes connections, but in general, it requires 2 
+// hops to send a message to an arbitrary O2 service. The connected O2
+// host serves as an intermediary. O2 supports connections through 
+// websockets and shared memory as well as TCP/IP.
+//
+// O2LITE INTRODUCTION
+//
+// Terminology: 
+// - Host or host process: A full O2 implementation that can "host" an
+//   O2lite connection  
+// - O2lite process: Another process (microcontroller or whatever)  
+//   running the O2lite protocol to connect to O2 through a host process.  
+//
+// Naming
+// 
+// An O2lite service is considered to belong to the O2 host. The O2
+// host acts as a "proxy" for the O2lite process. Therefore:
+// - Messages to a service offered by an O2lite process are directed
+//   to the host and forwarded to the O2lite process.
+// - An O2lite service is "global" and reachable by any process
+//   (perhaps indirectly) in the O2 ensemble. 
+// - If an O2lite process creates a service that exists in the host,
+//   the new service will be ignored by the host. (Currently, no 
+//   error is sent back to the O2lite process.)
+// - Similarly, if an O2 host tries to create a service already 
+//   offered by a connected O2lite process, the attempt fails and 
+//   an error is returned.
+// - The priority of an O2lite process service is determined by 
+//   the IP address of the host, not that of the O2lite process.
+//   The priority could depend on which host the O2lite process
+//   connects to if there are multiple hosts available on the 
+//   local area network.
+//
+// INSTALLATION FOR ARDUINO ESP32
+// 
+// O2lite test programs can be found in test/* and work under macOS,
+// Linux, and Windows. O2lite has been tested on ESP32 Thing board 
+// from Spark Fun, Inc. (hopefully more in the future), using the
+// Arduino development environment. Rather than making an installable
+// library, I kept the code more accessible and debuggable by simply
+// including it in a project. To compile with O2lite, you should:
+// - create a src subdirectory in your Arduino project. This is
+//   easily done *outside* the Arduino IDE, once you find where it
+//   stores projects.
+// - copy the following to your ESP_project folder:
+//       o2/o2lite.c
+//       o2/o2lite.h
+//       o2/o2base.h
+//       o2/hostipimpl.h
+//       o2/hostip.h
+//       o2/o2liteesp32.cpp
+// - add an #include to code where you make calls to o2lite:
+//   #include "o2lite.h"
+// You will need at least the .c and .cpp files to appear in tabs
+// in the Arduino IDE. This tells the IDE to compile and link them.
+// The Arduino IDE should take care of the rest.. It will compile
+// and link your project with o2lite.c, hostip.c and o2liteesp32.cpp
+//
+// IMPLEMENTATION NOTES
+//
+// Discovery uses Bonjour (or Avahi for Linux). The O2lite process
+// uses the browse functions of Bonjour/Avahi to discover an O2 host.
+// There are multiple files implementing discovery depending on the 
+// system: o2litebonjour.c, o2liteavahi.c, o2liteesp32.c, 
+// o2litedisc.c (the latter is a legacy implementation that can 
+// only be used by *disabling* the definition of O2_NO_O2DISCOVERY,
+// which is normally defined in the CMakeLists.txt file). See
+// DISCOVERY API below for details.
+//
+// To attach to an O2 host, the O2lite process (as client) makes 
+// a TCP connection to an O2host. As soon as the O2lite process 
+// connects, it sends "!_o2/o2lite/con":
+//    local ip (hex string) -- the O2lite process local IP address 
+//    port (int32) -- the O2lite process udp port number 
+//
+// When the host receives "!_o2/o2lite/con", it replies with "!_o2/id"
+// with an integer ID number that gives the O2lite process a unique
+// identity when combined with the host name.
+//
+// Once the ID is received, the O2lite process sends "!_o2/o2lite/sv"
+// with a service description for each service (services can be created
+// before the connection is made, and they are retained in a simple data
+// structure):
+// - service_name (string) -- the service name
+// - exists (int32) -- 1 if the service exists, 0 if the service is
+//        removed
+// - is_service (int32) -- 1 for service, 0 for tap (should always be 1)
+// - properties (string) -- service properties (currently always empty)
+//
+// A small library is used to construct messages, supporting int32,
+// float, time, and string types. (Other types might be supported in 
+// the future or with library options.)
+//
+// To receive messages, the receiver handler uses a table mapping
+// addresses to handler functions, and linear search is used, based on
+// the assumption that the total number of addresses will be minimal and
+// known at compile time. The handler function uses low-level
+// functions to fetch parameters sequentially from the message, again to
+// simplify the implementation and reduce the need for dynamic memory
+// allocation. 
+//
+// Clock sync is optional: the host holds messages and delivers
+// them according to their timestamps. This eliminates some code 
+// for the O2lite process, but delays message delivery by the 
+// somewhat random network latency. 
+//
+// If clock sync is enabled, the client can add timestamps to 
+// outgoing messages. It can also interpret timestamps on incoming
+// messages. For example, a simple O2lite process could add a constant
+// offset D to each timestamp to determine the actual delivery time,
+// and the message handlers can simply stop processing until the
+// time of the timestamp. This would implement a simple "forward 
+// synchronous" policy, assuming all senders can send messages 
+// ahead of time and can offset their timestamps by -D. The senders
+// must also insure timestamps are strictly increasing (the O2 host
+// will sort messages by timestamp when sending but only if the timestamp
+// is for a future time.
+//
+// Note: eliminating scheduling in O2lite eliminates scheduling code,
+// eliminates the need for the clock sync protocol (it can be disabled
+// at compile time by defining O2L_NO_CLOCKSYNC), and allows the use
+// of a single static message buffer (256 bytes) rather than copying 
+// every message to the heap as in O2.
+//
+// Clock sync is accomplished by sending "!_o2/o2lite/cs/get" to 
+// the host with these parameters:
+// - bridge_id (int32) -- the ID number for this bridge instance
+// - serial_no (int32) -- a serial number generated by O2lite process
+// - reply_to (string) -- address for reply, which will be
+//        "!_o2/cs/put"
+// The reply message to "!_o2/cs/put" (via UDP) will contain:
+// - serial_no (int32) -- serial number sent by O2lite process
+// - time -- the host's O2 time
+//
+// The O2lite process will send a /_cs/get message periodically and
+// compute the mapping from O2lite process clock to O2 time in a 
+// similar fashion to O2's clock sync.
+//
+// When clock sync is obtained, O2lite process sends
+// "!_o2/o2lite/cs/cs" with no parameters.
+//
+// DISCOVERY API
+//
+// This o2lite.c file depends on another file to implement discovery
+// functions. This allows alternate discovery methods to be compiled:
+// macOS Bonjour, esp32 Bonjour or Linux Avahi. The original O2
+// discovery (now obsolete) is woven into the o2lite network code and
+// is included in this o2lite.c source file, but only enabled by
+// setting O2_NO_ZEROCONF and not setting O2_NO_O2DISCOVERY. The 
+// corresponding files use conditional compilation so you can 
+// simply compile them all and the appropriate one will produce 
+// the required code.
+// 
+// The interface between o2lite and discovery is as follows (we will
+// call the external code "discovery", e.g. discovery on macOS could 
+// be o2/src/o2litebonjour.c.
+//
+// o2ldisc_poll() is provided by discovery and is called by o2lite
+//     from network_poll() which is in turn called by o2l_poll(). 
+//     discovery can assume this is called frequently.
+//
+// o2ldisc_init(const char *ensemble) is provided by discovery and
+//     is called by o2lite from o2l_initialize(). The ensemble is
+//     the O2 ensemble name, and discovery should connect to an O2 
+//     process in this ensemble. This function should return 
+//     O2L_SUCCESS or O2L_FAIL. If 
+//
+// o2l_network_connect(const char *ip, int port) is provided by
+//     o2lite.c and called by discovery with the IP address in
+//     dot format (128.2.100.78) and the TCP port number of the
+//     O2 host. No value is returned. If successful, tcp_sock is 
+//     set; otherwise, tcp_sock will be INVALID_SOCKET and discovery
+//     should continue.
+// 
+// SOCKET tcp_sock is provided by o2lite.c and initialized to
+//     INVALID_SOCKET (from o2lite.h). When tcp_sock is 
+//     INVALID_SOCKET, there is no host connection or the host
+//     connection has been dropped, so discovery should look for
+//     a host. When tcp_sock is valid, there is a host and there
+//     is nothing to be done by discovery. It can shut down as 
+//     long as it is prepared to restart when tcp_sock becomes
+//     invalid. These decisions are all made in o2ldisc_poll().
+//     (The esp32 implementation currently uses synchronous or
+//     blocking discovery, which runs every 5 seconds until a 
+//     host is found.)
+// 
+// o2l_time o2l_local_now gives the current local time which can
+//    be used for scheduling actions in o2ldisc_poll(). There is
+//    no scheduled event facility in this O2lite implementation.
+
 
 #include "o2lite.h"
 #include <string.h>
 #include <ctype.h>
-// IMPORTANT: hostip.c normally uses O2_MALLOC as defined in o2base.h,
-// but here, we want to replace o2_dbg_malloc and o2_malloc with simple
-// malloc using macros set up in o2lite.h (above) to override this 
-// default. If you compile hostip.c independently, it will expect to 
-// link with o2_dbg_malloc.
-#include "hostip.c"
+// IMPORTANT: hostipint.h is the "internal" include file that should
+// be included only in one place (here) because it contains the 
+// implementation. The implementation is not in a .c file because
+// if you compile it separately, it will expect to link with 
+// o2_dbg_malloc; but in o2lite, we have no o2_dbg_malloc and set
+// up macros in o2lite.h to override this default.
+#include "hostipimpl.h"
 
 #if !defined(O2_NO_ZEROCONF) && !defined(O2_NO_O2DISCOVERY)
 // O2 ensembles should adopt one of two discovery methods. If ZeroConf
@@ -53,12 +269,21 @@
 // get address of first 32-bit word boundary at or above ptr:
 #define ROUNDUP(ptr) ((char *)((((size_t) ptr) + 3) & ~3))
 
+char o2n_internal_ip[O2N_IP_LEN] = "";
+
 void o2l_dispatch(o2l_msg_ptr msg);
 static void find_my_ip_address();
 
 static const char *o2l_services = NULL;
 const char *o2l_ensemble = NULL;
 
+#ifdef O2LDEBUG
+// verbose enables extra debugging output; on ESP32, this follows
+// the push button, so you can get more info at runtime
+int verbose = 0;
+#endif
+
+// on by holding 
 #ifdef WIN32
 /****************************WINDOWS***********************************/
 // #include <winsock2.h> -- already included in o2lite.h
@@ -96,18 +321,15 @@ static long start_time;
 
 /*********************************ESP32********************************/
 #elif ESP32
-#include "Printable.h"
-#include "WiFi.h"
 #include <lwip/sockets.h>
 #include <lwip/netdb.h>
-#include "esp32-hal.h"
 
-typedef int SOCKET;  // In O2, we'll use SOCKET to denote the type of a socket
+//#include "esp32-hal.h"
+ 
+typedef int SOCKET;  // In O2lite, SOCKET denotes the type of a socket
 #define TERMINATING_SOCKET_ERROR (errno != EAGAIN && errno != EINTR)
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR -1
-
-const int LED_PIN = 5;
 
 /* Note: we assume caller sets up serial interface and Wifi:
 const char *network_name = "your network name here";
@@ -118,38 +340,6 @@ void setup() {
     connect_to_wifi(hostname, network_name, network_pswd);
     ...
 */
-
-void print_line()
-{
-    printf("\n");
-    for (int i = 0; i < 30; i++)
-        printf("-");
-    printf("\n");
-}
-
-void connect_to_wifi(const char *hostname, const char *ssid, const char *pwd)
-{
-    int ledState = 0;
-
-    print_line();
-    printf("Connecting to WiFi network: %s\n", ssid);
-    WiFi.begin(ssid, pwd);
-    WiFi.setHostname(hostname);
-  
-    while (WiFi.status() != WL_CONNECTED) {
-        // Blink LED while we're connecting:
-        digitalWrite(LED_PIN, ledState);
-        ledState = (ledState + 1) % 2; // Flip ledState
-        delay(500);
-        printf(".");
-    }
-    uint32_t ip = WiFi.localIP();
-    snprintf(o2n_internal_ip, O2N_IP_LEN, "%08x", ip);
-    char dot_ip[O2N_IP_LEN];
-    o2_hex_to_dot(o2n_internal_ip, dot_ip);
-    printf("\n");
-    printf("WiFi connected!\nIP address: %s (%s)\n", o2n_internal_ip, dot_ip);
-}
 
 #else
 #error no environment has been defined; 
@@ -339,10 +529,6 @@ static struct sockaddr_in server_addr;
 
 int o2l_bridge_id = -1; // unique id for this process's connection to O2
 
-#if O2LDEBUG
-char o2l_remote_ip_port[16];
-#endif
-
 #ifndef O2_NO_O2DISCOVERY
 unsigned short o2_port_map[PORT_MAX] = {
                                 64541, 60238, 57143, 55764, 56975, 62711,
@@ -364,36 +550,17 @@ int o2l_bind_recv_socket(SOCKET sock, int *port)
         perror("setsockopt(SO_REUSEADDR)");
         return O2L_FAIL;
     }
-    if (bind(sock, (struct sockaddr *) &server_addr,
-             sizeof server_addr)) {
+    if (bind(sock, (struct sockaddr *) &server_addr, sizeof server_addr)) {
         return O2L_FAIL;
     }
     if (*port == 0) { // find the port that was (possibly) allocated
         socklen_t addr_len = sizeof server_addr;
-        if (getsockname(sock, (struct sockaddr *) &server_addr,
-                        &addr_len)) {
+        if (getsockname(sock, (struct sockaddr *) &server_addr, &addr_len)) {
             perror("getsockname call to get port number");
             return O2L_FAIL;
         }
         *port = o2lswap16(server_addr.sin_port);  // set actual port used
     }
-    O2LDB printf("o2lite: bind port %d as UDP server port\n", *port);
-    return O2L_SUCCESS;
-}
-
-
-int o2l_network_initialize()
-{
-    if (o2n_internal_ip[0]) {  // only run this until it succeeds
-        return O2L_SUCCESS;
-    }
-    // create UDP send socket
-    if ((udp_send_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        perror("allocating udp send socket");
-        return O2L_FAIL;
-    }
-    O2LDB printf("o2lite: allocated udp recv port %d\n", udp_recv_port);
-    find_my_ip_address();
     return O2L_SUCCESS;
 }
 
@@ -469,7 +636,7 @@ void o2l_send_services()
 void o2l_network_connect(const char *ip, int port)
 {
     o2l_address_init(&tcp_server_sa, ip, port, true); // sets tcp_server_sa
-    O2LDB printf("o2lite: connecting to %s port %d\n", ip, port);
+    O2LDB printf("o2lite: discovered and connecting to %s port %d\n", ip, port);
     tcp_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (connect(tcp_sock, (struct sockaddr *) &tcp_server_sa,
                 sizeof tcp_server_sa) == -1) {
@@ -481,11 +648,10 @@ void o2l_network_connect(const char *ip, int port)
     int set = 1;
     setsockopt(tcp_sock, SOL_SOCKET, SO_NOSIGPIPE, (void *) &set, sizeof set);
 #endif
-    O2LDB snprintf(o2l_remote_ip_port, 16, "%s:%04x", ip, port);
-    O2LDB printf("o2lite: connected to O2 %s\n", o2l_remote_ip_port);
+    O2LDB printf("o2lite: connected to a host\n");
     // send back !_o2/o2lite/con ipaddress updport
     o2l_send_start("!_o2/o2lite/con", 0, "si", true);
-    O2LDB printf("o2lite sends !_o2/o2lite/con %s %x\n", 
+    O2LDB printf("o2lite: sending !_o2/o2lite/con %s %x\n", 
                  o2n_internal_ip, udp_recv_port);
     o2l_add_string(o2n_internal_ip);
     o2l_add_int(udp_recv_port);
@@ -503,6 +669,9 @@ void cleanup_tcp_msg()
 
 void disconnect()
 {
+    if (tcp_sock != INVALID_SOCKET) {
+        closesocket(tcp_sock);
+    }
     tcp_sock = INVALID_SOCKET;
     o2l_bridge_id = -1;
 }
@@ -559,8 +728,6 @@ void read_from_tcp()
   error_exit:
     if (n < 0 && !TERMINATING_SOCKET_ERROR) {
         return; // incomplete message, maybe we were interrupted
-    } else if (n == 0) {
-        closesocket(tcp_sock);
     }
     cleanup_tcp_msg();
     disconnect();
@@ -605,11 +772,18 @@ void network_poll()
 {
     nfds = 0;
     FD_ZERO(&read_set);
-    o2l_add_socket(udp_recv_sock);
     o2l_add_socket(tcp_sock);
+    if (tcp_sock != INVALID_SOCKET) {  // only accept UDP if TCP is connected
+        o2l_add_socket(udp_recv_sock); // to an O2 host process.
+    }
     o2ldisc_poll();
 
     int total;
+    O2LDBV printf("select: udp_recv_sock %d tcp_sock %d nfds %d\n",
+                  udp_recv_sock, tcp_sock, nfds);
+    if (nfds == 0) { // we are not expecting incoming messages;
+        return;      // not sure what select does with nfds == 0,
+    }                // but it is safe to return in this case.
     if ((total = select(nfds, &read_set, NULL, NULL,
                         &no_timeout)) == SOCKET_ERROR) {
         return;
@@ -647,6 +821,8 @@ void o2l_send()
                    (struct sockaddr *) &udp_server_sa,
                    sizeof udp_server_sa) < 0) {
             perror("Error attempting to send udp message");
+            printf("Address: %s, socket: %d\n", 
+                   out_msg->address, udp_send_sock);
         }
     }
 }
@@ -763,7 +939,7 @@ static void ping_reply_handler(o2l_msg_ptr msg, const char *types,
 {
     int id = o2l_get_int32();
     // O2LDB printf("o2lite: ping_reply_handler called with id %d "
-    //             "expecting clock_sync_id %d\n", id, clock_sync_id);
+    //              "(expecting  %d)\n", id, clock_sync_id);
     if (id != clock_sync_id) {
         return;
     }
@@ -966,7 +1142,7 @@ static void discovery_send()
 static void find_my_ip_address()
 {
 #ifndef ESP32 
-    o2n_get_internal_ip();
+    o2n_get_internal_ip(o2n_internal_ip);
     char dot_ip[O2N_IP_LEN];
     o2_hex_to_dot(o2n_internal_ip, dot_ip);
     O2LDB printf("o2lite: local ip address is %s (%s)\n",
@@ -1034,8 +1210,8 @@ static bool check_hex(const char *addr, int len)
 }
 
 
-bool o2l_is_valid_proc_name(char *name, int port,
-                               char *internal_ip, int *udp_port)
+bool o2l_is_valid_proc_name(const char *name, int port,
+                            char *internal_ip, int *udp_port)
 {
     if (!name) return false;
     if (strlen(name) != 28) return false;
@@ -1060,8 +1236,6 @@ bool o2l_is_valid_proc_name(char *name, int port,
     top = o2_hex_to_byte(name + 24);
     bot = o2_hex_to_byte(name + 26);
     *udp_port = (top << 8) + bot;
-    // pad O2 name with zeros to a word boundary (only one zero needed)
-    name[23] = 0;
     return true;
 }
 
@@ -1095,6 +1269,8 @@ int o2l_parse_version(const char *vers, int vers_len)
 
 void o2l_poll()
 {
+    O2LDB button_poll();
+    O2LDBV printf("o2l_poll\n");
     o2l_local_now = o2l_local_time();
 
 #ifndef O2L_NO_CLOCKSYNC
@@ -1112,11 +1288,6 @@ void o2l_poll()
     }
 #endif
 
-#ifndef O2_NO_ZEROCONF
-#ifndef __linux__
-#else
-#endif
-#endif
     network_poll();
 }
 
@@ -1128,21 +1299,29 @@ int o2l_initialize(const char *ensemble)
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 #endif // WIN32
-
     o2l_clock_initialize();
     o2l_method_new("!_o2/id", "i", true, &o2l_id_handler, NULL);
 
-    // create UDP server socket before o2ldisc_init:
-    udp_recv_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (udp_recv_sock == INVALID_SOCKET) {
-        printf("o2lite: udp socket creation error\n");
+    // create UDP send socket
+    if ((udp_send_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("allocating udp send socket");
         return O2L_FAIL;
     }
 
-    if (o2ldisc_init(ensemble) == O2L_SUCCESS) {
-        o2l_network_initialize();
+    udp_recv_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (udp_recv_sock == INVALID_SOCKET) {
+        O2LDB printf("o2lite: udp socket creation error\n");
+        return O2L_FAIL;
     }
-    return O2L_SUCCESS;
+    if (o2l_bind_recv_socket(udp_recv_sock, &udp_recv_port) != 0) {
+        O2LDB printf("o2lite: could not allocate udp_recv_port\n");
+        return O2L_FAIL;
+    } else {
+        O2LDB printf("o2lite: UDP server port %d\n", udp_recv_port);
+    }
+
+    find_my_ip_address();
+    return o2ldisc_init(ensemble);
 }
 
 
