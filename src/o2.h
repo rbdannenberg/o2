@@ -301,6 +301,7 @@ separator characters. Attribute names are alphanumeric.
 ///   - n - all network flags (no malloc or scheduling): rRsS
 ///   - a - all debug flags except m (malloc/free)
 ///   - A - all debug flags except malloc and scheduling
+///   - I - disable Internet connections, e.g., do not acquire public IP.
 ///   - N - disable network if flags are set before o2_initialize() is
 ///         called. Internal IP becomes 127.0.0.1, public IP is 
 ///         0.0.0.0 (signifying no Internet connection). Interprocess
@@ -507,7 +508,41 @@ typedef enum {
  * @{
  */
 
-/** \brief disable external nework connections.
+/** \brief Disable Internet connections.
+ *
+ * Set the default to enable or disable Internet connections to other
+ * hosts. This setting can only be changed before O2 is started with
+ * #o2_initialize() or between calls to #o2_finish() and
+ * #o2_initialize.  When #o2_initialize() is called and network
+ * connections are enabled, O2 will try to obtain a local (internal)
+ * IP address. If found, O2 will then try to obtain a public IP
+ * address. This may result in a long delay if the Internet cannot
+ * be reached. See #o2_network_enable for more detail. If Internet
+ * connections are disabled, the delay can be avoided and the 
+ * public IP address is immediately set to 0.0.0.0. Even then, O2 
+ * will still attempt to open Internet connections for OSC. OSC 
+ * connections depend only on network connectivity and ignore the
+ * #o2_internet_enable setting.
+ *
+ * When Internet connections are disabled, O2 processes can still
+ * interconnect on the local area network. If an ensemble is expected
+ * to run only within the local area network, Internet connections
+ * (including possible security threats as well as some overhead in
+ * finding the public IP address and setting up MQTT connections)
+ * can be blocked using this option.
+ *
+ * Internet connections can also be disabled by passing 'I' as a
+ * character in the string parameter of #o2_debug_flags.
+ *
+ * @param enable Use true to enable or false to disable Internet connections.
+ *
+ * @return O2_SUCCESS if setting is accepted, otherwise O2 is already 
+ * running and O2_ALREADY_RUNNING is returned. If the network has been
+ * disabled (see #o2_network_enable), O2_NO_NETWORK is returned.
+ */
+O2err o2_internet_enable(bool enable);
+
+/** \brief Disable external nework connections.
  *
  * Set the default to enable or disable network connections to other
  * hosts.  This setting can only be changed before O2 is started with
@@ -515,10 +550,11 @@ typedef enum {
  * #o2_initialize.  When #o2_initialize() is called and network
  * connections are enabled, O2 will try to obtain a local (internal)
  * IP address. If found, O2 will then try to obtain a public IP
- * address. At the conclusion of this 2-stage initialization, the
- * process will receive an O2 name of the form
- * @public:internal:port. If a public IP address is not found in 10
- * seconds, the public port is 0.0.0.0, which indicates no Internet
+ * address (assuming Internet connections are enabled, see 
+ * #o2_internet_enable). At the conclusion of this 2-stage 
+ * initialization, the process will receive an O2 name of the form
+ * @public:internal:port. If a public IP address is not found, the 
+ * public port is 0.0.0.0, which indicates no Internet
  * connection. If no local IP address is found, or if the only known
  * address is 127.0.0.1 (localhost), then the local IP address becomes
  * 127.0.0.1 with the public IP address 0.0.0.0. If the default for
@@ -529,6 +565,14 @@ typedef enum {
  * discovery messages are broadcast. Even then, O2 can still open
  * connections for OSC. OSC connections depend only on network
  * connectivity and ignore the #o2_network_enable setting.
+ * 
+ * When the network is disabled, O2 processes can still interconnect
+ * within the local host. If an ensemble is expected to run only within
+ * local host processes, external connections (including possible
+ * security threats) can be blocked using this option.
+ *
+ * Network access can also be disabled by passing 'N' as a
+ * character in the string parameter of #o2_debug_flags.
  *
  * @param enable Use true to enable or false to disable networking.
  *
@@ -798,7 +842,6 @@ void o2_msg_data_print(o2_msg_data_ptr msg);
 typedef void (*O2method_handler)(const o2_msg_data_ptr msg, const char *types,
                                   O2arg_ptr *argv, int argc,
                                   const void *user_data);
-
 
 /**
  *  \brief Start O2.

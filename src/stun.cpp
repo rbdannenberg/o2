@@ -43,7 +43,7 @@ void o2_stun_query(o2_msg_data_ptr msgdata, const char *types,
         o2_stun_query_running = false;
         return;
     }
-    if (stun_try_count >= 5) {  // give up
+    if (stun_try_count >= 5) {  // give up and finish initialization
         strcpy(o2n_public_ip, "00000000");
         o2_init_phase2();
         o2_stun_query_running = false;
@@ -71,6 +71,11 @@ void o2_stun_query(o2_msg_data_ptr msgdata, const char *types,
 // process name will change if the public port becomes available or changes.
 O2err o2_get_public_ip()
 {
+    if (!o2n_internet_enabled) {  // Internet disabled ->
+        strcpy(o2n_public_ip, "00000000"); // zero public IP means no Internet
+        o2_init_phase2();         // we can now finish initialization
+        return O2_SUCCESS;
+    }
     if (o2_stun_query_running || o2n_public_ip[0]) {
         return O2_ALREADY_RUNNING; // started already
     }
@@ -84,6 +89,7 @@ O2err o2_get_public_ip()
     o2_stun_query_running = true;  // do not reset until O2 is initialized again
     o2_stun_query(NULL, NULL, NULL, 0, NULL);
     return O2_SUCCESS;
+    // when we get the public IP or time out, we can finish initialization
 }
 
 

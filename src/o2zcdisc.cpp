@@ -257,7 +257,8 @@ void resolve()
     while (!resolve_info && resolve_pending.size() > 0) {
         resolve_type rt = resolve_pending.last();
         const char *name = rt.name;
-        fprintf(stderr, "Setting up DNSServiceResolve for %s\n", name);
+        fprintf(stderr, "Setting up DNSServiceResolve for %s at %g\n", name,
+                o2_local_time());
         err = DNSServiceResolve(&sd_ref, 0, kDNSServiceInterfaceIndexAny, name,
                                 "_o2proc._tcp.", "local", zc_resolve_callback,
                                 (void *) name);

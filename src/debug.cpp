@@ -33,6 +33,7 @@ void o2_debug_flags(const char *flags)
     if (strchr(flags, 'a')) o2_debug |= O2_DBa_FLAGS;
     if (strchr(flags, 'A')) o2_debug |= O2_DBA_FLAGS;
     if (strchr(flags, 'N')) o2n_network_enabled = false;
+    if (strchr(flags, 'I')) o2n_internet_enabled = false;
 #endif
 }
 
