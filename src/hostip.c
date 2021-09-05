@@ -30,7 +30,13 @@
 #include "hostip.h"
 
 #if (defined(PLATFORM_WIN32) || defined(PLATFORM_UNIX))
-// this can be turned off before calling o2n_initialize():
+// this can be turned off before calling o2n_initialize(). It enables
+// Internet connections, which requires that we contact a STUN server
+// to obtain a public IP address. If there is not network, this may
+// cause O2 to hang for about 30 seconds for a network timeout.
+bool o2n_internet_enabled = true;
+// this can be turned off before calling o2n_initialize(). It enables
+// local area network connections:
 bool o2n_network_enabled = true;
 // this will be turned on if we find an internal IP address, but
 // it stays false if o2n_network_enabled is false:

@@ -5,6 +5,7 @@ extern "C" {
 
 #define O2N_IP_LEN 16
 
+extern bool o2n_internet_enabled;
 extern bool o2n_network_enabled;
 extern bool o2n_network_found;
 extern char o2n_internal_ip[O2N_IP_LEN];

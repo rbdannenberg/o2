@@ -116,7 +116,7 @@ static void mqtt_ping_send(o2_msg_data_ptr msg, const char *types,
 
 O2err o2_mqtt_initialize()
 {
-    if (!o2n_network_enabled) {
+    if (!o2n_internet_enabled) {
         return O2_NO_NETWORK;
     }
     if (!o2n_public_ip[0]) {

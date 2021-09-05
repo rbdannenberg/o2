@@ -971,10 +971,24 @@ static void o2_int_handler(int s)
 #endif
 
 
+O2err o2_internet_enable(bool enable)
+{
+    if (o2_ensemble_name) {
+        return O2_ALREADY_RUNNING;
+    }
+    if (enable && !o2n_network_enabled) {
+        return O2_NO_NETWORK;
+    }
+    o2n_internet_enabled = enable;
+}
+
 O2err o2_network_enable(bool enable)
 {
     if (o2_ensemble_name) {
         return O2_ALREADY_RUNNING;
+    }
+    if (!enable) {
+        o2n_internet_enabled = false;
     }
     o2n_network_enabled = enable;
     return O2_SUCCESS;
@@ -1045,7 +1059,7 @@ O2err o2_initialize(const char *ensemble_name)
     o2_sched_initialize();
     Services_entry::service_new("_o2");
 
-     if (o2n_public_ip[0]) {  // we already have a (pseudo) public ip
+    if (o2n_public_ip[0]) {  // we already have a (pseudo) public ip
         assert(streql(o2n_public_ip, "00000000"));
         o2_init_phase2();    // continue with Phase 2
     } else if ((err = o2_get_public_ip())) {

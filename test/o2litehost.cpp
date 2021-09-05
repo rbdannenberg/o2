@@ -50,13 +50,14 @@ void client_test(o2_msg_data_ptr data, const char *types,
 
 void time_check()
 {
-    if (o2_local_time() > 30) {
+    if (o2_local_time() > 60) {
         o2_finish();
         printf("o2litehost timeout FAILURE exiting now\n");
         exit(1);
     }
 }
 
+extern char o2n_public_ip[O2N_IP_LEN];
 
 int main(int argc, const char *argv[])
 {
@@ -81,6 +82,7 @@ int main(int argc, const char *argv[])
     }
 
     o2_initialize("test");
+    strcpy(o2n_public_ip, "000.000.000.000");
 #ifndef O2_NO_BRIDGES
     o2lite_initialize(); // enable o2lite - this test is used with o2liteserv
 #endif
@@ -100,7 +102,8 @@ int main(int argc, const char *argv[])
         server_addresses[i] = O2_MALLOCNT(strlen(path), char);
         strcpy(server_addresses[i], path);
     }
-
+    
+    printf("looking for server at time %g.\n", o2_local_time());
     while (o2_status("server") < O2_BRIDGE_NOTIME) {
         time_check();
         o2_poll();

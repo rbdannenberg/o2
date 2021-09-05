@@ -466,14 +466,14 @@ void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
 
 // o2lite_con_handler - handler for !_o2/o2lite/con; called immediately
 //   after o2lite bridged process makes a TCP connection, message
-//   parameters are ip address and port number for bridged process
+//   parameters are ip address and udp port number for bridged process
 //
 void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
                         O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2lite_con_handler gets", NULL, msgdata, NULL, NULL));
     // get the arguments: ensemble name, protocol name,
-    // if this is "O2lite" protocol, get ip as string, tcp port, discovery port.
+    // if this is "O2lite" protocol, get ip as string and int udp port.
     // assume o2lite is initialized; it must be because the handler is installed
     const char *ip = argv[0]->s;
     int port = argv[1]->i32;
