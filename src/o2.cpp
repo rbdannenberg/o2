@@ -980,7 +980,9 @@ O2err o2_internet_enable(bool enable)
         return O2_NO_NETWORK;
     }
     o2n_internet_enabled = enable;
+    return O2_SUCCESS;
 }
+
 
 O2err o2_network_enable(bool enable)
 {

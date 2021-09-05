@@ -949,7 +949,7 @@ void Http_reader::poll()
             DWORD err = GetLastError();
             if (err != ERROR_IO_PENDING) {
                 O2_DBw(printf("%s: ReadFile error %d, *last_ref %p\n",
-                       o2_debug_prefix, *last_ref, err));
+                              o2_debug_prefix, err, *last_ref));
                 read_eof();  // EOF and error are both treated as eof
                 return;
             }
@@ -966,7 +966,7 @@ void Http_reader::poll()
         DWORD err = GetLastError();
         if (err != ERROR_IO_PENDING) {
             O2_DBw(printf("%s: GetOverlappedResult result %d, *last_ref %p\n",
-                o2_debug_prefix, *last_ref, err));
+                          o2_debug_prefix, err, *last_ref));
             read_eof();  // EOF and error are both treated as eof
             return;
         }

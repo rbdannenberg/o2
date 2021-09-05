@@ -780,7 +780,7 @@ void network_poll()
 
     int total;
     O2LDBV printf("select: udp_recv_sock %d tcp_sock %d nfds %d\n",
-                  udp_recv_sock, tcp_sock, nfds);
+                  (int) udp_recv_sock, (int) tcp_sock, nfds);
     if (nfds == 0) { // we are not expecting incoming messages;
         return;      // not sure what select does with nfds == 0,
     }                // but it is safe to return in this case.
@@ -822,7 +822,7 @@ void o2l_send()
                    sizeof udp_server_sa) < 0) {
             perror("Error attempting to send udp message");
             printf("Address: %s, socket: %d\n", 
-                   out_msg->address, udp_send_sock);
+                   out_msg->address, (int) udp_send_sock);
         }
     }
 }
@@ -1269,7 +1269,9 @@ int o2l_parse_version(const char *vers, int vers_len)
 
 void o2l_poll()
 {
+#ifdef ESP32
     O2LDB button_poll();
+#endif
     O2LDBV printf("o2l_poll\n");
     o2l_local_now = o2l_local_time();
 

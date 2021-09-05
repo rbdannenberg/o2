@@ -53,6 +53,7 @@ static Vec<struct pollfd> o2n_fds;  ///< pre-constructed fds parameter for poll(
 Vec<Fds_info *> o2n_fds_info; ///< info about sockets
 
 char o2n_public_ip[O2N_IP_LEN] = "";
+char o2n_internal_ip[O2N_IP_LEN] = "";
 
 static struct sockaddr_in o2_serv_addr;
 
@@ -437,7 +438,7 @@ O2err o2n_initialize()
     if (o2n_network_enabled) {
         o2n_internal_ip[0] = 0;  // IP addresses are looked up, initially
         o2n_public_ip[0] = 0;    // they are unknown
-        o2n_get_internal_ip();
+        o2n_get_internal_ip(o2n_internal_ip);
         // Initialize addr for broadcasting
         o2n_broadcast_to_addr.get_sockaddr()->sa_family = AF_INET;
         if (inet_pton(AF_INET, "255.255.255.255",

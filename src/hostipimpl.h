@@ -42,9 +42,9 @@ bool o2n_network_enabled = true;
 // it stays false if o2n_network_enabled is false:
 bool o2n_network_found = false;
 
-void o2n_get_internal_ip(char *o2n_internal_ip)
+void o2n_get_internal_ip(char *internal_ip)
 {
-    if (o2n_internal_ip[0]) {  // already known
+    if (internal_ip[0]) {  // already known
         return;
     }
     assert(!o2n_network_found);  // not yet found
@@ -82,9 +82,9 @@ void o2n_get_internal_ip(char *o2n_internal_ip)
             for (addr = cur->FirstUnicastAddress; addr != NULL;
                 addr = addr->Next) {
                 SOCKADDR_IN *saddr = (SOCKADDR_IN *)addr->Address.lpSockaddr;
-                snprintf(o2n_internal_ip, O2N_IP_LEN, "%08x",
+                snprintf(internal_ip, O2N_IP_LEN, "%08x",
                     ntohl(saddr->sin_addr.S_un.S_addr));
-                if (!(streql(o2n_internal_ip, "7f000001"))) {
+                if (!(streql(internal_ip, "7f000001"))) {
                     o2n_network_found = true;
                     break;
                 }
@@ -102,9 +102,9 @@ void o2n_get_internal_ip(char *o2n_internal_ip)
     for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr->sa_family == AF_INET) {
 	    struct sockaddr_in *sa = (struct sockaddr_in *) ifa->ifa_addr;
-            snprintf(o2n_internal_ip, O2N_IP_LEN, "%08x",
+            snprintf(internal_ip, O2N_IP_LEN, "%08x",
                      ntohl(sa->sin_addr.s_addr));
-            if (!streql(o2n_internal_ip, "7f000001")) {
+            if (!streql(internal_ip, "7f000001")) {
                 o2n_network_found = true;
                 break;
             }
@@ -113,8 +113,8 @@ void o2n_get_internal_ip(char *o2n_internal_ip)
     freeifaddrs(ifap);
 #endif
     // make sure we got an address:
-    if (!o2n_internal_ip[0]) {
-        strcpy(o2n_internal_ip, "7f000001");  // localhost
+    if (!internal_ip[0]) {
+        strcpy(internal_ip, "7f000001");  // localhost
     }
 }
 #endif
