@@ -124,7 +124,7 @@ set(O2_SRC
   src/clock.cpp src/clock.h
   src/debug.cpp src/debug.h
   src/discovery.cpp src/discovery.h
-  src/hostip.c src/hostip.h
+  src/hostip.c src/hostip.h src/hostipimpl.h
   src/vec.cpp src/vec.h
   src/dynarray.cpp src/dynarray.h
   src/o2node.cpp src/o2node.h
@@ -397,9 +397,11 @@ if(TESTS_BUILD AND BUILD_WITH_OSC_SUPPORT AND BUILD_TESTS_WITH_LIBLO)
 
   message(STATUS "LIBLO_LIB is ${LIBLO_LIB}")
 
+  # call with name only of main program, then additional source files
   function(o2libloprogram name)
-    add_executable(${name}  test/${name}.cpp)
-    target_include_directories(${name} PRIVATE ${LIBLO_INCLUDE_PATH})
+    add_executable(${name}  test/${name}.cpp ${ARGN})
+    # src is included because lo_bndlrecv includes o2base.h
+    target_include_directories(${name} PRIVATE ${LIBLO_INCLUDE_PATH} src)
     target_link_libraries(${name} ${LIBLO_LIB} ${EXTRA_LO_LIBS})
     set_property(TARGET ${name} PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
   endfunction()
@@ -412,7 +414,7 @@ if(TESTS_BUILD AND BUILD_WITH_OSC_SUPPORT AND BUILD_TESTS_WITH_LIBLO)
 
   if(BUILD_WITH_BUNDLE_SUPPORT)
     o2libloprogram(lo_bndlsend)
-    o2libloprogram(lo_bndlrecv)
+    o2libloprogram(lo_bndlrecv src/o2sleep.c)
   endif(BUILD_WITH_BUNDLE_SUPPORT)
 
 endif(TESTS_BUILD AND BUILD_WITH_OSC_SUPPORT AND BUILD_TESTS_WITH_LIBLO)
