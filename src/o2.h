@@ -270,57 +270,6 @@ the characters ":;\" are preceded by "\" since ":" and ";" are
 separator characters. Attribute names are alphanumeric.
 */
 
-/** \defgroup debugging Debugging Support
- * @{
- */
-
-/// \brief Enable debugging output.
-///
-/// Unless O2_NO_DEBUG is defined at compile time, O2 is
-/// compiled with debugging code that prints information to
-/// stdout, including network addresses, services discovered,
-/// and clock synchronization status. Enable the debugging
-/// information by calling #o2_debug_flags with a string
-/// containing any of the following charac&ters:
-///   - c - for basic connection data
-///   - r - for tracing non-system incoming messages
-///   - s - for tracing non-system outgoing messages
-///   - R - for tracing system incoming messages
-///   - S - for tracing system outgoing messages
-///   - k - for tracing clock synchronization protocol
-///   - d - for tracing discovery messages
-///   - h - for tracing hub-related activity
-///   - t - for tracing user messages dispatched from schedulers
-///   - T - for tracing system messages dispatched from schedulers
-///   - l - trace messages to #o2_msg_deliver
-///   - m - trace O2_MALLOC and O2_FREE calls
-///   - o - trace socket creating and closing
-///   - O - open sound control messages
-///   - q - show MQTT messages
-///   - w - for tracing websockets activity
-///   - z - for tracing Zeroconf (Bonjour, Avahi)
-///   - g - print general status info, not much detail
-///   - n - all network flags (no malloc or scheduling): rRsS
-///   - a - all debug flags except m (malloc/free)
-///   - A - all debug flags except malloc and scheduling
-///   - I - disable Internet connections, e.g., do not acquire public IP.
-///   - N - disable network if flags are set before o2_initialize() is
-///         called. Internal IP becomes 127.0.0.1, public IP is 
-///         0.0.0.0 (signifying no Internet connection). Interprocess
-///         communication on the host is supported.
-void o2_debug_flags(const char *flags);
-
-/**
- *  \brief Return text representation of an O2 error
- *
- *  @param i error value returned from some O2 function
- *
- *  @return return the error code as a string
- */
-const char *o2_error_to_string(O2err i);
-
-/** @} */
-
 /** \defgroup returncodes Return Codes
  * @{
  */
@@ -531,6 +480,58 @@ typedef enum {
     //
     O2_TAP = 8
 } O2status;    
+
+/** @} */
+
+
+/** \defgroup debugging Debugging Support
+ * @{
+ */
+
+/// \brief Enable debugging output.
+///
+/// Unless O2_NO_DEBUG is defined at compile time, O2 is
+/// compiled with debugging code that prints information to
+/// stdout, including network addresses, services discovered,
+/// and clock synchronization status. Enable the debugging
+/// information by calling #o2_debug_flags with a string
+/// containing any of the following charac&ters:
+///   - c - for basic connection data
+///   - r - for tracing non-system incoming messages
+///   - s - for tracing non-system outgoing messages
+///   - R - for tracing system incoming messages
+///   - S - for tracing system outgoing messages
+///   - k - for tracing clock synchronization protocol
+///   - d - for tracing discovery messages
+///   - h - for tracing hub-related activity
+///   - t - for tracing user messages dispatched from schedulers
+///   - T - for tracing system messages dispatched from schedulers
+///   - l - trace messages to #o2_msg_deliver
+///   - m - trace O2_MALLOC and O2_FREE calls
+///   - o - trace socket creating and closing
+///   - O - open sound control messages
+///   - q - show MQTT messages
+///   - w - for tracing websockets activity
+///   - z - for tracing Zeroconf (Bonjour, Avahi)
+///   - g - print general status info, not much detail
+///   - n - all network flags (no malloc or scheduling): rRsS
+///   - a - all debug flags except m (malloc/free)
+///   - A - all debug flags except malloc and scheduling
+///   - I - disable Internet connections, e.g., do not acquire public IP.
+///   - N - disable network if flags are set before o2_initialize() is
+///         called. Internal IP becomes 127.0.0.1, public IP is 
+///         0.0.0.0 (signifying no Internet connection). Interprocess
+///         communication on the host is supported.
+void o2_debug_flags(const char *flags);
+
+/**
+ *  \brief Return text representation of an O2 error
+ *
+ *  @param i error value returned from some O2 function
+ *
+ *  @return return the error code as a string
+ */
+const char *o2_error_to_string(O2err i);
 
 /** @} */
 
