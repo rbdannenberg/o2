@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['d',['d',['../uniono2__arg.html#a873684cefeb665f3d5e6b495de57fc0d',1,'o2_arg']]],
-  ['data',['data',['../structo2__blob.html#aa12fa7025612e5f4774f2412dd7f465b',1,'o2_blob']]]
+  ['d_0',['d',['../union_o2arg.html#affd54f2466c8511a7004988a408ece2b',1,'O2arg']]],
+  ['data_1',['data',['../struct_o2blob.html#af69b98f71f0786cbd61d5fd9373c3c1b',1,'O2blob']]]
 ];

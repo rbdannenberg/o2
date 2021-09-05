@@ -13,6 +13,33 @@
 <li><a href="html/index.html">O2 Library Reference</a><br></br>
 </ul>
 </h3>
+<h2>Introduction to Version 2</h2>
+O2 is a communication protocol and implementation for music systems
+that aims to replace Open Sound Control (OSC). Many computer musicians
+routinely deal with problems of interconnection in local area
+networks, unreliable message delivery, and clock synchronization. O2
+solves these problems, offering named services, automatic network
+address discovery, clock synchronization, and a reliable message
+delivery option, as well as interoperability with existing OSC
+libraries and applications. Aside from these new features, O2 owes
+much of its design to OSC and is mostly compatible with and similar to
+OSC. O2 addresses the problems of inter-process communication.
+
+Version 2 is a major rewrite featuring:
+<ul>
+  <li>asynchronous network and file I/O,
+  <li>Internet communication using MQTT, creating globally accessible
+  named services,
+  <li>the lightweight O2lite protocol for O2 clients, supporting HTML5
+  (web apps), microcontrollers, and high-speed shared memory
+  communication,
+  <li>publish/subscribe capability using the O2 tap mechanism,
+  <li>services have properties in the form of attribute/value pairs,
+  allowing processes to search for all services satisfying some
+  condition. Property updates offer another form of broadcast.
+</ul>
+
+
 <h2>Build and Installation</h2>
 O2 uses CMake. For Windows and Mac, use CMake to build a solution or
 project for Visual Studio or Xcode, then build the ALL_BUILD project.
@@ -24,10 +51,11 @@ libo2_static.a. Note that we only build a static library using the
 current CMakeLists.txt configuration file.
 
 <p>O2 is not compatible with recent changes in C compilers enabled by
-the _FORTIFY_SOURCE macro. Therefore, we pass the command line flag
--D_FORTIFY_SOURCE to the compiler, and you may see some associated
-warnings. (We're currently investigating how to best to get otherwise correct
-code to compile without disabling the FORTIFY option or generate warnings.)
+the <code>_FORTIFY_SOURCE</code> macro. Therefore, we pass the command
+line flag <code>-D_FORTIFY_SOURCE=0</code> to the compiler, and you
+may see some associated warnings. (We're currently investigating how
+to best to get otherwise correct code to compile without disabling the
+FORTIFY option or generate warnings.)
 
 <h2>Helpful Hints</h2>
 If O2 is not making connections or discovering services:

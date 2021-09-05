@@ -35,7 +35,7 @@ This documentation is divided into modules. Each module describes a
 different area of functionality: Basics, Return Codes, Low-Level
 Message Send, and Low-Level Message Parsing.
 
- \section Notes on Building the O2 Library
+ \section  Notes on Building the O2 Library
 
  O2 uses CMake, which can create a Linux Makefile, Xcode project, or
  Visual Studio solution. The basic procedure is run CMake (ccmake on
@@ -74,9 +74,11 @@ to other processes. Each process can offer zero or more named
 address space for a distributed O2 application. In O2, services
 replace the notion of network addresses (e.g. 128.2.100.57) in OSC.
 
-O2 is based on IP (Internet Bridge_protocol), but there are some mechanisms
-that allow an O2 process to serve as a bridge to other networks such
-as Bluetooth.
+O2 is based on IP (Internet Protocol), but there is a mechanism that
+allows an O2 process to serve as a bridge to other protocols including
+WebSockets, shared memory, and MQTT. OSC is also supported: An O2
+service can be delegated to an OSC server address, and O2 can offer an
+OSC server that forwards to an O2 service.
 
 O2 addresses begin with the service name. Thus, a complete O2 address
 would be written simply as "/synth/filterFtoff," where "synth" is
@@ -97,9 +99,9 @@ A service is created using the functions:
 
 and
 
-    o2_method_new("address," "types," handler, user_data, coerce, parse),
+    o2_method_new("address," "types," handler, user_data, coerce, parse)
 
-where o2_method_new is called to install a handler for each node, and each
+, where #o2_method_new is called to install a handler for each node, and each
 "address" includes the service name as the first node.
 
 Some major components and concepts of O2 are the following:
@@ -140,7 +142,7 @@ Some major components and concepts of O2 are the following:
 - **Message** - an O2 message, similar to an OSC message, contains an 
   address pattern representing a function, a type string and a set of 
   values representing parameters. Messages are delivered to and handled
-  be *services*. If there are multiple services with the same name, the
+  by *services*. If there are multiple services with the same name, the
   service with the highest IP address and port number (lexicographically)
   gets the message. However, the *tap* mechanism can be used to achieve
   fan out from a single service (the *tappee*) to multiple services 
@@ -193,7 +195,7 @@ Processes must exchange discovery messages to be connected. The *version*
 number encodes the O2 version number of the sender as 
 ((<major-vers> * 256) + <minor-vers>) * 256 + <patch-vers>, where 
 <major-vers>, <minor-vers> and <patch-vers> follow the O2 semantic 
-versioning scheme, e.g. version 2.3.4 would have version number 0x0234.
+versioning scheme, e.g. version 2.3.4 would have version number 0x020304.
 Thus, each component of the 3-part version number ranges from 0 through 255.
 Connections are completed only if the major version numbers match.
 The *dy* 
@@ -250,11 +252,11 @@ when the current provider of a service is removed.  This may be
 followed immediately by another message to `/_o2/si` if another
 provider offers the service.
     The service `_o2` is created before you can install a handler for
-`/_o2/si`, so you will not receive an `si` messages when `_o2` is
+`/_o2/si`, so you will not receive an `si` message when `_o2` is
 created.
      If the service name begins with '@', it represents a remote
 process and the name has the form @public:internal:port, e.g.
-`@74.109.251.118:128.237.161.165:50404`.  There is also a
+`@c0a35801:80e8a1a5:d67e`.  There is also a
 `@public:internal:port` service representing the local process, but
 the local process is also represented by `_o2`, so the local
 `@public:internal:port` service is never reported in an `/_o2/si`
@@ -308,163 +310,199 @@ separator characters. Attribute names are alphanumeric.
 ///         communication on the host is supported.
 void o2_debug_flags(const char *flags);
 
+/**
+ *  \brief Return text representation of an O2 error
+ *
+ *  @param i error value returned from some O2 function
+ *
+ *  @return return the error code as a string
+ */
+const char *o2_error_to_string(O2err i);
+
 /** @} */
 
 /** \defgroup returncodes Return Codes
  * @{
  */
 
+/// \brief return values used generally by O2 functions
 typedef enum {
-    // Status return values used in o2 functions
-    O2_SUCCESS = 0,    ///< function was successful
+    /// \brief function was successful
+    //
+    O2_SUCCESS = 0,
 
-    /// \brief an error return value: a non-specific error occurred.
-    ///
-    /// In general, any return value < 0 indicates an error. Testing for
-    /// only O2_FAIL will not detect more specific error return values
-    /// such as O2_SERVICE_EXISTS, O2_NO_MEMORY, etc.
+    /// \brief a non-specific error occurred.
+    //
+    /// In general, any return value < 0 indicates an error. Testing
+    /// for only O2_FAIL will not detect more specific error return
+    /// values such as O2_SERVICE_EXISTS, O2_NO_MEMORY, etc.
     O2_FAIL = -1,
         
-    /// an error return value: attempt to create or delegate a local service when
-    /// one exists already
+    /// \brief not (re)creating service
+    //
+    /// attempt to create or delegate a local service when one exists
+    /// already
     O2_SERVICE_EXISTS = -2,
     
-    /// an error return value: path to handler specifies non-existant service
+    /// \brief path to handler specifies non-existant service
+    //
     O2_NO_SERVICE = -3,
     
-    /// an error return value: process is out of free memory
+    /// process is out of free memory
+    //
     O2_NO_MEMORY = -4,
     
-    /// an error return value for #o2_initialize: O2 is already running.
+    /// \brief #o2_initialize called, but O2 is already running.
+    //
     O2_ALREADY_RUNNING = -5,
     
-    /// an error return value:
-    /// Invalid ensemble name parameter or ensemble name too long (#o2_initialize)
-    /// A service name was NULL or contained a slash (/) or was too long
-    /// (#o2_service_new). The path was NULL or did not start with a slash
-    /// or the service name did not start with a letter (#o2_method_new). 
-    /// (Exception: #o2_method_new can be called with path "/_o2/si".)
+    /// \brief invalid ensemble name parameter
+    //
+    /// A service name was NULL or contained a slash (/) or was too
+    /// long (#o2_service_new). The path was NULL or did not start
+    /// with a slash or the service name did not start with a letter
+    /// (#o2_method_new).  (Exception: #o2_method_new can be called
+    /// with path "/_o2/si".)
     O2_BAD_NAME = -6,
     
-    /// an error return value for #o2_add_vector: invalid element type
+    /// \brief in #o2_add_vector, invalid element type
+    //
     O2_BAD_TYPE = -7,
     
-    /// \brief an error return value: mismatched types and arguments
+    /// \brief mismatched types and arguments
+    //
     /// returned by #o2_message_build, #o2_send, #o2_send_cmd
     O2_BAD_ARGS = -8,
     
-    /// an error return value for #o2_initialize: the socket is closed.
+    /// \brief in #o2_initialize, the socket is closed.
+    //
     O2_TCP_HUP = -9,
     
-    /// \brief an error return value indicating `inet_pton()`
-    /// failed to convert a string to an IP address
+    /// \brief `inet_pton()` failed to convert a string to an IP address
+    //
     O2_HOSTNAME_TO_NETADDR_FAIL = -10,
     
-    /// an error return value: attempt to make a TCP connection failed
+    /// \brief attempt to make a TCP connection failed
+    //
     O2_TCP_CONNECT_FAIL = -11,
     
-    /// \brief an error return value: message was not scheduled or delivered
-    /// because the current time is not available
+    /// \brief timed message but time is unknown
+    //
+    /// Messages with non-zero timestamps are not scheduled or
+    /// delivered until the current time is not available through the
+    /// clock synchronization protocol.
     O2_NO_CLOCK = -12,
     
-    /// an error return value: no handler for an address
+    /// \brief no handler for an address
+    //
     O2_NO_HANDLER = -13,
     
-    /// an error return value: an O2 message is invalid
+    /// \brief an O2 message is invalid
+    //
     O2_INVALID_MSG = -14,
     
-    /// an error return value: could not write to socket or send datagram
+    /// \brief could not write to socket or send datagram
+    //
     O2_SEND_FAIL = -15,
     
-    /// SOCKET_ERROR in select call
+    /// \brief SOCKET_ERROR in select call
+    //
     O2_SOCKET_ERROR = -16,
 
-    /// an error return value: O2 has not been initialized
+    /// \brief O2 has not been initialized
+    //
     O2_NOT_INITIALIZED = -17,
     
-    /// TCP send would block, holding message locally to send later
+    /// \brief TCP send would block
+    //
+    /// O2 is holding the message locally to send later
     O2_BLOCKED = -18,
     
-    /// Unable to allocate a discovery port
+    /// \brief unable to allocate a discovery port
+    //
     O2_NO_PORT = -19,
 
-    /// Networking is disabled or Internet not found
-    /// (no public IP address found)
+    /// \brief networking is disabled
+    //
+    /// Either a network connection was not found or no public IP IP
+    /// address found.
     O2_NO_NETWORK = -20
 
 } O2err;
 
 
-// Status return codes for o2_status function:
+/// \brief Status return codes for the #o2_status function.
 typedef enum {
     /// \brief status is unknown, e.g. service does not exist
-    ///
+    //
     O2_UNKNOWN = -1,
     
-    /// \brief return value for #o2_status: local service, no clock sync yet
-    ///
-    /// This is a local service
-    /// but clock sync has not yet been established so messages with non-zero
-    /// timestamps will be dropped.
+    /// \brief local service, no clock sync yet.
+    //
+    /// This is a local service but clock sync has not yet been
+    /// established so messages with non-zero timestamps will be
+    /// dropped.
     O2_LOCAL_NOTIME = 0,
 
-    /// \brief return value for #o2_status: remote service but no clock sync yet
-    ///
-    /// This is a remote service but clock sync has not yet been established so
-    /// messages with non-zero timestamps will be dropped. The remote service
-    /// may represent a bridge to a non-IP destination or to an OSC
-    /// server.
+    /// \brief remote service but no clock sync yet
+    //
+    /// This is a remote service but clock sync has not yet been
+    /// established so messages with non-zero timestamps will be
+    /// dropped. The remote service may represent a bridge to a non-IP
+    /// destination or to an OSC server.
     O2_REMOTE_NOTIME = 1,
 
-    /// \brief return value for #o2_status: service is connected but no
+    /// \brief service is connected but no
     ///    clock sync yet.
-    ///
-    /// The service is attached to this process by a non-IP link. Clock sync
-    /// has not yet been established between the reference clock and this
-    /// process, so non-zero timestamped messages to this service will be
-    /// dropped. Note that within other processes,
-    /// the status for this service will be #O2_REMOTE_NOTIME rather than
-    /// #O2_BRIDGE_NOTIME. Note also that O2 does not require the
-    /// remote bridged process to have a synchronized clock, so "NOTIME" only
-    /// means that *this* process is not synchronized and therefore cannot
-    /// (and will not) schedule a timestamped message for timed delivery.
+    //
+    /// The service is attached to this process by a non-IP
+    /// link. Clock sync has not yet been established between the
+    /// reference clock and this process, so non-zero timestamped
+    /// messages to this service will be dropped. Note that within
+    /// other processes, the status for this service will be
+    /// #O2_REMOTE_NOTIME rather than #O2_BRIDGE_NOTIME. Note also
+    /// that O2 does not require the remote bridged process to have a
+    /// synchronized clock, so "NOTIME" only means that *this* process
+    /// is not synchronized and therefore cannot (and will not)
+    /// schedule a timestamped message for timed delivery.
     O2_BRIDGE_NOTIME = 2,
 
-    /// \brief return value for #o2_status: service is connected but no
+    /// \brief service is connected but no
     ///    clock sync yet.
-    ///
-    /// The service is local and forwards messages to an OSC server. The status
-    /// of the OSC server is not reported by O2 (and in the typical UDP case,
-    /// there is no way to determine if the OSC server is operational, so
-    /// "connected" may just mean that the service has been defined).
-    /// Clock sync has not yet been established between the reference clock
-    /// and this process, so messages with non-zero timestamps to this service
-    /// will be dropped. Note that within other processes,
-    /// the status for this service will be #O2_REMOTE_NOTIME rather than
-    /// #O2_TO_OSC_NOTIME. Note also that O2 does not require the
-    /// OSC server to have a synchronized clock, so "NOTIME" only
-    /// means that *this* process is not synchronized to O2 and therefore cannot
-    /// (and will not) schedule a timestamped message for timed delivery.
+    //
+    /// The service is local and forwards messages to an OSC
+    /// server. The status of the OSC server is not reported by O2
+    /// (and in the typical UDP case, there is no way to determine if
+    /// the OSC server is operational, so "connected" may just mean
+    /// that the service has been defined).  Clock sync has not yet
+    /// been established between the reference clock and this process,
+    /// so messages with non-zero timestamps to this service will be
+    /// dropped. Note that within other processes, the status for this
+    /// service will be #O2_REMOTE_NOTIME rather than
+    /// #O2_TO_OSC_NOTIME. Note also that O2 does not require the OSC
+    /// server to have a synchronized clock, so "NOTIME" only means
+    /// that *this* process is not synchronized to O2 and therefore
+    /// cannot (and will not) schedule a timestamped message for timed
+    /// delivery.
     O2_TO_OSC_NOTIME = 3,
 
-    /// \brief return value for #o2_status: local service with clock sync.
-    ///
-    /// Note that even though the
-    /// service is local to the process and therefore shares a local
-    /// clock, clocks are not considered to be synchronized until the
-    /// local clock is synchronized to the reference clock. If this process
-    /// provides the reference clock, it is considered to be synchronized
-    /// immediately.
+    /// \brief local service with clock sync.
+    //
+    /// Note that even though the service is local to the process and
+    /// therefore shares a local clock, clocks are not considered to
+    /// be synchronized until the local clock is synchronized to the
+    /// reference clock. If this process provides the reference clock,
+    /// it is considered to be synchronized immediately.
     O2_LOCAL = 4,
 
-    /// \brief return value for #o2_status: remote service with clock sync.
-    ///
-    /// Messages with non-zero timestamps can be sent because
-    /// clock sync has been established.
+    /// \brief remote service with clock sync.
+    //
+    /// Messages with non-zero timestamps can be sent because clock
+    /// sync has been established.
     O2_REMOTE = 5,
     
-    /// \brief return value for #o2_status: connected with clock sync.
-    ///
+    /// \brief connected with clock sync.
+    //
     /// The service is attached by a non-IP link, and this process is
     /// synchronized. If the bridged process is also synchronized,
     /// timed messages are sent immediately and dispatched according
@@ -473,8 +511,8 @@ typedef enum {
     /// according to the timestamp, resulting in some added network latency.
     O2_BRIDGE = 6,
     
-    /// \brief return value for #o2_status: connected with clock sync.
-    ///
+    /// \brief connected with clock sync.
+    //
     /// The service forwards messages directly from the current process
     /// to an OSC server, and the process is synchronized. The status of
     /// the OSC server is not reported by O2 (and in the typical UDP case,
@@ -490,7 +528,7 @@ typedef enum {
     O2_TO_OSC = 7,
     
     /// \brief tag value for #o2_services_list
-    ///
+    //
     O2_TAP = 8
 } O2status;    
 
@@ -1868,15 +1906,6 @@ O2time o2_time_get(void);
 O2time o2_local_time(void);
 
 /**
- *  \brief Return text representation of an O2 error
- *
- *  @param i error value returned from some O2 function
- *
- *  @return return the error code as a string
- */
-const char *o2_error_to_string(O2err i);
-
-/**
  *  \brief release the memory and shut down O2.
  *
  *  Close all sockets, free all memory, and restore critical
@@ -2124,11 +2153,11 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  * corresponds to the two type characters used to encode them,
  * e.g. "vi" indicates a vector of integers.
  *
- * Coercion is supported as follows. If coercion is provided from the
- * type indicated on the left on some row to the types corresponding
- * to columns where an "x" appears ("*" indicates special
- * consideration described below.
- * 
+ * Coercion is supported as follows. An "x" means that coercion is
+ * provided from the type indicated on some row to the type
+ * corresponding to the column ("\*" indicates special consideration
+ * described below.)
+ * \verbatim
  *      i h f d t s S T F B b m c N I
  *    i x x x x x     * * x            32-bit int
  *    h x x x x x     * * x            64-bit int
@@ -2145,10 +2174,11 @@ uint64_t o2_osc_time_offset(uint64_t offset);
  *    c                         x      character
  *    N                           x    Nil
  *    I                             x  Infinitum
+ * \endverbatim
+ *    \*Entries marked with "*": Coercion is
+ *    from 0 to False and from non-zero to True.
  *
- *    *Entries marked with "*": Coercion succeeds 
- *    from 0 to False and from non-zero to True,
- *    otherwise coercion fails.
+ * Coercion fails in all cases not marked.
  */
 
 

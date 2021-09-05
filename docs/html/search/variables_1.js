@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['b',['b',['../uniono2__arg.html#a6ac8817c5c66822d8ac7bb3b1fc1644e',1,'o2_arg::b()'],['../uniono2__arg.html#a472e916e67bee7d2b7392a350e02e4bb',1,'o2_arg::B()']]]
+  ['b_0',['b',['../union_o2arg.html#a14db859d03dbe6379895c16326e3979d',1,'O2arg']]],
+  ['b_1',['B',['../union_o2arg.html#ac050865698458359aa04b4ee21f835db',1,'O2arg']]]
 ];

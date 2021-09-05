@@ -1,7 +1,7 @@
 var searchData=
 [
-  ['o2_5farg',['o2_arg',['../uniono2__arg.html',1,'']]],
-  ['o2_5fblob',['o2_blob',['../structo2__blob.html',1,'']]],
-  ['o2_5fmessage',['o2_message',['../structo2__message.html',1,'']]],
-  ['o2_5fmsg_5fdata',['o2_msg_data',['../structo2__msg__data.html',1,'']]]
+  ['binding_5freply_0',['binding_reply',['../structbinding__reply.html',1,'']]],
+  ['binding_5freq_1',['binding_req',['../structbinding__req.html',1,'']]],
+  ['bridge_5finfo_2',['Bridge_info',['../class_bridge__info.html',1,'']]],
+  ['bridge_5fprotocol_3',['Bridge_protocol',['../class_bridge__protocol.html',1,'']]]
 ];

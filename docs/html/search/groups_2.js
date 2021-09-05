@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['low_2dlevel_20message_20parsing',['Low-Level Message Parsing',['../group__lowlevelparse.html',1,'']]],
-  ['low_2dlevel_20message_20send',['Low-Level Message Send',['../group__lowlevelsend.html',1,'']]]
+  ['http_2fwebsockets_20api_0',['HTTP/Websockets API',['../group__httpapi.html',1,'']]]
 ];

@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['len',['len',['../uniono2__arg.html#a6858c4011b5cad020222e9ca5c2786f5',1,'o2_arg']]],
-  ['length',['length',['../structo2__message.html#a5ae5048776b1de2d7dce124f78dc300f',1,'o2_message']]]
+  ['len_0',['len',['../union_o2arg.html#a96dd3f33566812307e97dc6d034de59e',1,'O2arg']]],
+  ['length_1',['length',['../struct_o2netmsg.html#a6ad791f67ea6afc38cde032b7a845bc6',1,'O2netmsg']]]
 ];
