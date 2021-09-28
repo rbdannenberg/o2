@@ -1793,7 +1793,7 @@ typedef O2time (*o2_time_callback)(void *rock);
  *  per second of real time to close approximation. The value may be
  *  NULL, in which case a default time reference will be used.
  *
- *  @parm rock an arbitrary value that is passed to the gettime
+ *  @param rock an arbitrary value that is passed to the gettime
  *  function. This may be need to provide context. Use NULL if no
  *  context is required.
  *
