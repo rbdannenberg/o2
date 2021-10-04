@@ -171,6 +171,9 @@ add_library(o2lite_static STATIC ${O2LITE_SRC})
 target_include_directories(o2lite_static PRIVATE ${BONJOUR_INCLUDE_PATH})
 set_property(TARGET o2lite_static PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
 
+add_library(o2 SHARED ${O2_SRC})
+set_target_properties(o2 PROPERTIES C_VISIBILITY_PRESET hidden)
+
 if(BUILD_WITH_O2LITE_DISCOVERY)
 else(BUILD_WITH_O2LITE_DISCOVERY)
   target_compile_definitions(o2lite_static PRIVATE
