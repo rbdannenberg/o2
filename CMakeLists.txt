@@ -193,6 +193,7 @@ target_include_directories(o2_static PRIVATE ${BONJOUR_INCLUDE_PATH})
 
 set(LIBRARIES o2_static ${EXTRA_LIBS} CACHE INTERNAL "")
 set(O2LITE_LIBS o2lite_static ${EXTRA_LIBS} CACHE INTERNAL "")
+target_link_libraries(o2 PUBLIC ${EXTRA_LIBS})
 
 if(TESTS_BUILD)
 message(STATUS "Building test programs") 
