@@ -92,14 +92,17 @@ typedef struct preamble_struct {
     char payload[8]; // the application memory
 } preamble_t, *preamble_ptr;
 
-typedef struct postlude_struct {
 #if O2MEM_DEBUG
+typedef struct postlude_struct {
     int64_t padding[O2MEM_ISOLATION];
     int64_t seqno;
     int64_t end_sentinal;
-#endif
 } postlude_t, *postlude_ptr;
-    
+#define SIZEOF_POSTLUDE_T sizeof(postlude_t)
+#else
+#define SIZEOF_POSTLUDE_T 0
+#endif
+
 typedef struct chunk_struct {
     struct chunk_struct *next;
     preamble_t first;
@@ -111,7 +114,7 @@ typedef struct chunk_struct {
         ((postlude_ptr) ((pre)->payload + (pre)->size))
 
 #define SIZE_TO_REALSIZE(size) \
-    ((size) + offsetof(preamble_t, payload) + sizeof(postlude_t))
+    ((size) + offsetof(preamble_t, payload) + SIZEOF_POSTLUDE_T)
 
 // should be *MUCH BIGGER* than MAX_LINEAR_BYTES (see o2_malloc)
 #define O2MEM_CHUNK_SIZE (1 << 13) // 13 is much bigger than 9
