@@ -1,3 +1,5 @@
+#ifndef O2_NO_WEBSOCKETS
+
 #include "o2internal.h"
 #include <sys/types.h>
 #include <fcntl.h>
@@ -1169,4 +1171,4 @@ O2err Http_reader::read_eof()
 
 
 #endif
-
+#endif
