@@ -2,31 +2,33 @@ cmake_minimum_required(VERSION 3.20.0)
 cmake_policy(SET CMP0091 NEW)
 project(o2)
 
-set(TESTS_BUILD ON CACHE BOOL "Compile regression and other tests")
+option(CMAKE_BUILD_SHARED_LIBS "Build shared libraries" OFF)
+option(TESTS_BUILD "Compile regression and other tests" ON)
 
-set(TESTS_WITH_LIBLO OFF CACHE BOOL "Compile tests that use liblo, 
-requiring liblo library (only enabled if TESTS_BUILD is ON)")
+option(TESTS_WITH_LIBLO "Compile tests that use liblo, 
+requiring liblo library (only enabled if TESTS_BUILD is ON)" OFF)
 
-set(TESTS_MIDI_EXAMPLE OFF CACHE BOOL "Compile midiclient & midiserver, 
-requiring portmidi library")
+option(TESTS_MIDI_EXAMPLE "Compile midiclient & midiserver, 
+requiring portmidi library" OFF)
 
-set(BUILD_WITH_DEBUG_SUPPORT ON CACHE BOOL
-                         "Allow debug flags to control printing info")  
-set(BUILD_WITH_PATTERN_SUPPORT ON CACHE BOOL "Allow pattern matching")  
-set(BUILD_WITH_OSC_SUPPORT ON CACHE BOOL "Include OSC support")
-set(BUILD_WITH_HUB_SUPPORT ON CACHE BOOL "Include o2_hub() discovery")
-set(BUILD_WITH_BUNDLE_SUPPORT ON CACHE BOOL "Allow message bundles")
-set(BUILD_WITH_BRIDGE_SUPPORT ON CACHE BOOL "Allow other transport add-ons")  
-set(BUILD_WITH_WEBSOCKET_SUPPORT ON CACHE BOOL "Support O2 over websockets")  
-set(BUILD_WITH_SHAREDMEM_SUPPORT ON CACHE BOOL
-    "Include shared memory bridge API, requires bridge support")
-set(BUILD_WITH_MESSAGE_PRINT OFF CACHE BOOL
-"Provide o2_message_print even in non-debug builds (it is always provided in debug builds)")
+option(BUILD_WITH_DEBUG_SUPPORT 
+       "Allow debug flags to control printing info" ON)
+option(BUILD_WITH_PATTERN_SUPPORT "Allow pattern matching" ON)
+option(BUILD_WITH_OSC_SUPPORT "Include OSC support" ON)
+option(BUILD_WITH_HUB_SUPPORT "Include o2_hub() discovery" ON)
+option(BUILD_WITH_BUNDLE_SUPPORT "Allow message bundles" ON)
+option(BUILD_WITH_BRIDGE_SUPPORT "Allow other transport add-ons" ON)
+option(BUILD_WITH_WEBSOCKET_SUPPORT "Support O2 over websockets" ON)
+option(BUILD_WITH_SHAREDMEM_SUPPORT 
+       "Include shared memory bridge API, requires bridge support" ON)
+option(BUILD_WITH_MESSAGE_PRINT
+"Provide o2_message_print even in non-debug builds (it is always
+provided in debug builds)" ON)
 
-set(BUILD_WITH_O2LITE_DISCOVERY ON CACHE BOOL
-"Added code to o2lite clients for faster discovery")
-set(BUILD_WITH_O2LITE_CLOCKSYNC ON CACHE BOOL
-"Added code to o2lite clients to synchronize clock with  O2")
+option(BUILD_WITH_O2LITE_DISCOVERY
+"Added code to o2lite clients for faster discovery" ON)
+option(BUILD_WITH_O2LITE_CLOCKSYNC
+"Added code to o2lite clients to synchronize clock with  O2" ON)
 
 
 
@@ -153,8 +155,8 @@ set(O2_SRC
   src/stun.cpp src/stun.h
   )
 
-add_library(o2_static STATIC ${O2_SRC})
-set_property(TARGET o2_static PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
+add_library(o2 ${O2_SRC})
+set_property(TARGET o2 PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
 
 # o2lite
 
@@ -167,32 +169,31 @@ set(O2LITE_SRC
   src/o2liteo2disc.c src/o2liteavahi.c src/o2litebonjour.c
   )
 
-add_library(o2lite_static STATIC ${O2LITE_SRC})
-target_include_directories(o2lite_static PRIVATE ${BONJOUR_INCLUDE_PATH})
-set_property(TARGET o2lite_static PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
+add_library(o2lite ${O2LITE_SRC})
+target_include_directories(o2lite PRIVATE ${BONJOUR_INCLUDE_PATH})
+set_property(TARGET o2lite PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
 
-add_library(o2 SHARED ${O2_SRC})
 set_target_properties(o2 PROPERTIES C_VISIBILITY_PRESET hidden)
 
 if(BUILD_WITH_O2LITE_DISCOVERY)
 else(BUILD_WITH_O2LITE_DISCOVERY)
-  target_compile_definitions(o2lite_static PRIVATE
+  target_compile_definitions(o2lite PRIVATE
           "-DO2L_NO_DISCOVERY -DO2LDEBUG=1")
 endif(BUILD_WITH_O2LITE_DISCOVERY)
 
 if(BUILD_WITH_O2LITE_CLOCKSYNC)
 else(BUILD_WITH_O2LITE_CLOCKSYNC)
-  target_compile_definitions(o2lite_static PRIVATE "-DO2L_NO_CLOCKSYNC")
+  target_compile_definitions(o2lite PRIVATE "-DO2L_NO_CLOCKSYNC")
 endif(BUILD_WITH_O2LITE_CLOCKSYNC)
 
-target_include_directories(o2_static PRIVATE ${BONJOUR_INCLUDE_PATH})
+target_include_directories(o2 PRIVATE ${BONJOUR_INCLUDE_PATH})
 
 #######################
 # BUILD CONFIGURATION #
 #######################
 
-set(LIBRARIES o2_static ${EXTRA_LIBS} CACHE INTERNAL "")
-set(O2LITE_LIBS o2lite_static ${EXTRA_LIBS} CACHE INTERNAL "")
+set(LIBRARIES o2 ${EXTRA_LIBS} CACHE INTERNAL "")
+set(O2LITE_LIBS o2lite ${EXTRA_LIBS} CACHE INTERNAL "")
 
 if(TESTS_BUILD)
 message(STATUS "Building test programs") 

@@ -10,6 +10,7 @@
 #endif
 #include "stdint.h"
 #include "o2atomic.h"
+#include "assert.h"
 
 
 void o2_queue_init(o2_queue_ptr head)
@@ -37,6 +38,7 @@ void O2queue::push(O2list_elem_ptr elem)
 {
     O2queue_na next_head;
     O2queue_na orig_head = atomic_load(queue());
+    assert(((uintptr_t) elem & 0x7) == 0);  // 8-byte aligned
     do {
         elem->next = orig_head.first;
         next_head.aba = orig_head.aba + 1;

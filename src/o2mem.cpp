@@ -463,6 +463,7 @@ void *o2_malloc(size_t size)
     result = p->pop()->data;
     // invariant: result points to block of size realsize at an offset of
     // 8 (or 16 if O2MEM_DEBUG) bytes.
+    assert((uintptr_t) result & 0x7 == 0); // alignment check
     if (result) {
         preamble = (preamble_ptr) (result - offsetof(preamble_t, payload));
 #if O2MEM_DEBUG > 1
