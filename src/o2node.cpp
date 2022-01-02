@@ -165,7 +165,7 @@ void Handler_entry::show(int indent)
 // over the whole address (4 bytes at a time) to find types in order
 // to pass it in.
 //
-void Handler_entry::invoke(o2_msg_data_ptr msg, const char *types)
+void Handler_entry::invoke(O2msg_data_ptr msg, const char *types)
 {
     // coerce to avoid compiler warning -- even 2^31 is absurdly big
     //     for the type string length
@@ -401,7 +401,7 @@ O2message_ptr Proxy_info::pre_send(int *tcp_flag)
     // caller now owns the "active" message
 #ifndef O2_NO_DEBUG
     {
-        o2_msg_data_ptr mdp = &msg->data;
+        O2msg_data_ptr mdp = &msg->data;
         bool sysmsg = mdp->address[1] == '_' || mdp->address[1] == '@';
         O2_DB(sysmsg ? O2_DBS_FLAG : O2_DBs_FLAG,
               const char *desc = (mdp->misc & O2_TCP_FLAG ?

@@ -44,7 +44,7 @@ bool running = true;
 O2time start_sending = NOTYET;
 
 // at the end, we get a message to /sender/done
-void sender_done(o2_msg_data_ptr msg, const char *types,
+void sender_done(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 0);

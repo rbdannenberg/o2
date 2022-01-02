@@ -9,7 +9,7 @@
 
 O2time cs_time = 1000000.0;
 
-void appfollow(o2_msg_data_ptr msg, const char *types,
+void appfollow(O2msg_data_ptr msg, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     int ss = o2_status("server");

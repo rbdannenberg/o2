@@ -2,13 +2,13 @@
 
 void o2_time_initialize(void);
 
-void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
+void o2_clocksynced_handler(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data);
 
-void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
+void o2_ping_send_handler(O2msg_data_ptr msg, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data);
 
-void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
+void o2_clockrt_handler(O2msg_data_ptr msg, const char *types,
              O2arg_ptr *argv, int argc, const void *user_data);
 
 void o2_clock_initialize(void);

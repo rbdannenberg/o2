@@ -46,7 +46,7 @@ int arg_count = 0; // used to tell handler how many is correct
 
 // 1. sending typestring [i] (an array with one integer)
 // 
-void service_ai(o2_msg_data_ptr data, const char *types,
+void service_ai(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -78,7 +78,7 @@ void service_ai(o2_msg_data_ptr data, const char *types,
 
 // 2. sending typestring [] (an array with no integers)
 // 
-void service_a(o2_msg_data_ptr data, const char *types,
+void service_a(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -104,7 +104,7 @@ void service_a(o2_msg_data_ptr data, const char *types,
 
 // 3. sending typestring [ii] (an array with 2 integers)
 // 
-void service_aii(o2_msg_data_ptr data, const char *types,
+void service_aii(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -276,7 +276,7 @@ void zcheck(char typ)
 //    (just in case a mix of sizes causes problems); the global
 //    char xtype; provides the value of x
 // 
-void service_xixdx(o2_msg_data_ptr data, const char *types,
+void service_xixdx(O2msg_data_ptr data, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -296,7 +296,7 @@ void service_xixdx(o2_msg_data_ptr data, const char *types,
 
 // 5. sending typestring i[ih][fdt]d to test multiple arrays
 //
-void service_2arrays(o2_msg_data_ptr data, const char *types,
+void service_2arrays(O2msg_data_ptr data, const char *types,
                      O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -323,7 +323,7 @@ void service_2arrays(o2_msg_data_ptr data, const char *types,
 
 // 6. sending typestring [ddddd...] where there are 1 to 100 d's
 //
-void service_bigarray(o2_msg_data_ptr data, const char *types,
+void service_bigarray(O2msg_data_ptr data, const char *types,
                       O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -339,7 +339,7 @@ void service_bigarray(o2_msg_data_ptr data, const char *types,
 
 // 7. sending typestring vi (with length 0 to 100)
 //
-void service_vi(o2_msg_data_ptr data, const char *types,
+void service_vi(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -368,7 +368,7 @@ void service_vi(o2_msg_data_ptr data, const char *types,
 
 // 8. sending typestring vf (with length 0 to 100)
 //
-void service_vf(o2_msg_data_ptr data, const char *types,
+void service_vf(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -400,7 +400,7 @@ void service_vf(o2_msg_data_ptr data, const char *types,
 
 
 // 9. sending typestring vh (with length 0 to 100)
-void service_vh(o2_msg_data_ptr data, const char *types,
+void service_vh(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -432,7 +432,7 @@ void service_vh(o2_msg_data_ptr data, const char *types,
 
 
 // 10. sending typestring vd (with length 0 to 100)
-void service_vd(o2_msg_data_ptr data, const char *types,
+void service_vd(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -465,7 +465,7 @@ void service_vd(o2_msg_data_ptr data, const char *types,
 
 // 12. sending typestring ifv?if (with vector length 0 to 100)
 //     (this last test is an extra check for embedded vectors)
-void service_ifvxif(o2_msg_data_ptr data, const char *types,
+void service_ifvxif(O2msg_data_ptr data, const char *types,
                     O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -522,7 +522,7 @@ void service_ifvxif(o2_msg_data_ptr data, const char *types,
 // 13. sending typestring vivd (with lenghts 0 to 100)
 //     (another test to look for bugs in allocation, receiving multiple
 //      vectors in one message)
-void service_vivd(o2_msg_data_ptr data, const char *types,
+void service_vivd(O2msg_data_ptr data, const char *types,
                   O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -571,7 +571,7 @@ void service_vivd(o2_msg_data_ptr data, const char *types,
 
 // 14. sending i[xxxx...]i where x is in ihfdt and there are 0 to 100
 //     of them AND the data is received as a vector using coercion
-void service_coerce(o2_msg_data_ptr data, const char *types,
+void service_coerce(O2msg_data_ptr data, const char *types,
                     O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -623,7 +623,7 @@ void service_coerce(o2_msg_data_ptr data, const char *types,
 
 // 15. sending ivxi where x is in ihfdt and there are 0 to 100
 //     of them AND the data is received as an array using coercion
-void service_coerce2(o2_msg_data_ptr data, const char *types,
+void service_coerce2(O2msg_data_ptr data, const char *types,
                     O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);

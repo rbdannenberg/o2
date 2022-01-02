@@ -231,8 +231,8 @@ public:
         while (msgs) {
             O2message_ptr next = msgs->next;
             msgs->next = NULL; // remove pointer before it becomes dangling
-            printf("O2sm_protocol::bridge_poll sending %s\n",
-                   msgs->data.address);
+            // printf("O2sm_protocol::bridge_poll sending %s\n",
+            //       msgs->data.address);
             O2err err = o2_message_send(msgs);
             // return the first non-success error code if any
             if (rslt) rslt = err;
@@ -278,7 +278,7 @@ public:
         O2err err = send_to_taps(msg);
         // we have a message to send to the service via shared
         // memory -- find queue and add the message there atomically
-        printf("O2sm_info sending to thread %s\n", msg->data.address);
+        // printf("O2sm_info sending to thread %s\n", msg->data.address);
         outgoing.push((O2list_elem_ptr) msg);
         o2_message_source = NULL;  // clean up to help debugging
         return err;
@@ -345,7 +345,7 @@ static O2message_ptr get_messages_reversed(O2queue *head)
 // exists-flag, service-flag, and tapper-or-properties string.
 // This is almost identical to o2lite_sv_handler.
 //
-static void o2sm_sv_handler(o2_msg_data_ptr msgdata, const char *types,
+static void o2sm_sv_handler(O2msg_data_ptr msgdata, const char *types,
                             O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2err rslt = O2_SUCCESS;
@@ -393,7 +393,7 @@ static void o2sm_sv_handler(o2_msg_data_ptr msgdata, const char *types,
 
 
 // Handler for "/_o2/o2sm/fin" message
-static void o2sm_fin_handler(o2_msg_data_ptr msgdata, const char *types,
+static void o2sm_fin_handler(O2msg_data_ptr msgdata, const char *types,
                              O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2sm_fin_handler gets", NULL, msgdata, NULL, NULL));
@@ -590,7 +590,7 @@ O2err o2sm_send_marker(const char *path, double time, int tcp_flag,
 
 int o2sm_dispatch(O2message_ptr msg)
 {
-    printf("o2sm_dispatch %s\n", msg->data.address);
+    // printf("o2sm_dispatch %s\n", msg->data.address);
 #ifdef O2SM_PATTERNS
     O2node *service = o2_msg_service(&msg->data, &services);
     if (service) {

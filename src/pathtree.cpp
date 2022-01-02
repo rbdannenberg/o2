@@ -39,7 +39,7 @@ static O2err remove_method_from_tree(char *remaining, char *name,
 // returns true if a message was delivered
 //
 bool o2_find_handlers_rec(char *remaining, char *name,
-        O2node *node, o2_msg_data_ptr msg,
+        O2node *node, O2msg_data_ptr msg,
         const char *types)
 {
     char *slash = strchr(remaining, '/');

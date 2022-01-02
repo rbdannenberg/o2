@@ -36,7 +36,7 @@ typedef struct binding_reply {
 bool o2_stun_query_running = false;
 
 // initiate stun protocol periodically by calling this with a timed msg
-void o2_stun_query(o2_msg_data_ptr msgdata, const char *types,
+void o2_stun_query(O2msg_data_ptr msgdata, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data)
 {
     if (o2n_public_ip[0]) {

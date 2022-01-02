@@ -196,7 +196,7 @@ Services_entry **Services_entry::find(const char *service_name)
 // find the service node for this message: This could be a proxy to
 //    forward to or the Hash_node or Handler_entry for the local service
 //
-O2node *o2_msg_service(o2_msg_data_ptr msg, Services_entry **services)
+O2node *o2_msg_service(O2msg_data_ptr msg, Services_entry **services)
 {
     char *service_name = msg->address + 1;
     char *slash = strchr(service_name, '/');

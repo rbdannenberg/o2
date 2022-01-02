@@ -283,6 +283,7 @@ endif(BUILD_WITH_BRIDGE_SUPPORT)
 
 if(BUILD_WITH_SHAREDMEM_SUPPORT)
   o2testprogram(shmemserv ${PTHREAD})
+  o2testprogram(shmembench ${PTHREAD})  
 endif(BUILD_WITH_SHAREDMEM_SUPPORT)
 
 if(BUILD_WITH_OSC_SUPPORT)

@@ -11,7 +11,7 @@ bool got_the_message = false;
 O2blob_ptr a_blob;
 uint32_t a_midi_msg;
 
-void service_none(o2_msg_data_ptr data, const char *types,
+void service_none(O2msg_data_ptr data, const char *types,
                   O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -21,7 +21,7 @@ void service_none(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_nonep(o2_msg_data_ptr data, const char *types,
+void service_nonep(O2msg_data_ptr data, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "") == 0);
@@ -31,7 +31,7 @@ void service_nonep(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_i(o2_msg_data_ptr data, const char *types,
+void service_i(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -43,7 +43,7 @@ void service_i(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_ip(o2_msg_data_ptr data, const char *types,
+void service_ip(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "i") == 0);
@@ -54,7 +54,7 @@ void service_ip(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_c(o2_msg_data_ptr data, const char *types,
+void service_c(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -66,7 +66,7 @@ void service_c(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_cp(o2_msg_data_ptr data, const char *types,
+void service_cp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "c") == 0);
@@ -77,7 +77,7 @@ void service_cp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_B(o2_msg_data_ptr data, const char *types,
+void service_B(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -89,7 +89,7 @@ void service_B(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_Bp(o2_msg_data_ptr data, const char *types,
+void service_Bp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "B") == 0);
@@ -100,7 +100,7 @@ void service_Bp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_h(o2_msg_data_ptr data, const char *types,
+void service_h(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -114,7 +114,7 @@ void service_h(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_hp(o2_msg_data_ptr data, const char *types,
+void service_hp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "h") == 0);
@@ -127,7 +127,7 @@ void service_hp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_f(o2_msg_data_ptr data, const char *types,
+void service_f(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -139,7 +139,7 @@ void service_f(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_fp(o2_msg_data_ptr data, const char *types,
+void service_fp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "f") == 0);
@@ -150,7 +150,7 @@ void service_fp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_d(o2_msg_data_ptr data, const char *types,
+void service_d(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -162,7 +162,7 @@ void service_d(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_dp(o2_msg_data_ptr data, const char *types,
+void service_dp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "d") == 0);
@@ -173,7 +173,7 @@ void service_dp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_t(o2_msg_data_ptr data, const char *types,
+void service_t(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -185,7 +185,7 @@ void service_t(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_tp(o2_msg_data_ptr data, const char *types,
+void service_tp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "t") == 0);
@@ -196,7 +196,7 @@ void service_tp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_s(o2_msg_data_ptr data, const char *types,
+void service_s(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -208,7 +208,7 @@ void service_s(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_sp(o2_msg_data_ptr data, const char *types,
+void service_sp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "s") == 0);
@@ -219,7 +219,7 @@ void service_sp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_S(o2_msg_data_ptr data, const char *types,
+void service_S(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -231,7 +231,7 @@ void service_S(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_Sp(o2_msg_data_ptr data, const char *types,
+void service_Sp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "S") == 0);
@@ -242,7 +242,7 @@ void service_Sp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_b(o2_msg_data_ptr data, const char *types,
+void service_b(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -255,7 +255,7 @@ void service_b(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_bp(o2_msg_data_ptr data, const char *types,
+void service_bp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "b") == 0);
@@ -267,7 +267,7 @@ void service_bp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_m(o2_msg_data_ptr data, const char *types,
+void service_m(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -280,7 +280,7 @@ void service_m(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_mp(o2_msg_data_ptr data, const char *types,
+void service_mp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "m") == 0);
@@ -293,7 +293,7 @@ void service_mp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_T(o2_msg_data_ptr data, const char *types,
+void service_T(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -303,7 +303,7 @@ void service_T(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_Tp(o2_msg_data_ptr data, const char *types,
+void service_Tp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "T") == 0);
@@ -313,7 +313,7 @@ void service_Tp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_F(o2_msg_data_ptr data, const char *types,
+void service_F(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -323,7 +323,7 @@ void service_F(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_Fp(o2_msg_data_ptr data, const char *types,
+void service_Fp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "F") == 0);
@@ -333,7 +333,7 @@ void service_Fp(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_I(o2_msg_data_ptr data, const char *types,
+void service_I(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -343,7 +343,7 @@ void service_I(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_Ip(o2_msg_data_ptr data, const char *types,
+void service_Ip(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "I") == 0);
@@ -353,7 +353,7 @@ void service_Ip(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_N(o2_msg_data_ptr data, const char *types,
+void service_N(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -363,7 +363,7 @@ void service_N(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_Np(o2_msg_data_ptr data, const char *types,
+void service_Np(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "N") == 0);
@@ -373,7 +373,7 @@ void service_Np(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_many(o2_msg_data_ptr data, const char *types,
+void service_many(O2msg_data_ptr data, const char *types,
                   O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -417,7 +417,7 @@ void service_many(o2_msg_data_ptr data, const char *types,
 }
 
 
-void service_manyp(o2_msg_data_ptr data, const char *types,
+void service_manyp(O2msg_data_ptr data, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 16);
@@ -442,7 +442,7 @@ void service_manyp(o2_msg_data_ptr data, const char *types,
 
 // this handles every message to service_two
 //    we'll support two things: /two/i and /two/id
-void service_two(o2_msg_data_ptr msg, const char *types,
+void service_two(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(msg);
@@ -467,7 +467,7 @@ void service_two(o2_msg_data_ptr msg, const char *types,
 
 // this handles every message to service_two
 //    we'll support two things: /two/i and /two/id
-void service_three(o2_msg_data_ptr msg, const char *types,
+void service_three(O2msg_data_ptr msg, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(msg);
@@ -492,7 +492,7 @@ void service_three(o2_msg_data_ptr msg, const char *types,
 
 // this handles every message to service_two
 //    we'll support two things: /two/i and /two/id
-void service_four(o2_msg_data_ptr msg, const char *types,
+void service_four(O2msg_data_ptr msg, const char *types,
                   O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(msg);

@@ -44,7 +44,7 @@ O2err o2_discovery_finish(void);
  *  connection with the remote_process.
  *
  */
-void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
+void o2_discovery_send_handler(O2msg_data_ptr msg, const char *types,
                     O2arg_ptr *argv, int argc, const void *user_data);
 
 void o2_send_discovery_at(O2time when);
@@ -52,17 +52,17 @@ void o2_send_discovery_at(O2time when);
 
 O2err o2_send_services(Proxy_info *proc);
 
-void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
+void o2_discovery_handler(O2msg_data_ptr msg, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data);
 
-void o2_discovery_init_handler(o2_msg_data_ptr msg, const char *types,
+void o2_discovery_init_handler(O2msg_data_ptr msg, const char *types,
                     O2arg_ptr *argv, int argc, const void *user_data);
 
 
-void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
+void o2_hub_handler(O2msg_data_ptr msg, const char *types,
          O2arg_ptr *argv, int argc, const void *user_data);
 
-void o2_services_handler(o2_msg_data_ptr msg, const char *types,
+void o2_services_handler(O2msg_data_ptr msg, const char *types,
               O2arg_ptr *argv, int argc, const void *user_data);
 
 // call this if you have a (padded) O2string for name:

@@ -27,7 +27,7 @@ static int unblock_count = NOTYET;
 // this is a handler for incoming messages. It makes sure messages are
 // delivered in order and shuts down when we get the last one.
 //
-void server_test(o2_msg_data_ptr msg, const char *types,
+void server_test(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 2);
@@ -47,7 +47,7 @@ void server_test(o2_msg_data_ptr msg, const char *types,
 }
 
 
-void server_stat(o2_msg_data_ptr msg, const char *types,
+void server_stat(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     bool blocked = argv[1]->B;

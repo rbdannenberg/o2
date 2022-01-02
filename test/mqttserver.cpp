@@ -43,7 +43,7 @@ bool running = true;
 // this is a handler for incoming messages. It simply sends a message
 // back to one of the client addresses
 //
-void server_fn(o2_msg_data_ptr msg, const char *types,
+void server_fn(O2msg_data_ptr msg, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
@@ -55,7 +55,7 @@ void server_fn(o2_msg_data_ptr msg, const char *types,
 }
 
 
-void server_done_fn(o2_msg_data_ptr msg, const char *types,
+void server_done_fn(O2msg_data_ptr msg, const char *types,
                     O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("server received \"goodbye\" message.\n");

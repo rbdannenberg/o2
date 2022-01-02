@@ -64,7 +64,7 @@
 //         o2_ctx->msgs (which is why we need this to be a list and
 //         not just remember a single message). Either o2_send_local()
 //         or Proxy_info::send() take ownership from o2_ctx->msgs.
-// o2_embedded_msgs_deliver(o2_msg_data_ptr msg, int tcp_flag)
+// o2_embedded_msgs_deliver(O2msg_data_ptr msg, int tcp_flag)
 //         Deliver or schedule messages in a bundle (recursively).
 //         Calls o2_message_send_sched() to deliver each embedded
 //         message, which is copied into an O2message and transferred
@@ -193,7 +193,7 @@ bool Pending_msgs_queue::empty()
 O2message_ptr o2_active_message = NULL;
 
 
-void o2_drop_msg_data(const char *warn, o2_msg_data_ptr data)
+void o2_drop_msg_data(const char *warn, O2msg_data_ptr data)
 {
     char fullmsg[100];
     if (streql(data->address, "!_o2/si")) {
@@ -307,11 +307,11 @@ void o2_free_pending_msgs()
 }
 
 #ifndef O2_NO_BUNDLES
-static O2err o2_embedded_msgs_deliver(o2_msg_data_ptr msg)
+static O2err o2_embedded_msgs_deliver(O2msg_data_ptr msg)
 {
     char *end_of_msg = O2_MSG_DATA_END(msg);
     // embedded message starts where ',' of type string should be:
-    o2_msg_data_ptr embedded = (o2_msg_data_ptr) (o2_msg_data_types(msg) - 1);
+    O2msg_data_ptr embedded = (O2msg_data_ptr) (o2_msg_data_types(msg) - 1);
     while (PTR(embedded) < end_of_msg) {
         // need to copy each embedded message before sending
         int len = embedded->length;
@@ -321,7 +321,7 @@ static O2err o2_embedded_msgs_deliver(o2_msg_data_ptr msg)
         message->next = NULL;
         message->data.misc |= O2_TCP_FLAG;
         o2_message_send(message);
-        embedded = (o2_msg_data_ptr) O2_MSG_DATA_END(embedded);
+        embedded = (O2msg_data_ptr) O2_MSG_DATA_END(embedded);
     }
     return O2_SUCCESS;
 }

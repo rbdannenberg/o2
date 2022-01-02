@@ -113,7 +113,7 @@ char client_pip[O2N_IP_LEN];
 char client_iip[O2N_IP_LEN];
 int client_port = -1;
 
-void service_info_handler(o2_msg_data_ptr data, const char *types,
+void service_info_handler(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
@@ -145,7 +145,7 @@ void service_info_handler(o2_msg_data_ptr data, const char *types,
 
 int client_hi_count = 0;
 
-void client_says_hi(o2_msg_data_ptr data, const char *types,
+void client_says_hi(O2msg_data_ptr data, const char *types,
                     O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("#   -> client_says_hi got %s\n", argv[0]->s);

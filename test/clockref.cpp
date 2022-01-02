@@ -22,7 +22,7 @@ O2time cs_time = 1000000.0;
 // this is a handler that polls for current status
 // it runs about every 1s
 //
-void clockref(o2_msg_data_ptr msg, const char *types,
+void clockref(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     int ss = o2_status("server");
@@ -49,7 +49,7 @@ void clockref(o2_msg_data_ptr msg, const char *types,
 bool rtt_sent = false;
 char client_ip_port[O2_MAX_PROCNAME_LEN];
 
-void service_info(o2_msg_data_ptr msg, const char *types,
+void service_info(O2msg_data_ptr msg, const char *types,
                   O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
@@ -75,7 +75,7 @@ void service_info(o2_msg_data_ptr msg, const char *types,
 
 bool rtt_received = false;
 
-void rtt_reply(o2_msg_data_ptr msg, const char *types,
+void rtt_reply(O2msg_data_ptr msg, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;

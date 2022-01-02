@@ -95,7 +95,7 @@ static void o2_clock_synchronized(O2time local_time, O2time ref_time)
 //    called when we are slowing down or speeding up to return
 //    the clock rate to 1.0 because we should be synchronized
 //
-static void catch_up_handler(o2_msg_data_ptr msg, const char *types,
+static void catch_up_handler(O2msg_data_ptr msg, const char *types,
                       O2arg_ptr *argv, int argc, const void *user_data)
 {
     int rate_id = argv[0]->i32;
@@ -309,7 +309,7 @@ void o2_clock_status_change(Proxy_info *proxy)
 
 // handle messages to /_o2/cs/cs that announce when clock sync is obtained
 //
-void o2_clocksynced_handler(o2_msg_data_ptr msg, const char *types,
+void o2_clocksynced_handler(O2msg_data_ptr msg, const char *types,
                             O2arg_ptr *argv, int argc, const void *user_data)
 {
     // guard against a bridged process sending !_o2/cs/cs:
@@ -353,7 +353,7 @@ static double mean_rtt = 0;
 static double min_rtt = 0;
 
 
-void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
+void o2_clockrt_handler(O2msg_data_ptr msg, const char *types,
              O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(msg);
@@ -367,7 +367,7 @@ void o2_clockrt_handler(o2_msg_data_ptr msg, const char *types,
 
 // handler for cs/put, which is a reply to cs/get:
 //
-static void cs_ping_reply_handler(o2_msg_data_ptr msg, const char *types,
+static void cs_ping_reply_handler(O2msg_data_ptr msg, const char *types,
                        O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2arg_ptr arg;
@@ -450,7 +450,7 @@ int o2_roundtrip(double *mean, double *min)
 //   then send ping every 0.1s CLOCK_SYNC_HISTORY_LEN times, 
 //   then every 0.5s for 5s, then every 10s
 //
-void o2_ping_send_handler(o2_msg_data_ptr msg, const char *types,
+void o2_ping_send_handler(O2msg_data_ptr msg, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data)
 {
     // this function gets called periodically to drive the clock sync
@@ -588,7 +588,7 @@ void o2_clock_finish()
 // cs_ping_handler -- handler for /_cs/get
 //   return the reference clock time. Arguments are serial_no and reply_to.
 //   send serial_no and current time to reply_to
-static void cs_ping_handler(o2_msg_data_ptr msg, const char *types,
+static void cs_ping_handler(O2msg_data_ptr msg, const char *types,
                      O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2arg_ptr serial_no_arg, reply_to_arg;

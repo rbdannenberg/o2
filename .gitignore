@@ -21,3 +21,5 @@ bugs/osctest.eml
 *.h~
 
 /esp-install.bat
+
+/RelWithDebInfo/

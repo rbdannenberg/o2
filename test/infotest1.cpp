@@ -12,13 +12,13 @@
 int fail_and_exit = false;
 
 
-void service_one(o2_msg_data_ptr data, const char *types,
+void service_one(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("Service one received a message\n");
 }
 
-void service_two(o2_msg_data_ptr data, const char *types,
+void service_two(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("Service two received a message\n");
@@ -32,7 +32,7 @@ int expected_si_status_first[] = {
         O2_LOCAL_NOTIME, O2_LOCAL_NOTIME, O2_LOCAL};
 const char *expected_si_service_later[] = {"_o2", "one", "two"};
 
-void service_info_handler(o2_msg_data_ptr data, const char *types,
+void service_info_handler(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;

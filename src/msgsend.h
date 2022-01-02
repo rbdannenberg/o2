@@ -27,7 +27,7 @@ extern Pending_msgs_queue o2_pending_local;
 extern Pending_msgs_queue o2_pending_anywhere;
 
 
-void o2_drop_msg_data(const char *warn, o2_msg_data_ptr data);
+void o2_drop_msg_data(const char *warn, O2msg_data_ptr data);
 
 void o2_prepare_to_deliver(O2message_ptr msg);
 
@@ -62,10 +62,10 @@ void o2_send_to_taps(O2message_ptr msg, Services_entry *ss);
 
 O2err o2_msg_send_now();
 
-void o2_call_handler(Handler_entry *handler, o2_msg_data_ptr msg,
+void o2_call_handler(Handler_entry *handler, O2msg_data_ptr msg,
                      const char *types);
 
-O2node *o2_msg_service(o2_msg_data_ptr msg, Services_entry **services);
+O2node *o2_msg_service(O2msg_data_ptr msg, Services_entry **services);
 
 // int o2_send_message(Fds_info *proc, int blocking);
 

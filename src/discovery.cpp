@@ -298,7 +298,7 @@ static O2err o2_broadcast_message(int port, int local_remote)
 // If we are the server, send discovery message to client and we are done.
 // If we are the client, o2_send_services()
 //
-void o2_discovery_handler(o2_msg_data_ptr msg, const char *types,
+void o2_discovery_handler(O2msg_data_ptr msg, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2_discovery_handler gets", NULL, msg, NULL, NULL));
@@ -620,7 +620,7 @@ static void hub_has_new_client(Proc_info *nc)
 
 // /_o2/hub handler: makes this the hub of the sender
 //
-void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
+void o2_hub_handler(O2msg_data_ptr msg, const char *types,
                     O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(o2_message_source);
@@ -644,7 +644,7 @@ void o2_hub_handler(o2_msg_data_ptr msg, const char *types,
 // After this message is handled, this host is able to send/receive messages
 //      to/from services
 //
-void o2_services_handler(o2_msg_data_ptr msg, const char *types,
+void o2_services_handler(O2msg_data_ptr msg, const char *types,
                          O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(msg);
@@ -723,7 +723,7 @@ void o2_send_discovery_at(O2time when)
 //    message args are:
 //    o2_ctx->info_ip (as a string), udp port (int), tcp port (int)
 //
-void o2_discovery_send_handler(o2_msg_data_ptr msg, const char *types,
+void o2_discovery_send_handler(O2msg_data_ptr msg, const char *types,
                     O2arg_ptr *argv, int argc, const void *user_data)
 {
 #ifndef O2_NO_HUB

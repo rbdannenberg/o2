@@ -45,7 +45,7 @@ int o2_add_raw_bytes(int32_t len, char *bytes);
 
 char *o2_msg_data_get(int32_t *len_ptr);
 
-void o2_msg_data_print_2(o2_msg_data_ptr msg);
+void o2_msg_data_print_2(O2msg_data_ptr msg);
 
 
 /* GENERAL MESSAGE FUNCIONS */
@@ -53,19 +53,19 @@ void o2_msg_data_print_2(o2_msg_data_ptr msg);
 #ifndef O2_NO_BUNDLES
 #define IS_BUNDLE(msg)((msg)->address[0] == '#')
 
-// Iterate over elements of a bundle. msg is an o2_msg_data_ptr, and
+// Iterate over elements of a bundle. msg is an O2msg_data_ptr, and
 // code is the code to execute. When code is entered, embedded is an
-// o2_msg_data_ptr pointing to each element of msg. code MUST assign
+// O2msg_data_ptr pointing to each element of msg. code MUST assign
 // the length of embedded to len. (This is not built-in because 
 // embedded may be byte-swapped.) Generally, code will include a
 // recursive call to process embedded, which may itself be a bundle.
 //
 #define FOR_EACH_EMBEDDED(msg, code)                     \
     char *end_of_msg = O2_MSG_DATA_END(msg); \
-    o2_msg_data_ptr embedded = (o2_msg_data_ptr) (o2_msg_data_types(msg) - 1); \
+    O2msg_data_ptr embedded = (O2msg_data_ptr) (o2_msg_data_types(msg) - 1); \
     while (PTR(embedded) < end_of_msg) { int32_t len; \
         code; \
-        embedded = (o2_msg_data_ptr) (PTR(embedded) + len + sizeof(int32_t)); }
+        embedded = (O2msg_data_ptr) (PTR(embedded) + len + sizeof(int32_t)); }
 #endif
 
 /* allocate message structure with at least size bytes in the data portion */
@@ -80,7 +80,7 @@ void o2_message_list_free(O2message_ptr *msg);
  *
  * @return O2_SUCCESS unless the message is malformed
  */
-O2err o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order);
+O2err o2_msg_swap_endian(O2msg_data_ptr msg, int is_host_order);
 
 O2err o2_message_build(O2message_ptr *msg, O2time timestamp,
                        const char *service_name,

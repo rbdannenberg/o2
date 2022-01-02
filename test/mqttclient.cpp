@@ -14,7 +14,7 @@ int MAX_MSG_COUNT = 10;
 int msg_count = 0;
 bool running = true;
 
-void client_recv_reply(o2_msg_data_ptr data, const char *types,
+void client_recv_reply(O2msg_data_ptr data, const char *types,
                        O2arg_ptr *argv, int argc, const void *user_data)
 {
     msg_count++;

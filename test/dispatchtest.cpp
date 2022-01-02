@@ -13,7 +13,7 @@
 int s = 0;
 int w = 1;
 
-void service_one(o2_msg_data_ptr data, const char *types,
+void service_one(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     char p[100];
@@ -27,7 +27,7 @@ void service_one(o2_msg_data_ptr data, const char *types,
     s++;
 }
 
-void service_two(o2_msg_data_ptr data, const char *types,
+void service_two(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     char p[100];

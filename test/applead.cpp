@@ -20,7 +20,7 @@ O2time cs_time = 1000000.0;
 // this is a handler that polls for current status
 // it runs about every 1s
 //
-void applead(o2_msg_data_ptr msg, const char *types,
+void applead(O2msg_data_ptr msg, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     int ss = o2_status("server");
@@ -46,7 +46,7 @@ void applead(o2_msg_data_ptr msg, const char *types,
 
 // this is a handler to get a "hello" message from appfollow
 //
-void apphello(o2_msg_data_ptr msg, const char *types,
+void apphello(O2msg_data_ptr msg, const char *types,
               O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("applead got hello message at local time %g\n", o2_local_time());
@@ -57,7 +57,7 @@ void apphello(o2_msg_data_ptr msg, const char *types,
 int rtt_sent = false;
 char client_ip_port[O2_MAX_PROCNAME_LEN];
 
-void service_info(o2_msg_data_ptr msg, const char *types,
+void service_info(O2msg_data_ptr msg, const char *types,
                   O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;
@@ -83,7 +83,7 @@ void service_info(o2_msg_data_ptr msg, const char *types,
 
 int rtt_received = false;
 
-void rtt_reply(o2_msg_data_ptr msg, const char *types,
+void rtt_reply(O2msg_data_ptr msg, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;

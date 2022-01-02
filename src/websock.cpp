@@ -149,7 +149,7 @@ O2ws_protocol *o2ws_protocol = NULL;
 
 // Handler for !_o2/ws/dy message. This must be the first message and
 // it must contain the correct ensemble name.
-static void o2ws_dy_handler(o2_msg_data_ptr msgdata, const char *types,
+static void o2ws_dy_handler(O2msg_data_ptr msgdata, const char *types,
                             O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBw(o2_dbg_msg("o2ws_dy_handler gets", NULL, msgdata, NULL, NULL));
@@ -183,7 +183,7 @@ static void o2ws_dy_handler(o2_msg_data_ptr msgdata, const char *types,
 // Handler for !_o2/ws/cs/get message. This is to get the time for
 // a websocket client. Parameters are: id, sequence-number, reply-to
 //
-void o2ws_csget_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2ws_csget_handler(O2msg_data_ptr msgdata, const char *types,
                         O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBk(o2_dbg_msg("o2ws_csget_handler gets", NULL, msgdata, NULL, NULL));

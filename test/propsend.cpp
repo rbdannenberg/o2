@@ -21,7 +21,7 @@ int sync_value = -1;
 int last_sync = -1;
 
 
-void service_one(o2_msg_data_ptr data, const char *types,
+void service_one(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(strcmp(types, "i") == 0);
@@ -67,7 +67,7 @@ void lookup()
 
 int si_msg_count = 0;
 
-void service_info_handler(o2_msg_data_ptr data, const char *types,
+void service_info_handler(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;

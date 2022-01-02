@@ -81,7 +81,7 @@ int approximate(O2time x, O2time y)
 
 
 void meta_handler(const char *name, O2arg_ptr *argv, int argc,
-                  o2_msg_data_ptr msg)
+                  O2msg_data_ptr msg)
 {
     if (msg_count == 0) { // assume first message is delivered at the right time
         start_time = o2_time_get() - 2.5; // timestamp was "now + 2.5"
@@ -99,7 +99,7 @@ void meta_handler(const char *name, O2arg_ptr *argv, int argc,
     msg_count++;
 }
 
-#define ARGS o2_msg_data_ptr msg, const char *types, \
+#define ARGS O2msg_data_ptr msg, const char *types, \
              O2arg_ptr *argv, int argc, const void *user_data
 void first_handler(ARGS) { meta_handler("first_handler", argv, argc, msg); }
 void msg1_handler (ARGS) { meta_handler("msg1_handler",  argv, argc, msg); }

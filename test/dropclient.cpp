@@ -20,7 +20,7 @@ void pollsome()
 const char *expected_warning = "";
 int warning_count = 0;
 
-static void drop_warning(const char *warn, o2_msg_data_ptr msg)
+static void drop_warning(const char *warn, O2msg_data_ptr msg)
 {
     assert(streql(warn, "dropping message because no handler was found"));
     printf("drop_warning: got \"%s\"\n", warn);
@@ -33,7 +33,7 @@ static void drop_warning(const char *warn, o2_msg_data_ptr msg)
 
 // this is a handler for incoming messages
 //
-void bye(o2_msg_data_ptr msg, const char *types,
+void bye(O2msg_data_ptr msg, const char *types,
          O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);

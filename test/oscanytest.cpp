@@ -21,7 +21,7 @@ int timed_count = 0;
 int approx(double x) { return (x > -0.03) && (x < 0.03); }
 
 
-void osc_i_handler(o2_msg_data_ptr data, const char *types,
+void osc_i_handler(O2msg_data_ptr data, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argv);

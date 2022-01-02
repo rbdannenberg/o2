@@ -17,6 +17,7 @@
 #endif
 #if !defined(O2_NO_O2DISCOVERY) && !defined(O2_NO_ZEROCONF)
 #warning O2DISCOVERY and ZEROCONF are *both* enabled
+#warning You should compile with -DO2_NO_O2DISCOVERY
 #endif
 
 #ifndef O2_EXPORT
@@ -674,10 +675,10 @@ typedef struct O2msg_data {
      * the length field itself is given by the `length` field.
      */
     char address[4];
-} O2msg_data, *o2_msg_data_ptr;
+} O2msg_data, *O2msg_data_ptr;
 
 
-/** \brief get the type string from o2_msg_data_ptr
+/** \brief get the type string from O2msg_data_ptr
  *
  * Type strings begin with the comma (",") character, which is skipped
  */
@@ -689,7 +690,7 @@ typedef struct O2msg_data {
 
 // find the next word-aligned string after str in a message:
 const char *o2_next_o2string(const char *str);
-// find the type string from o2_msg_data_ptr, skips initial ',':
+// find the type string from O2msg_data_ptr, skips initial ',':
 #define o2_msg_data_types(data) (o2_next_o2string((data)->address) + 1)
 #define o2_msg_types(msg) o2_msg_data_types(&msg->data)
 // find the first parameter of the message, given the type string address
@@ -865,11 +866,12 @@ void o2_message_print(O2message_ptr msg);
  *
  * @param msg a message to be printed
  */
-void o2_msg_data_print(o2_msg_data_ptr msg);
+void o2_msg_data_print(O2msg_data_ptr msg);
 
 
 /**
- *  \brief callback function to receive an O2 message
+ * \typedef O2method_handler
+ * \brief callback function to receive an O2 message
  *
  * @param msg The full message in host byte order.
  * @param types If you set a type string in your method creation call,
@@ -897,25 +899,29 @@ void o2_msg_data_print(o2_msg_data_ptr msg);
  *             nothing to the argc count or argv vector.
  * @param user_data This contains the user_data value passed in the call
  *             to the method creation call.
+ *
+ * Since the parameter list repeats in every handler implementation, the
+ * macro `O2_HANDLER_ARGS` is provided to avoid some typing. Handlers can
+ * be implemented in the form `void my_handler(O2_HANDLER_ARGS) { ... }`
  */
-typedef void (*O2method_handler)(const o2_msg_data_ptr msg, const char *types,
-                                  O2arg_ptr *argv, int argc,
-                                  const void *user_data);
+#define O2_HANDLER_ARGS const O2msg_data_ptr msg, const char *types, \
+                              O2arg_ptr *argv, int argc, const void *user_data
+typedef void (*O2method_handler)(O2_HANDLER_ARGS);
 
 /**
- *  \brief Start O2.
+ * \brief Start O2.
  *
- *  If O2 has not been initialized, it is created and intialized.
- *  O2 will begin to establish connections to other instances
- *  with a matching ensemble name.
+ * If O2 has not been initialized, it is created and intialized.
+ * O2 will begin to establish connections to other instances
+ * with a matching ensemble name.
  *
- *  @param ensemble_name the name of the ensemble. O2 will attempt to
- *  discover other processes with a matching ensemble name,
- *  ignoring all processes with non-matching names.
+ * @param ensemble_name the name of the ensemble. O2 will attempt to
+ * discover other processes with a matching ensemble name,
+ * ignoring all processes with non-matching names.
  *
- *  @return #O2_SUCCESS if success, #O2_FAIL if an error occurs,
- *  #O2_RUNNING if already running, #O2_BAD_NAME if `ensemble_name`
- *  is NULL.
+ * @return #O2_SUCCESS if success, #O2_FAIL if an error occurs,
+ * #O2_RUNNING if already running, #O2_BAD_NAME if `ensemble_name`
+ * is NULL.
  */
 O2_EXPORT O2err o2_initialize(const char *ensemble_name);
 
@@ -1098,8 +1104,8 @@ O2_EXPORT O2err o2_hub(int version, const char *public_ip, const char *internal_
  *
  * @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-O2_EXPORT O2err o2_get_addresses(const char **public_ip, const char **internal_ip,
-                        int *port);
+O2_EXPORT O2err o2_get_addresses(const char **public_ip, 
+                                 const char **internal_ip, int *port);
 
 /**
  * \brief Get Public:Local:Port service name string.
@@ -1534,7 +1540,7 @@ O2err o2_method_free(const char *path);
  * #o2_drop_message or #o2_drop_msg_data instead. You can pass this
  * function to #o2_message_warnings to restore default warning behavior.
  */
-void o2_message_drop_warning(const char *warn, o2_msg_data_ptr msg);
+void o2_message_drop_warning(const char *warn, O2msg_data_ptr msg);
 
 /**
  * \brief Tell world that a message was dropped.
@@ -1581,7 +1587,7 @@ O2_EXPORT void o2_drop_message(const char *warn, bool free_the_msg);
  * detected (eventually), resulting in warnings even for UDP messages.
  */
 O2_EXPORT void o2_message_warnings(
-        void (*warning)(const char *warn, o2_msg_data_ptr msg));
+        void (*warning)(const char *warn, O2msg_data_ptr msg));
 
 
 /**
@@ -2437,7 +2443,7 @@ O2_EXPORT O2err o2_send_finish(O2time time, const char *address, bool tcp_flag);
  * To get arguments from a message, call #o2_extract_start, then for
  * each parameter, call #o2_get_next.
  */
-O2_EXPORT int o2_extract_start(o2_msg_data_ptr msg);
+O2_EXPORT int o2_extract_start(O2msg_data_ptr msg);
 
 /**
  * \brief get the next message parameter

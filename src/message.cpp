@@ -462,7 +462,7 @@ const char *o2_next_o2string(const char *str)
 }
 
 
-static o2_msg_data_ptr mx_msg = NULL;   // the message we are extracting from
+static O2msg_data_ptr mx_msg = NULL;   // the message we are extracting from
 static const char *mx_types = NULL;     // the type codes
 static const char *mx_type_next = NULL; // the next type code
 static const char *mx_data_next = NULL; // the next data item in mx_msg
@@ -629,7 +629,7 @@ ssize_t o2_validate_bundle(void *data, ssize_t size)
     if (end > end_of_msg) return O2_INVALID_MSG;
 
 /* convert endianness of a message */
-O2err o2_msg_swap_endian(o2_msg_data_ptr msg, int is_host_order)
+O2err o2_msg_swap_endian(O2msg_data_ptr msg, int is_host_order)
 {
     msg->misc = swap32(msg->misc);
     int64_t i64_time = *(int64_t *) &msg->timestamp;
@@ -866,7 +866,7 @@ O2err o2_send_finish(O2time time, const char *address, bool tcp_flag)
 /// get ready to extract args with o2_get_next
 /// returns length of type string (not including ',') in message
 //
-int o2_extract_start(o2_msg_data_ptr msg)
+int o2_extract_start(O2msg_data_ptr msg)
 {
     mx_msg = msg;
     // point temp_type_end to the first type code byte.

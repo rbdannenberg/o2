@@ -18,7 +18,7 @@ for design details */
 #include "pathtree.h"
 
 
-static void o2_mqtt_discovery_handler(o2_msg_data_ptr msg, const char *types,
+static void o2_mqtt_discovery_handler(O2msg_data_ptr msg, const char *types,
                            O2arg_ptr *argv, int argc, const void *user_data);
 
 // discovered remote processes reachable by MQTT:
@@ -104,7 +104,7 @@ static void mqtt_ping_at(O2time when)
 }
 
 
-static void mqtt_ping_send(o2_msg_data_ptr msg, const char *types,
+static void mqtt_ping_send(O2msg_data_ptr msg, const char *types,
                            O2arg_ptr *argv, int argc, const void *user_data)
 {
     if (mqtt_info) {
@@ -251,7 +251,7 @@ O2err create_mqtt_connection(const char *name, bool from_disc)
 }
 
 
-static void o2_mqtt_discovery_handler(o2_msg_data_ptr msg, const char *types,
+static void o2_mqtt_discovery_handler(O2msg_data_ptr msg, const char *types,
                            O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(msg);

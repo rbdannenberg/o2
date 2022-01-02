@@ -176,16 +176,16 @@ public:
     }
 };    
 
-void o2_bridge_csget_handler(o2_msg_data_ptr msgdata, int seqno,
+void o2_bridge_csget_handler(O2msg_data_ptr msgdata, int seqno,
                              const char *replyto);
 void o2_bridge_cscs_handler();
-void o2_bridge_cscs_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2_bridge_cscs_handler(O2msg_data_ptr msgdata, const char *types,
                             O2arg_ptr *argv, int argc, const void *user_data);
-void o2_bridge_sv_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2_bridge_sv_handler(O2msg_data_ptr msgdata, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data);
-void o2_bridge_st_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2_bridge_st_handler(O2msg_data_ptr msgdata, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data);
-void o2_bridge_ls_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2_bridge_ls_handler(O2msg_data_ptr msgdata, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data);
 
 /// \brief print a representation of the bridge for debugging.

@@ -287,7 +287,7 @@ void zc_register_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
 }
 
 
-void resolve_watchdog(o2_msg_data_ptr msg, const char *types,
+void resolve_watchdog(O2msg_data_ptr msg, const char *types,
                       O2arg_ptr *argv, int argc, const void *user_data)
 {
     if (argv[0]->i != watchdog_seq) {

@@ -13,7 +13,7 @@ int keep_alive = false;
 int polling_rate = 100;
 O2time cs_time = 1000000.0;
 
-void clockmirror(o2_msg_data_ptr msg, const char *types,
+void clockmirror(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     int ss = o2_status("server");

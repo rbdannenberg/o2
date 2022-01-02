@@ -1,6 +1,6 @@
-//  o2client.c - part of performance benchmark
+//  o2client.cpp - part of performance benchmark
 //
-//  see o2server.c for details
+//  see o2server.cpp for details
 
 #include "o2.h"
 #include <stdio.h>
@@ -17,7 +17,7 @@ int use_tcp = false;
 int msg_count = 0;
 bool running = true;
 
-void client_test(o2_msg_data_ptr data, const char *types,
+void client_test(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     msg_count++;

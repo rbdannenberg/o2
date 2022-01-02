@@ -89,7 +89,7 @@ public:
     O2message_ptr msgs; ///< the message being delivered
 
     // warning callback for dropped messages
-    void (*warning)(const char *warn, o2_msg_data_ptr msg);
+    void (*warning)(const char *warn, O2msg_data_ptr msg);
 
     O2_context() {
         argv = NULL;

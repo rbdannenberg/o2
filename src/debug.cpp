@@ -38,7 +38,7 @@ void o2_debug_flags(const char *flags)
 }
 
 #ifndef O2_NO_DEBUG
-void o2_dbg_msg(const char *src, O2message_ptr msg, o2_msg_data_ptr data,
+void o2_dbg_msg(const char *src, O2message_ptr msg, O2msg_data_ptr data,
                 const char *extra_label, const char *extra_data)
 {
     printf("%s %s ", o2_debug_prefix, src);

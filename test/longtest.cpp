@@ -17,7 +17,7 @@ char a_midi_msg[4];
 int arg_count = 0;
 
 // receive arg_count floats
-void service_f(o2_msg_data_ptr data, const char *types,
+void service_f(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -37,7 +37,7 @@ void service_f(o2_msg_data_ptr data, const char *types,
 
 
 // receive arg_count doubles
-void service_d(o2_msg_data_ptr data, const char *types,
+void service_d(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
@@ -57,7 +57,7 @@ void service_d(o2_msg_data_ptr data, const char *types,
 
 
 // receive arg_count floats, coerced to ints, with parsing
-void service_fc(o2_msg_data_ptr data, const char *types,
+void service_fc(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == arg_count);
@@ -78,7 +78,7 @@ void service_fc(o2_msg_data_ptr data, const char *types,
 
 
 // receive arg_count doubles, coerced to ints, with parsing
-void service_dc(o2_msg_data_ptr data, const char *types,
+void service_dc(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == arg_count);

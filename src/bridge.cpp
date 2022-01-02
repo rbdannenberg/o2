@@ -145,7 +145,7 @@ int Bridge_protocol::find_loc(int id)
 // This is a generalized handler for !_o2/o2lite/cs/get and !_o2/ws/cs/get
 // Both direct to specific message handlers that find the sender in code
 // that is bridge-protocol-specific. Then, they direct here to finish the work.
-void o2_bridge_csget_handler(o2_msg_data_ptr msgdata, int seqno,
+void o2_bridge_csget_handler(O2msg_data_ptr msgdata, int seqno,
                              const char *replyto)
 {
     if (!o2_message_source || !ISA_BRIDGE(o2_message_source)) {
@@ -169,7 +169,7 @@ void o2_bridge_csget_handler(o2_msg_data_ptr msgdata, int seqno,
     o2_message_source->send(false);
 }
 
-void o2_bridge_cscs_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2_bridge_cscs_handler(O2msg_data_ptr msgdata, const char *types,
                             O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(printf("o2ws_bridge_cscs_handler, source is:\n");
@@ -191,7 +191,7 @@ void o2_bridge_cscs_handler(o2_msg_data_ptr msgdata, const char *types,
 // handler for /_o2/*/sv messages which register services for o2lite
 // protocols (including websocket interface)
 //
-void o2_bridge_sv_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2_bridge_sv_handler(O2msg_data_ptr msgdata, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2err rslt = O2_SUCCESS;
@@ -258,7 +258,7 @@ void o2_bridge_sv_handler(o2_msg_data_ptr msgdata, const char *types,
 // handler for /_o2/*/st messages which return status of a service
 // for o2lite protocols (including websocket interface)
 //
-void o2_bridge_st_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2_bridge_st_handler(O2msg_data_ptr msgdata, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service = argv[0]->s;
@@ -276,7 +276,7 @@ void o2_bridge_st_handler(o2_msg_data_ptr msgdata, const char *types,
 // services to for o2lite clients (including websocket interfaces)
 // Sends messages with: service_name, service_type, process_name, properties
 // properties is sent WITHOUT a leading ";"
-void o2_bridge_ls_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2_bridge_ls_handler(O2msg_data_ptr msgdata, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_services_list();
@@ -434,7 +434,7 @@ O2lite_protocol::~O2lite_protocol()
 
 // o2lite_dy_handler - generic bridge discovery handler for !_o2/o2lite/dy
 //   message parameters are ensemble, tcp port, udp_port
-void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2lite_dy_handler(O2msg_data_ptr msgdata, const char *types,
                        O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2lite_dy_handler gets", NULL, msgdata, NULL, NULL));
@@ -468,7 +468,7 @@ void o2lite_dy_handler(o2_msg_data_ptr msgdata, const char *types,
 //   after o2lite bridged process makes a TCP connection, message
 //   parameters are ip address and udp port number for bridged process
 //
-void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2lite_con_handler(O2msg_data_ptr msgdata, const char *types,
                         O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2lite_con_handler gets", NULL, msgdata, NULL, NULL));
@@ -514,7 +514,7 @@ void o2lite_con_handler(o2_msg_data_ptr msgdata, const char *types,
 // Handler for !_o2/o2lite/cs/get message. This is to get the time for
 // an o2lite client. Parameters are: id, sequence-number, reply-to
 //
-void o2lite_csget_handler(o2_msg_data_ptr msgdata, const char *types,
+void o2lite_csget_handler(O2msg_data_ptr msgdata, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBk(o2_dbg_msg("o2lite_csget_handler gets", NULL, msgdata, NULL, NULL));

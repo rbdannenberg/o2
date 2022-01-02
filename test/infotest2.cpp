@@ -17,7 +17,7 @@
 #define N_ADDRS 10
 
 
-void service_one(o2_msg_data_ptr data, const char *types,
+void service_one(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("Service one received a message\n");
@@ -28,7 +28,7 @@ O2time cs_time = 1000000.0;
 
 // this is a handler that polls for current status
 //
-void clockmaster(o2_msg_data_ptr msg, const char *types,
+void clockmaster(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     int ss = o2_status("server");
@@ -189,7 +189,7 @@ printf("Bad status %s for %s, expected %s\n",
 }
 
 
-void service_info_handler(o2_msg_data_ptr data, const char *types,
+void service_info_handler(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     const char *service_name = argv[0]->s;

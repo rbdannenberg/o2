@@ -34,7 +34,7 @@ int warning_count = -1;  // warnings are numbered from 0 because I added
 // a test at the beginning and wanted to keep all the wired-in test numbers
 // that used to start at 1
 
-static void drop_warning(const char *warn, o2_msg_data_ptr msg)
+static void drop_warning(const char *warn, O2msg_data_ptr msg)
 {
     printf("drop_warning: got \"%s\"\n", warn);
     if (expected_warning[0]) {
@@ -47,7 +47,7 @@ static void drop_warning(const char *warn, o2_msg_data_ptr msg)
 
 // this is a handler for incoming messages
 //
-void hi(o2_msg_data_ptr msg, const char *types,
+void hi(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);

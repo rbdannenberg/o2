@@ -18,7 +18,7 @@ char *server_addresses[N_ADDRS];
 int msg_count = 0;
 bool running = true;
 
-void client_test(o2_msg_data_ptr data, const char *types,
+void client_test(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     msg_count++;

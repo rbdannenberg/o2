@@ -30,7 +30,7 @@ extern bool o2_stun_query_running;
 
 O2err o2_get_public_ip();
 
-void o2_stun_query(o2_msg_data_ptr msgdata, const char *types,
+void o2_stun_query(O2msg_data_ptr msgdata, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data);
 
 void o2_stun_reply_handler(void *info);

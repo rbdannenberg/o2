@@ -279,7 +279,7 @@ public:
         parse_args = src->parse_args;
     }
     virtual ~Handler_entry();
-    void invoke(o2_msg_data_ptr msg, const char *types);
+    void invoke(O2msg_data_ptr msg, const char *types);
 #ifndef O2_NO_DEBUG
     void show(int indent);
 #endif

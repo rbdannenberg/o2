@@ -18,7 +18,7 @@
 // message handler, so here we duplicate some code to pull parameters from
 // messages (although the code is simple since there's no coercion).
 //
-void o2_msg_data_print(o2_msg_data_ptr msg)
+void o2_msg_data_print(O2msg_data_ptr msg)
 {
     int i;
     printf("%s @ %g", msg->address, msg->timestamp);

@@ -75,7 +75,7 @@ void run_for_awhile(double dur)
 }
 
     
-void client_test(o2_msg_data_ptr data, const char *types,
+void client_test(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     if (!running) {
@@ -101,7 +101,7 @@ void client_test(o2_msg_data_ptr data, const char *types,
 
 static int copy_count = 0;
 
-void copy_i(o2_msg_data_ptr data, const char *types,
+void copy_i(O2msg_data_ptr data, const char *types,
             O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);

@@ -57,6 +57,7 @@
 long o2_mem_watch_seqno = 0; // set o2_mem_watch after this many mallocs
 long o2_mem_seqno = 0; // counts allocations
 void *o2_mem_watch = 0; // address to watch
+static bool o2_memory_mgmt = true;  // assume our memory management
 
 #if O2MEM_DEBUG
 // When O2MEM_DEBUG is non-zero, allocate space as follows:
@@ -75,7 +76,7 @@ void *o2_mem_watch = 0; // address to watch
 //                     first is for allocated, second is for freed
 // chunk_end_sentinal
 //   
-// zero padding after every allocated chunck
+// zero padding after every allocated chunk
 // normally this is zero, but if you suspect code is writing outside
 // of the allocated memory, this will at least change the write pattern.
 // This is the number of 8-byte words to pad:
@@ -105,6 +106,9 @@ typedef struct postlude_struct {
 
 typedef struct chunk_struct {
     struct chunk_struct *next;
+#if O2MEM_DEBUG
+    char *padding;  // used to align preamble to 16-bytes
+#endif
     preamble_t first;
 } chunk_t, *chunk_ptr;
 
@@ -144,7 +148,9 @@ static O2queue exponential_free[LOG2_MAX_EXPONENTIAL_BYTES -
                                  LOG2_MAX_LINEAR_BYTES];
 
 #ifndef O2_NO_DEBUG
+#if O2MEM_DEBUG
 int64_t o2mem_get_seqno(const void *ptr);
+#endif
 
 void *o2_dbg_malloc(size_t size, const char *file, int line)
 {
@@ -152,16 +158,29 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
                   size, file, line));
     O2_DBm(fflush(stdout));
     void *obj = (*o2_malloc_ptr)(size);
-    O2_DBm(printf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj));
-    assert(obj);
+#if O2MEM_DEBUG
+    O2_DBm(if (o2_memory_mgmt)
+               printf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj);
+           else printf(" -> %p\n", obj));
+#else
+    O2_DBm(printf(" -> %p\n", obj));
+#endif
+    assert(obj && ((((intptr_t) obj) & 0xF) == 0));
     return obj;
 }
 
 void o2_dbg_free(void *obj, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_FREE %ld bytes in %s:%d : #%" PRId64 "@%p\n",
-                  o2_debug_prefix, O2_OBJ_SIZE((O2list_elem_ptr) obj),
-                  file, line, o2mem_get_seqno(obj), obj));
+#if O2MEM_DEBUG
+    O2_DBm(if (o2_memory_mgmt)
+               printf("%s O2_FREE %ld bytes in %s:%d : #%" PRId64 "@%p\n",
+                      o2_debug_prefix, O2_OBJ_SIZE((O2list_elem_ptr) obj),
+                      file, line, o2mem_get_seqno(obj), obj);
+           else printf("%s O2_FREE %p\n", o2_debug_prefix, obj));
+#else
+    O2_DBm(printf("%s O2_FREE %p\n", o2_debug_prefix, obj));
+#endif
+
     // bug in C. free should take a const void * but it doesn't
     (*o2_free_ptr)((void *) obj);
 }
@@ -190,7 +209,15 @@ void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line)
                   n, s, file, line));
     fflush(stdout);
     void *obj = (*o2_malloc_ptr)(n * s);
-    O2_DBm(printf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj));
+#if O2MEM_DEBUG
+    O2_DBm(if (o2_memory_mgmt)
+               printf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj);
+           else printf(" -> %p\n", obj));
+#else
+    O2_DBm(printf(" -> %p\n", obj));
+#endif
+    
+
     assert(obj);
     memset(obj, 0, n * s);
     return obj;
@@ -271,6 +298,7 @@ bool o2_block_check(void *ptr, int alloc_ok, int free_ok)
 
 void o2_mem_check(void *ptr)
 {
+    if (!o2_memory_mgmt) return;  // not using our memory management
     o2_block_check(ptr, true, false);
 #if O2MEM_DEBUG > 1
     // this is much more expensive, so default O2MEM_DEBUG=1 does not call it
@@ -286,17 +314,8 @@ int64_t o2mem_get_seqno(const void *ptr)
     postlude_ptr postlude = PREAMBLE_TO_POSTLUDE(preamble);
     return postlude->seqno;
 }
-#else
-#ifndef O2_NO_DEBUG
-int64_t o2mem_get_seqno(void *ptr)
-{
-    return 0;
-}
-#endif
-#endif
 
 
-#if O2MEM_DEBUG
 // o2_mem_check_all - check for valid heap, optional check for leaks
 //
 bool o2_mem_check_all(int report_leaks)
@@ -344,6 +363,7 @@ int o2_memory(void *((*malloc)(size_t size)), void ((*free)(void *)),
         o2mem_state = NOT_USED;
         o2_malloc_ptr = malloc;
         o2_free_ptr = free;
+        o2_memory_mgmt = false;  // disable some consistency checks
     } else if (!malloc && !free) {
         o2_mem_init(first_chunk, size);
         malloc_ok = mallocp;
@@ -466,7 +486,7 @@ void *o2_malloc(size_t size)
     result = p->pop()->data;
     // invariant: result points to block of size realsize at an offset of
     // 8 (or 16 if O2MEM_DEBUG) bytes.
-    assert((uintptr_t) result & 0x7 == 0); // alignment check
+    assert(((uintptr_t) result & 0x7) == 0); // alignment check
     if (result) {
         preamble = (preamble_ptr) (result - offsetof(preamble_t, payload));
 #if O2MEM_DEBUG > 1

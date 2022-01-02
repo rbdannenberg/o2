@@ -1,15 +1,13 @@
-// shmemserv.c -- test for a bridged shared memory process
+// shmembench.cpp -- benchmark test for a bridged shared memory process
+//    based on shmemserver.cpp and o2client.cpp
 //
 // Roger B. Dannenberg
-// July 2020
+// Jan 2022
 
 /* 
 This test:
 - initialize o2lite
-- wait for discovery
-- wait for clock sync
-- send a message to self over O2 with sift types
-- respond to messages from o2litehost's client services
+- send/recv messages from O2 main thread to shared memory thread
 */
 
 // o2usleep.h goes first to set _XOPEN_SOURCE to define usleep:
@@ -28,9 +26,12 @@ pthread_t pt_thread_pid;
 
 Bridge_info *smbridge = NULL;
 
+int max_msg_count = 1000;
 int n_addrs = 20;
-bool running = true;
-int msg_count = 0;
+bool client_running = true;
+bool server_running = true;
+int client_msg_count = 0;
+int server_msg_count = 0;
 char **client_addresses = NULL;
 char **server_addresses = NULL;
 
@@ -40,31 +41,66 @@ bool about_equal(double a, double b)
     return a / b > 0.999999 && a / b < 1.000001;
 }
 
-bool use_tcp = false;
+void client_test(O2msg_data_ptr data, const char *types,
+                 O2arg_ptr *argv, int argc, const void *user_data)
+{
+    client_msg_count++;
+    // the value we send is arbitrary, but we've already sent
+    // 1 message with value 1, so the 2nd message will have 2, etc...
+    int32_t i = client_msg_count + 1;
+
+    // server will shut down when it gets data == -1
+    if (client_msg_count >= max_msg_count) {
+        i = -1;
+        client_running = false;
+    }
+    o2_send_cmd(server_addresses[client_msg_count % n_addrs], 0, "i", i);
+    assert(client_msg_count == argv[0]->i32);
+}
 
 
 void *sharedmem();
 
 int main(int argc, const char * argv[])
 {
-    printf("Usage: shmemserv tcp [debugflags]\n"
-           "    pass t to test with TCP, u for UDP\n");
+    o2_memory(malloc, free, NULL, 0, NULL);
+    printf("Usage: shmembench [maxmsgs] [debugflags]\n");
     if (argc >= 2) {
-        if (strchr(argv[1], 't' )) {
-            use_tcp = true;
-        }
-        printf("Using %s to reply to client\n", use_tcp ? "TCP" : "UDP");
+        max_msg_count = atoi(argv[1]);
+        printf("max_msg_count set to %d\n", max_msg_count);
     }
     if (argc >= 3) {
         o2_debug_flags(argv[2]);
         printf("debug flags are: %s\n", argv[2]);
     }
     if (argc > 3) {
-        printf("WARNING: shmemserv ignoring extra command line argments\n");
+        printf("WARNING: shmembench ignoring extra command line argments\n");
     }
     o2_initialize("test");
+
+    // create the client service in the main thread here
+    o2_service_new("client");
+    
+    // create methods for receiving messages here in the client service
+    for (int i = 0; i < n_addrs; i++) {
+        char path[100];
+        sprintf(path, "/client/benchmark/%d", i);
+        o2_method_new(path, "i", &client_test, NULL, false, true);
+    }
+    
+    // create destination addresses in the server (shared mem thread)
+    server_addresses = O2_MALLOCNT(n_addrs, char *);
+    for (int i = 0; i < n_addrs; i++) {
+        char path[100];
+        sprintf(path, "!server/benchmark/%d", i);
+        server_addresses[i] = O2_MALLOCNT(strlen(path) + 1, char);
+        strcpy(server_addresses[i], path);
+    }
+
+    // create the server (shared memory thread)
     int res = o2_shmem_initialize();
     assert(res == O2_SUCCESS);
+
     smbridge = o2_shmem_inst_new();
 
     sharedmem(); // start and run the thread
@@ -72,15 +108,34 @@ int main(int argc, const char * argv[])
     // we are the master clock
     o2_clock_set(NULL, NULL);
 
-    o2_run(500);
-    printf("** shmemserv main returned from o2_run\n");
+    // wait for the server to appear
+    while (o2_status("server") < O2_REMOTE) {
+        o2_poll();
+        o2_sleep(2); // 2ms
+    }
+    printf("We discovered the server.\ntime is %g.\n", o2_time_get());
+    
+    double now = o2_time_get();
+    while (o2_time_get() < now + 1) {
+        o2_poll();
+        o2_sleep(2);
+    }
+    
+    printf("Here we go! ...\ntime is %g.\n", o2_time_get());
+    o2_send_cmd("!server/benchmark/0", 0, "i", 1);
+
+    while (client_running) {  // full speed busy wait
+        o2_poll();
+    }
+
+    printf("** shmembench main ended run loop **\n");
     // wait 0.1s for thread to finish
-    O2time now = o2_time_get();
+    now = o2_time_get();
     while (o2_time_get() < now + 0.1) {
         o2_poll();
         o2_sleep(2); // 2ms
     }
-    printf("*** shmemserv main called o2_poll() for 0.1s after\n"
+    printf("*** shmembench main called o2_poll() for 0.1s after\n"
            "    shared mem process finished; calling o2_finish...\n");
 
     o2_finish();
@@ -104,22 +159,13 @@ void server_test(O2msg_data_ptr msg, const char *types,
     assert(i_arg);
     int got_i = i_arg->i;
 
-    msg_count++;
-    if (use_tcp) {
-        o2sm_send_cmd(client_addresses[msg_count % n_addrs], 0, "i", msg_count);
-    } else {
-        o2sm_send(client_addresses[msg_count % n_addrs], 0, "i", msg_count);
-    }
-    if (msg_count % 10000 == 0) {
-        printf("server received %d messages\n", msg_count);
-    }
-    if (msg_count < 100) {
-        printf("server message %d is %d\n", msg_count, got_i);
-    }
+    server_msg_count++;
     if (got_i == -1) {
-        running = false;
+        server_running = false;
     } else {
-        assert(msg_count == got_i);
+        assert(server_msg_count == got_i);
+        o2sm_send_cmd(client_addresses[server_msg_count % n_addrs], 0, "i",
+                      server_msg_count);
     }
 }
 
@@ -210,7 +256,7 @@ bool o2sm_act()
         }
     }
     if (phase == 2) {
-        if (running) {
+        if (server_running) {
             return true;
         } else {
             for (int i = 0; i < n_addrs; i++) {
@@ -221,9 +267,8 @@ bool o2sm_act()
             O2_FREE(server_addresses);
 
             o2sm_finish();
-            o2_stop_flag = true; // shut down O2
 
-            printf("shmemserv:\nSERVER DONE\n");
+            printf("shmembench:\nSERVER DONE\n");
             phase++;
             return false;
         }
@@ -257,7 +302,7 @@ void *sharedmem_action(void *ignore)
 {
     sharedmem_init();
     while (o2sm_act()) {
-        o2_sleep(2); // don't poll too fast - it's unnecessary
+        ; // poll as fast as possible -- it's a benchmark
     }
     return NULL;
 }

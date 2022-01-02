@@ -55,7 +55,7 @@ class Osc_info : public Proxy_info {
         }
         return o2_clock_is_synchronized ? O2_TO_OSC : O2_TO_OSC_NOTIME;
     }
-    O2err msg_data_to_osc_data(o2_msg_data_ptr msg, O2time min_time);
+    O2err msg_data_to_osc_data(O2msg_data_ptr msg, O2time min_time);
 
     O2err send(bool block);
 };

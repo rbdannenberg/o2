@@ -10,6 +10,10 @@
 #  define _Atomic(X) std::atomic< X >
 #endif
 
+#include <assert.h>
+#include <stdio.h>
+#include "o2base.h"
+
 // O2list_elem is a generic linked list element. Although we could use
 // templates to make a generic atomic list, the "C++" way would 
 // require either separate list elements that point to objects, or all
@@ -70,6 +74,7 @@ class O2queue {
     
     void clear() {
         O2queue_na init = O2_QUEUE_INIT;
+        o2_sleep(1); // pause for a ms
         atomic_init(queue(), init);
     }
 

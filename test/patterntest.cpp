@@ -10,7 +10,7 @@ int message_count = 0;
 int expected = 0;
 
 
-void handler(o2_msg_data_ptr data, const char *types,
+void handler(O2msg_data_ptr data, const char *types,
              O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);

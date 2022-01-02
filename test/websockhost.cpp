@@ -15,7 +15,7 @@
 bool running = true;
 bool one_minute_max = false;
 
-void stop_handler(o2_msg_data_ptr data, const char *types,
+void stop_handler(O2msg_data_ptr data, const char *types,
                   O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("websockhost received stop message. Shutting down.\n");

@@ -35,7 +35,7 @@ double max_udp_interval = 0;
 // this is a handler for incoming messages. It simply sends a message
 // back to one of the client addresses
 //
-void server_tcp(o2_msg_data_ptr msg, const char *types,
+void server_tcp(O2msg_data_ptr msg, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);
@@ -54,7 +54,7 @@ void server_tcp(o2_msg_data_ptr msg, const char *types,
 }
 
 
-void server_udp(o2_msg_data_ptr msg, const char *types,
+void server_udp(O2msg_data_ptr msg, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
     assert(argc == 1);

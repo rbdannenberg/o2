@@ -14,7 +14,7 @@
 bool running = true;
 
 
-void stop_handler(o2_msg_data_ptr data, const char *types,
+void stop_handler(O2msg_data_ptr data, const char *types,
                   O2arg_ptr *argv, int argc, const void *user_data)
 {
     printf("client received stop message. Bye.\n");

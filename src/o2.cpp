@@ -1239,7 +1239,7 @@ O2err o2_service_new(const char *service_name)
 }
 
 
-void o2_message_drop_warning(const char *warn, o2_msg_data_ptr msg)
+void o2_message_drop_warning(const char *warn, O2msg_data_ptr msg)
 {
     printf("Warning: %s,\n    message is ", warn);
 #ifdef O2_NO_DEBUG
@@ -1252,7 +1252,7 @@ void o2_message_drop_warning(const char *warn, o2_msg_data_ptr msg)
 
 
 void o2_message_warnings(
-        void (*warning)(const char *warn, o2_msg_data_ptr msg))
+        void (*warning)(const char *warn, O2msg_data_ptr msg))
 {
     o2_ctx->warning = warning;
 }

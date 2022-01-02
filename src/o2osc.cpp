@@ -423,7 +423,7 @@ O2err Osc_info::deliver(O2netmsg_ptr msg)
 // for liblo compatibility, timestamps of embedded bundles are at least
 // as late as the containing, or parent, bundle's timestamp.
 //
-O2err Osc_info::msg_data_to_osc_data(o2_msg_data_ptr msg, O2time min_time)
+O2err Osc_info::msg_data_to_osc_data(O2msg_data_ptr msg, O2time min_time)
 {
     // build new message in msg_data
 #ifndef O2_NO_BUNDLES
@@ -431,7 +431,7 @@ O2err Osc_info::msg_data_to_osc_data(o2_msg_data_ptr msg, O2time min_time)
         if (msg->timestamp > min_time) min_time = msg->timestamp;
         o2_add_bundle_head(o2_time_to_osc(min_time));
         const char *end_of_msg = O2_MSG_DATA_END(msg);
-        o2_msg_data_ptr embedded = (o2_msg_data_ptr)
+        O2msg_data_ptr embedded = (O2msg_data_ptr)
                                    (o2_msg_data_types(msg) - 1);
         while (PTR(embedded) < end_of_msg) {
             int32_t *len_ptr = o2_msg_len_ptr();
@@ -441,7 +441,7 @@ O2err Osc_info::msg_data_to_osc_data(o2_msg_data_ptr msg, O2time min_time)
                 return O2_FAIL;
             }
             o2_set_msg_length(len_ptr);
-            embedded = (o2_msg_data_ptr) end_of_embedded;
+            embedded = (O2msg_data_ptr) end_of_embedded;
         }
     } else {
 #endif

@@ -118,7 +118,7 @@ int check_args(O2arg_ptr *argv, int argc)
 // this is a handler for incoming messages. It simply sends a message
 // back to one of the client addresses
 //
-void server_test(o2_msg_data_ptr msg, const char *types,
+void server_test(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
     int i = check_args(argv, argc);
@@ -139,7 +139,7 @@ void server_test(o2_msg_data_ptr msg, const char *types,
 }
 
 
-void copy_sSi(o2_msg_data_ptr msg, const char *types,
+void copy_sSi(O2msg_data_ptr msg, const char *types,
               O2arg_ptr *argv, int argc, const void *user_data)
 {
     int i = check_args(argv, argc);
