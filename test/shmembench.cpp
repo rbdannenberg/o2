@@ -34,7 +34,13 @@ int client_msg_count = 0;
 int server_msg_count = 0;
 char **client_addresses = NULL;
 char **server_addresses = NULL;
-
+/* with amortize, messages are sent in groups of 10, and server
+   responds only to messages where the count is a multiple of 10
+   (first count is 1). Response also contains 10 messages, from
+   count-9 to count-0. The client side does the same up until the
+   total message count reaches or passes client_msg_count.
+ */
+int amortize = false;
 
 bool about_equal(double a, double b)
 {
@@ -54,7 +60,16 @@ void client_test(O2msg_data_ptr data, const char *types,
         i = -1;
         client_running = false;
     }
-    o2_send_cmd(server_addresses[client_msg_count % n_addrs], 0, "i", i);
+    if (amortize) {
+        if (client_msg_count % 10 == 0) {
+            for (int i = 0; i < 10; i++) {
+                int count = client_msg_count + i - 10;
+                o2_send_cmd(server_addresses[count % n_addrs], 0, "i", count);
+            }
+        }
+    } else {
+        o2_send_cmd(server_addresses[client_msg_count % n_addrs], 0, "i", i);
+    }
     assert(client_msg_count == argv[0]->i32);
 }
 
@@ -68,6 +83,11 @@ int main(int argc, const char * argv[])
     if (argc >= 2) {
         max_msg_count = atoi(argv[1]);
         printf("max_msg_count set to %d\n", max_msg_count);
+        if (strchr(argv[1], 'a')) {
+            amortize = true;
+            printf("Found 'a'mortize: sending messages in groups of 10 to\n");
+            printf("    amortize scheduling and polling costs.\n");
+        }
     }
     if (argc >= 3) {
         o2_debug_flags(argv[2]);
@@ -123,6 +143,11 @@ int main(int argc, const char * argv[])
     
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     o2_send_cmd("!server/benchmark/0", 0, "i", 1);
+    if (amortize) {
+        for (int i = 0; i < 9; i++) { // 9 more
+            o2_send_cmd("!server/benchmark/0", 0, "i", 1 + i);
+        }
+    }
 
     while (client_running) {  // full speed busy wait
         o2_poll();
@@ -164,8 +189,17 @@ void server_test(O2msg_data_ptr msg, const char *types,
         server_running = false;
     } else {
         assert(server_msg_count == got_i);
-        o2sm_send_cmd(client_addresses[server_msg_count % n_addrs], 0, "i",
-                      server_msg_count);
+        if (amortize) {
+            if (server_msg_count % 10 == 0) {
+                for (int i = 0; i < 10; i++) {
+                    int count = server_msg_count + i - 10;
+                    o2sm_send_cmd(client_addresses[count  % n_addrs], 0, "i", count);
+                }
+            }
+        } else {
+            o2sm_send_cmd(client_addresses[server_msg_count % n_addrs], 0, "i",
+                          server_msg_count);
+        }
     }
 }
 

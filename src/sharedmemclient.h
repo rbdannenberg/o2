@@ -7,6 +7,9 @@
 
 #undef o2_send
 #undef o2_send_cmd
+#undef O2_HANDLER_ARGS
+#define O2SM_HANDLER_ARGS const O2msg_data_ptr msg, const char *types, \
+                          O2arg_ptr *argv, int argc, const void *user_data
 #define o2_time_get() DO_NOT_CALL_THIS_EXCEPT_FROM_O2_PROCESS
 #define o2_initialize() DO_NOT_CALL_THIS_EXCEPT_FROM_O2_PROCESS
 #define o2_finish() DO_NOT_CALL_THIS_EXCEPT_FROM_O2_PROCESS
