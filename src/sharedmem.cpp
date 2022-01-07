@@ -421,9 +421,6 @@ O2err o2_shmem_initialize()
 
 #include "sharedmemclient.h"
 
-thread_local O2message_ptr schedule_head;
-thread_local O2message_ptr schedule_tail;
-
 O2time o2sm_time_get()
 {
     return (o2_clock_is_synchronized ?
@@ -547,12 +544,12 @@ O2err o2sm_method_new(const char *path, const char *typespec,
 
 static void append_to_schedule(O2message_ptr msg)
 {
-    if (schedule_head == NULL) {
-        schedule_head = schedule_tail = msg;
+    if (o2_ctx->schedule_head == NULL) {
+        o2_ctx->schedule_head = o2_ctx->schedule_tail = msg;
     } else {
-        schedule_tail->next = msg;
+        o2_ctx->schedule_tail->next = msg;
         msg->next = NULL;
-        schedule_tail = msg;
+        o2_ctx->schedule_tail = msg;
     }
 }
 
@@ -660,19 +657,21 @@ void O2sm_info::poll_outgoing()
         }
     }
     // msgs is left with zero timestamp messages
+    O2message_ptr head = o2_ctx->schedule_head;
     if (now < 0) { // no clock! free the messages
-        while (schedule_head) {
-            next = schedule_head->next;
-            O2_FREE(schedule_head);
-            schedule_head = next;
+        while (head) {
+            next = head->next;
+            O2_FREE(head);
+            head = next;
         }
     } else { // send timestamped messages that are ready to go
-        while (schedule_head && schedule_head->data.timestamp < now) {
-            next = schedule_head->next;
-            o2sm_dispatch(schedule_head);
-            schedule_head = next;
+        while (head && head->data.timestamp < now) {
+            next = head->next;
+            o2sm_dispatch(head);
+            head = next;
         }
     }
+    o2_ctx->schedule_head = head;
     while (msgs) { // send all zero-timestamp messages
         next = msgs->next;
         o2sm_dispatch(msgs);
@@ -699,8 +698,8 @@ void o2sm_initialize(O2_context *ctx, Bridge_info *inst)
     o2_ctx->proc = NULL;
     o2_ctx->binst = inst;
 
-    schedule_head = NULL;
-    schedule_tail = NULL;
+    o2_ctx->schedule_head = NULL;
+    o2_ctx->schedule_tail = NULL;
 }
 
 

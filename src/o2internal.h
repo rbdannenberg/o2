@@ -79,7 +79,9 @@ public:
 
     Bridge_info *binst; ///< the bridge descriptor if this is a
                         /// shared memory process
-
+    O2message_ptr schedule_head;  // shared memory process timed msgs
+    O2message_ptr schedule_tail;
+    
     // This is a stack of messages we are delivering implemented using
     // the next fields to make a list. If the user receiving a message
     // decides to exit(), we will find un-freed messages here and free
