@@ -9,6 +9,7 @@
 # get print to be compatible even if using python 2.x:
 from __future__ import print_function
 
+import sys
 import os
 import platform
 import subprocess
@@ -17,6 +18,8 @@ import threading
 from threading import Timer
 from checkports import checkports
 import time
+
+print("Optional argument is (relative) path to tests, e.g. ../Release")
 
 print_all_output = False
 
@@ -54,6 +57,11 @@ if platform.system() == 'Linux':
     BIN=".."
     HTMLOPEN = "xdg-open "
     LOCALDOMAIN = "localhost"
+
+if len(sys.argv) >= 2:
+    BIN = sys.argv[1]
+    print("Directory for test binaries:", BIN)
+
 
 def findLineInString(line, aString):
     return ('\n' + line + '\n') in aString
