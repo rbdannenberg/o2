@@ -155,8 +155,31 @@ set(O2_SRC
   src/stun.cpp src/stun.h
   )
 
+# library name default is o2_static if BUILD_SHARED_LIBS is off
+# because Xcode strips off ".a" from "libX.a" and links to
+# "libX.dylib", making it harder to achieve static linking or
+# even specifying the desired version (consider an old and even
+# unknown libo2.dylib installed by someone else getting linked 
+# instead of a new static libo2.a that was intended.
+set(O2_STATIC_LIBRARY_NAME "o2_static" CACHE STRING 
+    "When you build static libraries, what is the o2 library name?")
+set(O2LITE_STATIC_LIBRARY_NAME "o2lite_static" CACHE STRING 
+    "When you build static libraries, what is the o2lite library name?")
+if(BUILD_SHARED_LIBS)
+  set(O2 "o2")
+  set(O2LITE "o2lite")
+else() 
+  set(O2 ${O2_STATIC_LIBRARY_NAME})
+  set(O2LITE ${O2LITE_STATIC_LIBRARY_NAME})
+endif() 
+
 add_library(o2 ${O2_SRC})
-set_property(TARGET o2 PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
+target_include_directories(o2 PRIVATE ${BONJOUR_INCLUDE_PATH})  
+ set_target_properties(o2 PROPERTIES
+    OUTPUT_NAME ${O2}
+    MSVC_RUNTIME_LIBRARY MultiThreaded
+    IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}"
+    INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/src") 
 
 # o2lite
 
@@ -171,35 +194,39 @@ set(O2LITE_SRC
 
 add_library(o2lite ${O2LITE_SRC})
 target_include_directories(o2lite PRIVATE ${BONJOUR_INCLUDE_PATH})
-set_property(TARGET o2lite PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
+set_target_properties(o2lite PROPERTIES
+    OUTPUT_NAME ${O2LITE}
+    MSVC_RUNTIME_LIBRARY MultiThreaded
+    IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}"
+    INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/src") 
+
+message(STATUS "CMAKE_SOURCE_DIR ${CMAKE_SOURCE_DIR}")
 
 set_target_properties(o2 PROPERTIES C_VISIBILITY_PRESET hidden)
 
 if(BUILD_WITH_O2LITE_DISCOVERY)
 else(BUILD_WITH_O2LITE_DISCOVERY)
-  target_compile_definitions(o2lite PRIVATE
-          "-DO2L_NO_DISCOVERY -DO2LDEBUG=1")
+  target_compile_definitions(o2lite PRIVATE O2L_NO_DISCOVERY O2LDEBUG=1)
 endif(BUILD_WITH_O2LITE_DISCOVERY)
 
 if(BUILD_WITH_O2LITE_CLOCKSYNC)
 else(BUILD_WITH_O2LITE_CLOCKSYNC)
-  target_compile_definitions(o2lite PRIVATE "-DO2L_NO_CLOCKSYNC")
+  target_compile_definitions(o2lite PRIVATE O2L_NO_CLOCKSYNC)
 endif(BUILD_WITH_O2LITE_CLOCKSYNC)
 
-target_include_directories(o2 PRIVATE ${BONJOUR_INCLUDE_PATH})
 
 #######################
 # BUILD CONFIGURATION #
 #######################
 
-set(LIBRARIES o2 ${EXTRA_LIBS} CACHE INTERNAL "")
-set(O2LITE_LIBS o2lite ${EXTRA_LIBS} CACHE INTERNAL "")
-target_link_libraries(o2 PUBLIC ${EXTRA_LIBS})
+target_link_libraries(o2 PUBLIC ${EXTRA_LIBS})  
+set(LIBRARIES "o2 ${EXTRA_LIBS}" CACHE INTERNAL "")
+
+target_link_libraries(o2lite PUBLIC ${EXTRA_LIBS})
+set(O2LITE_LIBS "o2lite ${EXTRA_LIBS}" CACHE INTERNAL "")
 
 if(TESTS_BUILD)
 message(STATUS "Building test programs") 
-
-set(BUILD_STATIC_LIB TRUE CACHE BOOL "Build a static lib -- currently the only thing supported, turning OFF probably gives you a static library without a static runtime library option.")
 
 # EXECUTABLE
 # Create executables
@@ -214,9 +241,8 @@ endif(WIN32)
 
 function(o2testprogram name) # extralibs is optional
   add_executable(${name} test/${name}.cpp)
-  target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/src
-  					     ${BONJOUR_INCLUDE_PATH})
-  target_link_libraries(${name} ${LIBRARIES})
+  target_include_directories(${name} PRIVATE src ${BONJOUR_INCLUDE_PATH})
+  target_link_libraries(${name} PRIVATE o2)
   if(NOT ("${ARGV1}" STREQUAL ""))
     target_link_libraries(${name} ${ARGV1})
   endif(NOT ("${ARGV1}" STREQUAL ""))
@@ -225,9 +251,8 @@ endfunction()
 
 function(o2litetestprogram name ext)
   add_executable(${name} test/${name}.${ext})
-  target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/src
-	                                     ${BONJOUR_INCLUDE_PATH})
-  target_link_libraries(${name} ${O2LITE_LIBS})
+  target_include_directories(${name} PRIVATE src ${BONJOUR_INCLUDE_PATH})
+  target_link_libraries(${name} PRIVATE o2lite)
   set_property(TARGET ${name} PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
 endfunction()
 
@@ -407,7 +432,7 @@ if(TESTS_BUILD AND BUILD_WITH_OSC_SUPPORT AND BUILD_TESTS_WITH_LIBLO)
   function(o2libloprogram name)
     add_executable(${name}  test/${name}.cpp ${ARGN})
     # src is included because lo_bndlrecv includes o2base.h
-    target_include_directories(${name} PRIVATE ${LIBLO_INCLUDE_PATH} src)
+    target_include_directories(${name} PRIVATE src ${LIBLO_INCLUDE_PATH})
     target_link_libraries(${name} ${LIBLO_LIB} ${EXTRA_LO_LIBS})
     set_property(TARGET ${name} PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
   endfunction()

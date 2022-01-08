@@ -317,6 +317,7 @@ public:
 // 
 Bridge_info *o2_shmem_inst_new()
 {
+    assert(o2sm_protocol);  // did you remember to call o2_shmem_initialize()?
     return new O2sm_info();
 }
 
