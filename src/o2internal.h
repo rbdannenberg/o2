@@ -92,6 +92,12 @@ public:
 
     // warning callback for dropped messages
     void (*warning)(const char *warn, O2msg_data_ptr msg);
+    
+    // when we finish, we remove and free hash table entries, but
+    // our hash tables resize themselves as they shrink. This is
+    // pointless when we want to empty and free them. finishing
+    // disables the downsizing of hash tables.
+    bool finishing;
 
     O2_context() {
         argv = NULL;
@@ -102,13 +108,15 @@ public:
         binst = NULL;
         msgs = NULL;
         warning = &o2_message_drop_warning;
+        finishing = false;
     }
 
     // deallocate everything that may have been allocated and attached
-    // to o2_ctx:
+    // to o2_ctx except chunk and chunk_remaining.
     void finish() {
         O2_DBG(printf("before o2_hash_node_finish of path_tree:\n"); \
                show_tree());
+        finishing = true;
         path_tree.finish();
         full_path_table.finish();
         argv_data.finish();

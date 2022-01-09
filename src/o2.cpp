@@ -1487,6 +1487,9 @@ O2err o2_finish()
 #ifndef O2_NO_MQTT
     o2_mqtt_finish();
 #endif
+#ifndef O2_NO_ZEROCONF
+    o2_zcdisc_finish();
+#endif
     // before closing sockets, one special case is the main udp server
     // socket AND the tcp server sockets point to o2_ctx->proc, and both
     // will try to delete o2_ctx->proc. There's no reference counting, so
@@ -1530,7 +1533,6 @@ O2err o2_finish()
 
     O2_FREE((void *) o2_ensemble_name);
     o2_ensemble_name = NULL;
-    // we assume that o2_ctx is statically allocated, not on heap
     o2_ctx->finish();
     o2_mem_finish();  // free memory heap before removing o2_ctx
     o2_ctx = NULL;

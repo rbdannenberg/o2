@@ -25,6 +25,7 @@ public:
 };
 
 O2err o2_zcdisc_initialize();
+void o2_zcdisc_finish();
 
 void o2_zc_register_record(int port);
 

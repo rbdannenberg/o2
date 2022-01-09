@@ -48,8 +48,8 @@ typedef struct O2queue_na {
     O2list_elem_ptr first;
 } O2queue_na;
 
-typedef _Atomic(O2queue_na) o2_queue;
-typedef _Atomic(O2queue_na) *o2_queue_ptr;
+typedef _Atomic(O2queue_na) O2queue_atomic;
+typedef _Atomic(O2queue_na) *O2queue_atomic_ptr;
 
 #define O2_QUEUE_INIT {0, NULL}
 
@@ -64,20 +64,21 @@ typedef _Atomic(O2queue_na) *o2_queue_ptr;
 // method to find it.
 class O2queue {
   private:
-    int64_t padding;
-    o2_queue space_for_queue_head;
+    O2queue_atomic queue_head;
   public:
-    o2_queue *queue() { 
-        return ((o2_queue *) (((intptr_t) &space_for_queue_head) & ~0xF)); }
+    O2queue_atomic *queue() { assert(((intptr_t) &queue_head & 0xF) == 0);
+                              return &queue_head; }
 
     O2queue() { clear(); }
     
     void clear() {
         O2queue_na init = O2_QUEUE_INIT;
-        o2_sleep(1); // pause for a ms
         atomic_init(queue(), init);
     }
 
+    O2list_elem_ptr first() {
+        return (O2list_elem_ptr) (((O2queue_na *) queue())->first);
+    }
     O2list_elem *pop();
 
     void push(O2list_elem *elem);

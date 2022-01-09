@@ -96,6 +96,9 @@ int main(int argc, const char * argv[])
         o2_poll();
     }
 
+    for (int i = 0; i < N_ADDRS; i++) {
+        O2_FREE((void *) client_addresses[i]);
+    }
     o2_finish();
     o2_sleep(1000); // clean up sockets
     printf("SERVER DONE\n");

@@ -192,13 +192,8 @@ void o2_discovery_init_phase2()
 }
 
 
-O2err o2_discovery_finish(void)
+O2err o2_discovery_finish()
 {
-#ifndef O2_NO_ZEROCONF
-#ifdef __linux__
-    zc_cleanup();
-#endif
-#endif
     return O2_SUCCESS;
 }
 

@@ -116,12 +116,6 @@ void o2ldisc_poll()
 }
 
 
-void zc_cleanup()
-{
-    zc_shutdown();
-}
-
-
 static void zc_resolve_callback(AvahiServiceResolver *r,
                                 AVAHI_GCC_UNUSED AvahiIfIndex interface,
                                 AVAHI_GCC_UNUSED AvahiProtocol protocol,

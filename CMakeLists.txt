@@ -26,10 +26,11 @@ option(BUILD_WITH_MESSAGE_PRINT
 provided in debug builds)" ON)
 
 option(BUILD_WITH_O2LITE_DISCOVERY
-"Added code to o2lite clients for faster discovery" ON)
+       "Added code to o2lite clients for faster discovery" ON)
 option(BUILD_WITH_O2LITE_CLOCKSYNC
-"Added code to o2lite clients to synchronize clock with  O2" ON)
-
+       "Added code to o2lite clients to synchronize clock with  O2" ON)
+set(BUILD_WITH_O2MEM_DEBUG 2 CACHE INT
+    "0=off, 1=high space overhead, 2=high space and runtime overhead")
 
 
 # O2 intentionally writes outside of declared array bounds (and
@@ -41,6 +42,9 @@ option(BUILD_WITH_O2LITE_CLOCKSYNC
 add_definitions("-D_FORTIFY_SOURCE=0")
 # add_definitions("-DO2_NO_ZEROCONF") 
 add_definitions("-DO2_NO_O2DISCOVERY") 
+
+add_definitions("-DO2MEM_DEBUG=${BUILD_WITH_O2MEM_DEBUG}")
+
 
 if(BUILD_WITH_DEBUG_SUPPORT) 
 else(BUILD_WITH_DEBUG_SUPPORT) 
@@ -69,7 +73,7 @@ endif(BUILD_WITH_BUNDLE_SUPPORT)
 
 if (BUILD_WITH_WEBSOCKET_SUPPORT)  
   set(BUILD_WITH_BRIDGE_SUPPORT ON CACHE BOOL 
-      "Allow other transport add-ons" FORCE)
+      "Allow other transport add-ons" FORCE) 
   message(STATUS 
     "Forcing BUILD_WITH_BRIDGE_SUPPORT needed by BUILD_WITH_WEBSOCKET_SUPPORT")
 else (BUILD_WITH_WEBSOCKET_SUPPORT)  

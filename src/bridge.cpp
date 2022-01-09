@@ -65,6 +65,7 @@ void o2_bridges_finish(void)
     while (bridges.size() > 0) {
         delete bridges.pop_back();
     }
+    bridges.finish();
 }
 
 

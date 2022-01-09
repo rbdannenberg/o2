@@ -13,7 +13,7 @@
 #include "assert.h"
 
 
-void o2_queue_init(o2_queue_ptr head)
+void o2_queue_init(O2queue_atomic_ptr head)
 {
     O2queue_na init = O2_QUEUE_INIT;
     atomic_init(head, init);

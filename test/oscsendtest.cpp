@@ -64,6 +64,7 @@ int main(int argc, const char * argv[])
     printf("*** Clock sync obtained @ %g\n", o2_time_get());
 
     O2err err = o2_osc_delegate("oscsend", "localhost", 8100, tcpflag);
+    printf("*** o2_osc_delegate oscsend returned %d\n", err);
     assert(err == O2_SUCCESS);
     
     // send 12 messages, 1 every 0.5s, and stop

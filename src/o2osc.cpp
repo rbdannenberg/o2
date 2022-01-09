@@ -270,7 +270,7 @@ O2err o2_osc_delegate(const char *service_name, const char *ip,
         strchr(service_name, '/')) {
         return O2_BAD_NAME;
     }
-    Osc_info *osc = new Osc_info(o2_heapify(service_name), port_num, NULL,
+    Osc_info *osc = new Osc_info(service_name, port_num, NULL,
             tcp_flag ? O2TAG_OSC_TCP_CLIENT :
                        (O2TAG_OSC_UDP_CLIENT | O2TAG_OWNED_BY_TREE));
     O2err rslt;

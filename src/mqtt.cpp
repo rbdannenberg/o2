@@ -148,6 +148,7 @@ O2err o2_mqtt_finish()
 {
     delete mqtt_info;
     mqtt_info = NULL;
+    mqtt_comm.finish();
     return O2_SUCCESS;
 }
 

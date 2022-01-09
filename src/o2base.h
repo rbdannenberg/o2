@@ -139,12 +139,12 @@ void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
 #define O2MEM_DEBUG 0
 #else
 // set this to 2 to get verbose memory information
-#define O2MEM_DEBUG 1
+#define O2MEM_DEBUG 2
 #endif
 #endif
 
     
-// if O2_MEMDEBUG, extra checks are made for memory consistency,
+// if O2MEM_DEBUG, extra checks are made for memory consistency,
 // and you can check any pointer using o2_mem_check(ptr):
 #if O2MEM_DEBUG
 void o2_mem_check(void *ptr);

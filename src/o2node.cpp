@@ -134,10 +134,13 @@ Handler_entry::~Handler_entry()
     //  corresponding full path:
     if (full_path) {
         o2_ctx->full_path_table.entry_remove_by_name(full_path);
-        full_path = NULL; // this string should be freed
-            // in the previous call to entry_remove_by_name(); remove
-            // the pointer so if anyone tries to reference it, it will
-            // generate a more obvious and immediate runtime error.
+        // Maybe full_path_table entries could use full_path for
+        // their keys -- then we would not need 2 copies of
+        // full_path (one here, one in the full_path tree). O2
+        // used to work this way, so maybe making the 2nd copy
+        // was added unintentionally.
+        O2_FREE((char *) full_path);
+        full_path = NULL; // remove the pointer to aid with debugging
     }
     if (type_string) O2_FREE((char *) type_string);
 }
@@ -252,7 +255,9 @@ O2string o2_heapify(const char *path)
     long len = o2_strsize(path);
     char *rslt = O2_MALLOCNT(len, char);
     strncpy(rslt, path, len); // zero fills
-    // printf("    o2_heapify rslt: %s\n", rslt);
+#if O2MEM_DEBUG > 1
+    printf("    o2_heapify rslt: %p:%s\n", rslt, rslt);
+#endif
     return rslt;
 }
 
@@ -386,7 +391,7 @@ O2err Hash_node::entry_remove_by_name(O2string key)
 {
     O2node **ptr = lookup(key);
     if (*ptr) {
-        return entry_remove(ptr, true);
+        return entry_remove(ptr, !o2_ctx->finishing);
     }
     return O2_FAIL;
 }

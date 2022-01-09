@@ -198,6 +198,7 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         bool found_it = false;
         for (i = 0; i < resolve_pending.size(); i++) {
             if (streql((const char *) context, resolve_pending[i].name)) {
+                O2_FREE((void *) resolve_pending[i].name);
                 resolve_pending.erase(i);
                 found_it = true;
                 break;
@@ -457,6 +458,15 @@ O2err o2_zcdisc_initialize()
     return O2_SUCCESS;
 }
 
+
+void o2_zcdisc_finish()
+{
+    for (int i = 0; i < resolve_pending.size(); i++) {
+        O2_FREE((void *) resolve_pending[i].name);
+    }
+    resolve_pending.finish();
+}
+
 #elif USE_AVAHI
 
 /**********************************************/
@@ -505,9 +515,9 @@ static O2err zc_create_services(AvahiClient *c);
         variable = NULL; \
     }
 
-static void zc_shutdown()
+static void o2_zcdisc_finish()
 {
-    O2_DBz(printf("%s zc_shutdown\n", o2_debug_prefix));
+    O2_DBz(printf("%s o2_zcdisc_finish\n", o2_debug_prefix));
     // (I think) these are freed by avahi_client_free later, so
     // we remove the dangling pointers:
     zc_group = NULL;
@@ -520,12 +530,7 @@ static void zc_shutdown()
     FREE_WITH(zc_name, avahi_free);
     FREE_WITH(zc_http_name, avahi_free);
     zc_running = false;
-}
-
-
-void zc_cleanup()
-{
-    zc_shutdown();
+    resolve_pending.finish();
 }
 
 
@@ -605,7 +610,7 @@ static void zc_browse_callback(AvahiServiceBrowser *b,
         case AVAHI_BROWSER_FAILURE:
             fprintf(stderr, "(Browser) %s\n", avahi_strerror(
                      avahi_client_errno(avahi_service_browser_get_client(b))));
-            zc_shutdown();
+            o2_zcdisc_finish();
             return;
         case AVAHI_BROWSER_NEW:
             O2_DBz(printf("%s (Avahi Browser) NEW: service '%s' of type '%s' "
@@ -665,7 +670,7 @@ static void entry_group_callback(AvahiEntryGroup *g,
                                      avahi_entry_group_get_client(g))));
             /* Some kind of failure happened while we were registering 
                our services */
-            zc_shutdown();
+            o2_zcdisc_finish();
             break;
         case AVAHI_ENTRY_GROUP_UNCOMMITED:
         case AVAHI_ENTRY_GROUP_REGISTERING:
@@ -772,7 +777,7 @@ static void zc_client_callback(AvahiClient *c, AvahiClientState state,
         case AVAHI_CLIENT_FAILURE:
             fprintf(stderr, "Avahi client failure: %s\n",
                     avahi_strerror(avahi_client_errno(c)));
-            zc_shutdown();
+            o2_zcdisc_finish();
             break;
         case AVAHI_CLIENT_S_COLLISION:
             /* Let's drop our registered services. When the server is back
@@ -839,7 +844,7 @@ O2err o2_zcdisc_initialize()
     }
     return O2_SUCCESS;
  fail:
-    zc_shutdown();
+    o2_zcdisc_finish();
     return O2_FAIL;
 }
 

@@ -682,7 +682,7 @@ typedef struct O2msg_data {
  *
  * Type strings begin with the comma (",") character, which is skipped
  */
-#define O2MEM_ALIGN 8
+#define O2MEM_ALIGN 16
 #define O2MEM_ALIGNUP(s) ( ((s)+(O2MEM_ALIGN-1)) & ~(O2MEM_ALIGN-1) )
 #define O2MEM_BIT32_ALIGN_PTR(p) ((char *) (((size_t) (p)) & ~3))
 // returns the address of the byte AFTER the message

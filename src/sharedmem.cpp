@@ -508,10 +508,6 @@ O2err o2sm_method_new(const char *path, const char *typespec,
         hnode = hnode.tree_insert_node(name);
         assert(hnode);
         o2_mem_check(hnode);
-#ifndef o2_mem_check
-    x x x
-#endif
-
         // node is now the node for the path up to name
     }
     // node is now where we should put the final path name with the handler;
