@@ -65,7 +65,36 @@ static bool o2_memory_mgmt = true;  // assume our memory management
 #error O2MEM_DEBUG should be 0 ir O2_NO_DEBUG is defined
 #endif
 
+#ifdef WIN32
+#include <windows.h>
+static HANDLE o2mem_lock;
+
+static void mem_lock()
+{
+    DWORD rslt = WaitForSingleObject(o2mem_lock, INFINITE);
+    assert(rslt == WAIT_OBJECT_0);
+}
+
+static void mem_unlock()
+{
+    DWORD rslt = ReleaseMutex(o2mem_lock);
+    assert(rslt);
+    
+}
+#else
 #include <pthread.h>
+static pthread_mutex_t o2mem_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void mem_lock()
+{
+    pthread_mutex_lock(&o2mem_lock);
+}
+
+static void mem_unlock()
+{
+    pthread_mutex_unlock(&o2mem_lock);
+}
+#endif
 
 // When O2MEM_DEBUG is non-zero, allocate space as follows:
 //
@@ -87,7 +116,6 @@ static bool o2_memory_mgmt = true;  // assume our memory management
 // index bounds or string length errors:
 #define O2MEM_ISOLATION 15
 
-pthread_mutex_t o2_mem_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 // Aids to reading/writing/checking memory structure:
@@ -319,16 +347,16 @@ static void mem_check(void *ptr)
 // it might scan the private chunks of other threads.
 void o2_mem_check(void *ptr)
 {
-    pthread_mutex_lock(&o2_mem_lock);
+    mem_lock();
     mem_check(ptr);
-    pthread_mutex_unlock(&o2_mem_lock);
+    mem_unlock();
 }
 
 static bool o2_mem_check_all(int report_leaks)
 {
-    pthread_mutex_lock(&o2_mem_lock);
+    mem_lock();
     bool rslt = mem_check_all(report_leaks);
-    pthread_mutex_unlock(&o2_mem_lock);
+    mem_unlock();
     return rslt;
 }
 
@@ -403,6 +431,11 @@ void o2_mem_init(char *chunk, int64_t size)
     if (o2mem_state == INITIALIZED) {  // we were called by o2_mem_finish()
         return;
     }
+#if O2MEM_DEBUG
+#ifdef WIN32
+    o2mem_lock = CreateMutex(NULL, FALSE, NULL);
+#endif
+#endif
     o2mem_state = INITIALIZED;
     o2_ctx->chunk = chunk;
     o2_ctx->chunk_remaining = size;
@@ -479,7 +512,7 @@ void *o2_malloc(size_t size)
     char *next;
 #if O2MEM_DEBUG
     // debugging code scans all chunks, so we need exclusive access:
-    pthread_mutex_lock(&o2_mem_lock);
+    mem_lock();
 #if O2MEM_DEBUG > 1
     mem_check_all(false);
 #endif
@@ -633,7 +666,7 @@ void *o2_malloc(size_t size)
 #if O2MEM_DEBUG > 1
     mem_check_all(false);
 #endif
-    pthread_mutex_unlock(&o2_mem_lock);
+    mem_unlock();
 #endif
     return result;
 }
@@ -646,7 +679,7 @@ void o2_free(void *ptr)
     O2queue *head_ptr;
 #if O2MEM_DEBUG
     postlude_ptr postlude;
-    pthread_mutex_lock(&o2_mem_lock);
+    mem_lock();
 #endif
     if (!ptr) {
         fprintf(stderr, "o2_free NULL ignored\n");
@@ -690,7 +723,7 @@ void o2_free(void *ptr)
     head_ptr->push((O2list_elem_ptr) ptr);
   done:
 #if O2MEM_DEBUG
-    pthread_mutex_unlock(&o2_mem_lock);
+    mem_unlock();
 #endif
     return;
 }

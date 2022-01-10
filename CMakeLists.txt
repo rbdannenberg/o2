@@ -29,7 +29,7 @@ option(BUILD_WITH_O2LITE_DISCOVERY
        "Added code to o2lite clients for faster discovery" ON)
 option(BUILD_WITH_O2LITE_CLOCKSYNC
        "Added code to o2lite clients to synchronize clock with  O2" ON)
-set(BUILD_WITH_O2MEM_DEBUG 2 CACHE INT
+set(BUILD_WITH_O2MEM_DEBUG "2" CACHE STRING
     "0=off, 1=high space overhead, 2=high space and runtime overhead")
 
 
@@ -44,7 +44,6 @@ add_definitions("-D_FORTIFY_SOURCE=0")
 add_definitions("-DO2_NO_O2DISCOVERY") 
 
 add_definitions("-DO2MEM_DEBUG=${BUILD_WITH_O2MEM_DEBUG}")
-
 
 if(BUILD_WITH_DEBUG_SUPPORT) 
 else(BUILD_WITH_DEBUG_SUPPORT) 
@@ -178,6 +177,10 @@ else()
 endif() 
 
 add_library(o2 ${O2_SRC})
+# O2MEM_DEBUG uses mutex from pthreads except for Windows:
+if(${BUILD_WITH_O2MEM_DEBUG} GREATER 0 AND NOT WIN32)
+  target_link_libraries(o2 PRIVATE pthread)
+endif()
 target_include_directories(o2 PRIVATE ${BONJOUR_INCLUDE_PATH})  
  set_target_properties(o2 PROPERTIES
     OUTPUT_NAME ${O2}
@@ -238,9 +241,9 @@ message(STATUS "Building test programs")
 if(WIN32)
   # non-o2 code to check out non-blocking sockets on windows
   add_executable(winnbserver test/winnbserver.cpp)
-  target_link_libraries(winnbserver ${LIBRARIES})
+  target_link_libraries(winnbserver "${EXTRA_LIBS}")
   add_executable(winnbclient test/winnbclient.cpp)
-  target_link_libraries(winnbclient ${LIBRARIES})
+  target_link_libraries(winnbclient "${EXTRA_LIBS}")
 endif(WIN32)
 
 function(o2testprogram name) # extralibs is optional
@@ -312,7 +315,11 @@ endif(BUILD_WITH_BRIDGE_SUPPORT)
 
 if(BUILD_WITH_SHAREDMEM_SUPPORT)
   o2testprogram(shmemserv ${PTHREAD})
-  o2testprogram(shmembench ${PTHREAD})  
+  o2testprogram(shmembench ${PTHREAD})
+  if(UNIX)
+    target_link_libraries(shmemserv PRIVATE pthread)
+    target_link_libraries(shmembench PRIVATE pthread)
+  endif()    # windows uses winmm timer instead of pthreads
 endif(BUILD_WITH_SHAREDMEM_SUPPORT)
 
 if(BUILD_WITH_OSC_SUPPORT)
@@ -348,9 +355,9 @@ if(UNIX)
     # linux
     set(CMAKE_C_FLAGS "-std=c11 -mcx16")
     add_compile_options(-fno-exceptions -fno-rtti -fno-stack-protector -fomit-frame-pointer -ffunction-sections -fdata-sections -Wl,-gc-sections -fmerge-all-constants -Wl,-z,norelro -Wl,-hash-style=gnu) 
-    set(PTHREAD pthread CACHE INTERNAL "")
     # EXTRA_LO_LIBS is libraries needed by Liblo applications
-    set(EXTRA_LO_LIBS asound ${PTHREAD} m CACHE INTERNAL "")
+    set(PTHREAD pthread CACHE INTERNAL "")
+    set(EXTRA_LO_LIBS asound ${PTHREAD} m)
   endif(APPLE)
   if(TESTS_MIDI_EXAMPLE)
     # Use PortMidi Library
