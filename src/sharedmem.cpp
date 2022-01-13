@@ -279,7 +279,7 @@ public:
         // we have a message to send to the service via shared
         // memory -- find queue and add the message there atomically
         // printf("O2sm_info sending to thread %s\n", msg->data.address);
-        outgoing.push((O2list_elem_ptr) msg);
+        outgoing.push((O2list_elem *) msg);
         o2_message_source = NULL;  // clean up to help debugging
         return err;
     }
@@ -553,7 +553,7 @@ static void append_to_schedule(O2message_ptr msg)
 
 O2err o2sm_message_send(O2message_ptr msg)
 {
-    o2sm_incoming.push((O2list_elem_ptr) msg);
+    o2sm_incoming.push((O2list_elem *) msg);
     return O2_SUCCESS;
 }
 

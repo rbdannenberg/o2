@@ -3,13 +3,6 @@
 // Roger B. Dannenberg
 // Oct, 2020
 
-#ifndef __cplusplus
-#  include <stdatomic.h>
-#else
-#  include <atomic>
-#  define _Atomic(X) std::atomic< X >
-#endif
-
 #include <assert.h>
 #include <stdio.h>
 #include "o2base.h"
@@ -31,21 +24,83 @@
 // shared memory, inter-thread communication. These objects have a
 // "next" pointer allocated as their first member variable so that
 // using them in an atomic list does not overwrite anything. In this
-// case, it might make sense to subclass O2list_elem to form O2message,
-// but that would require introducing C++ into the O2 API, which is
-// simpler and more portable if we keep it in C.
+// case, it might make sense to subclass O2list_elem to form O2message.
 //
 typedef struct O2list_elem {
     union {
         struct O2list_elem *next;
         char data[8];
     };
-} O2list_elem, *O2list_elem_ptr;
+} O2list_elem;
 
+
+#ifdef WIN32
+/********************** WINDOWS ATOMIC LISTS *****************/
+
+#define WIN32_MEAN_AND_LEAN
+#include <windows.h>
+#include <interlockedapi.h>
+
+// An atomic queue must be 16-byte aligned, but malloc and O2MALLOC (new)
+// only align to 8 bytes, so the atomic queue here has some padding and 
+// we treat it as being whereever the 16-byte boundary occurs. We use a
+// method to find it.
+class O2queue {
+  public:
+    SLIST_HEADER queue_head;
+
+    O2queue() { clear(); }
+    
+    /* THIS IS NOT ATOMIC - MUST BE PROTECTED BY LOCK - DEBUGGING ONLY */
+    /* There's no operator to get the first element, and the structure
+       is different for different architectures, so instead we pop the
+       whole list and if non-empty, we reinsert it. This requires finding
+       the end and counting the elements.
+     */
+    O2list_elem *first() {
+        O2list_elem *result = grab();
+        if (result) {
+            int count = 1;
+            O2list_elem *end = result;
+            while (end->next) {
+                end = end->next;
+                count++;
+            }
+            InterlockedPushListSListEx(&queue_head, (PSLIST_ENTRY) result,
+                                       (PSLIST_ENTRY) end, count);
+        }
+        return result;
+    }
+
+    void clear() {
+        InitializeSListHead(&queue_head);
+    }
+
+    O2list_elem *pop() {
+        return (O2list_elem *) InterlockedPopEntrySList(&queue_head);
+    }
+
+    void push(O2list_elem *elem) {
+        InterlockedPushEntrySList(&queue_head, (PSLIST_ENTRY) elem);
+    }
+
+    O2list_elem *grab() {
+        return (O2list_elem *) InterlockedFlushSList(&queue_head);
+    }
+};
+
+#else
+/********************** LINUX AND MACOS ATOMIC LISTS ******************/
+#ifndef __cplusplus
+#  include <stdatomic.h>
+#else
+#  include <atomic>
+#  define _Atomic(X) std::atomic< X >
+#endif
 
 typedef struct O2queue_na {
     uintptr_t aba;
-    O2list_elem_ptr first;
+    O2list_elem *first;
 } O2queue_na;
 
 typedef _Atomic(O2queue_na) O2queue_atomic;
@@ -63,22 +118,20 @@ typedef _Atomic(O2queue_na) *O2queue_atomic_ptr;
 // we treat it as being whereever the 16-byte boundary occurs. We use a
 // method to find it.
 class O2queue {
-  private:
-    O2queue_atomic queue_head;
   public:
-    O2queue_atomic *queue() { assert(((intptr_t) &queue_head & 0xF) == 0);
-                              return &queue_head; }
+    O2queue_atomic queue_head;
 
     O2queue() { clear(); }
     
     void clear() {
         O2queue_na init = O2_QUEUE_INIT;
-        atomic_init(queue(), init);
+        atomic_init(&queue_head, init);
     }
 
-    O2list_elem_ptr first() {
-        return (O2list_elem_ptr) (((O2queue_na *) queue())->first);
+    O2list_elem *first() {
+        return (O2list_elem *) (((O2queue_na *) queue())->first);
     }
+
     O2list_elem *pop();
 
     void push(O2list_elem *elem);
@@ -88,4 +141,5 @@ class O2queue {
 
 #if defined(__clang__)
   #pragma clang diagnostic pop
+#endif
 #endif

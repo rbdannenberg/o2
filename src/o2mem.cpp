@@ -175,12 +175,19 @@ void ((*o2_free_ptr)(void *)) = &o2_free;
 // array of freelists for sizes from 8 to MAX_LINEAR_BYTES-8 by 16
 // this takes 512 / 16 * 16 = 512 bytes
 // sizes are usable sizes not counting preamble or postlude space:
-static O2queue linear_free[MAX_LINEAR_BYTES / O2MEM_ALIGN];
+// linear_free has to be 16-byte aligned, so initialize it to start within
+// a suitably sized block of memory
+static char lf_storage[sizeof(O2queue) * (MAX_LINEAR_BYTES / O2MEM_ALIGN) + 15];
+static O2queue* linear_free = (O2queue*) ((((uintptr_t)lf_storage) + 15) & ~0xF);
+
 
 // array of freelists with log2(size) from MAX_LINEAR_BYTES + 8 to
 // LOG2_MAX_EXPONENTIAL_BYTES / 2 + 8.  This takes (25 - 9) * 16 = 256 bytes.
-static O2queue exponential_free[LOG2_MAX_EXPONENTIAL_BYTES -
-                                 LOG2_MAX_LINEAR_BYTES];
+// same 16-byte alignment as used above for linear_free
+static char ef_storage[sizeof(O2queue) * (LOG2_MAX_EXPONENTIAL_BYTES -
+                                          LOG2_MAX_LINEAR_BYTES) + 15];
+static O2queue *exponential_free = 
+        (O2queue*)((((uintptr_t)ef_storage) + 15) & ~0xF);
 
 #ifndef O2_NO_DEBUG
 static int64_t o2mem_get_seqno(const void *ptr);
@@ -200,7 +207,7 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
 void o2_dbg_free(void *obj, const char *file, int line)
 {
     O2_DBm(printf("%s O2_FREE %ld bytes in %s:%d : #%" PRId64 "@%p\n",
-                  o2_debug_prefix, O2_OBJ_SIZE((O2list_elem_ptr) obj),
+                  o2_debug_prefix, O2_OBJ_SIZE((O2list_elem *) obj),
                   file, line, o2mem_get_seqno(obj), obj));
     // bug in C. free should take a const void * but it doesn't
     (*o2_free_ptr)((void *) obj);
@@ -418,14 +425,18 @@ void o2_mem_init(char *chunk, int64_t size)
     if (o2mem_state == NOT_USED) {
         return;
     }
+    assert(sizeof(O2queue) == 16);
     // whether we are INITIALIZED or not, we clean up when called, so this
     // *must* only be called by o2_initialize() or o2_finish() (which calls
     // o2_mem_finish().
+    printf("sizeof(O2queue) %zd address 1 %p queue_head 1 %p maa %d\n",
+           sizeof(linear_free[1]), &linear_free[1], &linear_free[1].queue_head, MEMORY_ALLOCATION_ALIGNMENT);
+    fflush(stdout);
     for (int i = 0; i < MAX_LINEAR_BYTES / O2MEM_ALIGN; i++) {
         linear_free[i].clear();
     }
     for (int i = 0;
-         i < LOG2_MAX_EXPONENTIAL_BYTES - LOG2_MAX_LINEAR_BYTES; i++) {
+        i < LOG2_MAX_EXPONENTIAL_BYTES - LOG2_MAX_LINEAR_BYTES; i++) {
         exponential_free[i].clear();
     }
     if (o2mem_state == INITIALIZED) {  // we were called by o2_mem_finish()
@@ -588,7 +599,7 @@ void *o2_malloc(size_t size)
             chunk_ptr chunk2 = (chunk_ptr) malloc(realsize + sizeof(char *) +
                                                   need_debug_space * 2);
             // add chunk2 to list
-            allocated_chunk_list.push((O2list_elem_ptr) chunk2);
+            allocated_chunk_list.push((O2list_elem *) chunk2);
             preamble = &chunk2->first;
             goto gotnew;
         } 
@@ -603,7 +614,7 @@ void *o2_malloc(size_t size)
             goto done;
         }
         // add allocated chunk to the list
-        allocated_chunk_list.push((O2list_elem_ptr) o2_ctx->chunk);
+        allocated_chunk_list.push((O2list_elem *) o2_ctx->chunk);
         o2_ctx->chunk += sizeof(char *); // skip over chunk list pointer
         o2_ctx->chunk_remaining = O2MEM_CHUNK_SIZE - sizeof(char *);
     }
@@ -720,7 +731,7 @@ void o2_free(void *ptr)
         goto done;
     }
     total_allocated -= realsize;
-    head_ptr->push((O2list_elem_ptr) ptr);
+    head_ptr->push((O2list_elem *) ptr);
   done:
 #if O2MEM_DEBUG
     mem_unlock();
