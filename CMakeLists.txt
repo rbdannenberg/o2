@@ -251,7 +251,7 @@ function(o2testprogram name) # extralibs is optional
   target_include_directories(${name} PRIVATE src ${BONJOUR_INCLUDE_PATH})
   target_link_libraries(${name} PRIVATE o2)
   if(NOT ("${ARGV1}" STREQUAL ""))
-    target_link_libraries(${name} ${ARGV1})
+    target_link_libraries(${name} PRIVATE ${ARGV1})
   endif(NOT ("${ARGV1}" STREQUAL ""))
   set_property(TARGET ${name} PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
 endfunction()
