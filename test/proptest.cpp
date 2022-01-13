@@ -229,6 +229,6 @@ int main(int argc, const char * argv[])
     assert(o2_services_list_free() == O2_SUCCESS);
 
     o2_finish();
-    printf("DONE\n");
+    printf("\nDONE\n");  // leading newline is required by rt.py to find success
     return 0;
 }

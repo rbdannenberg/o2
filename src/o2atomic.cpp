@@ -34,20 +34,6 @@ O2list_elem *O2queue::pop()
     return orig_head.first;
 }
 
-O2list_elem *O2queue::pop()
-{
-    O2queue_na next_head;
-    O2queue_na orig_head = atomic_load(&queue_head);
-    assert(((uintptr_t) &queue_head & 0xF) == 0);
-    do {
-        if (orig_head.first == NULL)
-            return NULL;  // empty stack
-        next_head.aba = orig_head.aba + 1;
-        next_head.first = orig_head.first->next;
-    } while (!atomic_compare_exchange_weak(&queue_head, &orig_head, next_head));
-    return orig_head.first;
-}
-
 
 void O2queue::push(O2list_elem *elem)
 {

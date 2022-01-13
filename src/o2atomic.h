@@ -129,7 +129,7 @@ class O2queue {
     }
 
     O2list_elem *first() {
-        return (O2list_elem *) (((O2queue_na *) queue())->first);
+        return (O2list_elem *) (((O2queue_na) queue_head).first);
     }
 
     O2list_elem *pop();

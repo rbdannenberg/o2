@@ -131,7 +131,8 @@ def runTest(command, stall=False, quit_on_port_loss=False):
     else:
         allOK = False
     if (not portsOK) or (not allOK):
-        print("FAIL a port was not freed, now we have fewer", countmsg)
+        if not portsOK:
+            print("FAIL a port was not freed, now we have fewer", countmsg)
         print("**** Failing output:")
         print(stdout)
         print("**** Failing error output:")
@@ -249,7 +250,8 @@ def runAllTests():
         if not runTest("bundletest"): return
         if not runTest("patterntest"): return
     if not runTest("infotest1 o"): return
-    if not runTest("proptest"): return
+    # proptest returns almost instantly; maybe it takes awhile for the port to be released
+    if not runTest("proptest s", stall=True): return
 
     if not runDouble("o2litehost 500t d", "CLIENT DONE",
                      "o2liteserv t", "SERVER DONE"): return

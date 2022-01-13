@@ -45,8 +45,8 @@ def checkports(start, verbose):
         print("OK: found expected", free_count, "ports")
     with open("port_count.dat", "w") as outf:
         outf.write(str(free_count) + "\n")
-        return True, countmsg
-
+    return True, countmsg
+    
 
 def main():
     verbose = False

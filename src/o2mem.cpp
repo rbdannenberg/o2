@@ -429,9 +429,6 @@ void o2_mem_init(char *chunk, int64_t size)
     // whether we are INITIALIZED or not, we clean up when called, so this
     // *must* only be called by o2_initialize() or o2_finish() (which calls
     // o2_mem_finish().
-    printf("sizeof(O2queue) %zd address 1 %p queue_head 1 %p maa %d\n",
-           sizeof(linear_free[1]), &linear_free[1], &linear_free[1].queue_head, MEMORY_ALLOCATION_ALIGNMENT);
-    fflush(stdout);
     for (int i = 0; i < MAX_LINEAR_BYTES / O2MEM_ALIGN; i++) {
         linear_free[i].clear();
     }
