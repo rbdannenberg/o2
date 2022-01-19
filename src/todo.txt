@@ -1,3 +1,14 @@
+Bugs:
+    massive printout for HTTP
+    if websocket client tries to initialize with wrong ensemble name, 
+        server closes connection and crashes
+    does clock sync work over http? When I wait for O2_LOCAL status,
+        I never get it, even though I see clock sync messages. Maybe
+	it works now after calling o2_set_clock().
+    After ^C running ~/soundcool/imuo2/soundcool_imu.bug.srp, there's
+        a segfault.
+    verbose output when running a websocket o2lite connection
+
 Tests we need:
     see if multiple O2lite clients can connect
     see if O2lite clients can discover host with their own discovery

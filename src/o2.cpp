@@ -859,7 +859,7 @@ Communication for O2lite to browsers is over web sockets. To offer this
 service, O2 must implement a minimal web server so that the browser can
 find the host.
 
-O2lite over web sockets is initialized by calling http_initialize().
+O2lite over web sockets is initialized by calling o2_http_initialize().
 This creates an O2ws_protocol object for web socket communication and
 an Http_server object to act as an HTTP server. Typically, O2 will
 serve the javascript implementation of O2lite as well as the web

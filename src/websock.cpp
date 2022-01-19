@@ -197,7 +197,7 @@ void o2ws_csget_handler(O2msg_data_ptr msgdata, const char *types,
 
 
 #ifdef O2_NO_WEBSOCKETS
-O2err http_initialize(int port, const char *root)
+O2err o2_http_initialize(int port, const char *root)
 {
     sprintf(stderr, "HTTP/WebSockets are not enabled. "
                     "Recompile without O2_NO_WEBSOCKETS\n");
@@ -207,7 +207,7 @@ O2err http_initialize(int port, const char *root)
 
 Http_server *http_server = NULL;
 
-O2err http_initialize(int port, const char *root)
+O2err o2_http_initialize(int port, const char *root)
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;

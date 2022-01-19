@@ -44,7 +44,7 @@ int main(int argc, const char *argv[])
     o2_initialize("test");
 
     // enable websockets
-    O2err rslt = http_initialize(8080, "www"); 
+    O2err rslt = o2_http_initialize(8080, "www"); 
     assert(rslt == O2_SUCCESS);
     
     o2_service_new("websockhost");

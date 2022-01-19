@@ -2758,7 +2758,7 @@ O2err o2_shmem_initialize();
  *         (see #o2_network_enable) or no Internet connection was
  *         found.
  */
-O2err http_initialize(int port, const char *root);
+O2err o2_http_initialize(int port, const char *root);
 
 /** @} */ // end of a httpapi group
 
