@@ -515,7 +515,7 @@ static O2err zc_create_services(AvahiClient *c);
         variable = NULL; \
     }
 
-static void o2_zcdisc_finish()
+void o2_zcdisc_finish()
 {
     O2_DBz(printf("%s o2_zcdisc_finish\n", o2_debug_prefix));
     // (I think) these are freed by avahi_client_free later, so
@@ -530,7 +530,6 @@ static void o2_zcdisc_finish()
     FREE_WITH(zc_name, avahi_free);
     FREE_WITH(zc_http_name, avahi_free);
     zc_running = false;
-    resolve_pending.finish();
 }
 
 

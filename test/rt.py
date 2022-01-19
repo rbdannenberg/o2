@@ -251,7 +251,7 @@ def runAllTests():
         if not runTest("patterntest"): return
     if not runTest("infotest1 o"): return
     # proptest returns almost instantly; maybe it takes awhile for the port to be released
-    if not runTest("proptest s", stall=True): return
+    if not runTest("proptest s"): return
 
     if not runDouble("o2litehost 500t d", "CLIENT DONE",
                      "o2liteserv t", "SERVER DONE"): return
