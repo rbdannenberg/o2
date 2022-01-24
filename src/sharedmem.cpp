@@ -584,6 +584,7 @@ O2err o2sm_send_marker(const char *path, double time, int tcp_flag,
 
 int o2sm_dispatch(O2message_ptr msg)
 {
+    bool delivered = false;
     // printf("o2sm_dispatch %s\n", msg->data.address);
 #ifdef O2SM_PATTERNS
     O2node *service = o2_msg_service(&msg->data, &services);
@@ -598,7 +599,7 @@ int o2sm_dispatch(O2message_ptr msg)
         // STEP 3: If service is a Handler, call the handler directly
         if (ISA_HANDLER(service)) {
             o2_call_handler((handler_entry_ptr) service, &msg->data, types);
-
+            delivered = true;
         // STEP 4: If path begins with '!', or O2_NO_PATTERNS, full path lookup
         } else if (ISA_HASH(service) && (address[0] == '!')) {
 #endif
@@ -607,20 +608,24 @@ int o2sm_dispatch(O2message_ptr msg)
             handler = *o2_ctx->full_path_table.lookup(address);
             if (handler && ISA_HANDLER(handler)) {
                 TO_HANDLER_ENTRY(handler)->invoke(&msg->data, types);
+                delivered = true;
             }
 #ifdef O2SM_PATTERNS
         }
         // STEP 5: Use path tree to find handler
         else if (ISA_HASH(service)) {
             char name[NAME_BUF_LEN];
-            address = strchr(address + 1, '/'); // search for end of service name
+            address = strchr(address + 1, '/'); // search for end of srvc name
             if (address) {
-                o2_find_handlers_rec(address + 1, name,
+                delivered = o2_find_handlers_rec(address + 1, name,
                                    (o2_node_ptr) service, &msg->data, types);
             }
         }
     }
 #endif
+    if (!delivered) {
+        o2_drop_msg_data("no handler was found", &msg->data);
+    }
     O2_FREE(msg);
     return O2_SUCCESS;
 }

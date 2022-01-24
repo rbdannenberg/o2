@@ -1,5 +1,8 @@
 #ifndef O2_NO_WEBSOCKETS
 
+// Enable verbose debug printing for websocket operation:
+// #define O2WS_DEBUG
+
 #include "o2internal.h"
 #include <sys/types.h>
 #include <fcntl.h>
@@ -758,7 +761,8 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     Vec<char> path;
     int backup;
 
-    o2_print_bytes("Http_conn::deliver bytes:", msg->payload, msg->length);
+    O2_DBw(o2_print_bytes("Http_conn::deliver bytes:",
+                          msg->payload, msg->length));
     
     // get the incoming request in a contiguous array we can search.
     // keep the old size to speed up searching for \r\n\r\n:
@@ -815,12 +819,12 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     msg_end += 4;  // the real end is after \r\n\r\n
     msg_len = (int) (msg_end - &inbuf[0]);
     
-    printf("Got %d-byte header: <<", msg_len);
-    for (int i = 0; i < msg_len; i++) {
-        putchar(inbuf[i]);
-        if (inbuf[i] == '\n') printf("    "); // indent
-    }
-    printf(">>\n");
+    O2_DBw(printf("Got %d-byte header: <<", msg_len);
+           for (int i = 0; i < msg_len; i++) {
+               putchar(inbuf[i]);
+               if (inbuf[i] == '\n') printf("    "); // indent
+           }
+           printf(">>\n"));
     
     // parse the request:
     sec_web_key = NULL;
@@ -901,6 +905,7 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
 #endif
 {
     conn = NULL; // needed by delete if file open fails
+    printf("HTTP GET %s\n", c_path);
 #ifdef WIN32
     ready_for_read = false;  // disable reads until file is open
     connection->inf = -1;
@@ -909,6 +914,7 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
                       OPEN_EXISTING, FILE_FLAG_OVERLAPPED | 
                       FILE_FLAG_SEQUENTIAL_SCAN, NULL);
     if (inf == INVALID_HANDLE_VALUE) {
+        printf("    -> file not found");
         return;
     }
     connection->inf = 0;  // means read is in progress
@@ -920,6 +926,7 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
     // open the file
     connection->inf = open(c_path, O_RDONLY | O_NONBLOCK, 0);
     if (connection->inf < 0) {
+        printf("    -> file not found");
         return;
     }
 #endif
@@ -983,7 +990,7 @@ void Http_reader::read_operation_completed(int n)
 {
     O2netmsg_ptr msg = *last_ref;
     msg->length = n;
-    o2_print_bytes("Http_reader read complete:", msg->payload, n);
+    O2_DBw(o2_print_bytes("Http_reader read complete:", msg->payload, n));
     data_len += n;
 
     last_ref = &(msg->next);

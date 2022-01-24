@@ -778,7 +778,8 @@ O2err o2_message_build(O2message_ptr *msg, O2time timestamp,
                 if (string == (char *) O2_MARKER_A) {
                     fprintf(stderr,
                             "O2 error: o2_send or O2message_add called with "
-                            "invalid string pointer, probably arg mismatch.\n");
+                            "invalid string pointer, probably arg mismatch,"
+                            " address %s\n", path);
                 }
 #endif
                 break;
@@ -848,7 +849,7 @@ O2err o2_message_build(O2message_ptr *msg, O2time timestamp,
 #ifndef USE_ANSI_C
   error_exit:
     fprintf(stderr, "O2 error: o2_send or o2_send_cmd called with "
-                    "mismatching types and data.\n");
+                    "mismatching types and data, address %s.\n", path);
     va_end(ap);
     return O2_BAD_ARGS;
 #endif

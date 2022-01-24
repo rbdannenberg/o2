@@ -8,6 +8,14 @@ Bugs:
     After ^C running ~/soundcool/imuo2/soundcool_imu.bug.srp, there's
         a segfault.
     verbose output when running a websocket o2lite connection
+    ESP32 does not reconnect when o2 host reboots
+    HTTP is really slow for big files. Order of 100KB/s for localhost
+        (no network). Maybe blocks are too small.
+    compare o2sm_dispatch to o2_msg_deliver -- it looks like at least
+            there's a bug in o2sm_dispatch with conditional
+            compilation around message to the service itself.
+        
+    
 
 Tests we need:
     see if multiple O2lite clients can connect
