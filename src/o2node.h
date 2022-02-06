@@ -199,7 +199,6 @@ class Hash_node : public O2node { // "subclass" of o2_node
   protected:
     void table_init(int locations) {
         children.init(locations, true);
-        children.append_space(children.get_allocated());
     }
     O2err table_resize(int new_locs);
 };

@@ -134,6 +134,11 @@ static const char zeros[4] = {0, 0, 0, 0};
 
 O2err o2_send_start()
 {
+    if (o2_ctx->building_message_lock) {
+        return O2_FAIL;
+    }
+    o2_ctx->building_message_lock = true;
+    
     o2_ctx->msg_types.clear();
     o2_ctx->msg_data.clear();
 #ifndef O2_NO_BUNDLES
@@ -293,6 +298,11 @@ O2message_ptr o2_message_finish(O2time time, const char *address,
 O2message_ptr o2_service_message_finish(
         O2time time, const char *service, const char *address, bool tcp_flag)
 {
+    if (!o2_ctx->building_message_lock) {
+        return NULL;  // not message was even started
+    }
+    o2_ctx->building_message_lock = false;
+
     int addr_len = (int) strlen(address);
     // if service is provided, we'll prepend '/', so add 1 to string length
     int service_len = (service ? (int) strlen(service) + 1 : 0);

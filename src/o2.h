@@ -2243,6 +2243,12 @@ O2_EXPORT O2blob_ptr o2_blob_new(uint32_t size);
  * parameters. After calling this, you should call `o2_add_` functions
  * such as #o2_add_int32 to add parameters. Then call
  * #o2_send_finish to send the message.
+ *
+ * Calling #o2_send_start again before calling #o2_send_finish or
+ * #o2_message_finish will cause an immediate #O2_FAIL return.
+ * If you decide not to send a message after #o2_send_start,
+ * call #o2_message_finish to retrieve the constructed message
+ * and free it.
  */
 O2_EXPORT O2err o2_send_start(void);
 

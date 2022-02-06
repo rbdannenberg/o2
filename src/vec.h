@@ -12,6 +12,11 @@ template <typename T> class Vec : public O2obj {
     Vec(int siz) { array = NULL; init(siz); }
 
     // initialization with optional fill with zeros
+    // if not z(erofill), the initial length is zero.
+    // if z(erofill), vector initial length will be
+    // at least size and filled with zero. It may be
+    // larger than size if the memory allocator returns
+    // more space than requested.
     Vec(int siz, bool z) { init(siz, z); }
 
     // move vector to new one, initialize src vector to empty
@@ -34,7 +39,10 @@ template <typename T> class Vec : public O2obj {
         array = (siz > 0 ? O2_MALLOCNT(siz, T) : NULL);
         allocated = siz;
         length = 0;
-        if (z) zero();
+        if (z) {
+            zero();
+            length = allocated;
+        }
     }
 
     // explicitly free the associated storage. No destructors called
@@ -116,17 +124,14 @@ template <typename T> class Vec : public O2obj {
     // remove the last element
     T pop_back() { return array[length-- - 1]; }
 
-    // check if index i is in-bounds
+    // return true if index i is in-bounds
     bool bounds_check(int i) { return i >= 0 && i < length; }
 
     // return the number of elements in use
     int size() { return length; }
     
     // return the maximum count of elements that could be stored
-    //   without reallocating the array. Use
-    //   v.init(n, true); v.append_space(v.get_allocated()) to
-    //   create an array of at least n zero-filled elements
-    //   e.g. for a hash table that uses all allocated entries.
+    //   without reallocating the array.
     int get_allocated() { return allocated; }
     
 private:

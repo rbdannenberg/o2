@@ -58,6 +58,7 @@ public:
     O2arg_ptr *argv; // arg vector extracted by calls to o2_get_next()
 
     int argc; // length of argv
+    bool building_message_lock;
 
     // O2argv_data is used to create the argv for handlers. It is expanded as
     // needed to handle the largest message and is reused.
@@ -102,6 +103,7 @@ public:
     O2_context() {
         argv = NULL;
         argc = 0;
+        building_message_lock = false;
         chunk = NULL;
         chunk_remaining = 0;
         proc = NULL;
