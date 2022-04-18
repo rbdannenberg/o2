@@ -20,6 +20,7 @@ bugs/osctest.eml
 *.cpp~
 *.h~
 *.c~
+*.sh~
 *.cpp#
 *.h#
 *.c#
