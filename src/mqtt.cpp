@@ -36,6 +36,10 @@ static MQTT_info *mqtt_info = NULL;
 class O2_MQTTcomm : public MQTTcomm {
 public:
     O2err msg_send(O2netmsg_ptr msg, bool block) {
+        if (!o2_ctx->building_message_lock) {
+            return O2_FAIL;  // not message was even started
+        }
+        o2_ctx->building_message_lock = false;
         return mqtt_info->fds_info->send_tcp(block, msg); }
     // data is owned by caller, an MQTT publish message has arrived. Handle it:
     void deliver_mqtt_msg(const char *topic, int topic_len,
@@ -168,7 +172,7 @@ O2err o2_mqtt_can_send()
 O2err MQTT_info::send(bool block)
 {
     O2err rslt;
-    int tcp_flag;
+    bool tcp_flag;
     O2message_ptr msg = pre_send(&tcp_flag);
     // pre_send prints debugging info if DBs or DBS, so only print here if those
     // flags are not set, but DBq is set:

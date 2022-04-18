@@ -608,7 +608,7 @@ int o2_clock_set(o2_time_callback callback, void *data)
     if (!o2_ensemble_name) {
         O2_DBk(printf("%s o2_clock_set cannot be called before "
                       "o2_initialize.\n", o2_debug_prefix));
-        return O2_FAIL;
+        return O2_NOT_INITIALIZED;
     }
 
     // adjust local_start_time to ensure continuity of time (this allows
@@ -646,17 +646,23 @@ O2time o2_local_time()
     if (time_callback) {
         return (*time_callback)(time_callback_data) - time_offset;
     }
+    return o2_native_time() - time_offset;
+}
+
+
+O2time o2_native_time()
+{
 #ifdef __APPLE__
     uint64_t clock_time, nsec_time;
     clock_time = AudioGetCurrentHostTime() - start_time;
     nsec_time = AudioConvertHostTimeToNanos(clock_time);
-    return ((O2time) (nsec_time * 1.0E-9)) - time_offset;
+    return ((O2time) (nsec_time * 1.0E-9));
 #elif __linux__
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return ((tv.tv_sec - start_time) + (tv.tv_usec * 0.000001)) - time_offset;
+    return ((tv.tv_sec - start_time) + (tv.tv_usec * 0.000001));
 #elif WIN32
-    return ((timeGetTime() - start_time) * 0.001) - time_offset;
+    return ((timeGetTime() - start_time) * 0.001);
 #else
 #error o2_clock has no implementation for this system
 #endif

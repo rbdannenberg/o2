@@ -1097,6 +1097,9 @@ void o2_init_phase2()
 O2err o2_get_addresses(const char **public_ip, const char **internal_ip,
                           int *port)
 {
+    if (!o2_ensemble_name) {
+        return O2_NOT_INITIALIZED;
+    }
     if (!o2_ctx || !o2_ctx->proc) {
         return O2_FAIL;
     }
@@ -1109,7 +1112,7 @@ O2err o2_get_addresses(const char **public_ip, const char **internal_ip,
 
 const char *o2_get_proc_name()
 {
-    if (!o2_ctx || !o2_ctx->proc)
+    if (!o2_ensemble_name || !o2_ctx || !o2_ctx->proc)
         return NULL;
     return o2_ctx->proc->key;
 }

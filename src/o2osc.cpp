@@ -165,8 +165,11 @@ uint64_t o2_time_to_osc(O2time o2time)
  *
  * Algorithm: Add a socket, put service name in info
  */
-O2err o2_osc_port_new(const char *service_name, int port, int tcp_flag)
+O2err o2_osc_port_new(const char *service_name, int port, bool tcp_flag)
 {
+    if (!o2_ensemble_name) {
+        return O2_NOT_INITIALIZED;
+    }
     // create osc_info to pass to network layer
     Osc_info *osc = new Osc_info(service_name, port, NULL,
             tcp_flag ? O2TAG_OSC_TCP_SERVER : O2TAG_OSC_UDP_SERVER);
@@ -233,6 +236,9 @@ Osc_info::~Osc_info()
  */
 O2err o2_osc_port_free(int port_num)
 {
+    if (!o2_ensemble_name) {
+        return O2_NOT_INITIALIZED;
+    }
     O2_DBc(printf("%s o2_osc_port_free port %d\n", \
                   o2_debug_prefix, port_num); \
            o2_show_sockets());
@@ -261,7 +267,7 @@ O2err o2_osc_port_free(int port_num)
 // add osc_info as the service
 // ip is domain name, localhost, or dot format, not hex
 O2err o2_osc_delegate(const char *service_name, const char *ip,
-                    int port_num, int tcp_flag)
+                    int port_num, bool tcp_flag)
 {
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
@@ -496,6 +502,7 @@ O2err Osc_info::send(bool block)
     O2err rslt = msg_data_to_osc_data(&msg->data, 0.0);
     if (rslt != O2_SUCCESS) {
         o2_complete_delivery();
+        o2_ctx->building_message_lock = false;
         return rslt;
     }
     int32_t osc_len;
@@ -505,6 +512,8 @@ O2err Osc_info::send(bool block)
     assert(o2n_msg->length >= osc_len); // sanity check, don't overrun message
     o2n_msg->length = osc_len;
     memcpy(o2n_msg->payload, osc_msg, osc_len);
+    o2_ctx->building_message_lock = false;
+
     O2_DBO(printf("%s send_osc sending OSC message %s length %d as "
                   "service %s\n", o2_debug_prefix, o2n_msg->payload,
                   o2n_msg->length, key));

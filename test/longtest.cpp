@@ -62,11 +62,7 @@ void service_fc(O2msg_data_ptr data, const char *types,
     for (int i = 0; i < arg_count; i++) {
         assert(*types == 'i');
         assert(argv[i]);
-#ifndef NDEBUG
-        int actual = // only needed for assert
-#endif
-        argv[i]->i;
-        assert(actual == i + 123);
+        assert(argv[i]->i == i + 123);
         types++;
     }
     assert(*types == 0); // end of string, got arg_count floats

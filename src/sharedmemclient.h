@@ -53,7 +53,7 @@
     o2sm_send_marker(path, time, true, \
                    __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
-O2err o2sm_send_marker(const char *path, double time, int tcp_flag,
+O2err o2sm_send_marker(const char *path, double time, bool tcp_flag,
                           const char *typestring, ...);
 O2err o2sm_send_finish(O2time time, const char *address, bool tcp_flag);
 O2err o2sm_message_send(O2message_ptr msg);

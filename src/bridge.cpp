@@ -382,7 +382,7 @@ public:
 
     virtual O2err send(bool block) {
         O2err rslt;
-        int tcp_flag;
+        bool tcp_flag;
         // send to taps before byte swap. taps are handled here on host side.
         O2err taperr = send_to_taps(o2_current_message());
         // send taps first because we will lose ownership of msg to network

@@ -41,7 +41,7 @@
 //         (Defined in sched.c)
 //         Dispatches messages by transferring ownership from queue to
 //         o2_ctx->msgs and calling o2_msg_send_now().
-// o2_msg_deliver(int tcp_flag, O2node *service)
+// o2_msg_deliver(bool tcp_flag, O2node *service)
 //         (Defined in msgsend.c)
 //         delivers a message or bundle locally. Calls
 //         o2_embedded_msgs_deliver() if this is a bundle. Or, calls 
@@ -64,7 +64,7 @@
 //         o2_ctx->msgs (which is why we need this to be a list and
 //         not just remember a single message). Either o2_send_local()
 //         or Proxy_info::send() take ownership from o2_ctx->msgs.
-// o2_embedded_msgs_deliver(O2msg_data_ptr msg, int tcp_flag)
+// o2_embedded_msgs_deliver(O2msg_data_ptr msg, bool tcp_flag)
 //         Deliver or schedule messages in a bundle (recursively).
 //         Calls o2_message_send_sched() to deliver each embedded
 //         message, which is copied into an O2message and transferred
@@ -538,7 +538,7 @@ void o2_send_to_taps(O2message_ptr msg, Services_entry *ss)
 
 // This function is invoked by macros o2_send and o2_send_cmd.
 // It expects arguments to end with O2_MARKER_A and O2_MARKER_B
-O2err o2_send_marker(const char *path, double time, int tcp_flag,
+O2err o2_send_marker(const char *path, double time, bool tcp_flag,
                           const char *typestring, ...)
 {
     va_list ap;

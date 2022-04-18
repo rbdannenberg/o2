@@ -400,7 +400,7 @@ O2err Hash_node::entry_remove_by_name(O2string key)
 // call this from send() method in a subclass, then send the message
 // returns the message to send. Caller owns the message.
 //
-O2message_ptr Proxy_info::pre_send(int *tcp_flag)
+O2message_ptr Proxy_info::pre_send(bool *tcp_flag)
 {
     O2message_ptr msg = o2_postpone_delivery();
     // caller now owns the "active" message

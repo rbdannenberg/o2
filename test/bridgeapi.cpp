@@ -97,7 +97,7 @@ public:
     bool schedule_before_send() { return no_scheduling_here; }
 
     O2err send(bool block) {
-        int tcp_flag;
+        bool tcp_flag;
         O2message_ptr msg = pre_send(&tcp_flag);
         // we have a message to send to the service via shared
         // memory -- find queue and add the message there atomically

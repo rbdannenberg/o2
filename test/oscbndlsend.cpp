@@ -138,9 +138,6 @@ int main(int argc, const char * argv[])
 
     printf("Sending messages\n");
     for (int i = 9; i >= 5; i--) {
-        // make the bundle
-        o2_send_start();
-
         // make first message
         sprintf(s, "an arbitrary string at 2.%d", i);
         O2message_ptr msg1 = make_message(0.0, "/oscsend/xyz/msg1", 

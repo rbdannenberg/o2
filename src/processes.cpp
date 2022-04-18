@@ -136,7 +136,7 @@ Proc_info::~Proc_info()
 
 O2err Proc_info::send(bool block) {
     O2err rslt;
-    int tcp_flag;
+    bool tcp_flag;
     O2message_ptr msg = pre_send(&tcp_flag);
     if (!msg) {
         rslt = O2_NO_SERVICE;

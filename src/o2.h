@@ -568,7 +568,7 @@ const char *o2_error_to_string(O2err i);
  * @{
  */
 
-/** \brief Disable Internet connections.
+/** \brief Disable (or Enable) Internet connections.
  *
  * Set the default to enable or disable Internet connections to other
  * hosts. This setting can only be changed before O2 is started with
@@ -1858,7 +1858,7 @@ O2_EXPORT int o2_clock_set(o2_time_callback gettime, void *rock);
                    __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
 /** \cond INTERNAL */ \
-O2_EXPORT O2err o2_send_marker(const char *path, double time, int tcp_flag,
+O2_EXPORT O2err o2_send_marker(const char *path, double time, bool tcp_flag,
                           const char *typestring, ...);
 /** \endcond */
 
@@ -1926,11 +1926,29 @@ O2_EXPORT O2time o2_time_get(void);
 
 
 /**
- * \brief Get the real time using the local O2 clock
+ * \brief Get the real time using the local O2 clock.
+ *
+ * The local O2 clock source may be specified by o2_clock_set, and
+ * defaults to #o2_native_time(). Regardless of the clock source, O2
+ * may add an offset to minimize time discontinuities. For example, if
+ * another system provided the reference clock and then becomes
+ * disconnected, #o2_local_time() takes over, but its source of time
+ * is offset to match the time of the disconnected reference.
  *
  * @return the local time in seconds
  */
 O2_EXPORT O2time o2_local_time(void);
+
+/**
+ * \brief Get the local real time from the operating system.
+ *
+ * This is the default source of time for #o2_local_time(). This time starts
+ * at zero when O2 is initialized.
+ *
+ * @return the local system time in seconds
+ */
+O2_EXPORT O2time o2_native_time(void);
+
 
 /**
  *  \brief release the memory and shut down O2.
@@ -1983,7 +2001,7 @@ O2_EXPORT O2err o2_finish(void);
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
 O2_EXPORT O2err o2_osc_port_new(const char *service_name, int port_num,
-                           int tcp_flag);
+                                bool tcp_flag);
 
 /**
  * \brief Remove a port receiving OSC messages.
@@ -2029,7 +2047,7 @@ O2_EXPORT O2err o2_osc_port_free(int port_num);
  * If this is a tcp connection, close it by calling #o2_service_free.
  */
 O2_EXPORT O2err o2_osc_delegate(const char *service_name, const char *ip,
-                           int port_num, int tcp_flag);
+                                int port_num, bool tcp_flag);
 
 /**
  *  \brief Set the OSC time offset.

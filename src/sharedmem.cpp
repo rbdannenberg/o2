@@ -272,7 +272,7 @@ public:
     virtual bool schedule_before_send() { return false; }
 
     virtual O2err send(bool block) {
-        int tcp_flag;
+        bool tcp_flag;
         O2message_ptr msg = pre_send(&tcp_flag);
         // send taps first because we will lose ownership of msg to o2sm
         O2err err = send_to_taps(msg);
@@ -566,7 +566,7 @@ O2err o2sm_send_finish(O2time time, const char *address, bool tcp_flag)
 }
 
 
-O2err o2sm_send_marker(const char *path, double time, int tcp_flag,
+O2err o2sm_send_marker(const char *path, double time, bool tcp_flag,
                           const char *typestring, ...)
 {
     va_list ap;

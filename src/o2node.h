@@ -329,7 +329,7 @@ public:
         return O2_FAIL; }
     virtual O2err deliver(O2netmsg_ptr msg);
     // returns message to send, or null if O2_NO_SERVICE:
-    O2message_ptr pre_send(int *tcp_flag);
+    O2message_ptr pre_send(bool *tcp_flag);
 #ifndef O2_NO_DEBUG
     // to print debugging information on connections (O2_DBc):
     void co_info(Fds_info *fds_info, const char *msg) {

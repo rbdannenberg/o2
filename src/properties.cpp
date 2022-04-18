@@ -345,6 +345,9 @@ O2err o2_service_provider_set_property(Service_provider *spp,
 O2err o2_service_set_property(const char *service, const char *attr,
                               const char *value)
 {
+    if (!o2_ensemble_name) {
+        return O2_NOT_INITIALIZED;
+    }
     // find service_provider struct matching service
     Service_provider *spp = Services_entry::find_local_entry(service);
     if (spp) {
