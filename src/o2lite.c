@@ -110,7 +110,10 @@
 // You will need at least the .c and .cpp files to appear in tabs
 // in the Arduino IDE. This tells the IDE to compile and link them.
 // The Arduino IDE should take care of the rest.. It will compile
-// and link your project with o2lite.c, hostip.c and o2liteesp32.cpp
+// and link your project with o2lite.c and o2liteesp32.cpp. (Do not
+// use hostip.c with o2lite -- it is for o2 only.)
+//
+// See also ../arduino/README.md
 //
 // IMPLEMENTATION NOTES
 //
@@ -278,8 +281,7 @@ static const char *o2l_services = NULL;
 const char *o2l_ensemble = NULL;
 
 #ifdef O2LDEBUG
-// verbose enables extra debugging output; on ESP32, this follows
-// the push button, so you can get more info at runtime
+// verbose enables extra debugging output
 int verbose = 0;
 #endif
 
@@ -1269,9 +1271,6 @@ int o2l_parse_version(const char *vers, int vers_len)
 
 void o2l_poll()
 {
-#ifdef ESP32
-    O2LDB button_poll();
-#endif
     O2LDBV printf("o2l_poll\n");
     o2l_local_now = o2l_local_time();
 

@@ -238,6 +238,13 @@ void o2l_poll();
 /// Blinks LED until connected, then prints IP address
 ///
 void connect_to_wifi(const char *hostname, const char *ssid, const char *pwd);
+
+/// \brief print a horizontal line to highlight debug info
+///
+/// This is used by connect_to_wifi() to highlight the IP address,
+/// but the routine is exported here to make it available for general use.
+///
+void print_line();
 #endif
 
 
