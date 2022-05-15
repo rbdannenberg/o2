@@ -1,0 +1,40 @@
+# buttons.srp - client to make sounds
+#
+# Roger B. Dannenberg
+
+require "debug"
+require "wxserpent"
+require "sched"
+
+def connect():
+    print "connecting to service synth ...";
+    while o2_status("synth") < O2_LOCAL_NOTIME:
+        display "connect", o2_status("synth")
+        sched_poll()
+        time_sleep(0.3)
+    print "connected"
+
+b1 = Button(0, "1", 10, 10, 50, 30)
+b2 = Button(0, "2", 70, 10, 50, 30)
+b3 = Button(0, "3", 10, 40, 50, 30)
+b4 = Button(0, "4", 70, 40, 50, 30)
+default_window.set_size(130, 80)
+
+buttons = [b1, b2, b3, b4]
+for button in buttons: button.method = 'button_handler'
+
+def button_handler(obj, event, x, y):
+    var number = buttons.index(obj) + 1
+    print number
+    o2_send_start()
+    o2_send_finish(0.0, "/synth/" + str(number), true)
+
+
+def main()
+    o2_initialize("bdemo", false)
+    sched_o2_enabled = true
+    display "main", getfeatures(), getfeatures() & OPTION_WXS
+    sched_init(10)
+    connect()
+
+main()
