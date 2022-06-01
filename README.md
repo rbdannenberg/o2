@@ -24,6 +24,17 @@ protocol O2lite, Bonjour/Avahi for discovery and service property lists.
 
 [Teaser video](https://youtu.be/ELVsGEBS9Go).
 
+## Building O2
+
+O2 uses CMake. There are a lot of configuration options, so I recommend
+the CMake GUI (MacOS or Windows) or `ccmake` (Linux: in the o2 directory
+just run `ccmake .` and type `h` for help) to build either a project
+for Xcode or Visual Studio, or a Makefile for Linux (then on Linux, 
+simply type `make`). 
+
+The default for O2 discovery is Bonjour/Avahi, so on Linux you need the
+`avahi-client-dev` package to be installed.
+
 ## Documentation
 
 [O2 web pages with documentation](https://rbdannenberg.github.io/o2/)
