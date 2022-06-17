@@ -78,7 +78,7 @@ void *sharedmem();
 
 int main(int argc, const char * argv[])
 {
-    o2_memory(malloc, free, NULL, 0, NULL);
+    o2_memory(malloc, free, NULL, 0, false);
     printf("Usage: shmembench [maxmsgs] [debugflags]\n");
     if (argc >= 2) {
         max_msg_count = atoi(argv[1]);

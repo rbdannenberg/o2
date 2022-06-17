@@ -135,7 +135,7 @@ const char *o2_service_properties(int i)
             return NULL; // it's a tap
         } // otherwise it's a service and properties is good
         return (sip->properties ? sip->properties + 1 : // skip initial ";"
-                ";" + 1); // generate an initial ";" for o2_service_search()
+                &(";"[1])); // generate an initial ";" for o2_service_search()
     }
     return NULL;
 }

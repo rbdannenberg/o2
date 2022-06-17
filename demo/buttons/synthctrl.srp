@@ -20,10 +20,15 @@ def play(i):
     sched_cause(0, midi_out, 'note', 0, pitch_map[i - 1], 100, 1.0)
 
 def main()
+    Statictext(0, "O2 Demonstration: synth service", 10, 10, 300, 30).
+        set_font(20, WXS_FONT_DEFAULT, 0, 0, nil, "")
     prefs = Prefs("synthctrl")
     midi_devices = Midi_devices(prefs, open_later = true)
     midi_devices.open_midi(device = 'midi_out_device')
     o2_initialize("bdemo", false)
+    // o2_debug_flags("w")
+    o2_clock_set()
+    o2_http_initialize(5000, ".")
     o2_service_new("synth")
     o2_method_new("/synth/1", "", 'handle_1', false)
     o2_method_new("/synth/2", "", 'handle_2', false)

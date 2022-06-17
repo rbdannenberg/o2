@@ -77,7 +77,13 @@ static bool is_valid_proc_name(char *name, int port,
 /*****************************************/
 /* SECTION 1: Bonjour API implementation */
 /*****************************************/
-
+// DNSServiceBrowse sets up a callback zc_browse_callback that gets
+// names, but then we need to call DNSServiceResolve to get more
+// information. Unfortunately, this is not synchronous and there's yet
+// another callback, so we have to manage multiple DNSServiceResolve
+// actions where we have an outstanding request, we hope to get
+// a response, but there are multiple outcomes.
+//
 // To "harden" this discovery process, we need to worry about error codes
 // and failure to receive callbacks.
 // - DNSServiceRegister and DNSServiceBrowse errors, since they happen
@@ -115,7 +121,8 @@ static bool is_valid_proc_name(char *name, int port,
 // resolve_pending, close the connection, and set resolve_info to NULL.
 
 // Set to a new Bonjour_info instance to listen to a socket from
-// DNSServiceResolve.
+// DNSServiceResolve.  Serves as a lock on resolving names: if non-null, then
+// a resolve request is being processed, so do not start another one.
 // Set to NULL when Bonjour_info socket is marked for closure. (It may take time
 // to actually close the socket by later calling delete on Bonjour_info.)
 static Bonjour_info *resolve_info = NULL;
@@ -123,10 +130,24 @@ static int watchdog_seq = 0;  // sequence number to cancel watchdog callback
 
 typedef struct {
     const char *name;
+    bool unresolved;  // does resolve need to be called on this?
     bool asap;  // process as soon as possible (first time)
 } resolve_type;
 
 Vec<resolve_type> resolve_pending;
+
+#ifndef NDEBUG
+void show_resolve_pending(const char *heading, const char * extra)
+{
+    printf(heading, extra);
+    printf("\nsize = %d\n", resolve_pending.size());
+    for (int i = 0; i < resolve_pending.size(); i++) {
+        printf("    %s (unresolved: %d)\n", resolve_pending[i].name,
+               resolve_pending[i].unresolved);
+    }
+}
+#endif
+
 
 static void resolve();
 
@@ -179,7 +200,8 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
 {
     port = ntohs(port);
     fprintf(stderr, "zc_resolve_callback err %d name %s hosttarget %s port %d"
-            " len %d\n", err, fullname, hosttarget, port, txt_len);
+            " len %d context %p\n",
+            err, fullname, hosttarget, port, txt_len, context);
     uint8_t proc_name_len;
     const char *proc_name = (const char *) TXTRecordGetValuePtr(txt_len,
                                     txt_record, "name", &proc_name_len);
@@ -198,12 +220,25 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         bool found_it = false;
         for (i = 0; i < resolve_pending.size(); i++) {
             if (streql((const char *) context, resolve_pending[i].name)) {
-                O2_FREE((void *) resolve_pending[i].name);
-                resolve_pending.erase(i);
+                if (resolve_pending[i].unresolved) {
+                    // we must have tried to resolve, but then got a browse
+                    // callback for the same name; maybe something changed,
+                    // so we have to keep the name and resolve again later.
+                    resolve_type rt = resolve_pending[i];
+                    resolve_pending.erase(i);  // move to first location
+                    resolve_pending.insert(0, rt);
+                } else {  // we got the info we need, so remove this name
+                    // from the pending list.
+                    O2_FREE((void *) resolve_pending[i].name);
+                    resolve_pending.erase(i);
+                }
                 found_it = true;
                 break;
             }
         }
+        
+        show_resolve_pending("After zc_resolve_callback %s",
+                             (const char *) context);
 
         if (!found_it) {
             fprintf(stderr, "zc_resolve_callback could not find this name %s\n",
@@ -255,8 +290,12 @@ void resolve()
 {
     DNSServiceRef sd_ref;
     DNSServiceErrorType err;
+    
+    show_resolve_pending("top of resolve", NULL);
+    
     while (!resolve_info && resolve_pending.size() > 0) {
         resolve_type rt = resolve_pending.last();
+        rt.unresolved = false;  // since we are calling resolve on this name
         const char *name = rt.name;
         fprintf(stderr, "Setting up DNSServiceResolve for %s at %g\n", name,
                 o2_local_time());
@@ -274,6 +313,8 @@ void resolve()
         resolve_pending.pop_back();  // we've already copied to rt
         resolve_pending.insert(0, rt);
         set_watchdog_timer();
+        
+        show_resolve_pending("bottom of resolve loop", NULL);
     }
 }
 
@@ -388,13 +429,27 @@ static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
     fprintf(stderr, "zc_browse_callback err %d flags %d name %s as %s "
             "domain %s\n", err, flags, name, regtype, domain);
     // match if ensemble name is a prefix of name, e.g. "ensname (2)"
-    if ((flags & kDNSServiceFlagsAdd) &&
-        (strncmp(o2_ensemble_name, name, strlen(o2_ensemble_name)) == 0)) {
-        resolve_type *rt = resolve_pending.append_space(1);
-        rt->name = o2_heapify(name);
-        rt->asap = true;
-        resolve();
+    if (!(flags & kDNSServiceFlagsAdd) ||
+        (strncmp(o2_ensemble_name, name, strlen(o2_ensemble_name)) != 0)) {
+        return; // do not resolve this name
     }
+    resolve_type *rt;
+    for (int i = 0; i < resolve_pending.size(); i++) {
+        rt = &resolve_pending[i];
+        if (strcmp(name, rt->name) == 0) {
+            rt->unresolved = true;  // resolve is already in progress; do it
+            return;                 // again later -- maybe there's new info
+        }
+    } // we did not find the name in the pending list, so add it...
+    rt = resolve_pending.append_space(1);
+    rt->name = o2_heapify(name);
+    rt->unresolved = true;  // we need to resolve it
+    rt->asap = true;
+        
+    fprintf(stderr, "zc_browse_callback resolve_info %p\n", resolve_info);
+    show_resolve_pending("after zc_browse_callback added name %s", rt->name);
+        
+    resolve();
 }
 
 

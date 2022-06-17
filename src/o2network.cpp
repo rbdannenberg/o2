@@ -1120,6 +1120,18 @@ O2err Fds_info::read_whole_message(SOCKET sock)
             // done receiving length bytes
             in_length = htonl(in_length);
             assert(!in_message);
+            // if someone grabs our IP and port from Bonjour and sends a
+            // random message or even visits the URL with a browser, the
+            // incoming message could appear to have a large length count
+            // that could crash O2. We do not have much security, but at
+            // least we can shut down the connection when we get an
+            // implausible message length.
+            if (in_length >= 0x10000) {
+                O2_DBo(printf("bad message length in read_whole_message; "
+                              "closing connection\n"));
+                n = 0;  // means the socket to be closed, no message to free
+                goto error_exit;
+            }
             in_message = O2netmsg_new(in_length);
             in_msg_got = 0; // just to make sure
         }

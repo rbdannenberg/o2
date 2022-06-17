@@ -654,6 +654,17 @@ O2err Http_conn::send_msg_later(O2message_ptr msg)
     return O2_SUCCESS;
 }
 
+static void print_websocket_data(const char *wsmsg)
+{
+    printf("SENDING ");
+    while (*wsmsg) {
+        if (*wsmsg == ETX) printf(" | ");
+        else printf("%c", *wsmsg);
+        wsmsg++;
+    }
+    printf("\n");
+}
+
 // As a proxy, deliver a message to the remote host. This can only be a
 // websocket message. Ordinary HTTP GET responses are generated and sent
 // by HTTP_reader.
@@ -672,10 +683,15 @@ O2err Http_conn::send(bool block)
 
     O2_DBw(o2_dbg_msg("websock bridge outgoing", msg, &msg->data, NULL, NULL));
     o2_extract_start(&msg->data);  // prepare to extract parameters
+    assert(!o2_ctx->building_message_lock);
     o2_send_start();        // prepare space to build websocket message
     // <address> ETX <types> ETX <time> ETX <T/F> ETX [<value>ETX]*
     o2_ctx->msg_data.append(msg->data.address, (int) strlen(msg->data.address));
     o2_ctx->msg_data.push_back(ETX);
+    O2_DBw(printf("just the address field: ");
+           o2_ctx->msg_data.push_back(0);
+           print_websocket_data(&o2_ctx->msg_data[0]);
+           o2_ctx->msg_data.pop_back());
     const char *types = o2_msg_types(msg);
     o2_ctx->msg_data.append(types, (int) strlen(types));
     o2_ctx->msg_data.push_back(ETX);
@@ -728,8 +744,12 @@ O2err Http_conn::send(bool block)
     if (len >= 0xffff) {
         return O2_FAIL;  // too big
     }
+    O2_DBw(o2_ctx->msg_data.push_back(0);
+           print_websocket_data(wsmsg);
+           o2_ctx->msg_data.pop_back(););
     O2netmsg_ptr o2netmsg = O2N_MESSAGE_ALLOC(len + 4);  // the most we need
     if (!o2netmsg) {
+        o2_ctx->building_message_lock = false;
         return O2_FAIL;  // failed to allocate message
     }
     int heading_len = 2;
@@ -746,6 +766,7 @@ O2err Http_conn::send(bool block)
     }
     o2netmsg->length = len + heading_len;
     memcpy(o2netmsg->payload + heading_len, wsmsg, len);
+    o2_ctx->building_message_lock = false;
     return fds_info->send_tcp(false, o2netmsg);
 }
 

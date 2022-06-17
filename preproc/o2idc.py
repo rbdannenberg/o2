@@ -153,7 +153,14 @@ def unpack_args(outf, o2id_type, description, handler, methods):
         typ = fields[0]
         pname = fields[1]
         print("    ", file=outf, end='')
-        ctype = "char *" if typ == "string" else (typ + " ")
+        if typ == "string":
+            ctype = "char *"
+        elif typ == "int32":
+            ctype = "int32_t "
+        elif typ == "int64":
+            ctype = "int64_t "
+        else:
+            ctype = (typ + " ")
         typestring = typestring + typecodes[typ]
         if o2id_type == 'o2lite':
             print(ctype, pname, " = GET_", typ.upper(), "();",

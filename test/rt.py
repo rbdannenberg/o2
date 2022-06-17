@@ -94,8 +94,10 @@ class runInBackground(threading.Thread):
             (self.output, self.errout) = process.communicate()
         finally:
             timer.cancel()
-        self.output = self.output.decode("utf-8").replace('\r\n', '\n')
-        self.errout = self.errout.decode("utf-8").replace('\r\n', '\n')
+        self.output = self.output.decode(errors='backslashreplace').\
+                           replace('\r\n', '\n')
+        self.errout = self.errout.decode(errors='backslashreplace').\
+                           replace('\r\n', '\n')
         
 
 # runTest testname - runs testname, saving output in output.txt,
@@ -116,8 +118,8 @@ def runTest(command, stall=False, quit_on_port_loss=False):
         (stdout, stderr) = process.communicate()
     finally:
         timer.cancel()
-    stdout = stdout.decode("utf-8").replace('\r\n', '\n')
-    stderr = stderr.decode("utf-8").replace('\r\n', '\n')
+    stdout = stdout.decode(errors='backslashreplace').replace('\r\n', '\n')
+    stderr = stderr.decode(errors='backslashreplace').replace('\r\n', '\n')
     if stall: dostall()
     portsOK, countmsg = checkports(False, False)
     if findLineInString("DONE", stdout):

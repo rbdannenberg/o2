@@ -29,7 +29,7 @@ option(BUILD_WITH_O2LITE_DISCOVERY
        "Added code to o2lite clients for faster discovery" ON)
 option(BUILD_WITH_O2LITE_CLOCKSYNC
        "Added code to o2lite clients to synchronize clock with  O2" ON)
-set(BUILD_WITH_O2MEM_DEBUG "2" CACHE STRING
+set(BUILD_WITH_O2MEM_DEBUG "0" CACHE STRING
     "0=off, 1=high space overhead, 2=high space and runtime overhead")
 
 
