@@ -1,0 +1,33 @@
+O2 is a real-time communication protocol for building modular
+software, especially interactive computer music systems. O2 
+uses message-based communication similar to Open Sound Control,
+but it adds many often-needed features, including discovery,
+a reliable messages, clock synchronization, publish/subscribe,
+browser-based interfaces, and much more.
+
+I'd like to demonstrate just some basics of O2. I've constructed
+a little server process that can play four sounds, addressed by 
+these O2 address strings. The first part, "synth" is known as a 
+service, and that's the key to the power of O2: Any client can
+connect to the "synth" service without any need to know an IP 
+address or the location of the service.
+
+Here, I'll start my interface program. It will find the 
+"synth" service, connect to it, and we're ready to go.
+
+I can run the interface program anywhere. Here's the 
+identical program running on a separate Windows machine, and
+automatically connecting from anywhere in the Internet.
+
+O2 applications also have a built-in web server you can enable,
+so I can even write an interface in HTML5 and use it in the
+same way.
+
+
+Please check out my ICMC paper to learn more.
+
+
+
+
+
+

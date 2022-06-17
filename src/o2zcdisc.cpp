@@ -136,19 +136,6 @@ typedef struct {
 
 Vec<resolve_type> resolve_pending;
 
-#ifndef NDEBUG
-void show_resolve_pending(const char *heading, const char * extra)
-{
-    printf(heading, extra);
-    printf("\nsize = %d\n", resolve_pending.size());
-    for (int i = 0; i < resolve_pending.size(); i++) {
-        printf("    %s (unresolved: %d)\n", resolve_pending[i].name,
-               resolve_pending[i].unresolved);
-    }
-}
-#endif
-
-
 static void resolve();
 
 Bonjour_info::Bonjour_info(DNSServiceRef sr) {
@@ -199,9 +186,9 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                          const unsigned char *txt_record, void *context)
 {
     port = ntohs(port);
-    fprintf(stderr, "zc_resolve_callback err %d name %s hosttarget %s port %d"
-            " len %d context %p\n",
-            err, fullname, hosttarget, port, txt_len, context);
+    O2_DBz(printf("zc_resolve_callback err %d name %s hosttarget %s port %d"
+                  " len %d context %p\n",
+                  err, fullname, hosttarget, port, txt_len, context));
     uint8_t proc_name_len;
     const char *proc_name = (const char *) TXTRecordGetValuePtr(txt_len,
                                     txt_record, "name", &proc_name_len);
@@ -237,13 +224,10 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
             }
         }
         
-        show_resolve_pending("After zc_resolve_callback %s",
-                             (const char *) context);
-
         if (!found_it) {
-            fprintf(stderr, "zc_resolve_callback could not find this name %s\n",
-                    (char *) context);
-            fprintf(stderr, "    proc name: %s\n", name);
+            O2_DBz(printf("zc_resolve_callback could not find this name %s\n"
+                          "    proc name: %s\n",
+                          (char *) context, name));
         }
     }
     if (!is_valid_proc_name(name, port, internal_ip, &udp_port)) {
@@ -271,7 +255,7 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         resolve_info->info->close_socket(true);
         resolve_info = NULL;
     } else {
-        fprintf(stderr, "zc_resolve_callback with null resolve_info\n");
+        O2_DBz(printf("zc_resolve_callback with null resolve_info\n"));
     }
     resolve();  // no-op if empty
 }
@@ -291,14 +275,12 @@ void resolve()
     DNSServiceRef sd_ref;
     DNSServiceErrorType err;
     
-    show_resolve_pending("top of resolve", NULL);
-    
     while (!resolve_info && resolve_pending.size() > 0) {
         resolve_type rt = resolve_pending.last();
         rt.unresolved = false;  // since we are calling resolve on this name
         const char *name = rt.name;
-        fprintf(stderr, "Setting up DNSServiceResolve for %s at %g\n", name,
-                o2_local_time());
+        O2_DBz(printf("Setting up DNSServiceResolve for %s at %g\n", name,
+                      o2_local_time()));
         err = DNSServiceResolve(&sd_ref, 0, kDNSServiceInterfaceIndexAny, name,
                                 "_o2proc._tcp.", "local", zc_resolve_callback,
                                 (void *) name);
@@ -313,8 +295,6 @@ void resolve()
         resolve_pending.pop_back();  // we've already copied to rt
         resolve_pending.insert(0, rt);
         set_watchdog_timer();
-        
-        show_resolve_pending("bottom of resolve loop", NULL);
     }
 }
 
@@ -324,8 +304,8 @@ void zc_register_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                           const char *regtype, const char *domain,
                           void *context)
 {
-    fprintf(stderr, "zc_register_callback err %d registered %s as %s domain %s\n",
-           err, name, regtype, domain);
+    O2_DBz(printf("zc_register_callback err %d registered %s as %s domain %s\n",
+                  err, name, regtype, domain));
 }
 
 
@@ -347,8 +327,8 @@ static void rr_callback(DNSServiceRef sd_ref, DNSRecordRef record_ref,
                         DNSServiceFlags flags, DNSServiceErrorType err,
                         void *context)
 {
-    printf("rr_callback sd_ref %p record_ref %p flags %d err %d\n",
-           sd_ref, record_ref, flags, err);
+    O2_DBz(printf("rr_callback sd_ref %p record_ref %p flags %d err %d\n",
+                  sd_ref, record_ref, flags, err));
 }
 
 
@@ -426,8 +406,8 @@ static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                 const char *name, const char *regtype,
                 const char *domain, void *context)
 {
-    fprintf(stderr, "zc_browse_callback err %d flags %d name %s as %s "
-            "domain %s\n", err, flags, name, regtype, domain);
+    O2_DBz(printf("zc_browse_callback err %d flags %d name %s as %s "
+                  "domain %s\n", err, flags, name, regtype, domain));
     // match if ensemble name is a prefix of name, e.g. "ensname (2)"
     if (!(flags & kDNSServiceFlagsAdd) ||
         (strncmp(o2_ensemble_name, name, strlen(o2_ensemble_name)) != 0)) {
@@ -445,9 +425,6 @@ static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
     rt->name = o2_heapify(name);
     rt->unresolved = true;  // we need to resolve it
     rt->asap = true;
-        
-    fprintf(stderr, "zc_browse_callback resolve_info %p\n", resolve_info);
-    show_resolve_pending("after zc_browse_callback added name %s", rt->name);
         
     resolve();
 }
@@ -478,7 +455,7 @@ O2err o2_zcdisc_initialize()
     text_end = vers_loc + 5 + (int) strlen(vers_num);
     text[vers_loc - 1] = text_end - vers_loc;
     
-    fprintf(stderr, "Setting up DNSServiceRegister\n");
+    O2_DBz(printf("Setting up DNSServiceRegister\n"));
     int port = o2_ctx->proc->fds_info->port;
     Bonjour_info *zcreg = 
             zc_register("_o2proc._tcp.", NULL, port, text_end, text);
@@ -493,7 +470,7 @@ O2err o2_zcdisc_initialize()
 
     // create a browser
     DNSServiceRef sd_ref;
-    fprintf(stderr, "Setting up DNSServiceBrowse\n");
+    O2_DBz(printf("Setting up DNSServiceBrowse\n"));
     DNSServiceErrorType err = DNSServiceBrowse(&sd_ref, 0, 
                                 kDNSServiceInterfaceIndexAny, "_o2proc._tcp.",
                                 NULL, zc_browse_callback, NULL);
@@ -619,7 +596,7 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
             int version = 0;
             name[0] = 0;
             for (AvahiStringList *asl = txt; asl; asl = asl->next) {
-                printf("resolve callback text: %s\n", asl->text);
+                O2_DBz(printf("resolve callback text: %s\n", asl->text));
                 if (strncmp((char *) asl->text, "name=", 5) == 0 &&
                     asl->size == 33) {  // found "name="; proc name len is 28
                     o2_strcpy(name, (char *) asl->text + 5, 29); // includes EOS
@@ -773,7 +750,7 @@ O2err zc_commit_group(AvahiClient *c, char **name,
             goto fail;
         }
     } else {
-        printf("Debug: avahi_entry_group_is_empty() returned false\n");
+        O2_DBz(printf("Debug: avahi_entry_group_is_empty() returned false\n"));
     }
     return O2_SUCCESS;
 collision:
@@ -800,7 +777,7 @@ static O2err zc_create_services(AvahiClient *c)
     strcpy(name, "name=");
     int name_end = 5 + strlen(o2_ctx->proc->key);
     strcpy(name + 5, o2_ctx->proc->key);  // proc->key is 24 bytes
-    printf("zc_create_services proc->key %s\n", o2_ctx->proc->key);
+    O2_DBz(printf("zc_create_services proc->key %s\n", o2_ctx->proc->key));
     // for discovery, we need udp port too, so append it after ':'
     name[name_end++] = ':';
     sprintf(name + name_end, "%04x", o2_ctx->proc->udp_address.get_port());
@@ -909,7 +886,8 @@ void o2_poll_avahi()
         int ret = avahi_simple_poll_iterate(zc_poll, 0);
         if (ret == 1) {
             zc_running = false;
-            printf("o2_poll_avahi got quit from avahi_simple_poll_iterate\n");
+            O2_DBz(printf("o2_poll_avahi got quit from "
+                          "avahi_simple_poll_iterate\n"));
         } else if (ret < 0) {
             zc_running = false;
             fprintf(stderr, "Error: avahi_simple_poll_iterate returned %d\n",

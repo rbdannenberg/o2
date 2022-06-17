@@ -86,3 +86,5 @@ Makefile
 /unisub
 /websockhost
 /shmembench
+
+/demo/buttons/srp.log

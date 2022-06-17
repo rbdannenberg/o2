@@ -127,5 +127,5 @@ void sha1_with_magic(char sha1[32], char const *key)
     }
     sha1[27] = '=';
     sha1[28] = 0;  // EOS
-    printf("SHA1:\ninput string: %s\noutput_string: %s\n", key, sha1);
+    // printf("SHA1:\ninput string: %s\noutput_string: %s\n", key, sha1);
 }
