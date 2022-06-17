@@ -80,13 +80,6 @@ void flash()
 }
     
 
-#ifdef O2LDEBUG
-void button_poll()
-{
-    verbose = (digitalRead(BUTTON_PIN) == LOW);
-}
-#endif
-
 void connect_to_wifi(const char *hostname, const char *ssid, const char *pwd)
 {
     blink_init();
@@ -154,7 +147,6 @@ int check_for_proc(const char *proc_name, const char *vers_num,
 void o2ldisc_poll()
 {
     static int resolve_timeout = 0; // start as soon as possible
-    O2LDB button_poll();
     O2LDBV printf("tcp_sock %d\n", tcp_sock);
     if (tcp_sock != INVALID_SOCKET) {
         return;

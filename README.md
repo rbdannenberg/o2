@@ -1,4 +1,4 @@
-# o2
+# O2
 O2 is a communication protocol and implementation
 for music systems that aims to replace Open Sound Control
 (OSC). Many computer musicians routinely deal with
@@ -13,10 +13,27 @@ to OSC and is mostly compatible with and similar to
 OSC. O2 addresses the problems of inter-process communication
 with a minimum of complexity.
 
-O2 is currently undergoing major changes to support asynchronous
-sends. Please look for a released version -- these work and have been
-used fairly extensively. Do not try to use the most recent (head)
-version from the repository.
+O2 now supports asynchronous sends, WebSockets, a simplified subset
+protocol O2lite, Bonjour/Avahi for discovery and service property lists.
+
+## More on O2
+
+[An informal demo/overview](https://www.cs.cmu.edu/~rbd/blog/nime-blog22may2022.html).
+
+[Bibliography](https://www.cs.cmu.edu/~rbd/bib-o2.html).
+
+[Teaser video](https://youtu.be/ELVsGEBS9Go).
+
+## Building O2
+
+O2 uses CMake. There are a lot of configuration options, so I recommend
+the CMake GUI (MacOS or Windows) or `ccmake` (Linux: in the o2 directory
+just run `ccmake .` and type `h` for help) to build either a project
+for Xcode or Visual Studio, or a Makefile for Linux (then on Linux, 
+simply type `make`). 
+
+The default for O2 discovery is Bonjour/Avahi, so on Linux you need the
+`avahi-client-dev` package to be installed.
 
 ## Documentation
 
