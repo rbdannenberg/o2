@@ -484,7 +484,7 @@ function o2ws_tap(taps) {
 
 var startDate = new Date();
 var startTime = startDate.getTime();
-var global_minus_local = null;
+var o2ws_global_minus_local = null;
 
 function o2ws_local_time() {
     var now = new Date().getTime();
@@ -493,7 +493,7 @@ function o2ws_local_time() {
 
 function o2ws_time_get() {
     if (o2ws_clock_synchronized) {
-        return o2ws_local_time() + global_minus_local;
+        return o2ws_local_time() + o2ws_global_minus_local;
     } else {
         return -1;
     }

@@ -100,6 +100,10 @@ public:
         pending_ws_senders = NULL;
     }
     
+
+    // Insert an Http_conn object on o2ws_protocol->pending_ws_senders list.
+    // If http_conn is already on the list do nothing. The list uses
+    // Http_conn->next_pending as the link to the next list item.
     void insert_pending_ws_sender(Http_conn *http_conn) {
         Http_conn **ptr = &pending_ws_senders;
         while (*ptr) {

@@ -32,6 +32,23 @@
 #ifndef O2_NO_WEBSOCKETS
 class Http_conn;
 
+// An Http_server serves web pages. O2 processes can be web servers to
+// serve web pages to browsers, which can then connect to O2 using 
+// Web Sockets. Thus, a browser-based interface or application using
+// O2 can run without an additional server process. The O2 HTTP service
+// is minimal and basically just for serving static pages and setting up
+// a Web Socket connection.
+//
+// An Http_server is a subclass of Proxy_info, which normally is a proxy
+// object that helps to forward O2 messages to a remote process offering
+// a service. Here, there is no service name, and the "proxy" has the
+// special tag O2TAG_HTTP_SERVER, so Proxy_info is used mainly as a socket
+// that can accept TCP connections.
+//
+// Http_server holds the path to the root directory for web pages. The
+// main function is accepted() which creates Http_conn object to manage
+// each HTTP client connection to this server.
+//
 class Http_server: public Proxy_info {
 public:
     long page_len;     // string length of page
@@ -48,6 +65,13 @@ public:
 
 class Http_reader;
 
+// Http_conn objects are created for each HTTP client connection.
+// Because all O2 sockets and file reads are asynchronous, each HTTP GET
+// request creates an Http_reader object. The reader list is serviced
+// in order to serialize replies to the clients. Connections can be
+// upgraded to Web Socket connections, which are also managed by this
+// Http_conn class.
+// 
 class Http_conn: public Bridge_info {
 public:
     const char *root;  // root of web pages
@@ -55,7 +79,15 @@ public:
     Vec<char> inbuf;
     int inf;
     Http_reader *reader;
-    // link used to create protocol's pending_ws_sender list:
+    // link used to create protocol's pending_ws_senders list, which is needed
+    // to implement send_msg_later() which is called when sends are nested:
+    // Http_conn::send() calls Http_conn::send_msg_later(), which appends the
+    // O2 message to outgoing. The Http_conn is then inserted at the end of
+    // o2ws_protocol->pending_ws_senders, using next_pending fields as links.
+    // Then, on the next O2ws_protocol::bridge_poll(), we can traverse the
+    // pending_ws_senders list and send all of their outgoing messages. It is
+    // possible that messages may be queued again in the networks layer as
+    // outgoing data to an (asynchronous) Web Socket.
     Http_conn *next_pending; // could probably use next instead for this list,
         // but next is an O2node* used for hash table collisions. Right now,
         // Http_conn is unnamed and not hashed, but it seems safer to reserve

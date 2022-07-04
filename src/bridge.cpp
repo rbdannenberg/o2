@@ -538,6 +538,9 @@ void o2lite_csget_handler(O2msg_data_ptr msgdata, const char *types,
 
 O2err o2lite_initialize()
 {
+    if (!o2_ensemble_name) {
+        return O2_NOT_INITIALIZED;
+    }
     if (o2lite_protocol) return O2_ALREADY_RUNNING; // already initialized
     o2lite_protocol = new O2lite_protocol();
     o2_method_new_internal("/_o2/o2lite/dy", "ssiii",

@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.20.0)
 cmake_policy(SET CMP0091 NEW)
 project(o2)
 
+set(CMAKE_OSX_ARCHITECTURES x86_64 CACHE STRING "only build forx86_64" FORCE)
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "controls OSX SDK")
+
 option(CMAKE_BUILD_SHARED_LIBS "Build shared libraries" OFF)
 option(TESTS_BUILD "Compile regression and other tests" ON)
 
@@ -106,8 +109,8 @@ endif(WIN32)
 
 if(UNIX)
   if(APPLE)
-    set(FRAMEWORK_PATH ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks)
-    set(EXTRA_LIBS "${FRAMEWORK_PATH}/CoreAudio.framework")
+    find_library(COREAUDIO CoreAudio)
+    set(EXTRA_LIBS "${COREAUDIO}")
   else(APPLE) # must be Linux
 # struct addrinfo not defined by default, so fix it here:
     add_definitions("-D_POSIX_C_SOURCE=201112L")
@@ -349,8 +352,10 @@ endif(TESTS_BUILD)
 if(UNIX)
   if(APPLE)
     # EXTRA_LO_LIBS is libraries needed by Liblo applications
-    set(EXTRA_LO_LIBS ${COREAUDIO_LIB} ${COREFOUNDATION_LIB}
-                      ${COREMIDI_LIB} ${CORESERVICES_LIB})
+    find_library(COREFOUNDATION CoreFoundation)
+    find_library(COREMIDI CoreMIDI)
+    find_library(CORESERVICES CoreServices)
+    set(EXTRA_LO_LIBS ${COREFOUNDATION} ${COREMIDI} ${CORESERVICES})
   else(APPLE)
     # linux
     set(CMAKE_C_FLAGS "-std=c11 -mcx16")
