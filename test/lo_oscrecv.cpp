@@ -63,6 +63,11 @@ int osc_i_handler(const char *path, const char *types,
 
 int main(int argc, const char * argv[])
 {
+    // flush everything no matter what (for getting as much info as possible when
+    // there are problems):
+    setvbuf (stdout, NULL, _IONBF, BUFSIZ);
+    setvbuf (stderr, NULL, _IONBF, BUFSIZ);
+
     int tcpflag = 1;
     printf("Usage: lo_oscrecv [u] (u means use UDP)\n");
     if (argc == 2) {

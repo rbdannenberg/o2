@@ -1,0 +1,41 @@
+Usage: tappub [debugflags] [n_addrs]
+    see o2.h for flags, use a for all, - for none
+    n_addrs is number of addresses to use, default 3
+Setting up DNSServiceRegister
+O2: Registered port 60678 with text:
+    name=@484d1045:c0a801a6:ed06:d09a
+    vers=2.0.0
+O2: new Fds_info 0x7f92f38098f0 socket 7 index 3
+O2: Registered port 60678 with text:
+    name=@484d1045:c0a801a6:ed06:d09a
+    vers=2.0.0
+Setting up DNSServiceBrowse
+O2: new Fds_info 0x7f92f3809610 socket 8 index 4
+O2: deleting Fds_info (noname)
+    socket -1 index 2 tags NET_INFO_CLOSED, STUN_CLIENT
+O2: moved to new index (noname)
+    socket 8 index 2 tags NET_TCP_CLIENT, ZEROCONF
+O2: delivering message from net_tag NET_TCP_CLIENT socket 8 index 2 to 0x7f92f3809880
+O2: zc_browse_callback err 0 flags 3 name test (2) as _o2proc._tcp. domain local.
+O2: zc_browse_callback rt->name gets test (2)
+O2: Setting up DNSServiceResolve for test (2) at 0.0370019
+O2: new Fds_info 0x7f92f380a4a0 socket 10 index 4
+O2: zc_browse_callback err 0 flags 3 name test (2) as _o2proc._tcp. domain local.
+O2: zc_browse_callback err 0 flags 3 name test as _o2proc._tcp. domain local.
+O2: zc_browse_callback rt->name gets test
+O2: zc_browse_callback err 0 flags 2 name test as _o2proc._tcp. domain local.
+O2: delivering message from net_tag NET_TCP_CLIENT socket 10 index 4 to 0x7f92f3808b40
+zc_resolve_callback err 0 name test\032(2)._o2proc._tcp.local. hosttarget rbd-mac.local. port 60675 len 45 context 0x7f92f380a480
+O2: got a TXT field: name=@484d1045:c0a801a6:ed03:e8cb
+O2: got a TXT field: vers=2.0.0
+O2: created tcp socket 11
+O2: new Fds_info 0x7f92f380a550 socket 11 index 5
+O2: connect to a601a8c0:? with socket 11 index 5
+O2: created temp proc to connect to discovered proc (noname)
+    socket 11 index 5 tags NET_TCP_CONNECTING, PROC_TEMP
+O2: queueing/sending TCP (0x7f92f380a650) at 0.796366s (local 0.796366s) to: (null)
+    !_o2/dy @ 0 by TCP "test" 131072 "484d1045" "c0a801a6" 60678 53402 53
+O2: blocked message 0x7f92f380a650 queued for fds_info 0x7f92f380a550 (NET_TCP_CONNECTING) socket 11 fds_info 0x7f92f380a550 msg 0x7f92f380a650
+O2: ** discovery sending O2_DY_CALLBACK to @484d1045:c0a801a6:ed03
+O2: closing socket (noname)
+    socket 10 index 4 tags NET_TCP_CLIENT, ZEROCONF

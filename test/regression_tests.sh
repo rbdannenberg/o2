@@ -1,5 +1,11 @@
 #!/bin/sh
 
+# This was the original code for regression testing. It has been moved
+# to Python which also runs on Windows and applies a time limit so that
+# it always terminates. The websocket tests are included here from when
+# I thought that Python had problems, but the websocket tests have not
+# been tested yet in this script and may not work.
+
 if [ -d "../Debug" ]; then
     BIN="../Debug"
 else
@@ -12,8 +18,25 @@ if [ `uname` == 'Linux' ]; then
 fi
 
 ABIN=`realpath $BIN`
-
 read -p "Run pattern match and bundle tests? [y,n]: " extensions
+case ${extensions:0:1} in
+    y|Y )
+        extensions="y"
+    ;;
+    * )
+        extensions="n"
+    ;;
+esac
+read -p "Run web socket tests? [y,n]: " websockettests
+case ${websockettests:0:1} in
+    y|Y )
+        websockettests="y"
+    ;;
+    * )
+        websockettests="n"
+    ;;
+esac
+
 
 # runtest testname - runs testname, saving output in output.txt,
 #    searches output.txt for single full line containing "DONE",
@@ -52,12 +75,35 @@ rundouble(){
 }
 
 
+runwstest(){
+    printf "%30s: "  "$1+$3"
+    ./regression_run_wstest.sh "$BIN/$1" "$BIN" "$3" &>misc.txt 2>&1
+    if grep -Fxq "$2" output.txt
+    then
+        if grep -Fxq "$4" output2.txt
+        then
+            echo "PASS"
+            status=0
+        else
+            echo "FAIL"
+            status=-1
+        fi
+    else
+        echo "FAIL"
+        status=-1
+    fi
+}
+
+
 # the while loop never iterates, it is here to make "break"
 # into a kind of "goto error" when an error is encountered
 while true; do
 
     errorflag=1
     echo "Running regression tests for O2 ..."
+
+    runtest "stuniptest"
+    if [ $status == -1 ]; then break; fi
 
     runtest "dispatchtest"
     if [ $status == -1 ]; then break; fi
@@ -83,6 +129,32 @@ while true; do
     runtest "o2litemsg"
     if [ $status == -1 ]; then break; fi
 
+    if [ $websockettests == "y" ]; then
+        runwstest "o2server - 20t" "SERVER DONE" "o2client.htm" "WEBSOCKETHOST DONE"
+        if [ $status == -1 ]; then break; fi
+
+        runwstest "tappub" "SERVER DONE" "tapsub.htm" "WEBSOCKETHOST DONE"
+        if [ $status == -1 ]; then break; fi
+
+        runwstest "statusclient" "CLIENT DONE" "statusserver.htm" "WEBSOCKETHOST DONE"
+        if [ $status == -1 ]; then break; fi
+
+        runwstest "statusserver" "SERVER DONE" "statusclient.htm" "WEBSOCKETHOST DONE"
+        if [ $status == -1 ]; then break; fi
+
+        runwstest "propsend a" "DONE" "proprecv.htm" "WEBSOCKETHOST DONE"
+        if [ $status == -1 ]; then break; fi
+
+        runwstest "o2litehost 500t da" "CLIENT DONE" "wsserv.htm" "WEBSOCKETHOST DONE"
+        if [ $status == -1 ]; then break; fi
+
+        runwstest "proprecv" "DONE" "propsend.htm" "WEBSOCKETHOST DONE"
+        if [ $status == -1 ]; then break; fi
+
+        runwstest "tapsub" "CLIENT DONE" "tappub.htm" "WEBSOCKETHOST DONE"
+        if [ $status == -1 ]; then break; fi
+    fi
+
     if [ $extensions == "y" ]; then
         runtest "bundletest"
         if [ $status == -1 ]; then break; fi
@@ -97,10 +169,13 @@ while true; do
     runtest "proptest"
     if [ $status == -1 ]; then break; fi
 
-    runtest "stuniptest"
+    rundouble "o2litehost 500t d" "CLIENT DONE" "o2liteserv t" "SERVER DONE"
     if [ $status == -1 ]; then break; fi
 
-    rundouble "statusserver" "SERVER DONE" "statusclient" "CLIENT DONE"
+    rundouble "o2litehost 500 d" "CLIENT DONE" "o2liteserv u" "SERVER DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "statusclient" "CLIENT DONE" "statusserver" "SERVER DONE"
     if [ $status == -1 ]; then break; fi
 
     rundouble "infotest2" "INFOTEST2 DONE" "clockmirror" "CLOCKMIRROR DONE"
@@ -113,6 +188,9 @@ while true; do
     if [ $status == -1 ]; then break; fi
 
     rundouble "o2client" "CLIENT DONE" "o2server" "SERVER DONE"
+    if [ $status == -1 ]; then break; fi
+
+    rundouble "o2client 1000t" "CLIENT DONE" "o2server - 20t" "SERVER DONE"
     if [ $status == -1 ]; then break; fi
 
     rundouble "nonblocksend" "CLIENT DONE" "nonblockrecv" "SERVER DONE"
@@ -142,19 +220,13 @@ while true; do
     rundouble "tappub" "SERVER DONE" "tapsub" "CLIENT DONE"
     if [ $status == -1 ]; then break; fi
 
+    rundouble "unipub" "SERVER DONE" "unisub" "CLIENT DONE"
+    if [ $status == -1 ]; then break; fi
+
     rundouble "dropclient" "DROPCLIENT DONE" "dropserver" "DROPSERVER DONE"
     if [ $status == -1 ]; then break; fi
 
-    rundouble "o2litehost 500t" "CLIENT DONE" "o2liteserv t" "SERVER DONE"
-    if [ $status == -1 ]; then break; fi
-
-    rundouble "o2litehost 500" "CLIENT DONE" "o2liteserv u" "SERVER DONE"
-    if [ $status == -1 ]; then break; fi
-
-    rundouble "o2client 1000t" "CLIENT DONE" "shmemserv t" "SERVER DONE"
-    if [ $status == -1 ]; then break; fi
-
-    rundouble "o2client 1000" "CLIENT DONE" "shmemserv u" "SERVER DONE"
+    rundouble "o2client 1000t" "CLIENT DONE" "shmemserv u" "SERVER DONE"
     if [ $status == -1 ]; then break; fi
 
     if [ $extensions == "y" ]; then

@@ -128,7 +128,10 @@ static bool is_valid_proc_name(char *name, int port,
 static Bonjour_info *resolve_info = NULL;
 static int watchdog_seq = 0;  // sequence number to cancel watchdog callback
 
+static int rtcount = 0;
+
 typedef struct {
+    int seqno;
     const char *name;
     bool unresolved;  // does resolve need to be called on this?
     bool asap;  // process as soon as possible (first time)
@@ -212,12 +215,33 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                     // callback for the same name; maybe something changed,
                     // so we have to keep the name and resolve again later.
                     resolve_type rt = resolve_pending[i];
+                    printf("zc_resolve_callback unresolved at %d (1)\n", i);
+                    for (int j = 0; j < resolve_pending.size(); j++) {
+                        printf("    at %d: seqno is %d\n", j,
+                               resolve_pending[j].seqno);
+                    }
                     resolve_pending.erase(i);  // move to first location
                     resolve_pending.insert(0, rt);
+                    printf("    after erase %d rt.seqno %d [0].seqno %d\n",
+                           i, rt.seqno, resolve_pending[0].seqno);
+                    printf("zc_resolve_callback unresolved at %d (2)\n", i);
+                    for (int j = 0; j < resolve_pending.size(); j++) {
+                        printf("    at %d: seqno is %d\n", j,
+                               resolve_pending[j].seqno);
+                    }
                 } else {  // we got the info we need, so remove this name
                     // from the pending list.
+                    O2_DBz(printf("%s zc_resolve_callback resolve_pending name"
+                            "%s@%p freed seqno %d\n", o2_debug_prefix,
+                            resolve_pending[i].name, resolve_pending[i].name,
+                            resolve_pending[i].seqno));
                     O2_FREE((void *) resolve_pending[i].name);
                     resolve_pending.erase(i);
+                    printf("zc_resolve_callback after erase %d\n", i);
+                    for (int j = 0; j < resolve_pending.size(); j++) {
+                        printf("    at %d: seqno is %d\n", j,
+                               resolve_pending[j].seqno);
+                    }
                 }
                 found_it = true;
                 break;
@@ -279,8 +303,10 @@ void resolve()
         resolve_type rt = resolve_pending.last();
         rt.unresolved = false;  // since we are calling resolve on this name
         const char *name = rt.name;
-        O2_DBz(printf("Setting up DNSServiceResolve for %s at %g\n", name,
-                      o2_local_time()));
+        O2_DBz(printf("%s Setting up DNSServiceResolve name %s@%p at %g "
+                      "seqno %d\n", o2_debug_prefix, name, name,
+                      o2_local_time(), rt.seqno));
+        assert(name);
         err = DNSServiceResolve(&sd_ref, 0, kDNSServiceInterfaceIndexAny, name,
                                 "_o2proc._tcp.", "local", zc_resolve_callback,
                                 (void *) name);
@@ -294,6 +320,13 @@ void resolve()
         // (to be revisited after all others)
         resolve_pending.pop_back();  // we've already copied to rt
         resolve_pending.insert(0, rt);
+        
+        printf("resolve after insert\n");
+        for (int j = 0; j < resolve_pending.size(); j++) {
+            printf("    at %d: seqno is %d\n", j,
+                   resolve_pending[j].seqno);
+        }
+
         set_watchdog_timer();
     }
 }
@@ -304,8 +337,8 @@ void zc_register_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                           const char *regtype, const char *domain,
                           void *context)
 {
-    O2_DBz(printf("zc_register_callback err %d registered %s as %s domain %s\n",
-                  err, name, regtype, domain));
+    O2_DBz(printf("%s zc_register_callback err %d registered %s as %s domain "
+                  "%s\n", o2_debug_prefix, err, name, regtype, domain));
 }
 
 
@@ -406,8 +439,8 @@ static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                 const char *name, const char *regtype,
                 const char *domain, void *context)
 {
-    O2_DBz(printf("zc_browse_callback err %d flags %d name %s as %s "
-                  "domain %s\n", err, flags, name, regtype, domain));
+    O2_DBz(printf("%s zc_browse_callback err %d flags %d name %s as %s domain "
+                  "%s\n", o2_debug_prefix, err, flags, name, regtype, domain));
     // match if ensemble name is a prefix of name, e.g. "ensname (2)"
     if (!(flags & kDNSServiceFlagsAdd) ||
         (strncmp(o2_ensemble_name, name, strlen(o2_ensemble_name)) != 0)) {
@@ -418,14 +451,26 @@ static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         rt = &resolve_pending[i];
         if (strcmp(name, rt->name) == 0) {
             rt->unresolved = true;  // resolve is already in progress; do it
+            O2_DBz(printf("%s zc_browse_callback name %s@%p already pending"
+                          " seqno %d\n",
+                          o2_debug_prefix, rt->name, rt->name, rt->seqno));
             return;                 // again later -- maybe there's new info
         }
     } // we did not find the name in the pending list, so add it...
     rt = resolve_pending.append_space(1);
     rt->name = o2_heapify(name);
+    rt->seqno = ++rtcount;
+    O2_DBz(printf("%s zc_browse_callback rt->name gets %s@%p seqno %d\n",
+                  o2_debug_prefix, rt->name, rt->name, rt->seqno));
     rt->unresolved = true;  // we need to resolve it
     rt->asap = true;
-        
+
+    printf("before calling resolve from browse callback\n");
+    for (int j = 0; j < resolve_pending.size(); j++) {
+        printf("    at %d: seqno is %d\n", j,
+               resolve_pending[j].seqno);
+    }
+
     resolve();
 }
 
@@ -435,6 +480,7 @@ static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
 //
 O2err o2_zcdisc_initialize()
 {
+    o2_debug |= O2_DBa_FLAGS;  // TODO: Take this out!!!!
     // Publish a service with type _o2proc._tcp, name ensemblename
     // and text record name=@xxxxxxxx:yyyyyyyy:zzzz
     char text[80];
@@ -494,6 +540,10 @@ O2err o2_zcdisc_initialize()
 void o2_zcdisc_finish()
 {
     for (int i = 0; i < resolve_pending.size(); i++) {
+        O2_DBz(printf("%s o2_zcdisc_finish resolve_pending name %s@%p seqno %d "
+                      "freed\n",
+                      o2_debug_prefix, resolve_pending[i].name,
+                      resolve_pending[i].name, resolve_pending[i].seqno));
         O2_FREE((void *) resolve_pending[i].name);
     }
     resolve_pending.finish();

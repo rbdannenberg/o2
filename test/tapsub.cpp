@@ -117,6 +117,11 @@ void copy_i(O2msg_data_ptr data, const char *types,
 
 int main(int argc, const char *argv[])
 {
+    // flush everything no matter what (for getting as much info as possible when
+    // there are problems):
+    setvbuf (stdout, NULL, _IONBF, BUFSIZ);
+    setvbuf (stderr, NULL, _IONBF, BUFSIZ);
+
     printf("Usage: tapsub [debugflags] [n_addrs]\n"
            "    see o2.h for flags, use a for all, - for none\n"
            "    n_addrs is number of addresses to use, default %d\n",

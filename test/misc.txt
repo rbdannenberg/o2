@@ -1,1 +1,4 @@
-Segmentation fault
+Assertion failed: (name), function resolve, file o2zcdisc.cpp, line 284.
+Assertion failed: (name), function resolve, file o2zcdisc.cpp, line 284.
+./regression_run_two.sh: line 12: 47080 Abort trap: 6           $2 > output2.txt
+./regression_run_two.sh: line 13: 47079 Abort trap: 6           $1 > output.txt

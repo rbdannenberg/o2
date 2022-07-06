@@ -19,12 +19,19 @@ from threading import Timer
 from checkports import checkports
 import time
 
+#print("WARNING: rt.py does not seem to work -- after upgrading to macOS 12,")
+#print("I find programs hang with no output recorded. Is this a Python bug?")
+#print("I updated the regression_tests.sh scripts, which do not have the")
+#print("nice timeout feature of Python, but everything works there.")
+#print()
+
+
 print("Optional argument is (relative) path to tests, e.g. ../Release")
 
 print_all_output = False
 
 IS_OSX = False
-TIMEOUT_SEC = 250
+TIMEOUT_SEC = 60  # appfollow/applead take about 40s (is 60s long enough?)
 LOCALDOMAIN = "local"  # but on linux, it's "localhost"
 # I saw a failure of oscbndlsend+oscbndlrecv because port 8100 could
 # not be bound, but I could then run by hand, so I am guessing that
@@ -35,7 +42,8 @@ STALL_SEC = 20  # time after run to make sure ports are free
 if platform.system() == "Darwin":
     STALL_SEC = 1  # I don't think we need to stall for macOS
     IS_OSX = True
-    input("macOS tip: turn Firewall OFF to avoid orphaned ports ")
+    # This no longer applies:
+    # input("macOS tip: turn Firewall OFF to avoid orphaned ports ")
     HTMLOPEN = "open "
 
 allOK = True
@@ -80,8 +88,6 @@ class runInBackground(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
-        output1 = ""
-        output2 = ""
         args = shlex.split(self.command)
         args[0] = BIN + '/' + args[0] + EXE
         process = subprocess.Popen(args,
@@ -104,8 +110,10 @@ class runInBackground(threading.Thread):
 #    searches output.txt for single full line containing "DONE",
 #    returns status=0 if DONE was found (indicating success), or
 #    else status=-1 (indicating failure).
+# stall parameter is ignored now
 def runTest(command, stall=False, quit_on_port_loss=False):
     global allOK
+    time.sleep(1)  # see runDouble for extensive comment on this
     print(command.rjust(30) + ": ", end='', flush=True)
     args = shlex.split(command)
     args[0] = BIN + '/' + args[0] + EXE
@@ -120,8 +128,16 @@ def runTest(command, stall=False, quit_on_port_loss=False):
         timer.cancel()
     stdout = stdout.decode(errors='backslashreplace').replace('\r\n', '\n')
     stderr = stderr.decode(errors='backslashreplace').replace('\r\n', '\n')
-    if stall: dostall()
-    portsOK, countmsg = checkports(False, False)
+    # if stall: dostall()
+
+    # Ports were left open in some earlier versions of O2, so we checked
+    # them carefully, but now with Bonjour/Avahi, this is not a problem
+    # and we are not using any particular et of ports, so I have removed
+    # the checks (except at the very end, just in case):
+    # portsOK, countmsg = checkports(False, False)
+    countmsg = ""
+    portsOK = True
+
     if findLineInString("DONE", stdout):
         print("PASS", countmsg)
         # to return success (True), process must not have orphaned a port,
@@ -148,7 +164,8 @@ def runTest(command, stall=False, quit_on_port_loss=False):
 def dostall():
     print("stalling...", end="", flush=True)
     time.sleep(STALL_SEC)
-    print("\b\b\b\b\b\b\b\b\b\b\b", end="")
+    print("\b\b\b\b\b\b\b\b\b\b\b           \b\b\b\b\b\b\b\b\b\b\b", \
+          end="")
 
 
 def startDouble(prog1, prog2, url=""):
@@ -165,9 +182,17 @@ def finishDouble(prog1, p1, out1, prog2, p2, out2, stall):
     global allOK
     p1.join()
     p2.join()
-    time.sleep(1)  # debugging test: is there a race to get stdout?
-    if stall: dostall()
-    portsOK, countmsg = checkports(False, False)
+    # time.sleep(1)  # debugging test: is there a race to get stdout?
+    # if stall: dostall()
+
+    # Ports were left open in some earlier versions of O2, so we checked
+    # them carefully, but now with Bonjour/Avahi, this is not a problem
+    # and we are not using any particular et of ports, so I have removed
+    # the checks (except at the very end, just in case):
+    # portsOK, countmsg = checkports(False, False)
+    countmsg = ""
+    portsOK = True
+
     if findLineInString(out1, p1.output):
         if findLineInString(out2, p2.output):
             print("PASS", countmsg)
@@ -196,8 +221,18 @@ def finishDouble(prog1, p1, out1, prog2, p2, out2, stall):
     return allOK
 
 
+# note: stall parameter is ignored now
+#
 def runDouble(prog1, out1, prog2, out2, stall=False):
     global allOK
+    # time.sleep(1)  # for some reason, I'm getting programs that fail 
+    # immediately and nothing shows up in stdout or stderr, which is
+    # not reproducible running from the command line. Is there are 
+    # bug or race condition in Python's subprocess (for macOS)? This 
+    # sleep puts a pause between the shutting down of one pair of 
+    # processes and the starting of the next. This is NOT the right
+    # way to solve problems, but since this is very time dependent,
+    # I'm not even sure where to start to track it down.
     p1p2 = startDouble(prog1, prog2)
     return finishDouble(prog1, p1p2[0], out1, prog2, p1p2[1], out2, stall)
 
@@ -211,8 +246,8 @@ def runWsTest(prog1, out1, url, out2, stall=False):
 
 
 def runAllTests():
-    print("Initial discovery port status ...")
-    checkports(True, True)
+    # print("Initial discovery port status ...")
+    # checkports(True, True)
     extensions = input("Run pattern match and bundle tests? [y,n]: ")
     extensions = "y" in extensions.lower()
     websocketsTests = input("Run websocket tests? [y,n]: ")
@@ -333,7 +368,7 @@ def runAllTests():
 
 
 runAllTests()
-print("stall to recover ports".rjust(30) + ":", end='', flush=True)
+print("stall to recover ports".rjust(30) + ": ", end='', flush=True)
 dostall()
 print()
 ports_ok, countmsg = checkports(False, False)

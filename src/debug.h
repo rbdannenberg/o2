@@ -99,9 +99,10 @@ void o2_print_bytes(const char* prefix, const char* bytes, int len);
 #define O2_DBw(x) O2_DB(O2_DBw_FLAG, x)
 #define O2_DBz(x) O2_DB(O2_DBz_FLAG, x)
 
-// O2_DBg is specifically NOT defined. Instead, 'g' is assumed
-// if ANY debugging is enabled (including O2_DBg_FLAG).
-// Instead of O2_DBg, use O2_DBG which prints if any flag is set.
+// O2_DBG(x) runs x if ANY debugging is enabled.
+// O2_DBg_FLAG is special (there is no DBg(x) macro).
+// Setting O2_DBg_FLAG enables O2_DBG(x) actions
+// without enabling any more specific OS_DB? macros.
 #define O2_DBG(x) O2_DB(O2_DBG_FLAGS, x)
 // special multiple category tests:
 #define O2_DBoO(x) O2_DB(O2_DBo_FLAG | O2_DBO_FLAG, x)

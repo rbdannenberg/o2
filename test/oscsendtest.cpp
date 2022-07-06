@@ -29,6 +29,11 @@
 
 int main(int argc, const char * argv[])
 {
+    // flush everything no matter what (for getting as much info as
+    // possible when there are problems):
+    setvbuf (stdout, NULL, _IONBF, BUFSIZ);
+    setvbuf (stderr, NULL, _IONBF, BUFSIZ);
+
     printf("Usage: oscsendtest [flags] (see o2.h for flags,\n"
            "use a for all, also u for UDP, @ for reference, p for \n"
            "pause before sending to closed port.)\n");
@@ -45,7 +50,9 @@ int main(int argc, const char * argv[])
     if (argc > 2) {
         printf("WARNING: oscsendtest ignoring extra command line argments\n");
     }
-    printf("tcpflag %d clockref %d\n", tcpflag, clockref);
+    printf("flags %s tcpflag %d clockref %d\n", 
+           (argc >= 2 && strlen(argv[1]) > 0 ? argv[1] : "(none)"), 
+           tcpflag, clockref);
 
     o2_initialize("test");
 

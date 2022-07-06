@@ -113,7 +113,7 @@ template <typename T> class Vec : public O2obj {
     void insert(int i, T data) {
         if (i >= 0 && i <= length) {
             append_space(1);
-            memmove(array + i, array + i + 1, (length - i) * sizeof(T));
+            memmove(array + i + 1, array + i, (length - (i + 1)) * sizeof(T));
             array[i] = data;
         }
     }

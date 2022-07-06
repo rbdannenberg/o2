@@ -101,6 +101,11 @@ void rtt_reply(O2msg_data_ptr msg, const char *types,
 
 int main(int argc, const char * argv[])
 {
+    // flush everything no matter what (for getting as much info as possible when
+    // there are problems):
+    setvbuf (stdout, NULL, _IONBF, BUFSIZ);
+    setvbuf (stderr, NULL, _IONBF, BUFSIZ);
+
     printf("Usage: applead [debugflags] "
            "(see o2.h for flags, use a for all)\n");
     if (argc == 2) {
