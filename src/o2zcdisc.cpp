@@ -215,20 +215,8 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                     // callback for the same name; maybe something changed,
                     // so we have to keep the name and resolve again later.
                     resolve_type rt = resolve_pending[i];
-                    printf("zc_resolve_callback unresolved at %d (1)\n", i);
-                    for (int j = 0; j < resolve_pending.size(); j++) {
-                        printf("    at %d: seqno is %d\n", j,
-                               resolve_pending[j].seqno);
-                    }
                     resolve_pending.erase(i);  // move to first location
                     resolve_pending.insert(0, rt);
-                    printf("    after erase %d rt.seqno %d [0].seqno %d\n",
-                           i, rt.seqno, resolve_pending[0].seqno);
-                    printf("zc_resolve_callback unresolved at %d (2)\n", i);
-                    for (int j = 0; j < resolve_pending.size(); j++) {
-                        printf("    at %d: seqno is %d\n", j,
-                               resolve_pending[j].seqno);
-                    }
                 } else {  // we got the info we need, so remove this name
                     // from the pending list.
                     O2_DBz(printf("%s zc_resolve_callback resolve_pending name"
@@ -237,11 +225,6 @@ void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                             resolve_pending[i].seqno));
                     O2_FREE((void *) resolve_pending[i].name);
                     resolve_pending.erase(i);
-                    printf("zc_resolve_callback after erase %d\n", i);
-                    for (int j = 0; j < resolve_pending.size(); j++) {
-                        printf("    at %d: seqno is %d\n", j,
-                               resolve_pending[j].seqno);
-                    }
                 }
                 found_it = true;
                 break;
@@ -321,12 +304,6 @@ void resolve()
         resolve_pending.pop_back();  // we've already copied to rt
         resolve_pending.insert(0, rt);
         
-        printf("resolve after insert\n");
-        for (int j = 0; j < resolve_pending.size(); j++) {
-            printf("    at %d: seqno is %d\n", j,
-                   resolve_pending[j].seqno);
-        }
-
         set_watchdog_timer();
     }
 }
@@ -465,12 +442,6 @@ static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
     rt->unresolved = true;  // we need to resolve it
     rt->asap = true;
 
-    printf("before calling resolve from browse callback\n");
-    for (int j = 0; j < resolve_pending.size(); j++) {
-        printf("    at %d: seqno is %d\n", j,
-               resolve_pending[j].seqno);
-    }
-
     resolve();
 }
 
@@ -480,7 +451,6 @@ static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
 //
 O2err o2_zcdisc_initialize()
 {
-    o2_debug |= O2_DBa_FLAGS;  // TODO: Take this out!!!!
     // Publish a service with type _o2proc._tcp, name ensemblename
     // and text record name=@xxxxxxxx:yyyyyyyy:zzzz
     char text[80];
