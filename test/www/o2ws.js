@@ -14,7 +14,7 @@
 //     o2ws_clock_synchronized - true when clocks are synchronized
 //     o2ws_bridge_id (global variable) is the unique ID assigned by
 //         the host to this o2ws client.
-//     o2ws_set_clock_reference(fn) - install a function that serves
+//     o2ws_set_time_reference(fn) - install a function that serves
 //         to get the local time in seconds, e.g., using web audio
 // PROPERTIES: These functions are not in the C implementation
 //         of o2lite because it requires another data structure to
