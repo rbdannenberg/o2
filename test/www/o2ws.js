@@ -185,7 +185,7 @@ function o2ws_send_callback() {
 }
 
 
-function o2ws_id_handler(timestamp, typespec, info) {
+function o2ws_id_handler(timestamp, address, typespec, info) {
     // expecting one parameter
     o2ws_bridge_id = o2ws_get_int32();
     o2ws_status_msg("Our ID is " + o2ws_bridge_id +
@@ -206,7 +206,7 @@ function o2ws_start_clock_sync() {
 }
 
 
-function o2ws_csput_handler(timestamp, typespec, info) {
+function o2ws_csput_handler(timestamp, address, typespec, info) {
     var now = o2ws_local_time();
     var id = o2ws_get_int32();
     var rtt = now - o2ws_clock_ping_send_time;
@@ -357,8 +357,8 @@ function o2ws_schedule_handler(handler, timestamp, address, typespec, info) {
     if (o2ws_clock_synchronized) {
         var now = o2ws_time_get();
         if (timestamp > now) {
-            setTimeout(Math.round(timestamp - now) * 1000,
-                       timestamp, address, typespec, info);
+            setTimeout(handler, Math.round(timestamp - now) * 1000, timestamp, 
+                       address, typespec, info);
         }
     }
     if (timestamp <= 0) {  // O2 does not allow negative timestamps, but if
@@ -639,7 +639,7 @@ function o2ws_get_float() {
 // no distinction between float/time/double except for typespecs f, t, d
 function o2ws_get_time() { return o2ws_get_float(); }
 
-function o2ws_get_double() { return o2ws_get_double(); }
+function o2ws_get_double() { return o2ws_get_float(); }
 
 function o2ws_get_int32() {
     var s = o2ws_message_fields.shift();  // get the next parameter

@@ -4,6 +4,10 @@
  * April 2020
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // o2_message_print() is included in debug versions automatically.
 // It is also included if O2_MSGPRINT is defined.
 
@@ -46,7 +50,7 @@ extern int o2_debug;
 extern const char *o2_debug_prefix;
 void o2_dbg_msg(const char *src, O2message_ptr msg, O2msg_data_ptr data,
                 const char *extra_label, const char *extra_data);
-void o2_print_path_tree();
+void o2_print_path_tree(void);
 void o2_print_bytes(const char* prefix, const char* bytes, int len);
 
 // Note: The ordering of these flags is coordinated with debug_chars, 
@@ -110,3 +114,6 @@ void o2_print_bytes(const char* prefix, const char* bytes, int len);
 #define O2_DBsS(x) O2_DB(O2_DBs_FLAG | O2_DBS_FLAG, x)
 #endif
 
+#ifdef __cplusplus
+}
+#endif

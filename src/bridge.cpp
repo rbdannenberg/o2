@@ -327,6 +327,8 @@ There is also an O2lite_info to represent the server port, and it has
 tag BRIDGE_SERVER.
 */
 
+Bridge_protocol *o2lite_protocol = NULL; // indicates we are active
+
 class O2lite_protocol : public Bridge_protocol {
 public:
     O2lite_protocol() : Bridge_protocol("O2lite") { }
@@ -335,8 +337,6 @@ public:
     ///     shares the o2n_ API
 };
 
-
-Bridge_protocol *o2lite_protocol = NULL; // indicates we are active
 
 #define ISA_O2LITE(node) (ISA_BRIDGE(node) && \
                           ((Bridge_info *) node)->proto == o2lite_protocol)
@@ -430,6 +430,7 @@ O2lite_protocol::~O2lite_protocol()
             delete o2lite;
         }
     }
+    o2lite_protocol = NULL;
 }
 
 

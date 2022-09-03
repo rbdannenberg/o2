@@ -25,12 +25,15 @@ bugs/osctest.eml
 *.h#
 *.c#
 *.pyc
+*.pd_linux
+*.pd_linux32
+*.pd_darwin
+*.pd_nt
 
 /esp-install.bat
 
 /RelWithDebInfo/
 
-Makefile
 /appfollow
 /applead
 /arraytest

@@ -989,9 +989,6 @@ O2err o2_network_enable(bool enable)
     if (o2_ensemble_name) {
         return O2_ALREADY_RUNNING;
     }
-    if (!enable) {
-        o2n_internet_enabled = false;
-    }
     o2n_network_enabled = enable;
     return O2_SUCCESS;
 }
@@ -1165,10 +1162,6 @@ void o2_notify_others(const char *service_name, bool added,
     // processes about it. To find all other processes, use the
     // o2_ctx->fds_info table since all but a few of the
     // entries are connections to processes
-    //TODO: debugging code
-    if (!added && streql(service_name, "publish0") && streql(tapper, "copy0"))
-        printf("publish0: remove tapped by copy0\n");
-    //TODO: above is debugging code to be removed
     for (int i = 0; i < o2n_fds_info.size(); i++) {
         Fds_info *info = o2n_fds_info[i];
         Proxy_info *proc = (Proxy_info *) (info->owner);

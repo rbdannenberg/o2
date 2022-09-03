@@ -5,6 +5,28 @@
  * @{
  */
 
+#ifndef O2_EXPORT
+#ifdef o2_EXPORTS
+ /* We are building this library */
+# if defined(__GNUC__)
+#  define O2_EXPORT __attribute__((visibility("default"))) extern
+# elif defined _MSC_VER
+#  define O2_EXPORT __declspec(dllimport) extern
+# endif
+#else
+ /* We are using this library */
+# if defined(__GNUC__)
+#  define O2_EXPORT __attribute__((visibility("default"))) extern
+# elif defined _MSC_VER
+#  define O2_EXPORT __declspec(dllexport) extern
+# endif
+#endif
+#endif
+#ifndef O2_EXPORT
+# define O2_EXPORT extern
+#endif
+
+
 #ifdef __cplusplus
 #include <cstddef>
 #include <cstdint>

@@ -20,8 +20,9 @@
 
 
 static O2time local_time_base;
-static O2time global_time_base;
-static double clock_rate;
+/* these are set to produce -1 until clock sync or o2_clock_set(): */
+static O2time global_time_base = -1;
+static double clock_rate = 0;
 
 bool o2_clock_is_synchronized = false; // can we read the time?
 

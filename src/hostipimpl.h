@@ -42,6 +42,18 @@ bool o2n_network_enabled = true;
 // it stays false if o2n_network_enabled is false:
 bool o2n_network_found = false;
 
+/**
+ * \brief get the internal ip as hex
+ *
+ * Retrieves the internal ip address (not the public ip) as a hex
+ * string. The following conditions must be true: `o2n_network_found`
+ * and `o2n_network_enabled`. `internal_ip` should be initialized to
+ * an empty string (`internal_ip[0] == 0`). If you call the function
+ * when `internal_ip` is already set, the function just returns.
+ *
+ * @param internal_ip address of at least 9 bytes to hold the ip
+ *                    address in hex format and an end-of-string zero.
+ */
 void o2n_get_internal_ip(char *internal_ip)
 {
     if (internal_ip[0]) {  // already known
@@ -132,7 +144,16 @@ static int hex_to_nibble(char hex)
 }
 
 
-// this one is used elsewhere so it is not static
+/**
+ * \brief convert 2 hex characters to integer
+ *
+ * This is a utility function used to produce "dot" notation like
+ * 128.2.50.103.
+ *
+ * @param hex address of the two hex characters, need not be zero terminated
+ *
+ * @return the positive integer represented by the hex characters
+ */
 int o2_hex_to_byte(const char *hex)
 {
     return (hex_to_nibble(hex[0]) << 4) + hex_to_nibble(hex[1]);
@@ -150,9 +171,13 @@ unsigned int o2_hex_to_int(const char *hex)
 }
 
 
-// convert 8-char, 32-bit hex representation to dot-notation,
-//   e.g. "7f000001" converts to "127.0.0.1"
-//   dot must be a string of length 16 or more
+/**
+ * \brief convert 8-char, 32-bit hex representation to dot-notation.
+ *
+ * E.g. "7f000001" converts to "127.0.0.1"
+ *
+ * @param dot a string of length 16 or more for the result
+ */
 void o2_hex_to_dot(const char *hex, char *dot)
 {
     int i1 = o2_hex_to_byte(hex);
@@ -161,4 +186,3 @@ void o2_hex_to_dot(const char *hex, char *dot)
     int i4 = o2_hex_to_byte(hex + 6);
     snprintf(dot, 16, "%d.%d.%d.%d", i1, i2, i3, i4);
 }
-

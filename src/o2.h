@@ -6,8 +6,8 @@
 #ifndef O2_H
 #define O2_H
 
-// Version is 2.0.0:
-#define O2_VERSION 0x020000
+// Version is 2.0.1:
+#define O2_VERSION 0x020001
 
 #ifdef O2_NO_O2DISCOVERY
 #define O2_NO_HUB 1
@@ -18,27 +18,6 @@
 #if !defined(O2_NO_O2DISCOVERY) && !defined(O2_NO_ZEROCONF)
 #warning O2DISCOVERY and ZEROCONF are *both* enabled
 #warning You should compile with -DO2_NO_O2DISCOVERY
-#endif
-
-#ifndef O2_EXPORT
-#ifdef o2_EXPORTS
- /* We are building this library */
-# if defined(__GNUC__)
-#  define O2_EXPORT __attribute__((visibility("default"))) extern
-# elif defined _MSC_VER
-#  define O2_EXPORT __declspec(dllimport) extern
-# endif
-#else
- /* We are using this library */
-# if defined(__GNUC__)
-#  define O2_EXPORT __attribute__((visibility("default"))) extern
-# elif defined _MSC_VER
-#  define O2_EXPORT __declspec(dllexport) extern
-# endif
-#endif
-#endif
-#ifndef O2_EXPORT
-# define O2_EXPORT extern
 #endif
 
 #include "o2base.h"
@@ -619,7 +598,7 @@ O2_EXPORT O2err o2_internet_enable(bool enable);
  * address is 127.0.0.1 (localhost), then the local IP address becomes
  * 127.0.0.1 with the public IP address 0.0.0.0. If the default for
  * network connections is set to false with #o2_network_enable,
- * initialization immediately sets the lcoal IP to 127.0.0.1 and the
+ * initialization immediately sets the local IP to 127.0.0.1 and the
  * public IP to 0.0.0.0. In any case, if the local IP is 127.0.0.1,
  * then discovery messages are only sent to localhost, and no
  * discovery messages are broadcast. Even then, O2 can still open
@@ -2066,7 +2045,7 @@ O2_EXPORT uint64_t o2_osc_time_offset(uint64_t offset);
 #endif
 
 /**
- * \defgroup lowlevelsend Low-Level Message Send
+ * \defgroup lowlevelsend Low-Level Message Send/Receive
  *
  * Rather than passing all parameters in one call or letting O2
  * extract parameters from a message before calling its handler, these
@@ -2660,7 +2639,7 @@ O2_EXPORT O2err o2_schedule_msg(O2sched_ptr scheduler, O2message_ptr msg);
  */
 
 /// \brief enable O2lite protocol connections to this proces
-O2err o2lite_initialize();
+O2err o2lite_initialize(void);
 
 
 /** @} */ // end of a bridgeapi group
@@ -2673,7 +2652,7 @@ O2err o2lite_initialize();
  * reference to the message to be sent, but it does not assume ownership
  * of the message.
  */
-O2message_ptr o2_current_message();
+O2message_ptr o2_current_message(void);
 
 
 /**
@@ -2685,7 +2664,7 @@ O2message_ptr o2_current_message();
  * but if the message is to be freed later, use #o2_postpone_delivery instead.
  * Never call this function from a message handler passed to #o2_method_new.
  */
-void o2_complete_delivery();
+void o2_complete_delivery(void);
 
 
 /**
@@ -2701,7 +2680,7 @@ void o2_complete_delivery();
  * Never call this function from a message handler passed to #o2_method_new.
  * These handlers may not take ownership of messages.
  */
-O2message_ptr o2_postpone_delivery();
+O2message_ptr o2_postpone_delivery(void);
 
 
 #ifndef O2_NO_MQTT
@@ -2737,7 +2716,7 @@ O2message_ptr o2_postpone_delivery();
 
 // note: shared mem process support depends on bridge support
 #ifndef O2_NO_SHAREDMEM
-O2err o2_shmem_initialize();
+O2err o2_shmem_initialize(void);
 #endif
 
 
