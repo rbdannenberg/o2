@@ -1094,15 +1094,20 @@ void o2_init_phase2()
 O2err o2_get_addresses(const char **public_ip, const char **internal_ip,
                           int *port)
 {
+    if (public_ip)   *public_ip = NULL;
+    if (internal_ip) *internal_ip = NULL;
+    if (port)        *port = 0;
+
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
-    if (!o2_ctx || !o2_ctx->proc) {
+    if (public_ip && (!o2_ctx || !o2_ctx->proc)) {
         return O2_FAIL;
     }
-    *public_ip = (const char *) o2n_public_ip;
-    *internal_ip = (const char *) o2n_internal_ip;
-    *port = o2_ctx->proc->fds_info->port;
+
+    if (public_ip)   *public_ip = (const char *) o2n_public_ip;
+    if (internal_ip) *internal_ip = (const char *) o2n_internal_ip;
+    if (port)        *port = o2_ctx->proc->fds_info->port;
     return O2_SUCCESS;
 }
 

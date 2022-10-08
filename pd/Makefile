@@ -66,15 +66,15 @@ LINUXINCLUDE =  -I../../pd/pd-0.52-2/src
 
 pd_darwin: o2ensemble.pd_darwin o2receive.pd_darwin o2property.pd_darwin o2send.pd_darwin
 
-o2ensemble.pd_darwin: libo2pd.dylib
+o2ensemble.pd_darwin: libo2pd.dylib o2ensemble.h
 
-o2receive.pd_darwin: libo2pd.dylib
+o2receive.pd_darwin: libo2pd.dylib o2ensemble.h
 
-o2send.pd_darwin: libo2pd.dylib
+o2send.pd_darwin: libo2pd.dylib o2ensemble.h
 
-o2property.pd_darwin: libo2pd.dylib
+o2property.pd_darwin: libo2pd.dylib o2ensemble.h
 
-o2send.pd_darwin: libo2pd.dylib
+o2send.pd_darwin: libo2pd.dylib o2ensemble.h
 
 .SUFFIXES: .pd_darwin
 

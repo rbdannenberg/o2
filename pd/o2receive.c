@@ -153,7 +153,8 @@ int receive_new(t_o2rcv *receiver, const char *service, const char *path,
         // new address, so need a new O2 handler for path unless there's
         // a top-level service handler
         if (!s->wholeservice && o2_ensemble_name) {
-            printf("took branch for !wholeservice and o2_ensemble_name\n"); fflush(stdout);
+            // printf("took branch for !wholeservice and o2_ensemble_name\n");
+            // fflush(stdout);
             O2err err;
             post("o2receive adding new handler for %s\n", path);
             if (a->service) {  // install top level service handler

@@ -8,7 +8,7 @@
 #include "o2.h"
 
 // You can enable lots of printing here:
-#define DBG if (0) 
+#define DBG if (1) 
 
 
 O2err o2ens_error_report(t_object *x, const char *context, O2err err);

@@ -29,6 +29,8 @@ bugs/osctest.eml
 *.pd_linux32
 *.pd_darwin
 *.pd_nt
+*.o
+*.dylib
 
 /esp-install.bat
 

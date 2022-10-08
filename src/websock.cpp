@@ -90,7 +90,7 @@ public:
     }
 #endif
     O2ws_protocol() : Bridge_protocol("O2ws") {
-        O2_DBw(printf("%s: new O2ws_protocol %p\n", o2_debug_prefix, this));
+        O2_DBw(printf("%s new O2ws_protocol %p\n", o2_debug_prefix, this));
        pending_ws_senders = NULL;
     }
     
@@ -241,7 +241,7 @@ O2err o2_http_initialize(int port, const char *root)
 Http_server::Http_server(int port, const char *root_) :
         Proxy_info(NULL, O2TAG_HTTP_SERVER)
 {
-    O2_DBw(printf("%s: new Http_server %p\n", o2_debug_prefix, this));
+    O2_DBw(printf("%s new Http_server %p\n", o2_debug_prefix, this));
     fds_info = Fds_info::create_tcp_server(&port, this);
     root = root_;
     // caller must check for fds_info and delete this object if NULL
@@ -254,6 +254,8 @@ Http_server::Http_server(int port, const char *root_) :
     if (root[root_len - 1] == '/') {
         ((char *) root)[root_len - 1] = 0;
     }
+    O2_DBw(printf("%s     server port %d root %s\n", o2_debug_prefix,
+                  port, root));
     // register with zeroconf
 #ifndef O2_NO_ZEROCONF
     o2_zc_register_record(port);

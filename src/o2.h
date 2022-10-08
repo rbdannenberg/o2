@@ -639,7 +639,7 @@ typedef double O2time;
 typedef struct O2msg_data {
     int32_t length; // msg length, not including this length field
     // we could put a nice structure here, but alignment and network vs host
-    // byte ordering is confusing, so we use and int: flags are low-order bits,
+    // byte ordering is confusing, so we use an int: flags are low-order bits,
     // and ttl is (misc >> 8). Note: ttl starts at zero and is incremented
     // each time the message is copied and forwarded to a tap. The message
     // is not forwarded if the count exceeds 3 (O2_MAX_TAP_FORWARDING).
@@ -1047,41 +1047,41 @@ O2_EXPORT O2err o2_hub(int version, const char *public_ip, const char *internal_
 /**
  * \brief Get IP address and TCP connection port number.
  *
- * Before calling #o2_hub, you need to know the IP address and 
- * TCP connection port of another process. This call will retrieve
- * the information, but the mechanism to transfer this information
- * to another O2 process (or all of them) must be implemented outside
- * of O2. (If the local network allows UDP broadcast and all hosts
- * are on the local network, then you do not need this function or
- * #o2_hub. Instead, let the discovery protocol exchange process
- * addresses automatically.)
- *
- * Because O2 must query a STUN server to obtain the public IP
- * address, this function will return O2_FAIL for some time after
- * `o2_initialize` is called. Typically, the public IP address will be
- * available in less than 1 second, but the STUN calls will continue
- * for 10 seconds before O2 gives up and concludes that the
+
+ * IP addresses can be used to facilitate configuring OSC and HTTP
+ * connections. Because O2 must query a STUN server to obtain the
+ * public IP address, this function will return O2_FAIL for some time
+ * after `o2_initialize` is called. Typically, the public IP address
+ * will be available in less than 1 second, but the STUN calls will
+ * continue for 10 seconds before O2 gives up and concludes that the
  * Internet is unreachable, in which case the public_ip is set to
  * 00000000 and this call returns O2_SUCCESS.
+ *
+ * Alternatively, to get the internal IP address only, pass in NULL
+ * for `public_ip`. Neither `public_ip` nor `port` will be returned.
  *
  * If there is no network at all, the internal ip is 7f000001 (localhost)
  * and O2 will still operate, connecting to other O2 processes on the
  * same host.
  * 
- * @param public_ip is a pointer that will be set to either NULL
- * (on failure) or a string of the form "80100a06". The string
- * should not be modified, and the string will be freed by O2 if
- * #o2_finish is called.
+
+ * @param public_ip is NULL or the address of a pointer that will be
+ * set to either NULL (on failure) or a string of the form
+ * "80100a06". The string should not be modified, and the string will
+ * be freed by O2 if #o2_finish is called. If the parameter is NULL
+ * (not a pointer to a pointer), no public IP will be returned.
  *
- * @param internal_ip is a pointer that will be set to either NULL
- * (on failure) or a string of the form "c0000006". The string
- * should not be modified, and the string will be freed by O2 if
- * #o2_finish is called.
+ * @param internal_ip is either NULL or a pointer that will be set to
+ * either NULL (on failure) or a string of the form "c0000006". The
+ * string should not be modified, and the string will be freed by O2
+ * if #o2_finish is called.
  *
- * @param port will be set to a pointer to the O2 TCP connection
- * port (or NULL on failure).
+ * @param port is either NULL or a pointer to a port number that will
+ * be set to the O2 TCP connection port (or 0 on failure).
  *
- * @return #O2_SUCCESS if success, #O2_FAIL if not.
+ * @return #O2_SUCCESS if success, #O2_FAIL if not. Failure will 
+ * occur if public_ip is non-NULL and the STUN protocol has not yet
+ * completed. Failure will occur if #o2_initialize() was not called.
  */
 O2_EXPORT O2err o2_get_addresses(const char **public_ip, 
                                  const char **internal_ip, int *port);

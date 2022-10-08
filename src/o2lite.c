@@ -813,7 +813,6 @@ void o2l_send()
     if (parse_error || tcp_sock == INVALID_SOCKET) {
         return;
     }
-    // grap the tcp flag before byte-swapping
     out_msg->length = o2lswap32(out_msg_cnt - sizeof out_msg->length);
     if (out_msg->misc & o2lswap32(O2_TCP_FLAG)) {
         send(tcp_sock, outbuf, out_msg_cnt, 0);

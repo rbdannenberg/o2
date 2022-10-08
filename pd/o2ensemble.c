@@ -71,15 +71,6 @@ void o2ens_check_flags(t_o2ens *x, int *argc, t_atom **argv,
 }
 
 
-O2err o2ens_error_report(t_object *x, const char *context, O2err err)
-{
-    if (err < 0) {
-        pd_error(x, "O2 %s error: %s", context, o2_error_to_string(err));
-    }
-    return err;
-}
-
-
 void o2ens_initialize(t_o2ens *x, int is_join, int argc, t_atom *argv)
 {
     if (o2_ensemble_name != NULL) {
@@ -91,7 +82,7 @@ void o2ens_initialize(t_o2ens *x, int is_join, int argc, t_atom *argv)
         char mqtt_ip[32];
         int mqtt_port = 0;
         int http = 0;
-        int http_port = 0;
+        int http_port = 8080;
         const char *http_root = "web";
         char *opt = NULL;
         int clock = true;
@@ -153,7 +144,7 @@ void o2ens_initialize(t_o2ens *x, int is_join, int argc, t_atom *argv)
 
         if (argc) {
             if (argv->a_type == A_FLOAT) {  /* get http-enable */
-                http = atom_getfloat(argv + 1);
+                http = atom_getfloat(argv);
             } else if (argc && argv->a_type == A_SYMBOL &&
                        argv->a_w.w_symbol->s_name[0] == ':') {
                 http = 1;
@@ -166,6 +157,7 @@ void o2ens_initialize(t_o2ens *x, int is_join, int argc, t_atom *argv)
         }
 
         o2ens_check_flags(x, &argc, &argv, &opt, &clock);
+
         if (argc) {
             if (argv->a_type == A_SYMBOL) {  /* get http-root */
                 http_root = argv->a_w.w_symbol->s_name;
@@ -193,12 +185,8 @@ void o2ens_initialize(t_o2ens *x, int is_join, int argc, t_atom *argv)
         }
 
         char http_info[64] = "";
-        if (http_port) {
-            snprintf(http_info, 64, " (port %d, root %s)",
-                     http_port, http_root);
-        } else if (http) {
-            snprintf(http_info, 64, " (root %s)", http_root);
-        }
+        snprintf(http_info, 64, " (port %d, root %s)",
+                 http_port, http_root);
         
         char flag_info[64] = "";
         if (opt) {
@@ -230,6 +218,11 @@ void o2ens_initialize(t_o2ens *x, int is_join, int argc, t_atom *argv)
                                o2lite_initialize());
         }
         if (http) {
+            char dot[16];
+            o2_hex_to_dot(o2n_internal_ip, dot);
+            int p = http_port ? http_port : 8080;
+            post("o2ensemble creatinig http://%s:%d serving %s\n",
+                 dot, p, http_root);
             o2ens_error_report(&x->x_obj, "http initialization",
                                o2_http_initialize(http_port, http_root));
         }
@@ -536,7 +529,7 @@ t_class *o2ens_class;
 void *o2ens_new(t_symbol *s, int argc, t_atom *argv)
 {
     t_o2ens *x = (t_o2ens *)pd_new(o2ens_class);
-    DBG printf("o2ens_new called argc %d argv %p\n", argc, argv);
+    printf("o2ens_new called argc %d argv %p\n", argc, argv);
     DBG fflush(stdout);
     // outlet_new(&x->x_obj, gensym("bang"));
     outlet_new(&x->x_obj, &s_list);

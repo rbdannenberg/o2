@@ -38,6 +38,15 @@
 servicenode *o2ens_services = NULL;
 
 
+O2err o2ens_error_report(t_object *x, const char *context, O2err err)
+{
+    if (err < 0) {
+        pd_error(x, "O2 %s error: %s", context, o2_error_to_string(err));
+    }
+    return err;
+}
+
+
 void install_handlers(t_object *x, addressnode *anode)
 {
     // we cleared all handling for this service, but there are
@@ -225,12 +234,12 @@ int unpack_typed_message(addressnode *a, O2msg_data_ptr msg,
     o2_extract_start(msg);
     for (int i = 0; i < n; i++) {
         char c = msgtypes[i];
-        DBG printf("unpack c %c\n", c); DBG fflush(stdout);
+        DBG printf("unpack c=%c\n", c); DBG fflush(stdout);
         O2arg_ptr arg;
         switch (c) {
           case 'i': case 'h': case 'f': case 'd': 
           case 't': case 'T': case 'F': case 'B': 
-            if (types && types[n] != 'f') {
+            if (types && types[i] != 'f') {
                 pd_error(x, DROPMSG, msgtypes, types);
                 return -1;
             }
