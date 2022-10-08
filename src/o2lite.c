@@ -996,7 +996,7 @@ static void ping_reply_handler(o2l_msg_ptr msg, const char *types,
 }
 
 
-static void o2l_clock_initialize()
+static void o2l_clock_initialize(void)
 {
     if (clock_initialized) {
         o2l_clock_finish();
@@ -1299,7 +1299,9 @@ int o2l_initialize(const char *ensemble)
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 #endif // WIN32
+#ifndef O2L_NO_CLOCKSYNC
     o2l_clock_initialize();
+#endif
     o2l_method_new("!_o2/id", "i", true, &o2l_id_handler, NULL);
 
     // create UDP send socket

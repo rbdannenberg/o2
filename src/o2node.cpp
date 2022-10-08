@@ -15,8 +15,16 @@ Proxy_info *o2_message_source = NULL;
 #if IS_LITTLE_ENDIAN
 // for little endian machines
 #define STRING_EOS_MASK 0xFF000000
+#define INT32_MASK0 0x000000FF
+#define INT32_MASK1 0x0000FF00
+#define INT32_MASK2 0x00FF0000
+#define INT32_MASK3 0xFF000000
 #else
 #define STRING_EOS_MASK 0x000000FF
+#define INT32_MASK0 0xFF000000
+#define INT32_MASK1 0x00FF0000
+#define INT32_MASK2 0x0000FF00
+#define INT32_MASK3 0x000000FF
 #endif
 #define SCRAMBLE 2686453351680
 
@@ -234,13 +242,10 @@ static int64_t get_hash(O2string key)
     int32_t c;
     do {
         c = *ikey++;
-        // c must be either all non-zero, or each zero must be followed by zero
-        // and the last character is zero
-        assert(((c & 0xff) && (c & 0xff00) &&
-                (c & 0xff0000) && (c & 0xff000000)) ||
-               ((((c & 0xff) != 0) || ((c & 0xff00) == 0)) &&
-                (((c & 0xff00) != 0) || ((c & 0xff0000) == 0)) &&
-                ((c & 0xff000000) == 0)));
+        // in c, each zero must be followed by zero
+        assert((((c & INT32_MASK0) != 0) || ((c & INT32_MASK1) == 0)) &&
+	       (((c & INT32_MASK1) != 0) || ((c & INT32_MASK2) == 0)) &&
+	       (((c & INT32_MASK2) != 0) || ((c & INT32_MASK3) == 0)));
         hash = ((hash + c) * SCRAMBLE) >> 32;
     } while (c & STRING_EOS_MASK);
     return hash;
