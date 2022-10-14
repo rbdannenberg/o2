@@ -499,11 +499,11 @@ void service_ifvxif(O2msg_data_ptr data, const char *types,
                 break;
             }
             case O2_FLOAT: {
-                assert(arg->v.vf[i] == 123.456F + i);
+	        assert(arg->v.vf[i] == (float) (123.456F + i));
                 break;
             }
             case O2_DOUBLE: {    
-                assert(arg->v.vd[i] == 1234.567 + i);
+	        assert(arg->v.vd[i] == 1234.567 + i);
                 break;
             }
             default:

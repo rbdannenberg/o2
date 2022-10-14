@@ -246,13 +246,12 @@ def runWsTest(prog1, out1, url, out2, stall=False):
 
 
 def runAllTests():
-    # print("Initial discovery port status ...")
-    # checkports(True, True)
     extensions = input("Run pattern match and bundle tests? [y,n]: ")
     extensions = "y" in extensions.lower()
     websocketsTests = input("Run websocket tests? [y,n]: ")
     websocketsTests = "y" in websocketsTests.lower()
-
+    have_hub_tests = os.path.exists(BIN + "/hubclient/" + EXE) and \
+                     os.path.exists(BIN + "/hubserver/" + EXE)
     print("Running regression tests for O2 ...")
 
     if not runTest("stuniptest", quit_on_port_loss=True): return
@@ -321,8 +320,11 @@ def runAllTests():
                      "oscrecvtest", "OSCRECV DONE"): return
     if not runDouble("tcpclient", "CLIENT DONE",
                      "tcpserver", "SERVER DONE"): return
-    if not runDouble("hubclient", "HUBCLIENT DONE",
-                     "hubserver", "HUBSERVER DONE", True): return
+    if have_hub_tests:
+        if not runDouble("hubclient", "HUBCLIENT DONE",
+                         "hubserver", "HUBSERVER DONE", True): return
+    else:
+        print("hubclient or hubserver not found, skipping hub test.")
     if not runDouble("propsend", "DONE",
                      "proprecv", "DONE"): return
     if not runDouble("tappub", "SERVER DONE",
@@ -367,15 +369,27 @@ def runAllTests():
                          "lo_bndlrecv", "OSCRECV DONE"): return
 
 
+# Discovery ports were used by O2 before O2 discovery was switched to
+#    Bonjour. Old-style built-in discovery is still an option though.
+#    checkports() was created to test that allocated ports were properly
+#    released (important because of some problems in older version of macOS).
+#    This is no longer part of regression testing, but you might want to run
+#    it (and the call to checkports() below) if using the (old) built-in
+#    discovery protocol.
+# print("Initial discovery port status ...")
+# checkports(True, True)
 runAllTests()
 print("stall to recover ports".rjust(30) + ": ", end='', flush=True)
 dostall()
 print()
-ports_ok, countmsg = checkports(False, False)
+
+ports_ok = True
+# ports_ok, countmsg = checkports(False, False)
 if not ports_ok:
-    print("ERROR: A port was not freed by some process. " + countmsg + "\n")
+     print("ERROR: A port was not freed by some process. " + countmsg + "\n")
 elif allOK:
-    print("****    All O2 regression tests PASSED.")
+     print("****    All O2 regression tests PASSED.")
+
 
 if not allOK:
     print("ERROR: Exiting regression tests because a test failed.")

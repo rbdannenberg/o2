@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.20.0)
 cmake_policy(SET CMP0091 NEW)
 project(o2)
 
-set(CMAKE_OSX_ARCHITECTURES x86_64 CACHE STRING "only build forx86_64" FORCE)
+#set(CMAKE_OSX_ARCHITECTURES x86_64
+#       CACHE STRING "only build for x86_64" FORCE)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "controls OSX SDK")
 
 option(CMAKE_BUILD_SHARED_LIBS "Build shared libraries" OFF)
