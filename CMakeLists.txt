@@ -358,7 +358,9 @@ if(UNIX)
     set(EXTRA_LO_LIBS ${COREFOUNDATION} ${COREMIDI} ${CORESERVICES})
   else(APPLE)
     # linux
-    set(CMAKE_C_FLAGS "-std=c11 -mcx16")
+    set(ARCHITECTURE_C_FLAGS "-mcx16" CACHE STRING
+        "-mcx16 flag is required for x64 builds, but you should clear this for other architectures")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 ${ARCHITECTURE_C_FLAGS}")
     add_compile_options(-fno-exceptions -fno-rtti -fno-stack-protector -fomit-frame-pointer -ffunction-sections -fdata-sections -Wl,-gc-sections -fmerge-all-constants -Wl,-z,norelro -Wl,-hash-style=gnu) 
     # EXTRA_LO_LIBS is libraries needed by Liblo applications
     set(PTHREAD pthread CACHE INTERNAL "")
