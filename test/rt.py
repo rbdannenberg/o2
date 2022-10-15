@@ -1,6 +1,8 @@
 # regression_tests.py -- a rewrite of regression_tests.sh for Windows
 #    using Python 3
 #
+# Roger Dannenberg   revised Oct 2022 to avoid pipes,
+#                        which seem not to work on Linux
 # Roger Dannenberg   Jan 2017, 2020
 #
 # Run this in the o2/tests directory where it is found
@@ -19,13 +21,7 @@ from threading import Timer
 from checkports import checkports
 import time
 
-#print("WARNING: rt.py does not seem to work -- after upgrading to macOS 12,")
-#print("I find programs hang with no output recorded. Is this a Python bug?")
-#print("I updated the regression_tests.sh scripts, which do not have the")
-#print("nice timeout feature of Python, but everything works there.")
-#print()
-
-
+print('Optional flag after "-a" to print all output')
 print("Optional argument is (relative) path to tests, e.g. ../Release")
 
 print_all_output = False
@@ -66,10 +62,13 @@ if platform.system() == 'Linux':
     HTMLOPEN = "xdg-open "
     LOCALDOMAIN = "localhost"
 
-if len(sys.argv) >= 2:
-    BIN = sys.argv[1]
-    print("Directory for test binaries:", BIN)
-
+for arg in sys.argv[1:]:
+    if arg[0] == '-':
+        print_all_output = ('a' in arg)
+        print("Printing all output")
+    else:
+        BIN = arg
+        print("Directory for test binaries:", BIN)
 
 def findLineInString(line, aString):
     return ('\n' + line + '\n') in aString
@@ -81,29 +80,25 @@ def kill_process(process, command):
 
 
 class runInBackground(threading.Thread):
-    def __init__(self, command):
+    def __init__(self, command, id):
         self.command = command
         self.output = ""
         self.errout = ""
+        self.id = id
         threading.Thread.__init__(self)
 
     def run(self):
         args = shlex.split(self.command)
         args[0] = BIN + '/' + args[0] + EXE
-        process = subprocess.Popen(args,
-                                   shell=False, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+        output = " 1> stdout" + self.id + ".txt 2> stderr" + self.id + ".txt"
+        process = subprocess.Popen(" ".join(args) + output, shell=True)
         timer = Timer(TIMEOUT_SEC, kill_process,
                       args=[process, self.command])
         try:
             timer.start()
-            (self.output, self.errout) = process.communicate()
+            process.wait()
         finally:
             timer.cancel()
-        self.output = self.output.decode(errors='backslashreplace').\
-                           replace('\r\n', '\n')
-        self.errout = self.errout.decode(errors='backslashreplace').\
-                           replace('\r\n', '\n')
         
 
 # runTest testname - runs testname, saving output in output.txt,
@@ -117,18 +112,14 @@ def runTest(command, stall=False, quit_on_port_loss=False):
     print(command.rjust(30) + ": ", end='', flush=True)
     args = shlex.split(command)
     args[0] = BIN + '/' + args[0] + EXE
-    process = subprocess.Popen(args,
-                               shell=False, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
+    output = " 1> stdout.txt 2> stderr.txt"
+    process = subprocess.Popen(" ".join(args) + output, shell=True)
     timer = Timer(TIMEOUT_SEC, process.kill)
     try:
         timer.start()
-        (stdout, stderr) = process.communicate()
+        process.wait()
     finally:
         timer.cancel()
-    stdout = stdout.decode(errors='backslashreplace').replace('\r\n', '\n')
-    stderr = stderr.decode(errors='backslashreplace').replace('\r\n', '\n')
-    # if stall: dostall()
 
     # Ports were left open in some earlier versions of O2, so we checked
     # them carefully, but now with Bonjour/Avahi, this is not a problem
@@ -138,6 +129,14 @@ def runTest(command, stall=False, quit_on_port_loss=False):
     countmsg = ""
     portsOK = True
 
+    # is there a race condition with the file system?
+    time.sleep(1)
+
+    with open("stdout.txt", "r") as outf:
+        stdout = outf.read()
+    with open("stderr.txt", "r") as errf:
+        stderr = errf.read()
+    
     if findLineInString("DONE", stdout):
         print("PASS", countmsg)
         # to return success (True), process must not have orphaned a port,
@@ -158,6 +157,10 @@ def runTest(command, stall=False, quit_on_port_loss=False):
     elif print_all_output:
         print("**** stdout")
         print(stdout)
+
+    os.remove("stdout.txt")
+    os.remove("stderr.txt")
+
     return allOK
 
 
@@ -171,9 +174,9 @@ def dostall():
 def startDouble(prog1, prog2, url=""):
     name2 = prog2 if url == "" else url
     print((prog1 + '+' + name2).rjust(30) + ": ", end='', flush=True)
-    p1 = runInBackground(prog1)
+    p1 = runInBackground(prog1, "1")
     p1.start()
-    p2 = runInBackground(prog2)
+    p2 = runInBackground(prog2, "2")
     p2.start()
     return (p1, p2)
 
@@ -182,8 +185,7 @@ def finishDouble(prog1, p1, out1, prog2, p2, out2, stall):
     global allOK
     p1.join()
     p2.join()
-    # time.sleep(1)  # debugging test: is there a race to get stdout?
-    # if stall: dostall()
+    time.sleep(1)  # debugging test: is there a race to get stdout?
 
     # Ports were left open in some earlier versions of O2, so we checked
     # them carefully, but now with Bonjour/Avahi, this is not a problem
@@ -193,8 +195,13 @@ def finishDouble(prog1, p1, out1, prog2, p2, out2, stall):
     countmsg = ""
     portsOK = True
 
-    if findLineInString(out1, p1.output):
-        if findLineInString(out2, p2.output):
+    with open("stdout1.txt", "r") as outf:
+        p1output = outf.read()
+    with open("stdout2.txt", "r") as outf:
+        p2output = outf.read()
+
+    if findLineInString(out1, p1output):
+        if findLineInString(out2, p2output):
             print("PASS", countmsg)
             if (not IS_OSX) and (not portsOK):
                 allOK = False # halt the testing
@@ -202,22 +209,32 @@ def finishDouble(prog1, p1, out1, prog2, p2, out2, stall):
             allOK = False
     else:
         allOK = False
+
     if (not portsOK) or (not allOK):
         print("FAIL")
         print("**** Failing output from " + prog1)
-        print(p1.output)
+        print(p1output)
         print("**** Failing error output from " + prog1)
-        print(p1.errout)
+        with open("stderr2.txt", "r") as errf:
+            print(errf.read())
 
         print("**** Failing output from " + prog2)
-        print(p2.output)
+        print(p2output)
         print("**** Failing error output from " + prog2)
-        print(p2.errout)
+        with open("stderr2.txt", "r") as errf:
+            print(errf.read())
+
     elif print_all_output:
-        print("**** p1.output")
-        print(p1.output)
+        print("**** p1.output")        
+        print(p1output)
         print("**** p2.output")
-        print(p2.output)
+        print(p2output)
+
+    os.remove("stdout1.txt")
+    os.remove("stderr1.txt")
+    os.remove("stdout2.txt")
+    os.remove("stderr2.txt")
+
     return allOK
 
 
@@ -239,9 +256,13 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
 
 def runWsTest(prog1, out1, url, out2, stall=False):
     global allOK
-    p1p2 = startDouble(prog1, "websockhost a@", url)
+    # see if this avoids race condition where Avahi already has "test"
+    # registered from a previously running instance of O2
+    time.sleep(5)
+    prog2 = "websockhost @"
+    p1p2 = startDouble(prog1, prog2, url)
     os.system(HTMLOPEN + '"http://test.' + LOCALDOMAIN + ':8080/' + url + '"');
-    return finishDouble(prog1, p1p2[0], out1, "websockhost", p1p2[1], 
+    return finishDouble(prog1, p1p2[0], out1, prog2, p1p2[1], 
                         out2, stall)
 
 
@@ -286,7 +307,8 @@ def runAllTests():
         if not runTest("bundletest"): return
         if not runTest("patterntest"): return
     if not runTest("infotest1 o"): return
-    # proptest returns almost instantly; maybe it takes awhile for the port to be released
+    # proptest returns almost instantly; maybe it takes awhile for
+    #     the port to be released
     if not runTest("proptest s"): return
 
     if not runDouble("o2litehost 500t d", "CLIENT DONE",
@@ -327,8 +349,8 @@ def runAllTests():
         print("hubclient or hubserver not found, skipping hub test.")
     if not runDouble("propsend", "DONE",
                      "proprecv", "DONE"): return
-    if not runDouble("tappub", "SERVER DONE",
-                     "tapsub", "CLIENT DONE"): return
+    if not runDouble("tappub d", "SERVER DONE",
+                     "tapsub d", "CLIENT DONE"): return
     if not runDouble("unipub", "SERVER DONE",
                      "unisub", "CLIENT DONE"): return
     if not runDouble("dropclient", "DROPCLIENT DONE",

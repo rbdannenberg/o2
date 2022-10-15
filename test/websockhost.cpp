@@ -27,6 +27,7 @@ int main(int argc, const char *argv[])
     printf("Usage: websockhost [debugflags]\n"
            "    see o2.h for flags, use a for all, - for none\n"
            "    Extra flag '@' means exit after 60 seconds\n");
+    fflush(stdout);
     if (argc >= 2) {
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);

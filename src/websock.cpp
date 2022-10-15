@@ -889,6 +889,7 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
                 text = "The requested URL was not found: ";
                 text2 = c_path + root_len + 1;
                 delete reader;
+                reader = NULL;
             } else {
                 O2_DBw(printf("\n"));
                 inbuf.drop_front(msg_len);
@@ -933,6 +934,10 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
 {
     conn = NULL; // needed by delete if file open fails
     printf("HTTP GET %s\n", c_path);
+    data = NULL;
+    last_ref = &data;
+    port = port_;
+    data_len = 0;
 #ifdef WIN32
     ready_for_read = false;  // disable reads until file is open
     connection->inf = -1;
@@ -941,32 +946,27 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
                       OPEN_EXISTING, FILE_FLAG_OVERLAPPED | 
                       FILE_FLAG_SEQUENTIAL_SCAN, NULL);
     if (inf == INVALID_HANDLE_VALUE) {
-        printf("    -> file not found");
-        return;
-    }
-    connection->inf = 0;  // means read is in progress
-    memset(&overlapped, 0, sizeof(overlapped));
-    ready_for_read = true;  // tells poll to call ReadFile
-    // rely on poll() to read at most one block per polling period
-    o2ws_protocol->add_reader(this);
+        printf("    -> file not found\n");
+    } else {
+        connection->inf = 0;  // means read is in progress
+        memset(&overlapped, 0, sizeof(overlapped));
+        ready_for_read = true;  // tells poll to call ReadFile
+        // rely on poll() to read at most one block per polling period
+        o2ws_protocol->add_reader(this);
 #else
     // open the file
     connection->inf = open(c_path, O_RDONLY | O_NONBLOCK, 0);
     if (connection->inf < 0) {
-        printf("    -> file not found");
-        return;
-    }
+        printf("    -> file not found\n");
+    } else {
 #endif
-    data = NULL;
-    last_ref = &data;
-    port = port_;
-    data_len = 0;
-    conn = connection;
+        conn = connection;
 #ifndef WIN32
-    fds_info = new Fds_info(connection->inf, NET_INFILE, 0, NULL);
-    fds_info->read_type = READ_CUSTOM;
-    fds_info->owner = this;
+        fds_info = new Fds_info(connection->inf, NET_INFILE, 0, NULL);
+        fds_info->read_type = READ_CUSTOM;
+        fds_info->owner = this;
 #endif
+    }
 }
 
 #ifdef WIN32
