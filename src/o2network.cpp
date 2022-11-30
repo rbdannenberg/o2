@@ -295,7 +295,10 @@ static int bind_recv_socket(SOCKET sock, int *port, bool tcp_recv_flag,
         }
     }
     if (bind(sock, (struct sockaddr *) &o2_serv_addr, sizeof o2_serv_addr)) {
-        if (tcp_recv_flag) perror("Bind receive socket");
+        if (tcp_recv_flag) {
+            perror("Bind receive socket");
+            fprintf(stderr, "    (Address is INADDR_ANY on port %d)\n", *port);
+        }
         return O2_FAIL;
     }
     if (*port == 0) { // find the port that was (possibly) allocated
@@ -846,14 +849,17 @@ void Fds_info::close_socket(bool now)
     reset();
     struct pollfd *pfd = &o2n_fds[fds_index];
     SOCKET sock = pfd->fd;
-    O2_DBc(if (owner) {
-               Proxy_info *proxy = (Proxy_info *) owner;
-               proxy->co_info(this, "closing socket");
-           } else {
-               printf("%s close_socket called on fds_info %p (%s) socket %ld\n",
-                      o2_debug_prefix, this, Fds_info::tag_to_string(net_tag),
-                      (long) sock);
-           });
+    if ((o2_debug & (O2_DBc_FLAG | O2_DBo_FLAG)) ||
+        TRACE_SOCKET(this)) {
+        if (owner) {
+            Proxy_info *proxy = (Proxy_info *) owner;
+            proxy->co_info(this, "closing socket");
+        } else {
+            printf("%s close_socket called on fds_info %p (%s) socket %ld\n",
+                   o2_debug_prefix, this, Fds_info::tag_to_string(net_tag),
+                   (long) sock);
+        }
+    }
     // a custom (e.g. ZeroConf) connection, the owner closes the socket
     if  (read_type == READ_CUSTOM) {
         owner->remove();
@@ -1005,9 +1011,12 @@ O2err o2n_recv()
         if (pfd->revents & POLLERR) {
         } else if (pfd->revents & POLLHUP) {
             fi = o2n_fds_info[i];
-            O2_DBo(printf("%s removing remote process after POLLHUP to "
-                          "socket %ld index %d\n", o2_debug_prefix,
-                          (long) (pfd->fd), i));
+            if ((o2_debug & O2_DBo_FLAG) ||
+                TRACE_SOCKET(fi)) {
+                printf("%s removing remote process after POLLHUP to "
+                       "socket %ld index %d\n", o2_debug_prefix,
+                       (long) (pfd->fd), i);
+            }
             fi->close_socket(true);
         // do this first so we can change PROCESS_CONNECTING to
         // PROCESS_CONNECTED when socket becomes writable
@@ -1096,7 +1105,7 @@ O2err Fds_info::read_whole_message(SOCKET sock)
         assert(net_tag & NET_TCP_MASK);
         in_message = O2N_MESSAGE_ALLOC(512);
         n = (int) recvfrom(sock, in_message->payload, 512, 0, NULL, NULL);
-        O2_DBw(printf("READ_RAW read %d bytes\n", n));
+        O2_DBw(printf("%s READ_RAW read %d bytes\n", o2_debug_prefix, n));
         if (n < 0) {
             goto error_exit;
         }

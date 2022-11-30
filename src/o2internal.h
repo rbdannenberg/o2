@@ -253,11 +253,11 @@ void o2_notify_others(const char *service_name, bool added, const char *tappee,
                       const char *properties, int send_mode);
 
 
-O2err o2_tap_new(O2string tappee, Proxy_info *process,
-                    const char *tapper, O2tap_send_mode send_mode);
+O2err o2_tap_new(const char *tapper, Proxy_info *proxy,
+                 O2string tappee, O2tap_send_mode send_mode);
 
-O2err o2_tap_remove(O2string tappee, Proxy_info *process,
-                       const char *tapper);
+O2err o2_tap_remove(const char *tapper, Proxy_info *process,
+                    O2string tappee);
 
 void o2_init_phase2();
 

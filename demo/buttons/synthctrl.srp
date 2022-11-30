@@ -8,16 +8,22 @@ require "wxserpent"
 require "mididevice"
 require "prefs"
 
+velocity = 100
+
 def handle_1(rest ignore): play(1)
 def handle_2(rest ignore): play(2)
 def handle_3(rest ignore): play(3)
 def handle_4(rest ignore): play(4)
 
+def handle_vel(when, addr, types, v)
+    print v
+    velocity = v
+
 pitch_map = [40, 50, 60, 70]
 
 def play(i):
     print i
-    sched_cause(0, midi_out, 'note', 0, pitch_map[i - 1], 100, 1.0)
+    sched_cause(0, midi_out, 'note', 0, pitch_map[i - 1], velocity, 1.0)
 
 def main()
     Statictext(0, "O2 Demonstration: synth service", 10, 10, 300, 30).
@@ -25,8 +31,8 @@ def main()
     prefs = Prefs("synthctrl")
     midi_devices = Midi_devices(prefs, open_later = true)
     midi_devices.open_midi(device = 'midi_out_device')
+    o2_debug_flags("npd")
     o2_initialize("bdemo", false)
-    // o2_debug_flags("w")
     o2_clock_set()
     o2_http_initialize(5000, ".")
     o2_service_new("synth")
@@ -34,6 +40,7 @@ def main()
     o2_method_new("/synth/2", "", 'handle_2', false)
     o2_method_new("/synth/3", "", 'handle_3', false)
     o2_method_new("/synth/4", "", 'handle_4', false)
+    o2_method_new("/synth/vel", "i", 'handle_vel', true)
     sched_o2_enabled = true
     sched_init(10)
 

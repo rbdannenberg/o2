@@ -84,8 +84,8 @@ int o2_bridge_find_protocol(const char *name, Bridge_protocol **protocol)
 }
 
 
-// remove all services that delegate to this bridge. If info is not
-// null, remove only service providers that matches info (typically
+// remove all services that delegate to this bridge. If bi is not
+// null, remove only service providers that matches bi (typically
 // there is a different info for each bridged process, so this is used
 // to remove only the services that delegate via the protocol to that
 // specific process.

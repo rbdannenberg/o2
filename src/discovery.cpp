@@ -536,7 +536,7 @@ O2err o2_send_services(Proxy_info *proc)
                 // _o2 or the local process:
                 if (entry->key[0] != '@' && !streql(entry->key, "_o2")) {
                     o2_add_string(entry->key);
-                    o2_add_true();
+                    o2_add_true();  // service exists
                     o2_add_true();
                     o2_add_string(spp->properties ? spp->properties : ";");
                     o2_add_int32(0);  // send_mode is ignored for services
@@ -549,14 +549,16 @@ O2err o2_send_services(Proxy_info *proc)
         }
         for (int i = 0; i < services->taps.size(); i++) {
             Service_tap *stp = &services->taps[i];
-            o2_add_string(entry->key); // tappee
-            o2_add_true();
-            o2_add_false();
-            o2_add_string(stp->tapper);
-            o2_add_int32(stp->send_mode);
-            O2_DBd(printf("%s o2_send_services sending tappee %s tapper %s "
-                          "to %s\n",
-                          o2_debug_prefix, entry->key, stp->tapper, dest));
+            if (stp->proc == o2_ctx->proc) {  // it's our tap, send it
+                o2_add_string(stp->tapper);  // our service
+                o2_add_true();  // tap exists
+                o2_add_false();  // this is a tap, not a service & properties
+                o2_add_string(entry->key); // tappee service name
+                o2_add_int32(stp->send_mode); // reliable, best effort or keep
+                O2_DBd(printf("%s o2_send_services sending tapper %s tappee %s"
+                              " to %s\n", o2_debug_prefix, stp->tapper,
+                              entry->key, dest));
+            }
         }
     }
     O2message_ptr msg = o2_message_finish(0.0, "!_o2/sv", true);

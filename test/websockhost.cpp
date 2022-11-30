@@ -7,6 +7,7 @@
 // run this program and open the URL http://wstest.local in a browser.
 
 #include "o2.h"
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,9 +25,15 @@ void stop_handler(O2msg_data_ptr data, const char *types,
 
 int main(int argc, const char *argv[])
 {
-    printf("Usage: websockhost [debugflags]\n"
+    const char *ens_name = "test";
+    int port = 8080;
+    const char *path = "www";
+    printf("Usage: websockhost [debugflags] ensemble_name port path\n"
            "    see o2.h for flags, use a for all, - for none\n"
-           "    Extra flag '@' means exit after 60 seconds\n");
+           "    Extra flag '@' means exit after 60 seconds\n"
+           "    ensemble_name defaults to test\n"
+           "    port defaults to 8080\n"
+           "    path (for static web pages and files) defaults to ./www\n");
     if (argc >= 2) {
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);
@@ -34,17 +41,31 @@ int main(int argc, const char *argv[])
             one_minute_max = true;
         }
     }
-    if (argc > 2) {
+    if (argc >= 3) {
+        ens_name = argv[2];
+        printf("O2 ensemble name: %s\n", ens_name);
+    }
+    if (argc >= 4) {
+        port = atoi(argv[3]);
+        printf("websockhost HTTP port: %d\n", port);
+    }
+    if (argc >= 5) {
+        path = argv[4];
+        printf("HTTP service root: %s/%s\n", getwd(NULL), path);
+    }
+    if (argc > 5) {
         printf("WARNING: websockhost ignoring extra command line argments\n");
     }
 #ifdef O2_NO_WEBSOCKETS
-    printf("O2_NO_WEBSOCKETS defined, so this program does no testing.\n");
-    printf("CLIENT DONE\n");
+    printf("O2_NO_WEBSOCKETS defined, so this program does nothing.\n");
+    printf("WEBSOCKETHOST DONE\n");
 #else
-    o2_initialize("test");
+    printf("Server port %d, ensemble \"%s\", path \"%s/%s\"\n",
+           port, ens_name, getwd(NULL), path);
+    o2_initialize(ens_name);
 
     // enable websockets
-    O2err rslt = o2_http_initialize(8080, "www"); 
+    O2err rslt = o2_http_initialize(port, path); 
     assert(rslt == O2_SUCCESS);
     
     o2_service_new("websockhost");

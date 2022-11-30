@@ -13,7 +13,10 @@
 const char *o2_debug_prefix = "O2:";
 int o2_debug = 0;
 
-static const char *debug_chars = "crsRSkdhtTlmoOqwzg";
+// WARNING: this string is in the exact bit order of debug flags, e.g.
+// O2_DBc_FLAG is 1, O2_DBr_FLAG is 2, O2_DBs_FLAG is 4, etc., hence
+// this string starts with "crs...":
+static const char *debug_chars = "crsRSkdhtTlmoOqwzgpW";
 #endif
 
 void o2_debug_flags(const char *flags)
@@ -87,9 +90,9 @@ void o2_print_path_tree()
 }
 
 
-void o2_print_bytes(const char* prefix, const char* bytes, int len)
+void o2_print_bytes(const char *prefix, const char *bytes, int len)
 {
-    printf("%s:\n", prefix);
+    printf("%s %s\n", o2_debug_prefix, prefix);
     int i = 0;
     while (i < len) {
         for (int j = 0; j < 16; j++) {  // print hex chars

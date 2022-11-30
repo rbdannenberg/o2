@@ -74,7 +74,12 @@ void o2_print_bytes(const char* prefix, const char* bytes, int len);
 #define O2_DBw_FLAG 0x8000
 #define O2_DBz_FLAG   0x10000
 #define O2_DBg_FLAG 0x20000
-#define O2_DBG_FLAGS 0x3FFFF
+#define O2_DBp_FLAG 0x40000
+#define O2_DBW_FLAG 0x80000
+// IMPORTANT: if you add a flag here or reorder flags, you must also modify
+// debug_chars in debug.cpp and probably define O2_DB? below. Also, update
+// O2_DBG_FLAGS here:
+#define O2_DBG_FLAGS 0xFFFFF
 // All flags but malloc, schedulers, o2_msg_deliver, enabled by "A"
 #define O2_DBA_FLAGS (O2_DBG_FLAGS-O2_DBm_FLAG-O2_DBl_FLAG-O2_DBt_FLAG-O2_DBT_FLAG)
 // All flags but DBm (malloc/free) and DBl (o2_msg_deliver) enabled by "a"
@@ -99,8 +104,10 @@ void o2_print_bytes(const char* prefix, const char* bytes, int len);
 #define O2_DBn(x) O2_DB(O2_DBn_FLAGS, x)
 #define O2_DBo(x) O2_DB(O2_DBo_FLAG, x)
 #define O2_DBO(x) O2_DB(O2_DBO_FLAG, x)
+#define O2_DBp(x) O2_DB(O2_DBp_FLAG, x)
 #define O2_DBq(x) O2_DB(O2_DBq_FLAG, x)
-#define O2_DBw(x) O2_DB(O2_DBw_FLAG, x)
+#define O2_DBw(x) O2_DB(O2_DBw_FLAG | O2_DBW_FLAG, x)
+#define O2_DBW(x) O2_DB(O2_DBW_FLAG, x)
 #define O2_DBz(x) O2_DB(O2_DBz_FLAG, x)
 
 // O2_DBG(x) runs x if ANY debugging is enabled.

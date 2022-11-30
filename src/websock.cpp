@@ -164,10 +164,11 @@ static void o2ws_dy_handler(O2msg_data_ptr msgdata, const char *types,
     const char *ens = argv[0]->s;
     Http_conn *http_conn = TO_O2WS(o2_message_source);
     if (!streql(ens, o2_ensemble_name)) {
-        fprintf(stderr, "Warning: Websocket connection presented the wrong"
+        fprintf(stderr, "Warning: Websocket connection presented the wrong "
                 "ensemble name (%s). Connection will be dropped.\n", ens);
         delete http_conn;
         o2_message_source = NULL;
+        return;
     }
     http_conn->confirmed_ensemble = true;
     // successful connection, reply by granting Bridge ID
@@ -254,8 +255,9 @@ Http_server::Http_server(int port, const char *root_) :
     if (root[root_len - 1] == '/') {
         ((char *) root)[root_len - 1] = 0;
     }
-    O2_DBw(printf("%s     server port %d root %s\n", o2_debug_prefix,
-                  port, root));
+    O2_DBw(printf("%s     server socket %d port %d root %s\n", o2_debug_prefix,
+                  fds_info->get_socket(), port, root);
+           fds_info->trace_socket_flag = true);
     // register with zeroconf
 #ifndef O2_NO_ZEROCONF
     o2_zc_register_record(port);
@@ -265,7 +267,8 @@ Http_server::Http_server(int port, const char *root_) :
 
 Http_server::~Http_server()
 {
-    O2_DBw(printf("%s: delete Http_server %p\n", o2_debug_prefix, this));
+    O2_DBw(printf("%s: delete Http_server %p socket %d\n", o2_debug_prefix,
+                  this, fds_info->get_socket()));
     // close all the client connections
     int n = o2n_fds_info.size();
     for (int i = 0; i < n; i++) {
@@ -290,7 +293,9 @@ O2err Http_server::accepted(Fds_info *conn)
 Http_conn::Http_conn(Fds_info *conn, const char *root_, int port_) :
         Bridge_info(o2ws_protocol)
 {
-    O2_DBw(printf("%s: new Http_conn %p\n", o2_debug_prefix, this));
+    O2_DBw(printf("%s new Http_conn %p socket %d\n",
+                  o2_debug_prefix, this, conn->get_socket());
+           conn->trace_socket_flag = true);
     root = root_;
     port = port_;
     reader = NULL;
@@ -301,6 +306,15 @@ Http_conn::Http_conn(Fds_info *conn, const char *root_, int port_) :
     fds_info = conn;
     fds_info->read_type = READ_RAW;
     outgoing = NULL;
+}
+
+
+// socket is about to be deleted
+void Http_conn::remove()
+{
+    O2_DBw(printf("%s removing socket %d for Http_conn %p\n", o2_debug_prefix,
+                  fds_info->get_socket(), this));
+    delete this;
 }
 
 
@@ -321,6 +335,7 @@ O2err Http_conn::close()
         o2netmsg->length = 4 + 19;
         fds_info->send_tcp(false, o2netmsg);
     }
+    O2_DBw(printf("%s closing Http_conn %p\n", o2_debug_prefix, this));
     return O2_SUCCESS;
 }
 
@@ -328,9 +343,9 @@ O2err Http_conn::close()
 Http_conn::~Http_conn()
 {
     if (!this) return;
-    O2_DBw(printf("%s: delete Http_conn %p, is_web_socket %d sent_close_"
-                  "command %d\n", o2_debug_prefix, this, is_web_socket,
-                  sent_close_command));
+    O2_DBw(printf("%s: delete Http_conn %p, socket %d is_web_socket %d "
+                  "sent_close_command %d\n", o2_debug_prefix, this,
+                  fds_info->get_socket(), is_web_socket, sent_close_command));
     // even though we may have sent a CLOSE command, we do not wait for it
     // to be sent in cases where sends are pending. If the CLOSE was sent,
     // we DO wait for the asynchronous command to complete.
@@ -341,6 +356,9 @@ Http_conn::~Http_conn()
     o2_message_list_free(&outgoing);
     // unlink and free data we have not processed
     delete_fds_info();
+    if (is_web_socket) {
+        proto->remove_services(this);
+    }
     if (reader) {
         delete reader;
         reader = NULL;
@@ -788,7 +806,7 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     Vec<char> path;
     int backup;
 
-    O2_DBw(o2_print_bytes("Http_conn::deliver bytes:",
+    O2_DBW(o2_print_bytes("Http_conn::deliver bytes:",
                           msg->payload, msg->length));
     
     // get the incoming request in a contiguous array we can search.
@@ -846,12 +864,14 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     msg_end += 4;  // the real end is after \r\n\r\n
     msg_len = (int) (msg_end - &inbuf[0]);
     
-    O2_DBw(printf("Got %d-byte header: <<", msg_len);
+    O2_DBw(printf("    got %d-byte header", msg_len));
+    O2_DBW(printf(": <<");
            for (int i = 0; i < msg_len; i++) {
                putchar(inbuf[i]);
                if (inbuf[i] == '\n') printf("    "); // indent
            }
-           printf(">>\n"));
+           printf(">>"));
+    O2_DBw(printf("\n"));
     
     // parse the request:
     sec_web_key = NULL;
@@ -862,6 +882,8 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
         const char *end = strchr(sec_web_key, '\r');
         // terminate the string:
         *((char *) end) = 0;  // (modifies the request header!)
+        O2_DBw(printf("%s upgrading socket %d to websocket\n", o2_debug_prefix,
+                      fds_info->get_socket()));
         return websocket_upgrade(sec_web_key, msg_len);
     } else if (strncmp(&inbuf[0], "GET /", 5) == 0) {
         // find full path to open
@@ -878,8 +900,6 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
         }
         path.push_back(0);
         const char *c_path = &path[0];  // c-string (address) of path
-        O2_DBw(printf("%s: HTTP GET, path=%s obj %p", o2_debug_prefix,
-                      c_path, this));
         // prevent requests from looking outside of the root directory
         if (strstr(c_path, "..") == NULL) {
             // TODO: inf should be in Http_reader, but it is in Http_conn
@@ -889,6 +909,7 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
                 text = "The requested URL was not found: ";
                 text2 = c_path + root_len + 1;
                 delete reader;
+                reader = NULL;
             } else {
                 O2_DBw(printf("\n"));
                 inbuf.drop_front(msg_len);
@@ -941,7 +962,7 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
                       OPEN_EXISTING, FILE_FLAG_OVERLAPPED | 
                       FILE_FLAG_SEQUENTIAL_SCAN, NULL);
     if (inf == INVALID_HANDLE_VALUE) {
-        printf("    -> file not found");
+        printf("    -> file not found\n");
         return;
     }
     connection->inf = 0;  // means read is in progress
@@ -953,7 +974,7 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
     // open the file
     connection->inf = open(c_path, O_RDONLY | O_NONBLOCK, 0);
     if (connection->inf < 0) {
-        printf("    -> file not found");
+        printf("    -> file not found\n");
         return;
     }
 #endif
@@ -1017,7 +1038,7 @@ void Http_reader::read_operation_completed(int n)
 {
     O2netmsg_ptr msg = *last_ref;
     msg->length = n;
-    O2_DBw(o2_print_bytes("Http_reader read complete:", msg->payload, n));
+    O2_DBW(o2_print_bytes("Http_reader read complete:", msg->payload, n));
     data_len += n;
 
     last_ref = &(msg->next);

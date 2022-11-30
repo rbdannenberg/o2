@@ -14,14 +14,19 @@ def connect():
         time_sleep(0.3)
     print "connected"
 
-b1 = Button(0, "1", 10, 10, 50, 30)
-b2 = Button(0, "2", 70, 10, 50, 30)
-b3 = Button(0, "3", 10, 40, 50, 30)
-b4 = Button(0, "4", 70, 40, 50, 30)
-default_window.set_size(130, 80)
+bwin = Window("Buttons", 50, 50, 130, 140)
+
+b1 = Button(bwin, "1", 10, 10, 50, 30)
+b2 = Button(bwin, "2", 70, 10, 50, 30)
+b3 = Button(bwin, "3", 10, 40, 50, 30)
+b4 = Button(bwin, "4", 70, 40, 50, 30)
+vel = Slider(bwin, 1, 127, 100, 10, 80, 110, 20)
+// default_window.set_size(130, 110)
 
 buttons = [b1, b2, b3, b4]
 for button in buttons: button.method = 'button_handler'
+vel.method = 'vel_handler'
+
 
 def button_handler(obj, event, x, y):
     var number = buttons.index(obj) + 1
@@ -30,7 +35,14 @@ def button_handler(obj, event, x, y):
     o2_send_finish(0.0, "/synth/" + str(number), true)
 
 
+def vel_handler(obj, event, x, y):
+    o2_send_start()
+    o2_add_int32(x)
+    o2_send_finish(0.0, "/synth/vel", true)
+
+
 def main()
+    o2_debug_flags("npd")
     o2_initialize("bdemo", false)
     sched_o2_enabled = true
     display "main", getfeatures(), getfeatures() & OPTION_WXS

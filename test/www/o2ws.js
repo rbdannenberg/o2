@@ -75,7 +75,7 @@
 //         o2ws_get_*() functions in the order of types in typespec
 //         to retrieve parameters from the message.
 //     o2ws_tap(taps) - set all taps. taps is a string of the form
-//         tapper:tappee:mode,tapper:tappee:mode,...
+//         tappee:tapper:mode,tappee:tapper:mode,...
 //         where tappee is any service to be tapped by tapper, which
 //         must be a service offered by this websocket client. mode is
 //         one of "K" for TAP_KEEP, "R" for TAP_RELIABLE, or "B" for
@@ -419,9 +419,8 @@ function o2ws_message_handler(evt) {
                  address[h.address.length] == '/')) {  // address match
                 if (h.typespec === null || h.typespec == typespec) {
                     o2ws_message_fields.splice(0, 4);  // leaves only parameters
-                    o2ws_schedule_handler(h.handler, timestamp, h.address,
+                    o2ws_schedule_handler(h.handler, timestamp, address,
                                           typespec, h.info);
-                    h.handler(timestamp, typespec, h.info);
                     return;
                 }
             }
@@ -467,12 +466,12 @@ function o2ws_set_services(services) {
 }
 
 
-function o2ws_send_tap(tappee, tapper, mode) {
+function o2ws_send_tap(tapper, tappee, mode) {
     o2ws_send_start("!_o2/ws/sv", 0, "siisi", true);
-    o2ws_add_string(tappee);
+    o2ws_add_string(tapper);
     o2ws_add_int32(1); // exists
     o2ws_add_int32(0); // this is a tap
-    o2ws_add_string(tapper);
+    o2ws_add_string(tappee);
     if (mode == "K") mode = TAP_KEEP;
     else if (mode == "R") mode = TAP_RELIABLE;
     else if (mode == "B") mode = TAP_BEST_EFFORT;
@@ -486,11 +485,13 @@ function o2ws_send_tap(tappee, tapper, mode) {
 
 
 function o2ws_tap(taps) {
+    // taps is of the form "tappee:tapper:[KBR],tappee:tapper:[KBR]"
     taps = taps.split(",");
     for (tap of taps) {
         var fields = tap.split(":");
         if (fields.length == 3) {
-            o2ws_send_tap(fields[0], fields[1], fields[2]);
+            // note that o2ws_send_tap 1st arg is tapper, not tappee
+            o2ws_send_tap(fields[1], fields[0], fields[2]);
         } else {
             o2ws_status_msg("Bad tap description: " + taps);
         }

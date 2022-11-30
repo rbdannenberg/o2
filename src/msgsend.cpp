@@ -385,6 +385,8 @@ void msg_send_to_tap(Service_tap *tap)
     memcpy((char *) (newmsg->data.address + newaddrall),
            msg->data.address + curaddrall, len);
     o2_prepare_to_deliver(newmsg); // transfer ownership to o2_ctx->msgs
+    O2_DBp(printf("%s tap send from %s to %s at %s\n", o2_debug_prefix, 
+                  msg->data.address, newmsg->data.address, tap->proc->key));
     // must send message to tap->proc
     if (ISA_REMOTE_PROC(tap->proc)) {  // send to remote process
         tap->proc->send(true);

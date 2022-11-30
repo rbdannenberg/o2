@@ -248,12 +248,14 @@ O2err Services_entry::insert_tap(O2string tapper, Proxy_info *proc,
                                  O2tap_send_mode send_mode)
 {
     Service_tap *tap = taps.append_space(1);
-    tap->tapper = tapper;
-    tap->proc = proc;
+    tap->tapper = tapper;  // name of the tapper
+    tap->proc = proc;  // owner (process) providing the tapper service
     tap->send_mode = send_mode;
     // if we are the tapper, notify everyone we are asserting a tap:
     if (proc == o2_ctx->proc) {
-        o2_notify_others(key, true, tapper, NULL, send_mode);
+        O2_DBp(printf("%s insert_tap from %s to %s: we are the tapper "
+                      "so notify others\n", o2_debug_prefix, key, tapper));
+        o2_notify_others(tapper, true, key, NULL, send_mode);
     }
     return O2_SUCCESS;
 }
@@ -309,6 +311,7 @@ void Services_entry::pick_service_provider()
         const char *name = node->get_proc_name();
         // if location 0 was not a tap, we did not update search_start,
         // so we have to skip over taps to find real services.
+        printf("**** name %s top_name %s ****\n", name, top_name);
         if (strcmp(name, top_name) > 0) {
             // we found a service and it has a greater name, so remember
             // the top name so far and where we found it.
@@ -531,9 +534,9 @@ O2err Services_entry::tap_remove(Proxy_info *proc, const char *tapper)
         if (tap->proc == proc && (!tapper || streql(tap->tapper, tapper))) {
             O2_FREE((char *) tap->tapper);
             taps.remove(i);
-            // if we are the tapper, inform everyone to remove out tap:
+            // if we are the tapper, inform everyone to remove our tap:
             if (proc == o2_ctx->proc) {
-                o2_notify_others(key, false, tapper, NULL, 0);
+                o2_notify_others(tapper, false, key, NULL, 0);
             }
             result = O2_SUCCESS;
             if (tapper) break; // only removing one tap, so we're done now

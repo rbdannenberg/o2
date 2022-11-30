@@ -1,0 +1,228 @@
+<!-- o2spy.html -- monitor O2 messages
+Roger B. Dannenberg
+Dec 2108
+
+Enter application name.
+Enter service to monitor.
+Messages are displayed in a text window.
+-->
+
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8" />
+  <title>O2 Spy</title>
+  <script language="javascript" src="o2ws.js"></script>
+  <script language="javascript" src="dprint.js"></script>
+  <script language="javascript" type="text/javascript">
+
+var afterInitialized = false;
+var o2spy_pause = false;
+
+o2_enable_status_msgs = true;
+
+
+function o2WsInit() {
+    createDlines(600, 300);
+}
+
+
+/******** Message Printing ***********/
+
+function o2ws_status_msg(message) {
+    dColor("blue");
+    dPrintLn(message);
+    dColor(false); 
+    console.log("o2ws_status_msg@" + o2ws_local_time() + ": " + message);
+}
+
+
+function o2ws_on_error(message) {
+    dColor("red");  
+    dPrintLn(message); 
+    dColor(false); 
+}
+
+ 
+function o2spy_status_msg(msg) {
+    if (o2_enable_status_msgs) {
+        dColor("green"); 
+        dPrintLn(msg); 
+        dColor(false); 
+    }
+}
+
+
+/********** Javascript starts executing here ***********/
+
+function do_start() {
+    // initialize O2 if there is an application 
+    o2ws_status_msgs_enable = true;
+    var ens_name = document.getElementById("ens_name").value; 
+    if (!o2ws_ensemble) {
+        document.getElementById("pause").checked = false; 
+        do_status_checkbox(document.getElementById("status_checkbox").checked); 
+        dLines(20); 
+        o2spy_status_msg("Initializing with ensemble name " + ens_name +
+                         " (currently " + o2ws_ensemble + ")"); 
+        o2ws_initialize(ens_name); 
+        o2ws_method_new("/_o2/st", "si", true, status_handler, null);
+        /* o2ws_method_new("/_o2/ls", "siss", true, list_status_handler, null); */
+        check_status();
+    } else if (o2ws_ensemble !== ens_name) {
+        o2ws_on_error("change application unimplemented"); 
+    }
+}
+
+
+/************ GUI Callbacks ****************/
+
+
+function do_tap() {
+    // tap into service 
+    var tappee = document.getElementById("service_name").value; 
+    // install tap 
+    var tapper = tappee + ".spy"
+    o2ws_set_services(tapper); // the tapper service 
+    o2ws_tap(tappee + ":" + tapper + ":" + "R");
+    o2ws_method_new("/" + tapper, null, false, tap_handler, null);
+    o2spy_status_msg("Tapping " + tappee);
+}
+
+
+// receive all o2 messages and print them:
+function tap_handler(timestamp, address, typespec, info) {
+    if (!o2spy_pause) {
+        var parameters = (typespec.length > 0 ?
+                          ' "' + typespec + '" (' + o2ws_message_fields + ')' :
+                          "");
+        var timestr = (timestamp == 0 ? "0" : timestamp.toFixed(3));
+        dPrintLn(' @' + o2ws_time_get().toFixed(3) + ': ' + address +
+                 ' @' + timestr + parameters);
+    }
+}
+
+ 
+function do_pause(checked) {
+    o2spy_pause = checked;
+}
+
+
+function do_status_checkbox(checked) {
+    o2ws_status_msgs_enable = checked;
+}
+
+
+/*********** Obtaining Status of Services ***************/
+
+var counter = 0;  
+
+ 
+function status_handler(address, typespec, info) {
+    var service_name = o2ws_get_string();
+    var service_status = o2ws_get_int32();
+
+    // What service are we monitoring?
+    var tappee = document.getElementById("service_name").value; 
+
+    if (service_name == tappee) {
+        tappee_status = service_status;
+        display_service_status(service_name, service_status);
+    }
+}
+
+
+// requests status of the service named in the webpage Service field
+// every second. Response is converted to display in Service Status field
+//
+function check_status() {
+    counter++;
+    // show info only when "Show O2 Status Messages" box is checked, 
+    // even though this is not really an O2 status message. 
+    if (o2ws_status_msgs_enable) {
+        o2spy_status_msg("check_status " + counter);
+    }
+    var service_name = document.getElementById("service_name").value; 
+    if (typeof service_name == 'string' && service_name.length > 0) {
+        o2ws_send("/_o2/ws/st", 0, "s", service_name);
+    }
+    setTimeout(check_status, 1000);
+}
+
+
+var status_to_text_dict = {
+        [O2_LOCAL_NOTIME]: "Local, No Time",
+        [O2_REMOTE_NOTIME]: "Remote, No Time",
+        [O2_BRIDGE_NOTIME]: "Bridge, No Time",
+        [O2_TO_OSC_NOTIME]: "To OSC, No Time",
+        [O2_LOCAL]: "Local",
+        [O2_REMOTE]: "Remote",
+        [O2_BRIDGE]: "Bridge",
+        [O2_TO_OSC]: "To OSC" };
+
+
+function status_to_text(status) {
+    if (status < 0) return "Unknown or Error";
+    else return status_to_text_dict[status];
+}
+
+
+function status_to_color(status) {
+    if (status < 0) return "pink";
+    else if (status < 4) return "yellow";
+    else return "lightgreen";
+}
+
+
+function display_service_status(service, status) {
+    var service_status = document.getElementById("service_status");
+    service_status.innerHTML = status_to_text(status);
+    service_status.style.backgroundColor = status_to_color(status);
+    // show info only when "Show O2 Status Messages" box is checked, 
+    // even though this is not really an O2 status message. 
+    if (o2ws_status_msgs_enable) {
+        o2spy_status_msg("on_o2_status " + service + " " + status);
+    }
+}
+
+
+window.addEventListener("load", o2WsInit, false); 
+
+
+</script>
+</head>
+<body style="font-family: Arial">
+<table style="border-spacing:0;">
+  <tr style="background-color:#e0e0e0;">
+    <td><img src="spy-icon.png" alt="Spy icon"
+      width="48px" style="margin-left:auto; margin-right:auto; display:block;"></td>
+    <td><h1 style="margin: 0px;">&nbsp; O2 Spy</h1></td>
+  </tr>
+  <tr>
+    <td>Ensemble:</td>
+    <td><input type="text" id="ens_name" value="" ></td>
+  </tr>
+  <tr>
+    <td>Service:</td>
+    <td><input type="text" id="service_name" value="" ></td>
+  </tr>
+  <tr>
+    <td>Service Status:&nbsp;&nbsp;</td>
+    <td style="border: 1px solid black;"><div id="service_status"></div></td>
+  </tr>
+</table>
+<br>
+<table style="border-spacing:10px;">
+  <tr>
+    <td><input type="button" value="Start O2" onclick="do_start();" ></td>
+    <td><input type="button" value="Install Tap" onclick="do_tap();" ></td>
+    <td><input type="checkbox" id="pause"
+          onclick="do_pause(this.checked);" >Pause Output</td>
+    <td><input type="checkbox" id="status_checkbox"
+          onclick="do_status_checkbox(this.checked);" checked=true>Show
+          O2 Status Messages</td>
+  </tr>
+</table>
+<div id="dPrint"></div>
+</body>
+</html>
+

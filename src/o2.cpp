@@ -511,7 +511,7 @@ until a TCP timeout occurs.
 Consistency is guaranteed as follows: First, all processes form a
 fully connected graph. When a process joins the ensemble, discovery
 guarantees that it connects directly to every other process. When
-connection occurs, *all* local service information is exchanged. Once
+connection occurs, *all* *local* service information is exchanged. Once
 connected, any change to the local services is transmitted to *all*
 other processes. When a connection is lost to a process, *all*
 services offered by that process are deleted. If the deleted process
@@ -529,6 +529,11 @@ process. A higher provider address does not override a tap; i.e. two
 processes can create local services named "mytap" and use calls to
 `o2_tap` to tap a service named "spied-upon." Any message delivered
 locally to "spied-upon" will then be sent to *both* "mytap" services.)
+
+When a (local) process connects to another (remote) process, it should
+reassert the taps it created by sending !_o2/sv messages. This
+requires an enumeration of all known services and their taps to find
+taps directed to the local process.
 
 Process Creation
 ----------------
@@ -1121,7 +1126,7 @@ const char *o2_get_proc_name()
 
 
 static void send_one_sv_msg(Proxy_info *proc, const char *service_name,
-                            int added, const char *tapper,
+                            int added, const char *tappee,
                             const char *properties, int send_mode)
 {
     o2_send_start();
@@ -1130,12 +1135,12 @@ static void send_one_sv_msg(Proxy_info *proc, const char *service_name,
     o2_add_string(service_name);
     o2_add_tf(added);
     // last field in message is either the tapper or properties
-    if (added && *tapper == 0) {
+    if (added && *tappee == 0) {
         o2_add_true();
         o2_add_string(properties);
     } else {
         o2_add_false();
-        o2_add_string(tapper);
+        o2_add_string(tappee);
     }
     o2_add_int32(send_mode);
     O2message_ptr msg = o2_message_finish(0.0, "!_o2/sv", true);
@@ -1143,9 +1148,9 @@ static void send_one_sv_msg(Proxy_info *proc, const char *service_name,
     o2_prepare_to_deliver(msg);
     proc->send(false);
     O2_DBd(printf("%s o2_notify_others sent %s to %s (%s) "
-                  "tapper %s properties %s\n",
+                  "tappee %s properties %s\n",
                   o2_debug_prefix, service_name, proc->key,
-                  added ? "added" : "removed", tapper, properties));
+                  added ? "added" : "removed", tappee, properties));
 }
 
 
@@ -1154,14 +1159,13 @@ static void send_one_sv_msg(Proxy_info *proc, const char *service_name,
  * then the new service is tapper, which is tapping service_name.
  * Notices go to remote processes, but not to bridges.
  */
-void o2_notify_others(const char *service_name, bool added,
-                      const char *tapper, const char *properties,
-                      int send_mode)
+void o2_notify_others(const char *service_name, bool added, const char *tappee,
+                      const char *properties, int send_mode)
 {
     if (!o2_ctx->proc->key) {
         return;  // no notifications until we have a name
     }
-    if (!tapper) tapper = ""; // Make sure we have a string to send.
+    if (!tappee) tappee = ""; // Make sure we have a string to send.
     if (!properties) properties = "";
     // when we add or remove a service, we must tell all other
     // processes about it. To find all other processes, use the
@@ -1171,14 +1175,14 @@ void o2_notify_others(const char *service_name, bool added,
         Fds_info *info = o2n_fds_info[i];
         Proxy_info *proc = (Proxy_info *) (info->owner);
         if (proc && ISA_REMOTE_PROC(proc)) {
-            send_one_sv_msg(proc, service_name, added, tapper,
+            send_one_sv_msg(proc, service_name, added, tappee,
                             properties, send_mode);
         }
     }
 #ifndef O2_NO_MQTT
     for (int i = 0; i < o2_mqtt_procs.size(); i++) {
-        send_one_sv_msg(o2_mqtt_procs[i],
-                        service_name, added, tapper, properties, send_mode);
+        send_one_sv_msg(o2_mqtt_procs[i], service_name, added, tappee,
+                        properties, send_mode);
     }
 #endif
 }
@@ -1186,12 +1190,18 @@ void o2_notify_others(const char *service_name, bool added,
 
 /* adds a tap - implements o2_tap()
  */
-O2err o2_tap_new(O2string tappee, Proxy_info *proxy, const char *tapper,
+O2err o2_tap_new(const char *tapper, Proxy_info *proxy, O2string tappee,
                  O2tap_send_mode send_mode)
 {
+    // proxy is the process providing the tapper service
     O2_DBd(printf("%s o2_tap_new adding tapper %s in %s to %s\n",
                   o2_debug_prefix, tapper, proxy->key, tappee));
     Services_entry *ss = Services_entry::must_get_services(tappee);
+
+    O2_DBp(printf("%s o2_tap: forward %s to %s mode %s\n", o2_debug_prefix,
+                  tappee, tapper, (send_mode == TAP_KEEP ? "keep" :
+                                   send_mode == TAP_RELIABLE ? "reliable" :
+                                   "besteffort")));
 
     // services exists, does the tap already exist?
     // search the service's list of taps:
@@ -1200,6 +1210,8 @@ O2err o2_tap_new(O2string tappee, Proxy_info *proxy, const char *tapper,
         Service_tap *tap = &ss->taps[i];
         if (streql(tap->tapper, tapper) &&
             tap->proc == proxy) {
+            O2_DBp(printf("%s o2_tap of %s ignored - already tapped\n",
+                          o2_debug_prefix, tappee));
             return O2_SERVICE_EXISTS;
         }
     }
@@ -1212,10 +1224,10 @@ O2err o2_tap_new(O2string tappee, Proxy_info *proxy, const char *tapper,
 
 // search services list of tappee for matching tap info and remove it.
 //
-O2err o2_tap_remove(O2string tappee, Proxy_info *proc,
-                       const char *tapper)
+O2err o2_tap_remove(const char *tapper, Proxy_info *proc,
+                    O2string tappee)
 {
-    O2_DBd(printf("%s o2_tap_remove tapper %s in %s tappee %s\n",
+    O2_DBp(printf("%s o2_tap_remove tapper %s in %s tappee %s\n",
                   o2_debug_prefix, tapper, proc->key, tappee));
 
     Services_entry *ss = (Services_entry *) *o2_ctx->path_tree.lookup(tappee);
@@ -1281,7 +1293,7 @@ O2err o2_tap(const char *tappee, const char *tapper, O2tap_send_mode send_mode)
     }
     char padded_tappee[NAME_BUF_LEN];
     o2_string_pad(padded_tappee, tappee);
-    O2err err = o2_tap_new(padded_tappee, o2_ctx->proc, tapper, send_mode);
+    O2err err = o2_tap_new(tapper, o2_ctx->proc, padded_tappee, send_mode);
     return err;
 }
 
@@ -1293,7 +1305,7 @@ O2err o2_untap(const char *tappee, const char *tapper)
     }
     char padded_tappee[NAME_BUF_LEN];
     o2_string_pad(padded_tappee, tappee);
-    return o2_tap_remove(padded_tappee, o2_ctx->proc, tapper);
+    return o2_tap_remove(tapper, o2_ctx->proc, padded_tappee);
 }
 
 /* DEBUGGING:

@@ -234,7 +234,14 @@ class Fds_info : public O2obj {
     void close_socket(bool now);
 
 #ifndef O2_NO_DEBUG
+// trace_socket_flag and TRACE_SOCKET allow us to trace sockets
+// individually or according to type or function. Tracing all socket
+// actions can be overwhelming.
+#define TRACE_SOCKET(obj) ((obj)->trace_socket_flag)
     static const char *tag_to_string(int tag);
+    bool trace_socket_flag;  // report when this closes
+#else
+#define TRACE_SOCKET(obj) false
 #endif
     SOCKET get_socket();
 };

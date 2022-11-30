@@ -216,8 +216,8 @@ string "it" and the parameters are the *serial-no* and the current time.
 `/_o2/sv "ssbbsi..."` *process-name* *service-name* *add-flag*
 *service-flag* *tapper-or-properties* *send_mode*... - reports service creation
 or deletion. Each service is described by name, true, and either true
-followed by a properties string and zero or false followed by the tapper
-name and tapper send_mode. If a service is deleted, then false is sent rather than true,
+followed by a properties string and zero or false followed by the tappee
+name and tap send_mode. If a service is deleted, then false is sent rather than true,
 and if this is not a tap, the properties string is empty. The "..." 
 notation here indicates that there can be any number of services 
 described in this message, each service consisting of another "sbbsi"
@@ -495,28 +495,30 @@ typedef enum {
 /// stdout, including network addresses, services discovered,
 /// and clock synchronization status. Enable the debugging
 /// information by calling #o2_debug_flags with a string
-/// containing any of the following charac&ters:
-///   - c - for basic connection data
-///   - r - for tracing non-system incoming messages
-///   - s - for tracing non-system outgoing messages
-///   - R - for tracing system incoming messages
-///   - S - for tracing system outgoing messages
-///   - k - for tracing clock synchronization protocol
-///   - d - for tracing discovery messages
-///   - h - for tracing hub-related activity
-///   - t - for tracing user messages dispatched from schedulers
-///   - T - for tracing system messages dispatched from schedulers
+/// containing any of the following characters:
+///   - c - print basic connection data
+///   - r - trace non-system incoming messages
+///   - s - trace non-system outgoing messages
+///   - R - trace system incoming messages
+///   - S - trace system outgoing messages
+///   - k - trace clock synchronization protocol
+///   - d - trace discovery messages
+///   - h - trace hub-related activity
+///   - t - trace user messages dispatched from schedulers
+///   - T - trace system messages dispatched from schedulers
 ///   - l - trace messages to #o2_msg_deliver
 ///   - m - trace O2_MALLOC and O2_FREE calls
 ///   - o - trace socket creating and closing
 ///   - O - open sound control messages
+///   - p - trace tap messages and operations
 ///   - q - show MQTT messages
-///   - w - for tracing websockets activity
-///   - z - for tracing Zeroconf (Bonjour, Avahi)
+///   - w - trace websockets activity
+///   - W - trace all web page and socket binary data
+///   - z - trace Zeroconf (Bonjour, Avahi)
 ///   - g - print general status info, not much detail
-///   - n - all network flags (no malloc or scheduling): rRsS
-///   - a - all debug flags except m (malloc/free)
-///   - A - all debug flags except malloc and scheduling
+///   - n - enable all network flags (no malloc or scheduling): rRsS
+///   - a - enable all debug flags except m (malloc/free)
+///   - A - enable all debug flags except malloc and scheduling
 ///   - I - disable Internet connections, e.g., do not acquire public IP.
 ///   - N - disable network if flags are set before o2_initialize() is
 ///         called. Internal IP becomes 127.0.0.1, public IP is 
