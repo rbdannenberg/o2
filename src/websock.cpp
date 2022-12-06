@@ -967,33 +967,18 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
                       FILE_FLAG_SEQUENTIAL_SCAN, NULL);
     if (inf == INVALID_HANDLE_VALUE) {
         printf("    -> file not found\n");
-<<<<<<< HEAD
-        return;
-    }
-    connection->inf = 0;  // means read is in progress
-    memset(&overlapped, 0, sizeof(overlapped));
-    ready_for_read = true;  // tells poll to call ReadFile
-    // rely on poll() to read at most one block per polling period
-    o2ws_protocol->add_reader(this);
-=======
     } else {
         connection->inf = 0;  // means read is in progress
         memset(&overlapped, 0, sizeof(overlapped));
         ready_for_read = true;  // tells poll to call ReadFile
         // rely on poll() to read at most one block per polling period
         o2ws_protocol->add_reader(this);
->>>>>>> bfca8664fd01409639fe55409c6f6e2ad3376979
 #else
     // open the file
     connection->inf = open(c_path, O_RDONLY | O_NONBLOCK, 0);
     if (connection->inf < 0) {
         printf("    -> file not found\n");
-<<<<<<< HEAD
-        return;
-    }
-=======
     } else {
->>>>>>> bfca8664fd01409639fe55409c6f6e2ad3376979
 #endif
         conn = connection;
 #ifndef WIN32
