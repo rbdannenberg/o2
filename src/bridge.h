@@ -155,9 +155,15 @@ public:
             Proxy_info(NULL, O2TAG_BRIDGE) {
         proto = proto_;
         id = o2_bridge_next_id++;
+        O2_DBw(printf("%s new Bridge_info@%p id %d\n", o2_debug_prefix,
+                      this, id));
         proto->instances.push_back(this);
     }
-    virtual ~Bridge_info() { proto->remove_instance(id); }
+    virtual ~Bridge_info() {
+        O2_DBw(printf("%s deleting Bridge_info@%p id %d\n", o2_debug_prefix,
+                      this, id));
+        proto->remove_instance(id);
+    }
   
     virtual O2err send(bool block) = 0;
 

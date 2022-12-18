@@ -10,6 +10,7 @@
 #include "o2sched.h"
 #include "msgsend.h"
 #include "pathtree.h"
+#include "sched.h"
 
 // get the reference clock - clock time is estimated as
 //   global_time_base + elapsed_time * clock_rate, where
@@ -27,12 +28,12 @@ static double clock_rate = 0;
 bool o2_clock_is_synchronized = false; // can we read the time?
 
 static bool is_refclk; // initially false, set true by o2_clock_set()
-static int found_clock_service = false; // set when service appears
-static O2time start_sync_time; // local time when we start syncing
+static O2time start_sync_time = 0; // local time when we start syncing
 static int clock_sync_id = 0;
 static O2time clock_sync_send_time;
 static O2string clock_sync_reply_to = NULL;
 static o2_time_callback time_callback = NULL;
+static o2_time_jump_callback time_jump_callback = NULL;
 static void *time_callback_data = NULL;
 static int clock_rate_id = 0;
 // data for clock sync. Each reply results in the computation of the
@@ -56,7 +57,7 @@ static long start_time;
 static long start_time;
 #endif
 
-static void announce_synchronized(void);
+static void announce_synchronized();
 #ifndef O2_NO_OSC
 static void compute_osc_time_offset(O2time now);
 #endif
@@ -126,7 +127,7 @@ static void set_clock(double local_time, double new_ref)
     local_time_base = local_time;
     O2_DBk(printf("%s set_clock: using %.3f, should be %.3f\n",
         o2_debug_prefix, global_time_base, new_ref));
-    double clock_advance = new_ref - global_time_base; // how far to catch up
+     double clock_advance = new_ref - global_time_base; // how far to catch up
     clock_rate_id++; // cancel any previous calls to catch_up_handler()
     // compute when we will catch up: estimate will increase at clock_rate
     // while (we assume) reference increases at rate 1, so at what t will
@@ -140,8 +141,12 @@ static void set_clock(double local_time, double new_ref)
     // =>
     //   t == local_time_base + clock_advance / (clock_rate - 1)
     if (clock_advance > 1) {
-        clock_rate = 1.0;
-        global_time_base = new_ref; // we are way behind: jump ahead
+        if ((!time_jump_callback) ||
+            (!(*time_jump_callback)
+                    (local_time_base, global_time_base, new_ref))) {
+            clock_rate = 1.0;
+            global_time_base = new_ref;  // we are way behind: jump ahead
+        }
     } else if (clock_advance > 0) { // we are a little behind,
         clock_rate = 1.1;           // go faster to catch up
         will_catch_up_after(clock_advance * 10);
@@ -149,17 +154,21 @@ static void set_clock(double local_time, double new_ref)
         clock_rate = 0.9; // go slower until the reference clock catches up
         will_catch_up_after(clock_advance * -10);
     } else { // clock_advance <= -1
-        clock_rate = 0; // we're way ahead: stop until next clock sync
-        // maybe we should try to run clock sync soon since we are
-        // way out of sync and do not know if reference time is running
-        // This seems to be such a bad situation that the best recovery
-        // is probably application-dependent. Until we have a real
-        // problem to fix, we'll just let things resynchronize (perhaps
-        // after a long time) on their own.
+        if ((!time_jump_callback) ||
+            (!(*time_jump_callback)
+                    (local_time_base, global_time_base, new_ref))) {
+            clock_rate = 0; // we're way ahead: stop until next clock sync
+            // maybe we should try to run clock sync soon since we are
+            // way out of sync and do not know if reference time is running
+            // This seems to be such a bad situation that the best recovery
+            // is probably application-dependent. Until we have a real
+            // problem to fix, we'll just let things resynchronize (perhaps
+            // after a long time) on their own.
+        }
     }
     O2_DBk(printf("%s adjust clock to %g, rate %g\n",
                   o2_debug_prefix, LOCAL_TO_GLOBAL(local_time), clock_rate));
-}
+ }
 
 
 O2err o2_send_clocksync_proc(Proxy_info *proc)
@@ -425,7 +434,7 @@ static void cs_ping_reply_handler(O2msg_data_ptr msg, const char *types,
         }
         mean_rtt /= CLOCK_SYNC_HISTORY_LEN;
         // best estimate of ref_minus_local is stored at i
-        //printf("*    %s: time adjust %g\n", o2_debug_prefix,
+        //printf("*    %s time adjust %g\n", o2_debug_prefix,
         //       now + ref_minus_local[best_i] - o2_time_get());
         O2time new_ref = now + ref_minus_local[best_i];
         if (!o2_clock_is_synchronized) {
@@ -446,6 +455,55 @@ int o2_roundtrip(double *mean, double *min)
 }
 
 
+static int ping_process_id = 0;
+
+static void o2_clock_ping_at(O2time when, int id)
+{
+    if (id != ping_process_id) {  // a new ping sequence was started
+        return;
+    }
+    // when must be in the future; otherwise o2_schedule_msg could
+    // dispatch the message immediately, and that could lead to a
+    // reentrant call into o2_extract_start() to parse the message
+    if (when < o2_ltsched.last_time) {
+        when = o2_ltsched.last_time;
+    }
+    o2_send_start();
+    o2_add_int32(id);
+    o2_schedule_msg(&o2_ltsched, o2_message_finish(when, "!_o2/cs/ps", false));
+}
+
+
+void o2_start_cs_pings()
+{
+    ping_process_id++;  // cancel any previous "process"
+    O2_DBc(printf("%s ** found clock service, is_refclk=%d\n",
+                  o2_debug_prefix, is_refclk));
+    if (is_refclk) {
+        o2_clock_is_synchronized = true;
+        return; // no clock sync; we're the reference
+    }
+    if (!clock_sync_reply_to) {  // must be first call to this function
+        o2_method_new_internal("/_o2/cs/ps", "i", &o2_ping_send_handler,
+                               NULL, false, false);
+        o2_method_new_internal("/_o2/cs/cu", "i", &catch_up_handler,
+                               NULL, false, true);
+        o2_method_new_internal("/_o2/cs/put", "it", &cs_ping_reply_handler,
+                               NULL, false, false);
+        o2_method_new_internal("/_o2/cs/rt", "s", &o2_clockrt_handler,
+                               NULL, false, false);
+        char path[O2_MAX_PROCNAME_LEN + 16];
+        assert(o2_ctx->proc->key);
+        snprintf(path, O2_MAX_PROCNAME_LEN + 16, "!%s/cs/put",
+                 o2_ctx->proc->key);
+        clock_sync_reply_to = o2_heapify(path);
+    }
+    // record when we started to send clock sync messages
+    start_sync_time = o2_local_time();
+    o2_clock_ping_at(0, ping_process_id);
+}
+
+
 // o2_ping_send_handler -- handler for /_o2/cs/ps (short for "ping send")
 //   wait for clock sync service to be established,
 //   then send ping every 0.1s CLOCK_SYNC_HISTORY_LEN times, 
@@ -454,6 +512,8 @@ int o2_roundtrip(double *mean, double *min)
 void o2_ping_send_handler(O2msg_data_ptr msg, const char *types,
                           O2arg_ptr *argv, int argc, const void *user_data)
 {
+    o2_extract_start(msg);
+    int id = o2_get_next(O2_INT32)->i32;
     // this function gets called periodically to drive the clock sync
     // protocol, but if the process calls o2_clock_set(), then we
     // become the reference, at which time we stop polling and announce
@@ -465,62 +525,35 @@ void o2_ping_send_handler(O2msg_data_ptr msg, const char *types,
     }
     clock_sync_send_time = o2_local_time();
     int status = o2_status("_cs");
-    if (!found_clock_service) {
-        found_clock_service = (status >= 0);
-        if (found_clock_service) {  // first time we discover clock service:
-            O2_DBc(printf("%s ** found clock service, is_refclk=%d\n",
-                          o2_debug_prefix, is_refclk));
-            assert(status != O2_LOCAL && status != O2_LOCAL_NOTIME);
-            // record when we started to send clock sync messages
-            start_sync_time = clock_sync_send_time;
-            o2_method_new_internal("/_o2/cs/put", "it",
-                    &cs_ping_reply_handler, NULL, false, false);
-            o2_method_new_internal("/_o2/cs/rt", "s", &o2_clockrt_handler,
-                    NULL, false, false);
-            char path[O2_MAX_PROCNAME_LEN + 16];
-            assert(o2_ctx->proc->key);
-            snprintf(path, O2_MAX_PROCNAME_LEN + 16, "!%s/cs/put",
-                     o2_ctx->proc->key);
-            clock_sync_reply_to = o2_heapify(path);
-        }
+    if (o2_status("_cs") < 0) {  // clock service disappeared
+        return;  // resume protocol when o2_start_cs_pings() is called
     }
     // earliest time to call this action again is clock_sync_send_time + 0.1s:
     O2time when = clock_sync_send_time + 0.1;
-    if (found_clock_service) { // found service, and it's non-local
-        if (status < 0) { // we lost the clock service, resume looking for it
-            found_clock_service = false;
-        } else {
-            clock_sync_id++;
-            o2_send("!_cs/get", 0, "is", clock_sync_id, clock_sync_reply_to);
-            // we're not checking the return value here. The worst that can
-            // happen seems to be an error sending to a UDP port, and if that
-            // happens, perror() will be called so at least if there is a
-            // console an error message will appear. Not much else we can do.
-            //
-            // run every 0.1 second until at least CLOCK_SYNC_HISTORY_LEN
-            // pings have been sent to get a fast start, then ping every
-            // 0.5s until 5s, then every 10s.
-            // 
-            // This could be a problem if the round trip is >0.1s because
-            // the first 5 pings will be time out and be ignored. But
-            // that only wastes 0.5s, and after that, 0.5s separation should
-            // be enough to ping anywhere.
-            O2time t1 = CLOCK_SYNC_HISTORY_LEN * 0.1 - 0.01;
-            if (clock_sync_send_time - start_sync_time > t1) when += 0.4;
-            if (clock_sync_send_time - start_sync_time > 5.0) when += 9.5;
-            O2_DBk(printf("%s clock request sent at %g\n",
-                          o2_debug_prefix, clock_sync_send_time));
-        }
-    }
+    clock_sync_id++;
+    o2_send("!_cs/get", 0, "is", clock_sync_id, clock_sync_reply_to);
+    // we're not checking the return value here. The worst that can
+    // happen seems to be an error sending to a UDP port, and if that
+    // happens, perror() will be called so at least if there is a
+    // console an error message will appear. Not much else we can do.
+    //
+    // run every 0.1 second until at least CLOCK_SYNC_HISTORY_LEN
+    // pings have been sent to get a fast start, then ping every
+    // 0.5s until 5s, then every 10s.
+    //
+    // This could be a problem if the round trip is >0.1s because
+    // the first 5 pings will be time out and be ignored. But
+    // that only wastes 0.5s, and after that, 0.5s separation should
+    // be enough to ping anywhere.
+    O2time t1 = CLOCK_SYNC_HISTORY_LEN * 0.1 - 0.01;
+    if (clock_sync_send_time - start_sync_time > t1) when += 0.4;
+    if (clock_sync_send_time - start_sync_time > 5.0) when += 9.5;
+    O2_DBk(printf("%s clock request sent at %g\n",
+                  o2_debug_prefix, clock_sync_send_time));
     // schedule another call to o2_ping_send_handler
-    o2_clock_ping_at(when);
+    o2_clock_ping_at(when, id);
 }
 
-void o2_clock_ping_at(O2time when)
-{
-    o2_send_start();
-    o2_schedule_msg(&o2_ltsched, o2_message_finish(when, "!_o2/cs/ps", false));
-}
 
 static bool clock_initialized = false;
 
@@ -552,24 +585,10 @@ void o2_clock_initialize()
     o2_clock_is_synchronized = false;
     time_callback = NULL;
     time_callback_data = NULL;
-    found_clock_service = false;
     ping_reply_count = 0;
     time_offset = 0;
-}
-
-// This initialization depends on o2_processes_initialize() which
-// depends upon o2_discovery_initialize() which depends upon
-// o2_clock_initialize(), so it has to be separated from o2_clock_initialize()
-void o2_clock_init_phase2()
-{
     o2_method_new_internal("/_o2/cs/cs", "s", &o2_clocksynced_handler,
                            NULL, false, true);
-    o2_method_new_internal("/_o2/cs/ps", "", &o2_ping_send_handler,
-                           NULL, false, true);
-    o2_method_new_internal("/_o2/cs/cu", "i", &catch_up_handler,
-                           NULL, false, true);
-    // start pinging for clock synchronization:
-    o2_ping_send_handler(NULL, NULL, NULL, 0, NULL);
 }
 
 
@@ -604,7 +623,7 @@ static void cs_ping_handler(O2msg_data_ptr msg, const char *types,
 }
 
 
-int o2_clock_set(o2_time_callback callback, void *data)
+O2err o2_clock_set(o2_time_callback callback, void *data)
 {
     if (!o2_ensemble_name) {
         O2_DBk(printf("%s o2_clock_set cannot be called before "
@@ -631,13 +650,51 @@ int o2_clock_set(o2_time_callback callback, void *data)
     // start the scheduler, record that we are synchronized now:
     o2_clock_synchronized(new_local_time, new_local_time);
     
+    is_refclk = true;
     Services_entry::service_new("_cs\000\000");
     o2_method_new_internal("/_cs/get", "is", &cs_ping_handler,
                            NULL, false, false);
     O2_DBG(printf("%s ** reference clock established, time is now %g\n",
                   o2_debug_prefix, o2_local_time()));
-    is_refclk = true;
 
+    return O2_SUCCESS;
+}
+
+
+O2err o2_time_jump_callback_set(o2_time_jump_callback callback)
+{
+    time_jump_callback = callback;
+    return O2_SUCCESS;
+}
+
+
+O2err o2_clock_jump(double local_time, double global_time, bool adjust)
+{
+    if (adjust) {
+        double advance = global_time - LOCAL_TO_GLOBAL(local_time);
+        // we have to rehash all the messages, so first copy & clear the table:
+        O2message_ptr original[O2_SCHED_TABLE_LEN];
+        // reset scheduler to begin scheduling at global_time; fudge by 20 msec
+        // to make sure we don't skip a message due to latency or rounding error
+        o2_gtsched.last_time = global_time - 0.02;
+        o2_gtsched.last_bin = O2_SCHED_INDEX(o2_gtsched.last_time);
+        memcpy(original, o2_gtsched.table, sizeof(original));
+        memset(o2_gtsched.table, 0, sizeof(o2_gtsched.table));
+        // now reinsert all messages with offset modified in place
+        for (int i = 0; i < O2_SCHED_TABLE_LEN; i++) {
+            O2message_ptr msg = o2_gtsched.table[i];
+            while (msg) {
+                O2message_ptr next = msg->next;
+                msg->next = NULL;  // unlink to be safe
+                msg->data.timestamp += advance;
+                o2_schedule_msg(&o2_gtsched, msg);
+                msg = next;
+            }
+        }
+    }
+    local_time_base = local_time;
+    global_time_base = global_time;
+    clock_rate = 1;
     return O2_SUCCESS;
 }
 

@@ -29,33 +29,33 @@
 //    send messages to publishN
 //    each tap message received by subscribeN generates a new message
 //    after 200 messages, -1 is sent and running = false
-//    
+//
 
 var N_ADDRS = 3;
 var MAX_MSG_COUNT = 200;
 var publish0_found = false;
 
 function app_init() {
-    wsResult = document.getElementById("wsResult"); 
-    wsStatus = document.getElementById("wsStatus"); 
-    wsOutput = document.getElementById("wsOutput"); 
+    wsResult = document.getElementById("wsResult");
+    wsStatus = document.getElementById("wsStatus");
+    wsOutput = document.getElementById("wsOutput");
     o2ws_status_msgs_enable = true;
     o2ws_status_msg("Initializing O2ws with " + WSURI);
     o2ws_initialize("test");
 
-    var i; 
+    var i;
     var services = ""
     for (i = 0; i < N_ADDRS; i++) {
-        var path = "subscribe" + i; 
-        services = services + path + ","; 
-        o2ws_method_new("/" + path + "/i", "i", true, client_test, null); 
+        var path = "subscribe" + i;
+        services = services + path + ",";
+        o2ws_method_new("/" + path + "/i", "i", true, client_test, null);
     }
 
     // make one tap before the service
-    o2ws_tap("publish0:copy0:R"); 
+    o2ws_tap("publish0:copy0:R");
     services = services + "copy0";
-    o2ws_set_services(services); 
-    o2ws_method_new("/copy0/i", "i", true, copy_i, null); 
+    o2ws_set_services(services);
+    o2ws_method_new("/copy0/i", "i", true, copy_i, null);
 
     // wait for publish0 to appear
     o2ws_method_new("/_o2/ls", "siss", true, service_info, null);
@@ -70,7 +70,7 @@ function app_init() {
 function poll_for_publish0() {
     if (publish0_found && o2ws_clock_synchronized) {
         o2ws_status_msg("We discovered publish0 service.\ntime is " +
-                        o2ws_time_get()); 
+                        o2ws_time_get());
         setTimeout(install_the_taps, 1000);
     } else {
         if (!publish0_found) {
@@ -93,7 +93,7 @@ function status_handler(timestamp, address, typespec, info) {
 function install_the_taps()
 {
     // first, install all the taps
-    var i; 
+    var i;
     var services = ""
     for (i = 0; i < N_ADDRS; i++) {
         o2ws_tap("publish" + i + ":subscribe" + i + ":R");
@@ -118,40 +118,40 @@ function wait_for_messages() {
         for (i = 0; i < N_ADDRS; i++) {
             // remove our publish0 tap (not supported by o2ws_ call, but we
             // can do it anyway:
-            o2ws_send_start("!_o2/ws/sv", 0, "siisi", true); 
-            o2ws_add_string("publish" + i); 
-            o2ws_add_int32(0);  // remove the tap 
-            o2ws_add_int32(0);  // this is a tap 
-            o2ws_add_string("subscribe" + i); 
-            o2ws_add_int32(0);  // tap_mode is unused 
-            o2ws_send_finish(); 
+            o2ws_send_start("!_o2/ws/sv", 0, "siisi", true);
+            o2ws_add_string("subscribe" + i);
+            o2ws_add_int32(0);  // remove the tap
+            o2ws_add_int32(0);  // this is a tap
+            o2ws_add_string("publish" + i);
+            o2ws_add_int32(0);  // tap_mode is unused
+            o2ws_send_finish();
         }
         // remove copy0 tap:
-        o2ws_send_start("!_o2/ws/sv", 0, "siisi", true); 
-        o2ws_add_string("publish0"); 
-        o2ws_add_int32(0);  // remove the tap 
-        o2ws_add_int32(0);  // this is a tap 
+        o2ws_send_start("!_o2/ws/sv", 0, "siisi", true);
         o2ws_add_string("copy0");
-        o2ws_add_int32(0);  // tap_mode is unused 
-        o2ws_send_finish(); 
+        o2ws_add_int32(0);  // remove the tap
+        o2ws_add_int32(0);  // this is a tap
+        o2ws_add_string("publish0");
+        o2ws_add_int32(0);  // tap_mode is unused
+        o2ws_send_finish();
         setTimeout(check_non_tappers, 1000);
     }
 }
 
 
 
-var msg_count = 0; // counts messages coming into /publish<i> 
-var running = true;  
- 
+var msg_count = 0; // counts messages coming into /publish<i>
+var running = true;
+
 function client_test(timestamp, address, typespec, info) {
     // caller has already checked for arg count and type match
     if (!running) {
-        o2ws_status_msg("client_test got another message: ignored"); 
-        return; 
+        o2ws_status_msg("client_test got another message: ignored");
+        return;
     }
-    var i = o2ws_get_int32(); 
+    var i = o2ws_get_int32();
     if (msg_count < 10) {
-        o2ws_status_msg("client message " + msg_count + " is " + i); 
+        o2ws_status_msg("client message " + msg_count + " is " + i);
     }
     msg_count++;
     if (i === -1) {
@@ -178,10 +178,10 @@ var copy_count = 0;
 
 function copy_i(timestamp, address, typespec, info) {
     if (!running) {
-        o2ws_status_msg("copy_i got another message: ignored"); 
-        return; 
+        o2ws_status_msg("copy_i got another message: ignored");
+        return;
     }
-    var i = o2ws_get_int32(); 
+    var i = o2ws_get_int32();
     if (copy_count < 5 * N_ADDRS) {  // print the first 5 messages
         o2ws_status_msg("copy_i got " + address + " i = " + i);
     }
@@ -233,27 +233,27 @@ function search_for_non_tapper(service, name, service_type) {
 function check_for_services() {
     for (i = 0; i < N_ADDRS; i++) {
         if (!tappers_exist[i]) {
-            o2ws_error("non_tapper subscribe" + i + " not found."); 
+            o2ws_error("non_tapper subscribe" + i + " not found.");
         }
         if (!tappees_exist[i]) {
-            o2ws_error("non_tapper publish" + i + " not found."); 
+            o2ws_error("non_tapper publish" + i + " not found.");
         }
     }
     // finish up with some checks:
     if (Math.trunc(copy_count / N_ADDRS) !==
         Math.trunc(MAX_MSG_COUNT / N_ADDRS) + 1) {
-        o2ws_error("copy_count value (" + copy_count + ") is wrong."); 
+        o2ws_error("copy_count value (" + copy_count + ") is wrong.");
     }
     if (msg_count != MAX_MSG_COUNT + 1) {
-        o2ws_error("msg_count value (" + msg_count + ") is wrong."); 
+        o2ws_error("msg_count value (" + msg_count + ") is wrong.");
     }
     setTimeout(tapsub_finish, 1000);
 }
 
 
 function make_paragraph(content) {
-    var par = document.createElement("p"); 
-    par.style.wordWrap = "break-word"; 
+    var par = document.createElement("p");
+    par.style.wordWrap = "break-word";
     par.innerHTML = content;
     return par;
 }
@@ -266,19 +266,19 @@ function display_result(msg) {
 
 function o2ws_status_msg(message) {
     wsStatus.innerHTML = "<p>" + message + "</p>";
-    console.log("Status: " + message); 
+    console.log("Status: " + message);
 }
 
 
 function o2ws_error(message) {
     wsOutput.appendChild(make_paragraph(
             '<span style="color: red;">ERROR:</span> ' + message));
-    console.log("Error: " + message); 
+    console.log("Error: " + message);
 }
 
 
 function tapsub_finish() {
-    o2ws_status_msg("CLIENT DONE"); 
+    o2ws_status_msg("CLIENT DONE");
     // tell the server to die
     o2ws_send_start("/websockhost/stop", 0, "", true);
     o2ws_send_finish();

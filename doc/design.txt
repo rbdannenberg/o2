@@ -200,6 +200,106 @@ connected processes "register" the fact that they are
 synchronized. When connecting to a new process, the discovery info
 will include clock synchronization status.
 
+Clock Synchronization
+---------------------
+
+Processes request time from the application-designated "clock
+reference" service named _cs. The reference time is estimated to be
+the retrieved time minus half the round-trip time to retrieve it. To
+make time more quickly accessible, we store the offset between local
+and global (reference) time and just re-estimate global time using the
+offset. Several problems remain: estimation errors due to dropped
+messages or asymmetric network latency, minimizing startup delays,
+clock drift, and avoiding jumps in time when the clock is updated.
+
+- Avoiding Estimation Errors. To avoid estimation errors due to
+network delays, we estimate the time 5 times and use the estimate
+based on the lowest round-trip time. (This is provably better than
+averaging estimates.)
+
+- Dealing With Clock Drift. To deal with clock drift, we run the clock
+synchronization protocol constantly, requesting the reference time
+every 10 sec or so. Cheap crystal clocks are rated at an error of
+about 50ppm, which is 0.000050 = 0.005%. Things can be much worse in
+practice. We assume 0.01%.  10 sec is based on a clock rate error of
+0.01%, which accumulates to 10 * 0.0001 = 1 msec of drift. The
+tradeoff is that at 10 sec per time request, 100 processes generate 10
+round-trip clock requests per second, which seems acceptable but
+already putting some load on the network, especially WiFi.
+
+- Minimizing Startup Delays. To get the initial estimates without a 50
+sec wait, we request reference times more frequently when the process
+first discovers the _cs service. Then we "back off" to infrequent
+updates to reduce network bandwidth.  The "ideal" plan is to make 5
+requests at 0, 0.1 0.2, 0.3, 0.4 sec, then every 0.5 sec at 0.9, 1.4,
+... 4.9, then every 10 sec at 19.4, 29.4, ....
+
+If a time request reply is not received before the next request time,
+we simply send another request and ignore the reply if it arrives
+later. (All requests and replies have serial numbers to match them
+up.)  Wide-area requests can experience ping times of up to around 400
+msec, so it is possible that the first 4 time requests will return too
+late to be used. This means that effectively, we start the clock sync
+protocol at 0.4 sec, and it will take 2 (plus the response time)
+seconds to make 5 reference clock time estimates vs. the theoretical
+optimum of 4 * response time, which could be anywhere from 0.4 to 1.6
+secs. So at least we are within a factor of 2 of optimal, and in
+absolute terms, we could at best hope to improve by about 2 seconds.
+Note that if UDP packets are dropped, all bets are off, and it could
+take much longer to synchronize, but that is why we send 14 requests
+in the first 5 seconds -- we only need 5 replies to get started.
+
+- Avoiding Jumps When the Clock Is Updated. Global time is computed
+as a linear function from local time to global time with slope close
+to 1 and an offset to account for the difference between global and
+local clocks. After the initial acquisition of the reference time, we
+want the time to increase monotonically and smoothly so that, for
+example, if we want to make a musical note with a duration of 100
+msec, and the reference clock is re-estimated to be 50 msec ahead of
+our previous estimate, we do not want time to instantly jump forward
+by 50 msec, which would shorten the note from 100 to 50 msec. Instead,
+we speed up or slow down by 10% using our linear mapping, so in this
+case, the adjustment would take 500 msec, and the 100 msec note would
+be shortened to 90 msec. At least in music perception, a 10% tempo
+change is small and might not even be noticed if it lasts less than 1
+sec.
+
+Unfortunately, larger jumps can occur, especially if the clock
+reference goes off-line and a new one is created. When the jump is
+greater than 1 sec forward, we simply set the clock ahead, and when
+the jump is greater than 1 sec backward, we stop the clock and wait
+for the global time to match our current scheduler time; then we
+resume the clock.
+
+Since jumping and/or stopping are not the right decisions for
+everyone, an override is possible. Before taking any action, a message
+is sent to /_o2/cs/jp with the current local time, the prior global
+time estimate, and the new global time estimate, which differs by more
+than 1 sec.  An application message handler can use this information
+to enact different policies. Possible actions are:
+
+o2_schedule_flush() removes any scheduled messages in o2_gtsched, the
+global time scheduler (the local scheduler contains internal O2
+messages and cannot be flushed).
+
+o2_schedule_sendall() dispatches all scheduled messages in
+o2_gtsched, even though their timestamps are in the future.
+
+o2_clock_jump(bool adjust) immediately sets the mapping so that local
+time maps to our current best estimate of global time. When handling
+/_o2/cs/jp, if the estimated global time has jumped backward, this
+will set the clock back to the correct global time instead of stopping
+the clock and waiting for global time to "catch up." Furthermore, if
+adjust is true, timestamps in scheduled messages (which previously
+were all in the future) will be adjusted forward or backward according
+to the clock change. For example, if a message is scheduled for 1 sec
+in the future and the clock is adjusted backward, then after the call,
+the message timestamp will be lower so that it will still be scheduled
+for 1 sec in the future. Similarly, if time jumps forward, timestamps
+are incremented by the amount of the jump so they remain scheduled for
+the future.
+
+
 Messages
 --------
 

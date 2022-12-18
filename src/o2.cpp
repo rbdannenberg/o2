@@ -300,7 +300,6 @@ there is no Internet connection. Initialization continues with a call
 to o2_init_phase2().
     - create our local name, process info, TCP server port and UDP port
     - install system services: /_o2/dy, /_o2/cs/??, etc.
-    - start clock synchronization
     - set up mqtt connection and subscriptions
 
 PHASE 3. Eventually, we discover other processes and establish clock sync.
@@ -1059,9 +1058,9 @@ O2err o2_initialize(const char *ensemble_name)
         goto cleanup;
     }
 
+    Services_entry::service_new("_o2");
     o2_clock_initialize();
     o2_sched_initialize();
-    Services_entry::service_new("_o2");
 
     if (o2n_public_ip[0]) {  // we already have a (pseudo) public ip
         assert(streql(o2n_public_ip, "00000000"));
@@ -1079,7 +1078,6 @@ O2err o2_initialize(const char *ensemble_name)
 void o2_init_phase2()
 {
     o2_processes_initialize();
-    o2_clock_init_phase2(); // install handlers for clock sync
     o2_discovery_init_phase2();
     // start the discovery and MQTT setup
 #ifndef O2_NO_O2DISCOVERY

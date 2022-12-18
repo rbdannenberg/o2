@@ -65,10 +65,10 @@ function wait_for_messages() {
         // remove our publish0 tap (not supported by o2ws_ call, but we
         // can do it anyway:
         o2ws_send_start("!_o2/ws/sv", 0, "siisi", true);
-        o2ws_add_string("publish0");
+        o2ws_add_string("subscribe0"); 
         o2ws_add_int32(0);  // remove the tap
         o2ws_add_int32(0);  // this is a tap
-        o2ws_add_string("subscribe0");
+        o2ws_add_string("publish0"); 
         o2ws_add_int32(0);  // tap_mode is unused 
         o2ws_send_finish();
         // now we wait for 1 second to remove the taps:

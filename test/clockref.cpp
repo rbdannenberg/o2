@@ -1,8 +1,26 @@
-//  clockref.c - clock synchronization test/demo
+// clockref.c - clock synchronization test/demo
 //
-//  This program works with clockmirror.c. It monitors clock
-//  synchronization and status updates.
+// This program works with clockmirror.c. It monitors clock
+// synchronization and status updates.
 //
+// Algorithm for Test:
+// - Become the clock reference.
+// - About every 1 sec:
+//    - check status of server and client services.
+//    - when client is found, record the time as cs_time
+//    - 10 sec later, tell main program to stop
+// - Meanwhile monitor /_o2/si messages
+//    - When we get the client, send request for roundtrip time
+// - When roundtrip returns, check for:
+//    - request for rt was sent by us (rtt_sent)
+//    - service name (process) matches what we expected
+//    - minimum and mean times are in (0, 1]
+// - When we quit, make sure we received roundtrip message
+//
+// Requirements for remote process for this test to pass:
+// - offer a client service in "test" ensemble
+// - keep running at least until a /cs/rt message can be processed
+
 
 #include "o2.h"
 #include <stdio.h>

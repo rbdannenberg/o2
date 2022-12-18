@@ -633,8 +633,8 @@ void o2_hub_handler(O2msg_data_ptr msg, const char *types,
 // /_o2/sv handler: called when services become available or are removed.
 // Arguments are
 //     proc name,
-//     service1, added_flag, service_or_tapper, properties_or_tapper, send_mode
-//     service2, added_flag, service_or_tapper, properties_or_tapper, send_mode
+//     service1, added_flag, service_or_tapper, properties_or_tappee, send_mode
+//     service2, added_flag, service_or_tapper, properties_or_tappee, send_mode
 //     ...
 //
 // Message was sent by o2_send_services()
@@ -663,7 +663,7 @@ void o2_services_handler(O2msg_data_ptr msg, const char *types,
     }
     O2arg_ptr addarg;     // boolean - adding a service or deleting one?
     O2arg_ptr isservicearg; // boolean - service (true) or tap (false)?
-    O2arg_ptr prop_tap_arg;  // string - properties string or tapper name
+    O2arg_ptr prop_tap_arg;  // string - properties string or tappee name
     O2arg_ptr send_mode_arg;  // O2tap_send_mode - for taps
     while ((arg = o2_get_next(O2_STRING)) &&
            (addarg = o2_get_next(O2_BOOL)) &&
@@ -678,8 +678,8 @@ void o2_services_handler(O2msg_data_ptr msg, const char *types,
                           "name - %s\n", o2_debug_prefix, service));
         } else if (addarg->B) { // add a new service or tap from remote proc
             O2_DBd(printf("%s found service /%s offered by /%s%s %s\n",
-                          o2_debug_prefix, service, proc->key,
-                          (isservicearg->B ? " tapper " : ""), prop_tap));
+                    o2_debug_prefix, service, proc->key,
+                    (isservicearg->B ? " props " : " tapper "), prop_tap));
             if (isservicearg->B) {
                 Services_entry::service_provider_new(service, prop_tap,
                                                      proc, proc);

@@ -164,6 +164,11 @@ O2err Services_entry::service_provider_new(O2string service_name,
         const char *proc_name = (proc == o2_ctx->proc ? "_o2" : proc->key);
         o2_send_cmd("!_o2/si", 0.0, "siss", service_name, status,
                     proc_name, properties ? properties + 1 : "");
+        // also, if there is a new clock service, we need to accelerate clock
+        // sync in case the O2 reference time has changed to a new time
+        if (strcmp(service_name, "_cs") == 0) {
+            o2_start_cs_pings();
+        }
     }
     return O2_SUCCESS;
 }
@@ -380,6 +385,8 @@ void Services_entry::remove_if_empty()
 }
 
 
+// remove a service at index from this Services_entry. If index < 0, 
+// we ignore index and search for the service offered by proc.
 O2err Services_entry::service_remove(const char *srv_name,
                                      int index, Proxy_info *proc)
 {
@@ -474,7 +481,6 @@ O2err Services_entry::service_remove(const char *srv_name,
     }
     return O2_SUCCESS;
 }
-
 
 
 /*
@@ -611,7 +617,7 @@ O2err Services_entry::remove_services_by(Proxy_info *proc)
     for (int i = 0; i < services_list.size(); i++) {
         Services_entry *services = services_list[i];
         // if there are no taps, services could be deleted before we
-        // even try to remove taps by proc, but if it won't be deleted
+        // even try to remove taps by proc, but it won't be deleted
         // if there are any taps to begin with.
         bool has_taps = services->taps.size() > 0;
         int j = services->proc_service_index(proc);

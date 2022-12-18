@@ -54,17 +54,6 @@
 #include "msgsend.h"
 
 
-// we use a bin for every 10ms, but this is arbitrary: too small and you
-// have to examine many bins to advance time (if polling is not frequent);
-// too large and you get more collisions, which means linear list insertion
-// time to make sure messages in the same bin are sorted in time order.
-// Also, the table size should be greater than 1 second because if time
-// between polling is >1s, we simulate polling every 1s until we catch up.
-// Otherwise we could dispatch messages out of order due to wrap-around.
-#define SCHED_BIN(time) ((int64_t) ((time) * 100))
-#define SCHED_BIN_TO_INDEX(b) ((b) & (O2_SCHED_TABLE_LEN - 1))  // Get modulo
-#define SCHED_INDEX(t) (SCHED_BIN_TO_INDEX(SCHED_BIN(t) ))
-
 O2sched o2_gtsched, o2_ltsched;
 O2sched_ptr o2_active_sched = &o2_gtsched;
 int o2_gtsched_started = false;  // cannot use o2_gtsched until clock is in sync
@@ -96,7 +85,7 @@ void o2_sched_finish(O2sched_ptr s)
 void o2_sched_start(O2sched_ptr s, O2time start_time)
 {
     memset(s->table, 0, sizeof s->table);
-    s->last_bin = SCHED_BIN(start_time);
+    s->last_bin = O2_SCHED_BIN(start_time);
     if (s == &o2_gtsched) {
         o2_gtsched_started = true;
     }
@@ -131,7 +120,7 @@ O2err o2_schedule(O2sched_ptr s)
         return O2_NO_CLOCK;
     }
     o2_postpone_delivery(); // transfer ownership from o2_ctx->msgs
-    int64_t index = SCHED_INDEX(mt);
+    int64_t index = O2_SCHED_INDEX(mt);
     O2message_ptr *m_ptr = &s->table[index];
     
     // find insertion point in list so that messages are sorted
@@ -168,11 +157,11 @@ static void sched_dispatch(O2sched_ptr s, O2time run_until_time)
     while (s->last_time + 1 < run_until_time) {
         sched_dispatch(s, s->last_time + 1);
     }
-    int64_t bin = SCHED_BIN(run_until_time);
+    int64_t bin = O2_SCHED_BIN(run_until_time);
     // now we know that we have less than 1s to go to catch up, so the
     // table will not wrap around
     while (s->last_bin <= bin) {
-        O2message_ptr *msg_ptr = &s->table[SCHED_BIN_TO_INDEX(s->last_bin)];
+        O2message_ptr *msg_ptr = &s->table[O2_SCHED_BIN_TO_INDEX(s->last_bin)];
         while (*msg_ptr && ((*msg_ptr)->data.timestamp <= run_until_time)) {
             O2message_ptr msg = *msg_ptr;
             *msg_ptr = msg->next; // unlink message msg
@@ -205,4 +194,23 @@ void o2_sched_poll()
     if (o2_gtsched_started) {
         sched_dispatch(&o2_gtsched, o2_global_now);
     }
+}
+
+
+// empty the scheduler queue
+O2err o2_sched_flush()
+{
+    int count = 0;  // how many messages flushed?
+    for (int i = 0; i < O2_SCHED_TABLE_LEN; i++) {
+        O2message_ptr msg = o2_gtsched.table[i];
+        o2_gtsched.table[i] = NULL;
+        while (msg) {
+            O2message_ptr next = msg->next;
+            msg->next = NULL;   // unlink to be safe
+            O2_FREE(msg);
+            count++;
+            msg = next;
+        }
+    }
+    return (O2err) count;
 }

@@ -206,6 +206,10 @@ O2_DY_CONNECT, or O2_DY_O2LITE, depending on the expected response.
 
 `/_o2/cs/cs ""` - announces when clock sync is obtained.
 
+`/_o2/cs/ps ""` - this message (short for "ping send") invokes the
+sending of the `/_cs/get` message to request the time as part of the
+clock synchronization protocol.
+
 `/_o2/ds ""` - this message invokes the sending of discovery messages. It
 is used with a timestamp to schedule periodic discovery message sending.
 
@@ -214,16 +218,17 @@ parameter is the full address for the reply. The reply contains the type
 string "it" and the parameters are the *serial-no* and the current time.
 
 `/_o2/sv "ssbbsi..."` *process-name* *service-name* *add-flag*
-*service-flag* *tapper-or-properties* *send_mode*... - reports service creation
-or deletion. Each service is described by name, true, and either true
-followed by a properties string and zero or false followed by the tappee
-name and tap send_mode. If a service is deleted, then false is sent rather than true,
-and if this is not a tap, the properties string is empty. The "..." 
-notation here indicates that there can be any number of services 
-described in this message, each service consisting of another "sbbsi"
-(string, Boolean, Boolean, string, int32) sequence. Properties strings are
-sent with escaped values, a leading ';' and a trailing ';'. This is
-the first message sent when a process-to-process connection is made.
+*service-flag* *tappee-or-properties* *send_mode*... - reports service
+creation or deletion. Each service is described by name, true, and
+either true followed by a properties string and zero or false followed
+by the tappee name and tap send_mode. If a service is deleted, then
+false is sent rather than true, and if this is not a tap, the
+properties string is empty. The "..."  notation here indicates that
+there can be any number of services described in this message, each
+service consisting of another "sbbsi" (string, Boolean, Boolean,
+string, int32) sequence. Properties strings are sent with escaped
+values, a leading ';' and a trailing ';'. This is the first message
+sent when a process-to-process connection is made.
 
 
 \subsection API Messages
@@ -233,9 +238,6 @@ request round trip (to the clock reference) information; *reply-to*
 is the full address of the reply. The reply message has the type
 string "sff" and the parameters are the process name (@public:internal:port),
 the mean round-trip time, and the minimum round-trip time.
-
-`/_o2/cs/ps ""` - this message invokes the sending of the `/_cs/get` message
-to request the time as part of the clock synchronization protocol.
 
 `/_o2/si "siss"` *service_name* *status* *process-name* *properties* -
 Whenever an active service status changes or service properties
@@ -655,7 +657,7 @@ typedef struct O2msg_data {
      * of the entire message including flags and timestamp, not including
      * the length field itself is given by the `length` field.
      */
-    char address[4];
+    char address[];
 } O2msg_data, *O2msg_data_ptr;
 
 
@@ -1779,6 +1781,17 @@ O2_EXPORT int o2_roundtrip(double *mean, double *min);
 typedef O2time (*o2_time_callback)(void *rock);
 
 
+/** \brief signature for callback that handles reference clock jumps
+ *
+ * The callback parameters are the local time at which the jump occurs,
+ * the global time before the jump, and the global time after the jump.
+ * If actions are taken (and in particular if the reference time
+ * computation is defined by calling #o2_clock_jump, return true. Return
+ * false to get the default O2 behavior. See also #o2_time_jump_callback_set.
+ */
+typedef bool (*o2_time_jump_callback)(double local_time, 
+                       double old_global_time, double new_global_time);
+
 /**
  *  \brief Provide a time reference to O2.
  *
@@ -1806,7 +1819,56 @@ typedef O2time (*o2_time_callback)(void *rock);
  *
  *  @return #O2_SUCCESS if success, #O2_FAIL if not.
  */
-O2_EXPORT int o2_clock_set(o2_time_callback gettime, void *rock);
+O2_EXPORT O2err o2_clock_set(o2_time_callback gettime, void *rock);
+
+
+/**
+ * \brief Override clock synchronization behavior.
+ *
+ * After synchronization to a remote clock reference, if the local
+ * expected time (#o2_time_get) is off by more than 1 second, and
+ * if the last call to #o2_time_jump_callback_set provided a non-NULL
+ * function pointer, the function is called to implement
+ * application-specific actions before the clock is adjusted. See
+ * also #o2_time_jump_callback. Actions by the callback could include
+ * #o2_clock_jump and #o2_sched_flush. If no actions are taken but true
+ * is returned, the mapping from local to global time used by
+ * #o2_time_get is not altered.
+ *
+ * @param callback a function to be called when #o2_time_get is
+ * discovered to be off by more than 1 second.
+ *
+ * @return #O2_SUCESS
+ */
+O2_EXPORT O2err o2_time_jump_callback_set(o2_time_jump_callback callback);
+
+
+/**
+ * \brief Cause #o2_time_get to return the best estimate of global O2 time
+ *
+ * If the estimated reference clock and #o2_time_get differ by more
+ * than a second, which means that it will take more than 10 seconds
+ * to synchronize by speeding up or slowing down by 10%, and if a time
+ * jump handler is defined (see #o2_time_jump_callback_set), then the
+ * callback is called to indicate time has "jumped." The application
+ * can optionally call #o2_clock_jump to immediately synchronize
+ * #o2_time_get to the latest estimate of the O2 reference time, with
+ * no regard for continuity or monotonicity, i.e. time can jump backward.
+ * See also #o2_sched_flush. This function need not be called only
+ * from within the callback function.
+ *
+ * @param local_time is the current local time
+ *
+ * @param global_time is the estimated and desired global O2 time
+ *
+ * @param adjust will offset the timestamps in all pending messages in
+ * #o2_gtsched to maintain their schedule relative to wall time. E.g.,
+ * if #o2_time_get time is being set earlier by 60 seconds, that would
+ * imply that messages will be delayed by an extra 60 seconds of time
+ * in the real world. If #adjust is true, timestamps will be decremented
+ * by 60 seconds to compensate.
+ */
+O2_EXPORT O2err o2_clock_jump(double local_time, double global_time, bool adjust);
 
 
 /**
@@ -1893,13 +1955,20 @@ O2_EXPORT O2err o2_message_send(O2message_ptr msg);
 /**
  * \brief Get the estimated synchronized global O2 time.
  *
- *  This function returns a valid value either after you call
- *  #o2_clock_set, making the local clock the reference clock for
- *  the O2 ensemble, or after O2 has finished discovering and
- *  synchronizing with the reference clock. Until then, -1 is returned.
+ * This function returns a valid value either after you call
+ * #o2_clock_set, making the local clock the reference clock for
+ * the O2 ensemble, or after O2 has finished discovering and
+ * synchronizing with the reference clock. Until then, -1 is returned.
  *
- *  The clock accuracy depends upon network latency, how often
- *  #o2_poll is called, and other factors, but
+ * The clock accuracy depends upon network latency, how often
+ * #o2_poll is called, and other factors, and some smoothing and 
+ * adjustments are made to insure a continuous monotonic non-decreasing
+ * time. In particular, reported time will speed up or down by 10% to
+ * smoothly adjust to new estimates of the global O2 time when differences
+ * are less than 1 sec. Larger differences either cause #o2_time_get times
+ * to jump ahead to catch up, or stop advancing until O2 time catches up
+ * to #o2_time_get time. (This can happen if the `_cs` service is restarted
+ * and provides a new reference time.) See also #o2_clock_jump.
  *
  *  @return the time in seconds, or -1 if global (reference) time is unknown.
  */
@@ -1909,7 +1978,7 @@ O2_EXPORT O2time o2_time_get(void);
 /**
  * \brief Get the real time using the local O2 clock.
  *
- * The local O2 clock source may be specified by o2_clock_set, and
+ * The local O2 clock source may be specified by #o2_clock_set, and
  * defaults to #o2_native_time(). Regardless of the clock source, O2
  * may add an offset to minimize time discontinuities. For example, if
  * another system provided the reference clock and then becomes
@@ -2623,6 +2692,21 @@ O2_EXPORT O2sched_ptr o2_active_sched; // the scheduler that should be used
  * messages" queue and delivered after the handler returns.
  */
 O2_EXPORT O2err o2_schedule_msg(O2sched_ptr scheduler, O2message_ptr msg);
+
+
+/**
+ * /brief Flush all scheduled messages in #o2_gtsched
+ *
+ * All messages in #o2_gtsched are removed. Normally, this would only
+ * be called from a #o2_time_jump_callback
+ * indicating that global time is about to jump, possibily invalidating
+ * the timestamps of scheduled messages. See also #o2_schedule_sendall
+ * and #o2_clock_jump.
+ *
+ * @return number of messages flushed or an O2 error code.
+ */
+O2_EXPORT O2err o2_sched_flush(void);
+
 
 /** @} */ // end of a basics group
 

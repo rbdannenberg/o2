@@ -1,6 +1,12 @@
 //  clockmirror.c - clock synchronization test/demo
-////
-//  see clockmaster.c for details
+//
+// Algorithm for test:
+// - About every 1 sec:
+//    - check status of server and client services.
+//    - when server is found, record time as cs_time
+//    - after 2 sec, stop
+// Note that there really are no tests other than
+// termination requires a server service in test ensemble.
 
 #include "o2.h"
 #include <stdio.h>

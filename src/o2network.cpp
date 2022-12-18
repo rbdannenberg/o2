@@ -679,7 +679,7 @@ O2err Fds_info::send(bool block)
     }
     struct pollfd *pfd = &o2n_fds[fds_index];
     if (net_tag == NET_TCP_CONNECTING && block) {
-        O2_DBo(printf("%s: o2n_send - index %d tag is NET_TCP_CONNECTING, "
+        O2_DBo(printf("%s o2n_send - index %d tag is NET_TCP_CONNECTING, "
                       "so we poll\n", o2_debug_prefix, fds_index));
         // we need to wait until connected before we can send
         while (o2n_recv() == O2_SUCCESS && net_tag == NET_TCP_CONNECTING) {
@@ -690,7 +690,7 @@ O2err Fds_info::send(bool block)
     // and no progress will be made, so as a last resort we just block
     // with select.
     if (net_tag == NET_TCP_CONNECTING && block) {
-        O2_DBo(printf("%s: o2n_send - index %d tag is NET_TCP_CONNECTING, "
+        O2_DBo(printf("%s o2n_send - index %d tag is NET_TCP_CONNECTING, "
                           "so we wait\n", o2_debug_prefix, fds_index));
         fd_set write_set;
         FD_ZERO(&write_set);

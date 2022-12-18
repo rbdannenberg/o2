@@ -5,7 +5,7 @@
 // are grouped because the exact order is not specified, but we go through
 // a sequence of transitions resulting in groups of status messages as listed.
 //
-// Based on clockmaster.c
+// Based on clockref.cpp
 
 
 #include <stdio.h>
@@ -65,7 +65,9 @@ const char *group2[8] = {"server", "LN", NULL, NULL, NULL, NULL, NULL, NULL};
 const char *group3[8] = {"_cs", "L", NULL, NULL, NULL, NULL, NULL, NULL};
 const char *group4[8] = {"one", "L", "server", "L", "_o2", "L", NULL, NULL};
 
-// "remote" refers to the remote process; client is a service it offers
+// "remote" refers to the remote process -- the string "remote" is 
+// interpreted as the process name, e.g. @4a6dd865:c0a801a6:ec8a.
+// client is a service it offers
 // RN is remote, not synchronized; R is remote, synchronized, X is dead
 
 const char *group5[8] = {"remote", "RN", "client", "RN",

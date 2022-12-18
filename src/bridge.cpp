@@ -49,18 +49,28 @@ Bridge_protocol::Bridge_protocol(const char *name) {
 
 
 Bridge_protocol::~Bridge_protocol() {
+    O2_DBw(printf("%s deleting Bridge_protocol@%p size %d\n", o2_debug_prefix,
+                  this, instances.size()));
     remove_services(NULL);  // remove all Bridge_info for this protocol
-    for (int i = 0; i < instances.size(); i++) {
-        delete instances[i];
+    // this is a little tricky: deleting an instance, which is a Bridge_info,
+    // removes the Bridge_info from instances. There's a search involved, but
+    // since we remove the first element at each iteration, the search always
+    // finds the object in the 0th location and removes it by copying the
+    // last element of instances to index 0. The size of instances shrinks
+    // by 1 each iteration until there is nothing left.
+    while (instances.size() > 0) {
+        delete instances[0];
     }
     int i = o2_bridge_find_protocol(protocol, NULL);
     if (i >= 0) {
         bridges.remove(i);
     }
+    O2_DBw(printf("%s deleting Bridge_protocol instances@%p, size %d\n",
+                  o2_debug_prefix, &instances, instances.size()));
 }
 
 
-void o2_bridges_finish(void)
+void o2_bridges_finish()
 {
     while (bridges.size() > 0) {
         delete bridges.pop_back();
@@ -118,7 +128,7 @@ O2err Bridge_protocol::remove_services(Bridge_info *bi)
 }
 
 
-int o2_poll_bridges(void)
+int o2_poll_bridges()
 {
     if (!bridges_initialized) return O2_FAIL;
     for (int i = 0; i < bridges.size(); i++) {

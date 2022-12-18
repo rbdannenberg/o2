@@ -95,7 +95,7 @@ public:
     }
     
     virtual ~O2ws_protocol() {
-        O2_DBw(printf("%s: delete O2ws_protocol %p\n", o2_debug_prefix, this));
+        O2_DBw(printf("%s deleting O2ws_protocol@%p\n", o2_debug_prefix, this));
         o2_method_free("/_o2/o2ws"); // remove all o2ws support handlers
         pending_ws_senders = NULL;
     }
@@ -267,8 +267,8 @@ Http_server::Http_server(int port, const char *root_) :
 
 Http_server::~Http_server()
 {
-    O2_DBw(printf("%s: delete Http_server %p socket %d\n", o2_debug_prefix,
-                  this, fds_info->get_socket()));
+    O2_DBw(printf("%s delete Http_server %p socket %d\n", o2_debug_prefix,
+                  this, (fds_info ? fds_info->get_socket() : -1)));
     // close all the client connections
     int n = o2n_fds_info.size();
     for (int i = 0; i < n; i++) {
@@ -343,7 +343,7 @@ O2err Http_conn::close()
 Http_conn::~Http_conn()
 {
     if (!this) return;
-    O2_DBw(printf("%s: delete Http_conn %p, socket %d is_web_socket %d "
+    O2_DBw(printf("%s delete Http_conn %p, socket %d is_web_socket %d "
                   "sent_close_command %d\n", o2_debug_prefix, this,
                   fds_info->get_socket(), is_web_socket, sent_close_command));
     // even though we may have sent a CLOSE command, we do not wait for it
@@ -574,7 +574,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
             memcpy(reply->payload + 2, payload, payload_len);
             reply->length = payload_len + 2;
             fds_info->send_tcp(false, reply);
-            O2_DBw(printf("%s: Sent %s back to client\n", o2_debug_prefix,
+            O2_DBw(printf("%s Sent %s back to client\n", o2_debug_prefix,
                           (opcode == WSOP_PING ? "PONG" : "CLOSE")));
             inbuf.drop_front((int) (payload + payload_len - msg));
             ws_msg_len = -1;
@@ -587,7 +587,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
         } else {
             // otherwise we skip it -- maybe client will hang up, hope not
             // if so, the fix is probably to support longer Pong messages
-            O2_DBw(printf("%s: websocket got opcode %d but payload_len %d "
+            O2_DBw(printf("%s websocket got opcode %d but payload_len %d "
                           "is too long.\n", o2_debug_prefix, opcode,
                           payload_len));
             return O2_SUCCESS;
@@ -938,7 +938,7 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     assert(payload_len <= content_len + 150);  // confirm we allocated enough
     msg->length = payload_len;
     fds_info->send_tcp(false, msg);
-    O2_DBw(printf("%s: closing web socket: %s%s\n", o2_debug_prefix,
+    O2_DBw(printf("%s closing web socket: %s%s\n", o2_debug_prefix,
                   text, text2));
     fds_info->close_socket(false);
     return O2_SUCCESS;
@@ -1004,7 +1004,7 @@ void Http_reader::poll()
             ready_for_read = false;
             DWORD err = GetLastError();
             if (err != ERROR_IO_PENDING) {
-                O2_DBw(printf("%s: ReadFile error %d, *last_ref %p\n",
+                O2_DBw(printf("%s ReadFile error %d, *last_ref %p\n",
                               o2_debug_prefix, err, *last_ref));
                 read_eof();  // EOF and error are both treated as eof
                 return;
@@ -1021,7 +1021,7 @@ void Http_reader::poll()
     } else {  // could be end of file or else file read error
         DWORD err = GetLastError();
         if (err != ERROR_IO_PENDING) {
-            O2_DBw(printf("%s: GetOverlappedResult result %d, *last_ref %p\n",
+            O2_DBw(printf("%s GetOverlappedResult result %d, *last_ref %p\n",
                           o2_debug_prefix, err, *last_ref));
             read_eof();  // EOF and error are both treated as eof
             return;

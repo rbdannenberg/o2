@@ -31,7 +31,7 @@ extern char o2_hub_addr[O2_MAX_PROCNAME_LEN]; // @public:internal:port of hub
  *  @return O2_SUCCESS (0) if succeed, O2_FAIL (-1) if not.
  */
 O2err o2_discovery_initialize(void);
-void o2_discovery_init_phase2();
+void o2_discovery_init_phase2(void);
 
 O2err o2_discovery_finish(void);
 

@@ -285,7 +285,17 @@ def runAllTests():
     if not runTest("bridgeapi"): return
     if not runTest("o2litemsg"): return
 
+    if extensions:
+        if not runTest("bundletest"): return
+        if not runTest("patterntest"): return
+        if not runDouble("oscbndlsend u", "OSCSEND DONE",
+                         "oscbndlrecv u", "OSCRECV DONE", True): return
+        if not runDouble("oscbndlsend", "OSCSEND DONE",
+                         "oscbndlrecv", "OSCRECV DONE", True): return
+
     if websocketsTests:
+        if not runWsTest("proprecv", "DONE", 
+                         "propsend.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("o2server - 20t", "SERVER DONE", 
                          "o2client.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("tappub", "SERVER DONE", 
@@ -298,24 +308,22 @@ def runAllTests():
                          "proprecv.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("o2litehost 500t da", "CLIENT DONE", 
                          "wsserv.htm", "WEBSOCKETHOST DONE"): return
-        if not runWsTest("proprecv", "DONE", 
-                         "propsend.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("tapsub", "CLIENT DONE", 
                          "tappub.htm", "WEBSOCKETHOST DONE"): return
 
-    if extensions:
-        if not runTest("bundletest"): return
-        if not runTest("patterntest"): return
     if not runTest("infotest1 o"): return
     # proptest returns almost instantly; maybe it takes awhile for
     #     the port to be released
     if not runTest("proptest s"): return
 
+    if not runDouble("tappub d", "SERVER DONE",
+                     "tapsub d", "CLIENT DONE"): return
+    if not runDouble("unipub", "SERVER DONE",
+                     "unisub", "CLIENT DONE"): return
     if not runDouble("o2litehost 500t d", "CLIENT DONE",
                      "o2liteserv t", "SERVER DONE"): return
     if not runDouble("o2litehost 500 d", "CLIENT DONE",
                      "o2liteserv u", "SERVER DONE"): return
-
     if not runDouble("statusclient", "CLIENT DONE",
                      "statusserver", "SERVER DONE"): return
     if not runDouble("infotest2", "INFOTEST2 DONE",
@@ -349,19 +357,10 @@ def runAllTests():
         print("hubclient or hubserver not found, skipping hub test.")
     if not runDouble("propsend", "DONE",
                      "proprecv", "DONE"): return
-    if not runDouble("tappub d", "SERVER DONE",
-                     "tapsub d", "CLIENT DONE"): return
-    if not runDouble("unipub", "SERVER DONE",
-                     "unisub", "CLIENT DONE"): return
     if not runDouble("dropclient", "DROPCLIENT DONE",
                      "dropserver", "DROPSERVER DONE"): return
     if not runDouble("o2client 1000t", "CLIENT DONE",
                      "shmemserv u", "SERVER DONE"): return
-    if extensions:
-        if not runDouble("oscbndlsend u", "OSCSEND DONE",
-                         "oscbndlrecv u", "OSCRECV DONE", True): return
-        if not runDouble("oscbndlsend", "OSCSEND DONE",
-                         "oscbndlrecv", "OSCRECV DONE", True): return
 
 # tests for compatibility with liblo are run only if the binaries were built
 # In CMake, set BUILD_TESTS_WITH_LIBLO to create the binaries

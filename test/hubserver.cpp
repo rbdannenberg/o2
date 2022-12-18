@@ -197,7 +197,7 @@ void startup(int n, const char *msg)
 
 // wait for discovery of "client" service
 //
-void wait_for_client(void)
+void wait_for_client()
 {
     int count = 0;
     while (o2_status("client") < O2_REMOTE || !client_pip[0]) {
@@ -222,7 +222,7 @@ void wait_for_client(void)
 }    
 
 
-void wait_for_pip(void)
+void wait_for_pip()
 {
     const char *pip;
     const char *iip;

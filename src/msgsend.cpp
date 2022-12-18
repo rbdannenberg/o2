@@ -225,7 +225,7 @@ void o2_prepare_to_deliver(O2message_ptr msg)
 }
 
 
-O2message_ptr o2_current_message(void)
+O2message_ptr o2_current_message()
 {
     return o2_ctx->msgs;
 }
@@ -233,7 +233,7 @@ O2message_ptr o2_current_message(void)
 
 // free the current message from o2_ctx->msgs
 // 
-void o2_complete_delivery(void)
+void o2_complete_delivery()
 {
     O2_FREE(o2_postpone_delivery());
 }
@@ -242,7 +242,7 @@ void o2_complete_delivery(void)
 // remove the current message from o2_ctx->msgs and return
 // it so we can hand it off to another owner
 // 
-O2message_ptr o2_postpone_delivery(void)
+O2message_ptr o2_postpone_delivery()
 {
     assert(o2_ctx->msgs);
     O2message_ptr msg = o2_ctx->msgs;
