@@ -294,8 +294,8 @@ Http_conn::Http_conn(Fds_info *conn, const char *root_, int port_) :
         Bridge_info(o2ws_protocol)
 {
     O2_DBw(printf("%s new Http_conn %p socket %d\n",
-                  o2_debug_prefix, this, conn->get_socket());
-           conn->trace_socket_flag = true);
+                    o2_debug_prefix, this, conn->get_socket());
+           conn->trace_socket_flag = true;);
     root = root_;
     port = port_;
     reader = NULL;

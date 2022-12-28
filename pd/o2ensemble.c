@@ -7,12 +7,18 @@
 #include <string.h>
 #include "o2ensemble.h"
 
+typedef struct o2ens
+{
+  t_object x_obj;
+} t_o2ens;
+
 /* global state for O2 interface */
-static int o2ens_instance_count = 0;  /* counts number of o2 objects in Pd */
-static t_clock *o2ens_timer = NULL;   /* clock object to schedule polling */
-static long o2ens_ticks = 0;          /* counts calls to o2ens_clock_tick */
-static int o2ens_is_clock_ref = true; /* if initialized, we provide the 
-                                         reference clock */
+static int o2ens_instance_count = 0;   /* counts number of o2 objects in Pd */
+static t_clock *o2ens_timer = NULL;    /* clock object to schedule polling */
+static long o2ens_ticks = 0;           /* counts calls to o2ens_clock_tick */
+static int o2ens_is_clock_ref = false; /* do we provide the reference clock? */
+static int o2ens_clockjump_called = false;   /* was o2_clock_jump is called? */
+static t_o2ens *o2ens_o2ens_ptr = NULL;      /* pointer to an o2ensemble obj */
 
 /* Want to poll O2 at the Pd tick rate.
    Get a clock callback every tick, using APPROXTICKSPERSEC.
@@ -21,10 +27,25 @@ static int o2ens_is_clock_ref = true; /* if initialized, we provide the
 #define APPROXTICKSPERSEC \
     ((int)(STUFF->st_dacsr / (double)STUFF->st_schedblocksize))
 
-typedef struct o2ens
+/* called from O2 when clock sync detects a big jump */
+bool o2ens_time_jump_callback(double local_time, double old_global_time,
+                              double new_global_time)
 {
-  t_object x_obj;
-} t_o2ens;
+    o2ens_clockjump_called = false;
+    /* we only keep one o2ensemble object pointer and only send timejump
+       to one object, so if there are multiple o2ensemble objects, we
+       only send timejump to the first one, and if it gets deleted, all
+       bets are off */
+    if (o2ens_o2ens_ptr) {
+        t_atom outv[3];
+        SETFLOAT(outv, local_time * 1000.0);
+        SETFLOAT(outv + 1, old_global_time * 1000.0);
+        SETFLOAT(outv + 2, new_global_time * 1000.0);
+        outlet_anything(o2ens_o2ens_ptr->x_obj.ob_outlet, gensym("timejump"),
+                        3, outv);
+    }
+    return o2ens_clockjump_called;
+}
 
 
 /* this is called when the first o2ensemble is created and stopped when
@@ -87,6 +108,11 @@ void o2ens_initialize(t_o2ens *x, int is_join, int argc, t_atom *argv)
         char *opt = NULL;
         int clock = true;
         mqtt_ip[0] = 0;  /* default indicated by empty string */
+
+        if (!o2ens_o2ens_ptr) {
+            o2ens_o2ens_ptr = x;  /* save the object pointer for timejump msg */
+            o2_time_jump_callback_set(o2ens_time_jump_callback);
+        }
 
         o2ens_check_flags(x, &argc, &argv, &opt, &clock);
 
@@ -404,7 +430,7 @@ void o2ens_time(t_o2ens *x)
 {
     O2time now = o2_time_get();
     if (now >= 0) {
-        t_atom outv[2];
+        t_atom outv[1];
         SETFLOAT(outv, now * 1000);  // output in ms
         outlet_anything(x->x_obj.ob_outlet, gensym("time"), 1, outv);
     }
@@ -414,6 +440,13 @@ void o2ens_time(t_o2ens *x)
 void o2ens_clock(t_o2ens *x, float reference_flag)
 {
     o2ens_is_clock_ref = (reference_flag > 0);
+}
+
+
+void o2ens_clockjump(t_o2ens *x, float localms, float globalms, float adjust)
+{
+    o2ens_clockjump_called = true;
+    o2_clock_jump(localms * 0.001, globalms * 0.001, adjust != 0);
 }
 
 
@@ -550,6 +583,11 @@ void o2ens_free(t_o2ens *x)
     if (--o2ens_instance_count == 0) {
         clock_free(o2ens_timer);
     }
+    /* delete our pointer to the object, used for timejump messages */
+    if (x == o2ens_o2ens_ptr) {
+        o2ens_o2ens_ptr = NULL;
+        o2_time_jump_callback_set(NULL);
+    }
 }
 
 
@@ -577,6 +615,8 @@ void o2ensemble_setup(void)
                                          gensym("time"), A_NULL, 0);
     class_addmethod(o2ens_class, (t_method)o2ens_clock,
                                          gensym("clock"), A_FLOAT, 0);
+    class_addmethod(o2ens_class, (t_method)o2ens_clockjump,
+                    gensym("clockjump"), A_FLOAT, A_FLOAT, A_FLOAT, 0);
     class_addmethod(o2ens_class, (t_method)o2ens_oscport,
                                          gensym("oscport"), A_GIMME, 0);
     class_addmethod(o2ens_class, (t_method)o2ens_oscdelegate,

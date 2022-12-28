@@ -1,0 +1,237 @@
+design.txt
+Roger B. Dannenberg
+July 2022
+
+Notes for O2 external:
+
+o2ensemble [ensemble-name] [network-level] [o2lite-enable] [http-enable]
+           [http-root] [-d flags]- control O2
+    Initialization works like join, but if ensemble-name is not
+        present, O2 remains uninitialized until a join message.
+
+    In addition to the messages output in response to the following
+        messages, this object can send the list
+            "timejump" <localms> <oldms> <newms>
+        to the output of the first o2ensemble object created. This
+        corresponds to the o2_time_jump_callback function (see O2
+        documentation), which is called when clock synchronization
+        determines that the reference time has jumped (currently, by
+        more than 1 sec, because less than 1 sec is handled by
+        speeding up or slowing down by 10% to bring local time into
+        alignment with reference time). The local time (since starting
+        O2) is <localms>, the global (reference) time before the jump
+        is <oldms>, and the global time after the jump is <newms>. To
+        respond to this, you can send a clockjump message to this
+        o2ensemble object. If you do not send clockjump, you will get
+        the default behavior, which is to immediately set the clock
+        forward if newms > oldms, and stop the local clock until oldms
+        if newms < oldms (to prevent the observable time from going
+        backward). The latter case can occur if the process with the
+        reference clock is restarted. It may be simpler to just
+        restart all clients when the clock reference process restarts.
+
+  Messages:
+
+    join ensemble-name [network-level] [o2lite-enable] [http-enable]
+        [http-root] [-d flags] [-c clock] - ensemble-name is required;
+        network-level defaults to 2 (connect to local area network and
+        Internet if available), but 1 means local area network only,
+        and 0 means local host only. 3 means Internet connectivity
+        plus open a connection to the default MQTT broker for
+        wide-area discovery. Instead of 3, a URL (symbol) means
+        wide-area connectivity using an MQTT connection to the
+        designated broker.  The URL may contain a suffix of the form
+        ":1883" to also provide the broker's port number (in decimal);
+        o2lite-enable defaults to 1 (enable o2lite connections), but 0
+        means disable o2lite; http-enable defaults to 0, but 1 means
+        provide an HTTP service and o2lite over WebSockets. To specify
+        a port number for HTTP, use a symbol of the form ":8080"
+        instead of 1. http-root defaults to "web", but may contain an
+        absolute or relative path to the root of the web server's
+        static pages. The -d flags option can be used even if previous
+        optional parameters are missing, and passes debugging flags to
+        O2. The -c flag is followed by 1 or 0 to enable or disable
+        becoming the global time reference. The default is 1. Note
+        that if two O2 processes claim to be the time reference, the
+        process with the highest IP address and port number is the
+        reference and lower processes provide a backup clock.
+
+    leave - shut down all O2 services and connections
+
+    version - causes the list "version <version>" to be output, where
+        <version> is a symbol of the form 2.0.1
+
+    addresses - causes a list with "address", the public ip, internal
+        ip and TCP connection port for O2 to be output as strings in
+        128.2.3.4 format and decimal format for port number.
+
+    tap tappee tapper [-r] [-b] - tap a service. Use optional -r or
+        -u to indicate reliable or unreliable (TCP) transport, and
+        -k to indicate keep the same delivery mode. The default is
+        -k (keep).
+
+    untap tappee tapper - untap a service.
+
+    status service -- output the status of service as an integer in
+        a message of the form "status servicename 2".
+
+    time -- output the current O2 time in a message of the form
+        "time 3567.8", where time is in ms.
+
+    clock reference -- make this host be the reference clock if
+        reference is >0; otherwise, we do not provide the reference.
+        This should be sent *before* the join message, and the
+        clock reference is established after join. If no message is
+        sent before join, this process will *not* provide the
+        reference clock, so the default is as if "clock 0" was already
+        sent. Note that timestamps cannot be used without a reference
+        clock. Note also that if a second reference clock (which
+        starts at t=0) joins the ensemble at time T, then all other
+        processes will experienced stopped clocks until the new
+        reference clock catches up to the rest of the ensemble, which
+        will "stop time" for T seconds. Therefore, timed messages and
+        clock synchronization works best with *one* reference clock
+        whose process starts first and is not restarted for any
+        reason. (A slightly more robust scheme could be: Start two
+        reference clocks at about the same time. If one crashes, do
+        not restart it, and the other will take over. Clocks will
+        continue to run smoothly in synchrony.)
+
+    clockjump localms globalms adjust -- Generally, this should only
+        be sent directly in response to a timejump message (see
+        above). localms should be the <localms> value and globalms
+        should be the <newms> value. If the adjust parameter is
+        non-zero, pending timestamped messages will have their
+        delivery times adjusted so that they remain scheduled at the
+        same wall time, e.g., if time jumps back 60 seconds,
+        timestamps will be decremented by 60 seconds to
+        compensate. Otherwise, timestamps remain and are interpreted
+        according to the newly set clock.
+        
+    oscport service port [-r] [-b] - serve OSC messages to the given
+        port by forwarding to service. The server uses UDP by default
+        or with -b, and TCP with -r.
+
+    oscdelegate service address port [-r] [-b] - forward O2 messages
+        to service to OSC server at address (in the format 128.2.9.3)
+        and port (decimal), using UDP by default or with -b, and TCP
+        with -r.
+
+
+o2send [address]* [-t types] [-r] [-b] - send an O2 message
+    to a service. address is one or more
+    nodes, e.g. |o2send synth 1 pitch -t f| will address messages to
+    "/synth/1/pitch" containing a single float parameter. Either -r
+    or -b flags may be present to indicate "reliable" or "best effort"
+    (UDP) protocol.  If there is no service, the object will not send
+    a message until an address message is received.
+
+  Messages:
+    address [node]+ - (re)set the address according to the provided
+        list. The first node is the service name.
+
+    types [typestring] - (re)set the typestring of the outgoing 
+        message. Incoming parameters will be coerced to these types.
+        If typestring is missing, incoming parameters are sent as is.
+
+    time ms - send the next message at the given time in ms.
+        Default time is 0 ("now").
+
+    delay ms - send the next message after a delay of ms from now.
+
+    list p1 p2 p3 ... - a list of values is coerced to the current 
+        typestring if any and sent.  If there is no typestring, 
+        floats are sent as floats and symbols are sent as symbols.
+
+    status - output the status of the current service in the form of
+        a list: [status <servicename> <status>], where <status> is a
+        float.
+
+
+o2receive [node]* [-t types] - receive O2 messages. If at least one
+    node is present, a local service is offered if the service is not
+    already offered locally. If additional nodes are present, only
+    messages with the given path are received ("the given path" is the
+    path constructed as /node1/node2/node3/.../nodeN).  The -t option
+    specifies types, and incoming messages are coerced into the types
+    if possible, and otherwise the message is dropped. If there are no
+    types specified, messages are received as floats and symbols. If
+    there are two o2receive objects with the same service and address
+    nodes, then their types must be an exact match.  An o2receive
+    object can receive messages for at most one O2 service. If address
+    is omitted, no messages are received until an address message is
+    received (see below). Output is a list of address nodes, the
+    timestamp (a float) and message parameter values.
+    Note that only one process can receive messages to a given
+    service. Multiple o2receive objects can handle the same address
+    within a process (Pd instance). Messages are delivered to every
+    matching o2receive object. If two processes offer the same
+    service, only one will get messages for that service, and actual
+    delivery depends upon matching the address and types.
+  Messages:
+    address [node]+ [-t types] - (re)set the address according to the
+        provided list. The first node is the service name. If there is
+        only a service name and no additional address nodes, then
+        *all* messages sent to the service will be handled by this
+        object.  The optional typestring is used to check the
+        incoming messages. Parameters are coerced to these types if
+        possible and otherwise the message is not output. If typestring
+        is omitted, all messages matching the address are accepted.
+
+    disable - stop this object from handling any more messages. Use an
+        address message to reenable handling.
+
+    types [typestring] - (re)set the typestring associated with this
+        address. All o2receive objects with the same address are
+        affected.
+
+    
+o2property [service] [attribute] - get an O2 property
+  Messages:
+    get service attribute - get the value of attribute from service.
+
+    put service attribute [value] - put the value as attribute of
+        service, or if value is omitted, delete the attribute from
+        service. The service must be local; otherwise, the message
+        is ignored.
+
+    search attribute value - get service names where the
+        service attribute is matched by value (using prefix ":"
+        to match the beginning of the value and suffix ";" to match
+        the end of the value, e.g., the value ":foo;" will only
+        match if the service attribute's value is exactly "foo".
+        A list of service names is output.
+
+    bang - get the value of the attribute from service, using the
+        most recent service and attribute from either a get or put,
+        or using the initial values.
+    
+
+------------
+
+implementation plan:
+
+OK 1) make an object that outputs text every second using the hook. 
+
+OK 2) output bang instead
+
+OK 3) output a list of floats instead
+
+OK 4) output a symbol
+
+SKIP 5) output types of input
+
+DONE 6) respond to two diffent messages
+
+DONE 7) link with o2
+
+DONE 8) implement o2ensemble initialize, use o2_debug to print things
+
+9) add methods
+
+10) o2send
+
+11) o2receive
+
+
+    

@@ -1868,7 +1868,8 @@ O2_EXPORT O2err o2_time_jump_callback_set(o2_time_jump_callback callback);
  * in the real world. If #adjust is true, timestamps will be decremented
  * by 60 seconds to compensate.
  */
-O2_EXPORT O2err o2_clock_jump(double local_time, double global_time, bool adjust);
+O2_EXPORT O2err o2_clock_jump(double local_time, double global_time,
+                              bool adjust);
 
 
 /**

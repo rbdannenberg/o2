@@ -85,6 +85,9 @@ DARWINCFLAGS = -DPD -g -Wall -W -Wshadow -Wstrict-prototypes \
 .o.pd_darwin:
 	cc -bundle -undefined suppress -arch x86_64 \
             -flat_namespace -o $*.pd_darwin $*.o -L. -lo2pd
+	install_name_tool -change libo2pd.dylib @loader_path/libo2pd.dylib \
+	    $*.pd_darwin
+
 #            -L/Users/rbd/o2/Debug -lo2_static \
 #	rm -f $*.o
 
@@ -97,3 +100,4 @@ libo2pd.dylib: o2pd.o
             -arch x86_64 -o libo2pd.dylib o2pd.o \
             -all_load /Users/rbd/o2/Debug/libo2_static.a \
             -framework CoreAudio -lstdc++
+	install_name_tool -id @loader_path/libo2pd.dylib libo2pd.dylib

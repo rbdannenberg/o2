@@ -335,6 +335,9 @@ Fds_info::Fds_info(SOCKET sock, int net_tag_, int port_, Net_interface *own)
     out_msg_sent = 0;
     port = port_;
     owner = own;
+#ifndef O2_NO_DEBUG
+    trace_socket_flag = false;  // option to report when this closes
+#endif
     
     o2n_fds_info.push_back(this);
     struct pollfd *pfd = o2n_fds.append_space(1);
