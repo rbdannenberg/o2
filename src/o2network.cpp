@@ -1107,6 +1107,7 @@ O2err Fds_info::read_whole_message(SOCKET sock)
         // allow raw messages up to 512 bytes
         assert(net_tag & NET_TCP_MASK);
         in_message = O2N_MESSAGE_ALLOC(512);
+        assert(in_message && (size_t) in_message != 8);
         n = (int) recvfrom(sock, in_message->payload, 512, 0, NULL, NULL);
         O2_DBw(printf("%s READ_RAW read %d bytes\n", o2_debug_prefix, n));
         if (n < 0) {
@@ -1145,6 +1146,7 @@ O2err Fds_info::read_whole_message(SOCKET sock)
                 goto error_exit;
             }
             in_message = O2netmsg_new(in_length);
+            assert(in_message && (size_t) in_message != 8);
             in_msg_got = 0; // just to make sure
         }
         
@@ -1227,6 +1229,7 @@ int Fds_info::read_event_handler()
 #endif
         assert(!in_message);
         in_message = O2netmsg_new(len);
+        assert((size_t) in_message != 8);
         if (!in_message) return O2_FAIL;
         int n;
         // coerce to int to avoid compiler warning; ok because len is int

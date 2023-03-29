@@ -55,6 +55,13 @@ are all the possible tag values:
 // path_tree and are owned by an Fds_info object. Set the initial tag with or
 // without this bit accordingly:
 #define O2TAG_OWNED_BY_TREE 0x100000
+// Before we start to delete an O2_node, we check this flag, which is set
+// as the first thing when deletion begins. This is particularly for
+// Osc_info, which has a recursion problem: deleting an Osc_info deletes
+// its Service_entry, but deleting its Service_entry deletes the Osc_info.
+// There are other ways to solve this, but it seems more robust to allow
+// either one to be deleted:
+#define O2TAG_DELETE_IN_PROGRESS 0x200000
 
 #define O2TAG_HIGH O2TAG_OWNED_BY_TREE
 
@@ -139,6 +146,26 @@ class O2node : public O2obj {
         key = (key_ ? o2_heapify(key_) : NULL);
         next = NULL;
     }
+    
+    // essentially the same as operator delete, but it avoids recursively
+    // deleting any O2node that is already in the process of deletion.
+    // NEVER apply operator delete directly to an O2node or any subclass.
+    // Note that we can't simply override operator delete because we're
+    // really trying to avoid recursive calls to deconstructors, but there
+    // is nothing in C++ that can conditionally "cancel" deconstruction
+    // once you call operator delete; hence, call o2_delete() instead.
+    //
+    void o2_delete() {
+        assert(this);
+        if (!this) {  // we should not be trying to delete NULL!
+            return;
+        }
+        if (!(tag & O2TAG_DELETE_IN_PROGRESS)) {
+            tag |= O2TAG_DELETE_IN_PROGRESS;
+            delete this;
+        }
+    }
+    
     virtual ~O2node() { if (key) O2_FREE((char *) key); }
     
     // Get the process that offers this service. If not remote, it's
@@ -292,7 +319,7 @@ public:
     Proxy_info(const char *key, int tag) : O2node(key, tag) { fds_info = NULL; }
     // remove is only called from ~Fds_info(): it's purpose is to delete
     // a Proxy without a recursive deletion of Fds_info that it links to.
-    virtual void remove() { fds_info = NULL; delete this; }
+    virtual void remove() { fds_info = NULL; o2_delete(); }
 
     void delete_fds_info() {
         if (fds_info) {

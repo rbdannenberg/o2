@@ -114,10 +114,18 @@ public:
     }
 
     // deallocate everything that may have been allocated and attached
-    // to o2_ctx except chunk and chunk_remaining.
+    // to o2_ctx except chunk and chunk_remaining. At this point, the
+    // main process has been shut down, so we do not even have a name,
+    // but there could be references in the path_tree to the main (local)
+    // process. Therefore an "object oriented" shutdown, where we remove
+    // objects from the path_tree and let them execute deconstructors,
+    // is going to encounter dangling pointers and crash. Therefore,
+    // we use finishing to alter the descontruction behavior to not
+    // trace all pointers. When finishing == true, we assume that all
+    // objects will be found through the path_tree and deleted, and we
+    // when we delete X, we do not have to track down and clean up other
+    // pointers to X, because ALL objects are getting deleted now anyway.
     void finish() {
-        O2_DBG(printf("before o2_hash_node_finish of path_tree:\n"); \
-               show_tree());
         finishing = true;
         path_tree.finish();
         full_path_table.finish();

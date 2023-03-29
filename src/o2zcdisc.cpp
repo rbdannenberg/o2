@@ -493,7 +493,7 @@ O2err o2_zcdisc_initialize()
     if (err) {
         fprintf(stderr, "DNSServiceBrowse returned %d, "
                 "O2 discovery is not possible.\n", err);
-        delete zcreg;
+        zcreg->o2_delete();
         return O2_FAIL;
     }
 

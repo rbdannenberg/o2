@@ -472,7 +472,7 @@ O2err o2_method_free(const char *path)
     Service_provider *spp = service->proc_service_find(o2_ctx->proc);
     if (ISA_HANDLER(spp->service) || !slash) {
         // all we have to do is replace the service with an empty Hash_entry
-        delete spp->service;
+        spp->service->o2_delete();
         spp->service = new Hash_node(NULL);
         // note that there is no change in service, so no /_o2/si is sent
         return O2_SUCCESS;

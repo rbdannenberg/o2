@@ -215,6 +215,9 @@ Osc_info::~Osc_info()
 {
     O2_DBc(co_info(fds_info, "deleting Osc_info"));
     O2_DBo(o2_fds_info_debug_predelete(fds_info));
+    if (o2_ctx->finishing) {
+        return;  // we are shutting down; do not delete/remove related objects
+    }            // (we will find them in any case)
     if (key && (tag & (O2TAG_OSC_TCP_CLIENT | O2TAG_OSC_UDP_CLIENT))) {
         // if we are a client, we offer a service that's going away:
         Services_entry::proc_service_remove(key, o2_ctx->proc, NULL, -1);

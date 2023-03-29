@@ -418,7 +418,7 @@ O2err o2_discovered_a_remote_process_name(const char *name, int version,
             o2_prepare_to_deliver(o2_make_dy_msg(o2_ctx->proc, true, false,
                                                  O2_DY_CALLBACK));
             if (proc->send(false) != O2_SUCCESS) {
-                delete proc; // error recovery: don't leak memory
+                proc->o2_delete(); // error recovery: don't leak memory
             } else {
                 // this connection will be closed by receiving client
                 O2_DBd(printf("%s ** discovery sending O2_DY_CALLBACK to %s\n",
@@ -488,7 +488,7 @@ O2err o2_discovered_a_remote_process_name(const char *name, int version,
         } else {
             O2_DBd(printf("Warning: unexpected dy type %d name %s\n",
                           dy, name));
-            delete proc;
+            proc->o2_delete();
         }
     }
     O2err err = O2_SUCCESS;

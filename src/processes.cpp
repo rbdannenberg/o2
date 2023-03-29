@@ -126,8 +126,8 @@ Proc_info::~Proc_info()
     if (ISA_REMOTE_PROC(this)) { // not for PROC_TEMP or PROC_TCP_SERVER
         Services_entry::remove_services_by(this);
     } else {
-        O2_DBo(printf("%s freeing local proc_info tag %s name %s\n",
-                      o2_debug_prefix, o2_tag_to_string(tag),
+        O2_DBo(printf("%s freeing local proc_info %p tag %s name %s\n",
+                      o2_debug_prefix, this, o2_tag_to_string(tag),
                       key));
     }
     delete_fds_info();
@@ -240,7 +240,7 @@ Proc_info *Proc_info::create_tcp_proc(int tag, const char *ip, int *port)
         assert(false);
     }
     if (!proc->fds_info) { // failure, remove proc
-        delete proc;
+        proc->o2_delete();
         return NULL;
     }
     return proc;

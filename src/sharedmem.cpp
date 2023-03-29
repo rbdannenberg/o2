@@ -398,7 +398,7 @@ static void o2sm_fin_handler(O2msg_data_ptr msgdata, const char *types,
                              O2arg_ptr *argv, int argc, const void *user_data)
 {
     O2_DBd(o2_dbg_msg("o2sm_fin_handler gets", NULL, msgdata, NULL, NULL));
-    delete o2_message_source;
+    o2_message_source->o2_delete();
     return;
 }
 

@@ -166,7 +166,7 @@ static void o2ws_dy_handler(O2msg_data_ptr msgdata, const char *types,
     if (!streql(ens, o2_ensemble_name)) {
         fprintf(stderr, "Warning: Websocket connection presented the wrong "
                 "ensemble name (%s). Connection will be dropped.\n", ens);
-        delete http_conn;
+        http_conn->o2_delete();
         o2_message_source = NULL;
         return;
     }
@@ -274,7 +274,7 @@ Http_server::~Http_server()
     for (int i = 0; i < n; i++) {
         Http_conn *http = (Http_conn *) o2n_fds_info[i]->owner;
         if (http && ISA_O2WS(http)) {  // only remove an http client
-            delete http;
+            http->o2_delete();
         }
     }
     O2_FREE((char *) root);
@@ -314,7 +314,7 @@ void Http_conn::remove()
 {
     O2_DBw(printf("%s removing socket %d for Http_conn %p\n", o2_debug_prefix,
                   fds_info->get_socket(), this));
-    delete this;
+    o2_delete();
 }
 
 

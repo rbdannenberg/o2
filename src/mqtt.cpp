@@ -93,7 +93,7 @@ O2err o2_mqtt_send_disc()
         if (mqtt->timeout < 0) {
             o2_mqtt_procs.remove(i);
             i--; // this "hole" is filled with another, so check [i] again.
-            delete mqtt;
+            mqtt->o2_delete();
         }
     }
     return O2_SUCCESS;
@@ -150,8 +150,10 @@ O2err o2_mqtt_initialize()
 
 O2err o2_mqtt_finish()
 {
-    delete mqtt_info;
-    mqtt_info = NULL;
+    if (mqtt_info) {
+        mqtt_info->o2_delete();
+        mqtt_info = NULL;
+    }
     mqtt_comm.finish();
     return O2_SUCCESS;
 }
@@ -203,7 +205,7 @@ MQTT_info::~MQTT_info()
     if (!key) {  // represents entire MQTT protocol
         while (o2_mqtt_procs.size() > 0) {
             // free the last one to avoid N^2 algorithm
-            delete o2_mqtt_procs.pop_back();
+            o2_mqtt_procs.pop_back()->o2_delete();
         }
         o2_mqtt_procs.finish();  // deallocate storage too
         delete_fds_info();

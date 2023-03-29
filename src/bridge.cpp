@@ -59,7 +59,7 @@ Bridge_protocol::~Bridge_protocol() {
     // last element of instances to index 0. The size of instances shrinks
     // by 1 each iteration until there is nothing left.
     while (instances.size() > 0) {
-        delete instances[0];
+        instances[0]->o2_delete();
     }
     int i = o2_bridge_find_protocol(protocol, NULL);
     if (i >= 0) {
@@ -437,7 +437,7 @@ O2lite_protocol::~O2lite_protocol()
         O2lite_info *o2lite = (O2lite_info *) o2n_fds_info[i]->owner;
         // o2lite could be anything: Proc_info, Osc_info, Bridge_info, etc.
         if (o2lite && ISA_O2LITE(o2lite)) {  // only remove an O2lite_info
-            delete o2lite;
+            o2lite->o2_delete();
         }
     }
     o2lite_protocol = NULL;
@@ -505,7 +505,7 @@ void o2lite_con_handler(O2msg_data_ptr msgdata, const char *types,
     // now we've moved ownership of the socket to an O2lite_info;
     // The o2_info that received this message is a Proc_info that
     // was created when we accepted the TCP port. Free it now.
-    delete o2_message_source;
+    o2_message_source->o2_delete();  // avoid recursive delete
     // reply with id
     o2_send_start();
     o2_add_int32(info->id);

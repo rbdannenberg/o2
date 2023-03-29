@@ -107,7 +107,7 @@ void Hash_node::finish()
         O2node *e = children[i];
         while (e) {
             O2node *next = e->next;
-            delete e;
+            e->o2_delete();
             e = next;
         }
     }
@@ -307,7 +307,7 @@ O2err Hash_node::entry_remove(O2node **child, bool resize)
     num_children--;
     O2node *entry = *child;
     *child = entry->next;
-    delete entry;
+    entry->o2_delete();
     // if the table is too big, rehash to smaller table
     if (resize && (num_children * 5 < children.size()) && (num_children > 3)) {
         // See below on table resizing.

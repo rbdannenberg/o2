@@ -62,7 +62,7 @@ static bool o2_memory_mgmt = true;  // assume our memory management
 #if O2MEM_DEBUG
 
 #ifdef O2_NO_DEBUG
-#error O2MEM_DEBUG should be 0 ir O2_NO_DEBUG is defined
+#error O2MEM_DEBUG should be 0 if O2_NO_DEBUG is defined
 #endif
 
 #ifdef WIN32

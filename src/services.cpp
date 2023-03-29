@@ -54,7 +54,7 @@ O2err Services_entry::service_new(O2string padded_name)
     O2err rslt = service_provider_new(padded_name, NULL,
                                       node, o2_ctx->proc);
     if (rslt != O2_SUCCESS) {
-        delete node;
+        node->o2_delete();
         return rslt;
     }
     // Note that when the local @public:internal:port service is created,
@@ -354,7 +354,7 @@ O2err Services_entry::service_provider_replace(const char *service_name,
     assert(new_service);
     // clean up the old service node
     if (HANDLER_IS_LOCAL(*node_ptr)) {
-        delete *node_ptr;
+        (*node_ptr)->o2_delete();
     } else if (ISA_LOCAL_SERVICE(*node_ptr)) {
         return O2_SERVICE_EXISTS;  // can't replace pre-existing OSC or BRIDGE
     } else {
@@ -416,20 +416,36 @@ O2err Services_entry::service_remove(const char *srv_name,
     // we must delete the proxy. To break the cycle, we remove the
     // service-to-proxy pointer first, then delete the proxy. It might look
     // up the service again, but that's a far as it will get.
+    // Note: For some reason, this logic did not prevent ~Osc_info from
+    // invoking itself recursively. I'm not sure what's going on, but I
+    // replaced ALL calls to delete an O2node or subclass of O2node
+    // with calls to o2_delete(), which breaks any recursion as soon as it
+    // starts. (See O2_node::o2_delete()).
     O2node *service = spp->service;
     services.remove(index);
+
+    // service_name might actually be ss->key, in which case is could
+    // be freed, so keep a copy so we can send notification below
+    char name[MAX_SERVICE_LEN];
+    strncpy(name, srv_name, MAX_SERVICE_LEN);
+
     // some service providers are "owned" by the service, e.g. a
     // Handler_entry, while others are owned by an associated
     // Fds_info, e.g. a remote Proc_info. Only delete nodes that
     // are owned by the service:
     if (service->tag & O2TAG_OWNED_BY_TREE) {
-        delete service;
+        service->o2_delete();
     }
     // we removed the service at index; let the world know
     o2_do_not_reenter++; // protect data structures
+    
+    // osc delete passes NULL proc
+    if (!proc) {
+        proc = o2_ctx->proc;  // during shutdown, this proc might be NULL too
+    }
     // send notification message
     o2_send_cmd("!_o2/si", 0.0, "siss", srv_name, O2_UNKNOWN,
-                proc->get_proc_name(), "");
+                proc ? proc->get_proc_name() : "unknown", "");
 
     // if we deleted active service, pick a new one
     if (index == 0) { // move top @public:internal:port provider to top spot
@@ -447,19 +463,17 @@ O2err Services_entry::service_remove(const char *srv_name,
                         spp->properties ? spp->properties + 1 : "");
         }
     }
+
     // if no more services or taps, remove the whole services_entry:
-    // service_name might actually be ss->key, in which case is could
-    // be freed, so keep a copy so we can send notification below
-    char name[MAX_SERVICE_LEN];
-    strncpy(name, srv_name, MAX_SERVICE_LEN);
     remove_if_empty();
 
     // if the service was local, tell other processes that it is gone
-    if (proc == o2_ctx->proc
+    if (proc &&
+        (proc == o2_ctx->proc
 #ifndef O2_NO_BRIDGES
-        || ISA_BRIDGE(proc)
+         || ISA_BRIDGE(proc)
 #endif
-       ) {
+        )) {
         o2_notify_others(name, false, NULL, NULL, 0);
     }
     o2_do_not_reenter--;
@@ -467,6 +481,7 @@ O2err Services_entry::service_remove(const char *srv_name,
     // services being tapped, so we have to search all taps for a match.
     // since this might cause us to rehash services, first make a list
     Vec<Services_entry *> services_list;
+    
     Services_entry::list_services(services_list);
     for (int j = 0; j < services_list.size(); j++) {
         Services_entry *services = services_list[j];
@@ -638,7 +653,7 @@ Services_entry::~Services_entry()
         Service_provider *spp = &services[i];
         O2node *prvdr = spp->service;
         if (ISA_LOCAL_SERVICE(prvdr)) {
-            delete prvdr;
+            prvdr->o2_delete();
         } else assert(ISA_REMOTE_PROC(prvdr));
         // free the properties string if any
         if (spp->properties) {
@@ -667,7 +682,8 @@ void Services_entry::show(int indent)
     for (int i = 0; i < taps.size(); i++) {
         for (int j = 0; j < indent; j++) printf("  ");
         Service_tap *tap = &taps[i];
-        printf("TAP@%p %s by %s\n", tap, tap->tapper, tap->proc->key);
+        printf("TAP@%p %s by (%p) %s\n", tap, tap->tapper, tap->proc,
+               tap->proc->key);
     }
 }
 #endif
