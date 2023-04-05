@@ -16,7 +16,7 @@ int o2_debug = 0;
 // WARNING: this string is in the exact bit order of debug flags, e.g.
 // O2_DBc_FLAG is 1, O2_DBr_FLAG is 2, O2_DBs_FLAG is 4, etc., hence
 // this string starts with "crs...":
-static const char *debug_chars = "crsRSkdhtTlmoOqwzgpW";
+static const char *debug_chars = "bcdghklmnOopqRrSsTtWwz";
 #endif
 
 void o2_debug_flags(const char *flags)

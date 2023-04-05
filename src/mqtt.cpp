@@ -201,6 +201,7 @@ O2err MQTT_info::send(bool block)
 //
 MQTT_info::~MQTT_info()
 {
+    O2_DBb(printf("%s deleting MQTT_info@%p\n", o2_debug_prefix, this));
     O2_DBo(o2_fds_info_debug_predelete(fds_info));
     if (!key) {  // represents entire MQTT protocol
         while (o2_mqtt_procs.size() > 0) {

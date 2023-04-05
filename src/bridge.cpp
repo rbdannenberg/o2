@@ -49,8 +49,8 @@ Bridge_protocol::Bridge_protocol(const char *name) {
 
 
 Bridge_protocol::~Bridge_protocol() {
-    O2_DBw(printf("%s deleting Bridge_protocol@%p size %d\n", o2_debug_prefix,
-                  this, instances.size()));
+    O2_DBb(printf("%s deleting Bridge_protocol@%p name %s size %d\n",
+                  o2_debug_prefix, this, protocol, instances.size()));
     remove_services(NULL);  // remove all Bridge_info for this protocol
     // this is a little tricky: deleting an instance, which is a Bridge_info,
     // removes the Bridge_info from instances. There's a search involved, but
@@ -59,14 +59,17 @@ Bridge_protocol::~Bridge_protocol() {
     // last element of instances to index 0. The size of instances shrinks
     // by 1 each iteration until there is nothing left.
     while (instances.size() > 0) {
+        O2_DBb(printf("%s deleting %s Bridge instance@%p\n", o2_debug_prefix,
+                      protocol, instances[0]));
         instances[0]->o2_delete();
     }
     int i = o2_bridge_find_protocol(protocol, NULL);
     if (i >= 0) {
+        O2_DBb(printf("%s removing Bridge_protocol@p name %s index %d "
+                      "size %d from array of protocols\n", o2_debug_prefix,
+                      this, protocol, i, instances.size()));
         bridges.remove(i);
     }
-    O2_DBw(printf("%s deleting Bridge_protocol instances@%p, size %d\n",
-                  o2_debug_prefix, &instances, instances.size()));
 }
 
 
@@ -101,6 +104,9 @@ int o2_bridge_find_protocol(const char *name, Bridge_protocol **protocol)
 // specific process.
 O2err Bridge_protocol::remove_services(Bridge_info *bi)
 {
+    O2_DBb(printf("%s remove_services delegating to bridge protocol@%p name"
+                  " %s instance %p%s\n", o2_debug_prefix, this, protocol, bi,
+                  bi ? "" : " (all)"));
     O2err result = O2_SUCCESS;
     // since this might cause us to rehash services, first make a list
     Vec<Services_entry *> services_list;
@@ -113,6 +119,9 @@ O2err Bridge_protocol::remove_services(Bridge_info *bi)
             if (service && ISA_BRIDGE(service) &&
                 (!bi || bi == (Bridge_info *) service) &&
                 ((Bridge_info *) service)->proto == this) {
+                O2_DBb(printf("%s remove_services removing %s delegating to "
+                              "bridge instance %p protocol %s\n",
+                              o2_debug_prefix, services->key, bi, protocol));
                 if (services->proc_service_remove(services->key, o2_ctx->proc,
                                                   services, k)) {
                     result = O2_FAIL; // this should never happen
@@ -368,6 +377,7 @@ public:
     }
 
     virtual ~O2lite_info() {
+        O2_DBb(printf("%g deleting O2lite_info@%p\n", o2_debug_prefix, this));
         if (!this) return;
         // remove all sockets serviced by this connection
         proto->remove_services(this);
@@ -431,6 +441,7 @@ public:
 
 O2lite_protocol::~O2lite_protocol()
 {
+    O2_DBb(printf("%g deleting O2lite_protocol@%p\n", o2_debug_prefix, this));
     o2_method_free("/_o2/o2lite");
     // also free all O2lite connections
     for (int i = 0; i < o2n_fds_info.size(); i++) {

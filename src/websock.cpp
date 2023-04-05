@@ -95,7 +95,8 @@ public:
     }
     
     virtual ~O2ws_protocol() {
-        O2_DBw(printf("%s deleting O2ws_protocol@%p\n", o2_debug_prefix, this));
+        O2_DBbw(printf("%s deleting O2ws_protocol@%p\n",
+                       o2_debug_prefix, this));
         o2_method_free("/_o2/o2ws"); // remove all o2ws support handlers
         pending_ws_senders = NULL;
     }

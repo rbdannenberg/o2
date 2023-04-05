@@ -137,6 +137,8 @@ class O2queue {
     void push(O2list_elem *elem);
 
     O2list_elem *grab();
+    
+    void free();  // empties queue and frees all messages found
 };
 
 #if defined(__clang__)

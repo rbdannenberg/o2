@@ -83,6 +83,36 @@ will be called the O2SM thread in this section. The steps below are
 marked with either "(O2 thread)" or "(O2SM thread)" to indicate which
 thread should run the operation.
 
+Ownership: Every shared memory process has an O2_context and an
+O2sm_info. The O2sm_info is owned by the O2 thread because the
+O2 thread manages all bridges and when bridges or protocols shut
+down, the O2 thread deletes bridge protocols and bridge instances.
+The O2_context is owned by the O2SM thread and is often in static
+memory. The O2_context has a pointer to the O2sm_info instance
+where messages are queued from O2 to O2SM.
+
+Shutting down the O2SM thread should be initiated by the O2SM thread
+by calling o2sm_finish(), which finishes the O2SM context and sends
+an /_o2/o2sm/fin message to O2. The application should shut down
+O2SM threads before calling o2_finish(). Otherwise, there will be
+contexts owned by O2SM threads with references to O2sm_info
+instances. If the O2 thread deletes them, it leaves dangling
+pointers that could crash O2SM threads. If O2 thread leaves them,
+then memory is leaked and the O2SM thread will crash anyway because
+o2_finish will free the O2 heap.
+
+There is a synchronization issue: When the O2 thread wants to finish
+or exit, how does it know when all O2SM threads have finished? The
+application is responsible for shutting down O2SM threads *before*
+calling o2_finish. Normally, this should be done by sending messages.
+There is no standard message or built-in mechanism for this, since
+creating and exiting threads is not an O2 operation. After all
+O2SM threads call o2sm_finish() and their fin messages are handled,
+there will be no more O2sm_info instances, so the O2 thread should
+wait for that. While waiting, the O2 thread must call o2_poll() to
+receive and handle fin messages. To check for instances, use
+o2_shmem_inst_count().
+
 o2_shmem_initialize() - Initially, an array of O2sm_info* is
     created, a new bridge protocol for "o2sm" is created, and a
     handler is created for /_o2/o2sm/sv and /_o2/o2sm/fin. (O2 thread)
@@ -90,6 +120,8 @@ o2_shmem_initialize() - Initially, an array of O2sm_info* is
 o2_shmem_inst_new() - creates a new O2sm_info. The O2sm_info must be
     passed to the O2SM thread. It is also stored in the o2sm_bridges
     array. (O2 thread)
+ 
+o2_shmem_inst_count() - returns the number of shared memory instances.
 
 o2sm_initialize() - installs an O2_context for the O2SM thread and
     retains the Bridge_info* which contains a message queue for
@@ -118,24 +150,6 @@ o2sm_finish() - To shut down cleanly, first the O2SM thread should
     stop calling o2sm_poll() and call o2sm_finish(), which frees the
     O2SM O2_context structures (but not the O2sm_info), and calls
     /_o2/o2sm/fin with the id as parameter. (O2SM thread)
-
-o2_shmem_inst_finish() - called by /_o2/o2sm/fin handler (and also a
-    callback for deleting an O2sm_info). Removes outgoing messages
-    from O2sm_info. Similar to o2lite_inst_finish, this removes every
-    service that delegates to this bridge if this is the "master"
-    instance (each service has a non-master copy of this instance).
-    The instance is removed from the o2sm_bridges array. (O2 thread)
-
-When the O2 thread shuts down, o2_bridges_finish is called. It is the
-    application's responsibility to shut down the O2SM thread
-    first. Note that the O2SM thread uses O2 memory allocation, and
-    the O2 heap will be shut down as part of o2_finish, so the
-    potential problems extend beyond the bounds of the bridge
-    API. Assuming the O2SM thread(s) are shut down cleanly when they
-    call o2sm_finish(), there will be no more shared memory process
-    bridge instances. However, the protocol still exists, so at least
-    o2_bridges_finish() will call o2_shmem_finish(), and it may call
-    o2_shmem_inst_finish() for any surviving instance. (O2 thread)
 
 o2_shmem_finish() - shuts down the entire "o2sm" protocol. First, 
     o2sm_bridges is searched and any instance there is deleted by
@@ -194,7 +208,17 @@ class O2sm_protocol : public Bridge_protocol {
 public:
     O2sm_protocol() : Bridge_protocol("O2sm") { }
     virtual ~O2sm_protocol() {
+        O2_DBb(printf("%s deleting O2sm_protocol@%p\n", o2_debug_prefix,
+                      this));
         o2_method_free("/_o2/o2sm");  // remove all o2sm support handlers
+
+        // free all messages arriving from shared memory instances:
+        o2sm_incoming.free();
+        o2sm_protocol = NULL;
+
+    /* THIS IS SLIGHTLY DIFFERENT FROM Bridge_protocol::remove_services(),
+       BUT THAT WILL BE CALLED FROM ~Bridge_protocol(), SO THIS CODE
+       SHOULD NOT BE NECESSARY:
         // by now, shared memory thread should be shut down cleanly,
         // so no more O2sm_info objects (representing connections to
         // threads) exist. If they do, then in principle they should
@@ -215,6 +239,9 @@ public:
                 Service_provider *spp = &services->services[j];
                 Bridge_info *bridge = (Bridge_info *) (spp->service);
                 if (ISA_BRIDGE(bridge) && bridge->proto == o2sm_protocol) {
+                    O2_DBb(printf("%s removing service %s delegating to "
+                                  "O2sm_protocol@%p\n", o2_debug_prefix,
+                                  services->key, this));
                     services->proc_service_remove(services->key, bridge,
                                                   services, j);
                     break; // can only be one of services offered by bridge,
@@ -223,6 +250,7 @@ public:
                 }
             }
         }
+     */
     }
     
     virtual O2err bridge_poll() {
@@ -254,9 +282,9 @@ public:
 
     virtual ~O2sm_info() {
         if (!this) return;
-        // remove all sockets serviced by this connection
+        // remove all services delegating to this connection
         proto->remove_services(this);
-        free_outgoing();
+        outgoing.free();
     }
 
     // O2sm is always "synchronized" with the Host because it uses the
@@ -280,20 +308,10 @@ public:
         // memory -- find queue and add the message there atomically
         // printf("O2sm_info sending to thread %s\n", msg->data.address);
         outgoing.push((O2list_elem *) msg);
-        o2_message_source = NULL;  // clean up to help debugging
         return err;
     }
     
     void poll_outgoing();
-   
-    void free_outgoing() {
-        O2message_ptr all = (O2message_ptr) outgoing.grab();
-        while (all) {
-            O2message_ptr msg = all;
-            all = msg->next;
-            O2_FREE(msg);
-        }
-    }
 
 
 #ifndef O2_NO_DEBUG
@@ -321,6 +339,11 @@ Bridge_info *o2_shmem_inst_new()
     return new O2sm_info();
 }
 
+
+int o2_shmem_inst_count()
+{
+    return o2sm_protocol ? o2sm_protocol->instances.size() : 0;
+}
 
 // retrieve all messages from head atomically. Then reverse the list.
 //
@@ -397,8 +420,11 @@ static void o2sm_sv_handler(O2msg_data_ptr msgdata, const char *types,
 static void o2sm_fin_handler(O2msg_data_ptr msgdata, const char *types,
                              O2arg_ptr *argv, int argc, const void *user_data)
 {
-    O2_DBd(o2_dbg_msg("o2sm_fin_handler gets", NULL, msgdata, NULL, NULL));
-    o2_message_source->o2_delete();
+    O2_DBb(o2_dbg_msg("o2sm_fin_handler gets", NULL, msgdata, NULL, NULL));
+    O2sm_info *info = (O2sm_info *) o2sm_protocol->find(argv[0]->i);
+    if (info) {
+        info->o2_delete();
+    }
     return;
 }
 
@@ -412,7 +438,7 @@ O2err o2_shmem_initialize()
     o2sm_protocol = new O2sm_protocol();
     o2_method_new_internal("/_o2/o2sm/sv", "isiisi", &o2sm_sv_handler,
                            NULL, false, true);
-    o2_method_new_internal("/_o2/o2sm/fin", "", &o2sm_fin_handler,
+    o2_method_new_internal("/_o2/o2sm/fin", "i", &o2sm_fin_handler,
                            NULL, false, true);
     return O2_SUCCESS;
 }
@@ -644,7 +670,6 @@ void o2sm_poll()
 void O2sm_info::poll_outgoing()
 {
     O2time now = o2sm_time_get();
-    extern Bridge_info *smbridge;
     O2message_ptr msgs = get_messages_reversed(&outgoing);
     O2message_ptr next;
     // sort msgs into immediate and schedule
@@ -684,6 +709,8 @@ void O2sm_info::poll_outgoing()
 
 void o2sm_initialize(O2_context *ctx, Bridge_info *inst)
 {
+    O2_DBb(printf("%s o2sm_initialize ctx %p Bridge_info %p\n",
+                  o2_debug_prefix, ctx, inst));
     o2_ctx = ctx;
     // local memory allocation will use malloc() to get a chunk on the
     // first call to O2_MALLOC by the shared memory thread. If
@@ -707,10 +734,15 @@ void o2sm_initialize(O2_context *ctx, Bridge_info *inst)
 
 void o2sm_finish()
 {
+    assert(o2_ctx);
+    assert(o2_ctx->binst);
     // make message before we free the message construction area
     o2_send_start();
+    o2_add_int32(o2_ctx->binst->id);
     O2message_ptr msg = o2_message_finish(0.0, "/_o2/o2sm/fin", true);
     // free the o2_ctx data
+    O2_DBb(printf("%s o2sm_finish finishing O2_context@%p\n",
+                  o2_debug_prefix, o2_ctx));
     o2_ctx->finish();
     o2_ctx = NULL;
     // notify O2 to remove bridge: does not require o2_ctx

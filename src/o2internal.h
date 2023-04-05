@@ -113,6 +113,10 @@ public:
         finishing = false;
     }
 
+    ~O2_context() {
+        O2_DBb(printf("%s ~O2_context@%p\n", o2_debug_prefix, this));
+    }
+
     // deallocate everything that may have been allocated and attached
     // to o2_ctx except chunk and chunk_remaining. At this point, the
     // main process has been shut down, so we do not even have a name,
@@ -127,13 +131,16 @@ public:
     // pointers to X, because ALL objects are getting deleted now anyway.
     void finish() {
         finishing = true;
+        binst = NULL;
         path_tree.finish();
         full_path_table.finish();
         argv_data.finish();
         arg_data.finish();
         msg_types.finish();
         msg_data.finish();
+        O2_DBb(printf("%s O2_context::finish@%p\n", o2_debug_prefix, this));
     }
+
 #ifndef O2_NO_DEBUG
     void show_tree() {
         printf("%s -------- PATH TREE --------\n", o2_debug_prefix);

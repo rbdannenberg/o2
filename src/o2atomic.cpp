@@ -64,4 +64,14 @@ O2list_elem *O2queue::grab()
     return orig_src.first;
 }
 
+void O2queue::free()
+{
+    O2list_elem *all = grab();
+    while (all) {
+        O2list_elem *msg = all;
+        all = all->next;
+        O2_FREE(msg);
+    }
+}
+
 #endif

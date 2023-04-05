@@ -6,3 +6,5 @@
 
 Bridge_info *o2_shmem_inst_new();
 
+// return number of shared memory instances
+int o2_shmem_inst_count();

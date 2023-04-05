@@ -518,6 +518,11 @@ void *o2_malloc(size_t size)
 {
     int need_debug_space = 0;
     char *next;
+    if (o2mem_state != INITIALIZED) {
+        fprintf(stderr, "o2_malloc: o2mem_state != INITIALIZED\n");
+        assert(false);  // application code could recover from this,
+        return NULL;    // but it seems unlikely, so assert(false).
+    }
 #if O2MEM_DEBUG
     // debugging code scans all chunks, so we need exclusive access:
     mem_lock();
@@ -685,6 +690,10 @@ void o2_free(void *ptr)
     size_t realsize;
     preamble_ptr preamble;
     O2queue *head_ptr;
+    if (o2mem_state != INITIALIZED) {
+        fprintf(stderr, "o2_free: o2mem_state != INITIALIZED\n");
+        return;
+    }
 #if O2MEM_DEBUG
     postlude_ptr postlude;
     mem_lock();

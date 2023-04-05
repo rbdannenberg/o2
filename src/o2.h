@@ -498,34 +498,35 @@ typedef enum {
 /// and clock synchronization status. Enable the debugging
 /// information by calling #o2_debug_flags with a string
 /// containing any of the following characters:
+///   - a - enable all debug flags except m (malloc/free)
+///   - A - enable all debug flags except malloc and scheduling
+///   - b - trace bridge setup and take-down
 ///   - c - print basic connection data
-///   - r - trace non-system incoming messages
-///   - s - trace non-system outgoing messages
-///   - R - trace system incoming messages
-///   - S - trace system outgoing messages
-///   - k - trace clock synchronization protocol
 ///   - d - trace discovery messages
+///   - g - print general status info, not much detail
 ///   - h - trace hub-related activity
-///   - t - trace user messages dispatched from schedulers
-///   - T - trace system messages dispatched from schedulers
+///   - I - disable Internet connections, e.g., do not acquire public IP.
+///   - k - trace clock synchronization protocol
 ///   - l - trace messages to #o2_msg_deliver
 ///   - m - trace O2_MALLOC and O2_FREE calls
+///   - n - enable all network flags (no malloc or scheduling): rRsS
+///   - N - disable network if flags are set before o2_initialize() is
+///         called. Internal IP becomes 127.0.0.1, public IP is
+///         0.0.0.0 (signifying no Internet connection). Interprocess
+///         communication on the host is supported.
 ///   - o - trace socket creating and closing
 ///   - O - open sound control messages
 ///   - p - trace tap messages and operations
 ///   - q - show MQTT messages
-///   - w - trace websockets activity
+///   - R - trace system incoming messages
+///   - r - trace non-system incoming messages
+///   - S - trace system outgoing messages
+///   - s - trace non-system outgoing messages
+///   - t - trace user messages dispatched from schedulers
+///   - T - trace system messages dispatched from schedulers
 ///   - W - trace all web page and socket binary data
+///   - w - trace websockets activity
 ///   - z - trace Zeroconf (Bonjour, Avahi)
-///   - g - print general status info, not much detail
-///   - n - enable all network flags (no malloc or scheduling): rRsS
-///   - a - enable all debug flags except m (malloc/free)
-///   - A - enable all debug flags except malloc and scheduling
-///   - I - disable Internet connections, e.g., do not acquire public IP.
-///   - N - disable network if flags are set before o2_initialize() is
-///         called. Internal IP becomes 127.0.0.1, public IP is 
-///         0.0.0.0 (signifying no Internet connection). Interprocess
-///         communication on the host is supported.
 O2_EXPORT void o2_debug_flags(const char *flags);
 
 /**
