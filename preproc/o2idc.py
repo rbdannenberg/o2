@@ -13,7 +13,8 @@
 # where the full O2 address will be "!<service>/<name>" and the 
 # parameters will have the <type>'s declared within parentheses.
 # For O2lite compatibility, types are int32, int64, float, double,
-# and string. The <param>'s are C identifiers, but their only
+# and string. bool was added and should be in O2lite.
+# The <param>'s are C identifiers, but their only
 # purpose is to make the method more understandable. The description
 # after the close parenthesis ")" is ignored up to the next blank line.
 #
@@ -79,7 +80,7 @@ import os
 
 
 typecodes = {"string": "s", "int32": "i", "int64": "h", "float": "f",
-             "double": "d"}
+             "double": "d", "bool": "B"}
  
  
 # typestring = make_typestring(meth[1]);
@@ -161,7 +162,11 @@ def unpack_args(outf, o2id_type, description, handler, methods):
             ctype = "int64_t "
         else:
             ctype = (typ + " ")
-        typestring = typestring + typecodes[typ]
+        typecode = typecodes.get(typ)
+        if not typecode:
+            print("o2idc: invalid type", typ, "near", fields)
+            return False
+        typestring = typestring + typecode
         if o2id_type == 'o2lite':
             print(ctype, pname, " = GET_", typ.upper(), "();",
                       sep='', file=hfile)
@@ -174,14 +179,13 @@ def unpack_args(outf, o2id_type, description, handler, methods):
     return True
 
 
-def process(filename):
+def process(filename, output_filename):
+    """"rewrite filename to output_filename, replacing generated code sections"""
     print("   ", filename)
     wrote_initialize = False
     methods = []  # list of (address, handler, typestring) pairs
-    backupname = filename + ".bak"
-    os.rename(filename, backupname)
-    outf = open(filename, "w")
-    with open(backupname, "r") as file:
+    outf = open(output_filename, "w")
+    with open(filename, "r") as file:
         state = 'findid'
         description = ""
         handler = ""
@@ -262,7 +266,6 @@ def process(filename):
                 else:
                     if not unpack_args(outf, o2id_type, description, 
                                        handler, methods):
-                        os.rename(backupname, filename)
                         return False
                     outf.write(orig_line)
                     state = 'skipandfindid'
@@ -270,7 +273,6 @@ def process(filename):
                 if line.find("// end unpack message") >= 0:
                     if not unpack_args(outf, o2id_type, description,
                                        handler, methods):
-                        os.rename(backupname, filename)
                         return False
                     state = 'skipandfindid'
             elif state == 'skipinit':
@@ -280,7 +282,6 @@ def process(filename):
                     state = 'findid'
             else:
                 print("o2idc: unexpected condition, state", state)
-                os.rename(backupname, filename)
                 return False
     if state == 'findid' and not wrote_initialize:
         filebase = os.path.basename(filename)
@@ -291,14 +292,39 @@ def process(filename):
     elif state != 'findid':
         print("o2idc: something was not closed properly. Unexpected state")
         print("    at the end of", filename, " (final state", state, ")")
-        os.rename(backupname, filename)
         return False
     outf.close()
     return True
 
 
+def process_and_cleanup(filename):
+    """generate to filename.output. If error, just report error and
+    delete filename.output. If no error, rename the original to
+    filename.bak<N> for N in 1, 2, 3, ..., and rename filename.output
+    to filename."""
+    output_filename = filename + ".output"
+    if process(filename, output_filename):
+        # search for unused backup name
+        in_use = True
+        backup_number = 1
+        while in_use:
+            backupname = filename + ".bak" + str(backup_number)
+            if not os.path.exists(backupname):
+                in_use = False
+            else:
+                backup_number += 1
+        os.rename(filename, backupname)
+        os.rename(output_filename, filename)
+        print("        o2idc: rewrote", filename, "and left backup in", \
+              backupname)
+    else:
+        os.unlink(output_filename)
+        print("        o2idc: removed", output_filename, \
+              "after error encountered.")
+
+
 def run():
     for filename in sys.argv[1:]:
-        process(filename)
+        process_and_cleanup(filename)
 
 run()

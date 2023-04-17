@@ -15,6 +15,7 @@
 #define o2_finish() DO_NOT_CALL_THIS_EXCEPT_FROM_O2_PROCESS
 #define o2_service_new(s) DO_NOT_CALL_THIS_EXCEPT_FROM_O2_PROCESS
 #define o2_method_new  DO_NOT_CALL_THIS_EXCEPT_FROM_O2_PROCESS
+#define o2_poll() DO_NOT_CALL_THIS_EXCEPT_FROM_O2_PROCESS
 
 // these are safe o2 function calls, but we'll define alternate o2sm_ names
 #define o2sm_send_start o2_send_start

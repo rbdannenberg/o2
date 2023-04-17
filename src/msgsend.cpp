@@ -173,7 +173,7 @@ O2message_ptr Pending_msgs_queue::dequeue() {
         printf("Pending_msgs_queue::dequeue %p == o2_mem_watch\n", msg);
     }
     #endif
-    O2_DBl(o2_dbg_msg("Pending_msgs_queue::dequeu", msg, &msg->data, "from",
+    O2_DBl(o2_dbg_msg("Pending_msgs_queue::dequeue", msg, &msg->data, "from",
                       pending_msgs_name(this)));
     return msg;
 }

@@ -59,28 +59,28 @@ void o2_print_bytes(const char* prefix, const char* bytes, int len);
 
 // Note: The ordering of these flags is coordinated with debug_chars, 
 // defined in debug.c. See o2_debug_flags() implementation there too.
-#define O2_DBb_FLAG 1
-#define O2_DBc_FLAG 2
-#define O2_DBd_FLAG 4
-#define O2_DBg_FLAG 8
-#define O2_DBh_FLAG 0x10
-#define O2_DBk_FLAG 0x20
-#define O2_DBl_FLAG 0x40
-#define O2_DBm_FLAG 0x80
-#define O2_DBn_FLAGS (O2_DBr_FLAG | O2_DBR_FLAG | O2_DBs_FLAG | O2_DBS_FLAG)
-#define O2_DBO_FLAG 0x100
-#define O2_DBo_FLAG 0x200
-#define O2_DBp_FLAG 0x400
-#define O2_DBq_FLAG 0x800
-#define O2_DBR_FLAG 0x1000
-#define O2_DBr_FLAG 0x2000
-#define O2_DBS_FLAG 0x4000
-#define O2_DBs_FLAG 0x8000
-#define O2_DBT_FLAG 0x10000
-#define O2_DBt_FLAG 0x20000
-#define O2_DBW_FLAG 0x40000
-#define O2_DBw_FLAG 0x80000
-#define O2_DBz_FLAG 0x100000
+#define O2_DBB_FLAG 1
+#define O2_DBb_FLAG 2
+#define O2_DBc_FLAG 4
+#define O2_DBd_FLAG 8
+#define O2_DBg_FLAG 0x10
+#define O2_DBh_FLAG 0x20
+#define O2_DBk_FLAG 0x40
+#define O2_DBl_FLAG 0x80
+#define O2_DBm_FLAG 0x100
+#define O2_DBO_FLAG 0x200
+#define O2_DBo_FLAG 0x400
+#define O2_DBp_FLAG 0x800
+#define O2_DBq_FLAG 0x1000
+#define O2_DBR_FLAG 0x2000
+#define O2_DBr_FLAG 0x4000
+#define O2_DBS_FLAG 0x8000
+#define O2_DBs_FLAG 0x10000
+#define O2_DBT_FLAG 0x20000
+#define O2_DBt_FLAG 0x40000
+#define O2_DBW_FLAG 0x80000
+#define O2_DBw_FLAG 0x100000
+#define O2_DBz_FLAG 0x200000
 // IMPORTANT: if you add a flag here or reorder flags, you must also modify
 // debug_chars in debug.cpp and probably define O2_DB? below. Also, update
 // O2_DBG_FLAGS here:
@@ -90,11 +90,14 @@ void o2_print_bytes(const char* prefix, const char* bytes, int len);
                                      O2_DBt_FLAG - O2_DBT_FLAG)
 // All flags but DBm (malloc/free) and DBl (o2_msg_deliver) enabled by "a"
 #define O2_DBa_FLAGS (O2_DBG_FLAGS - O2_DBm_FLAG - O2_DBl_FLAG)
+// All message sends and receives enabled by "n"
+#define O2_DBn_FLAGS (O2_DBr_FLAG | O2_DBR_FLAG | O2_DBs_FLAG | O2_DBS_FLAG)
 
 // macro to surround debug print statements:
 #define O2_DB(flags, x) if (o2_debug & (flags)) { x; }
 #define O2_DBA(x) O2_DB(O2_DBA_FLAGS, x)
 #define O2_DBa(x) O2_DB(O2_DBa_FLAGS, x)
+#define O2_DBB(x) O2_DB(O2_DBB_FLAG, x)
 #define O2_DBb(x) O2_DB(O2_DBb_FLAG, x)
 #define O2_DBc(x) O2_DB(O2_DBc_FLAG | O2_DBo_FLAG, x)
 #define O2_DBd(x) O2_DB(O2_DBd_FLAG, x)

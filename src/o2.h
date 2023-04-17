@@ -500,6 +500,7 @@ typedef enum {
 /// containing any of the following characters:
 ///   - a - enable all debug flags except m (malloc/free)
 ///   - A - enable all debug flags except malloc and scheduling
+///   - B - trace shared memory bridge messages
 ///   - b - trace bridge setup and take-down
 ///   - c - print basic connection data
 ///   - d - trace discovery messages
@@ -514,8 +515,8 @@ typedef enum {
 ///         called. Internal IP becomes 127.0.0.1, public IP is
 ///         0.0.0.0 (signifying no Internet connection). Interprocess
 ///         communication on the host is supported.
-///   - o - trace socket creating and closing
 ///   - O - open sound control messages
+///   - o - trace socket creating and closing
 ///   - p - trace tap messages and operations
 ///   - q - show MQTT messages
 ///   - R - trace system incoming messages

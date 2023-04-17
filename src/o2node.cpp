@@ -47,6 +47,9 @@ void Hash_node::show(int indent)
     O2node *entry;
     while ((entry = en.next())) {
         entry->show(indent + 1);
+        // data integrity check -- see if node names hash to nodes
+        O2node **entry_ptr = lookup(entry->key);
+        assert(*entry_ptr == entry);
     }
 }
 #endif

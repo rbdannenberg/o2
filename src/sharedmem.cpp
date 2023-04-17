@@ -317,7 +317,6 @@ public:
 #ifndef O2_NO_DEBUG
     virtual void show(int indent) {
         Bridge_info::show(indent);
-        printf("\n");
     }
 #endif
     // virtual O2status status(const char **process);  -- see Bridge_info
@@ -687,12 +686,16 @@ void O2sm_info::poll_outgoing()
     O2message_ptr head = o2_ctx->schedule_head;
     if (now < 0) { // no clock! free the messages
         while (head) {
+            O2_DBB(o2_dbg_msg("Incoming to shmem thread dropped for no clock",
+                              head, &head->data, NULL, NULL));
             next = head->next;
             O2_FREE(head);
             head = next;
         }
     } else { // send timestamped messages that are ready to go
         while (head && head->data.timestamp < now) {
+            O2_DBB(o2_dbg_msg("Incoming to shmem thread ready now",
+                              head, &head->data, NULL, NULL));
             next = head->next;
             o2sm_dispatch(head);
             head = next;
@@ -700,6 +703,8 @@ void O2sm_info::poll_outgoing()
     }
     o2_ctx->schedule_head = head;
     while (msgs) { // send all zero-timestamp messages
+        O2_DBB(o2_dbg_msg("Incoming to shmem thread zero timestamp",
+                          msgs, &msgs->data, NULL, NULL));
         next = msgs->next;
         o2sm_dispatch(msgs);
         msgs = next;
