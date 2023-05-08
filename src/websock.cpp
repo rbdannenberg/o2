@@ -1149,7 +1149,7 @@ O2err Http_reader::deliver(O2netmsg_ptr msg)
         if (aio_error(&cb) == EINPROGRESS) {
             return O2_SUCCESS;
         }
-        n = aio_return(&cb);
+        n = (int) aio_return(&cb);
         if (n <= 0) {  // if error condition, pretend it is just EOF
             return read_eof();     // *last_ref was the first message
         }

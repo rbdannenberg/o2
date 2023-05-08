@@ -30,11 +30,8 @@ template <typename T> class Vec : public O2obj {
     ~Vec() { finish(); }
 
     // explicitly (re)initialize the vector and array storage
-    void init(int siz) { init(siz, false); }
-
-    // explicitly (re)initialize the vector and array storage
     // with option to zero fill all the entries
-    void init(int siz, bool z) {
+    void init(int siz, bool z = false) {
         if (array) finish();
         array = (siz > 0 ? O2_MALLOCNT(siz, T) : NULL);
         allocated = siz;
@@ -129,6 +126,14 @@ template <typename T> class Vec : public O2obj {
 
     // return the number of elements in use
     int size() { return length; }
+    
+    // set the size - CAUTION! content is uninitialized if z is false
+    // storage is reallocated if needed
+    void set_size(int n, bool z = true) {
+        if (allocated < n) expand_array(n);
+        length = n;
+        if (z) zero();
+    }
     
     // return the maximum count of elements that could be stored
     //   without reallocating the array.

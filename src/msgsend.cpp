@@ -434,6 +434,7 @@ void o2_msg_deliver(O2node *service, Services_entry *ss)
 #endif
     // STEP 1: Check for a service to handle the message
     address = msg->data.address;
+    assert(*address == '/' || *address == '!');
     if (!service) {
         service = o2_msg_service(&msg->data, &ss);
         if (!service) goto done; // service must have been removed

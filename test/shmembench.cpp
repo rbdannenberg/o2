@@ -21,6 +21,7 @@ This test:
 #include <pthread.h>
 pthread_t pt_thread_pid;
 #endif
+#include "o2atomic.h"
 #include "sharedmem.h"
 
 

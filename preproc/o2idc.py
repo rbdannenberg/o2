@@ -3,105 +3,75 @@
 # Roger B. Dannenberg
 # Dec 2021
 
-# Syntax: Service methods are described in a group within a
-# /* ... */-style comment. Everything in the file is ignored
-# before "'O2 INTERFACE DESCRIPTION FOR SERVICE: <service> <newline>",
-# where <service> is the service name. 
+# This preprocessor for C++ helps to build handlers for O2 messages
+# with a fixed number of parameters with known types. The
+# preprocessing automates the unpacking of message parameters, which
+# are assigned to local variables as if the handler was called with a
+# conventional parameter list instead of a message holding the
+# parameters.
 #
-# Then, each method of the service is described as follows:
-# <name>(<type> <param>, <type> <param>, ...) -- comment <newline><newline>
-# where the full O2 address will be "!<service>/<name>" and the 
-# parameters will have the <type>'s declared within parentheses.
-# For O2lite compatibility, types are int32, int64, float, double,
-# and string. bool was added and should be in O2lite.
-# The <param>'s are C identifiers, but their only
-# purpose is to make the method more understandable. The description
-# after the close parenthesis ")" is ignored up to the next blank line.
+# Before each handler implementation (in a .cpp file), write an
+# interface description beginning with:
+# /* O2 INTERFACE: /service/node1/node2/node3 ...
+# where "O2 INTERFACE" can also be "O2SM INTERFACE" or 
+# "O2LITE INTERFACE" -- pick the one that applies. In this example, we
+# write "service", "node1", "node2", "node3" as generic names, but
+# typically they would be specific names like "xysensor" and "x".
 #
-# Any number of methods may be declared, separated by blank lines.
+# This is followed by parameter declarations of the form 
+#     int32 id, float period, ...; an optional multi-line comment */
+# where types are int32, float, int64, double, string, or bool
+# (no other types are currently supported, but probably easy to add).
+# 
+# Note that the declaration ends with semicolon (;) and everything
+# from there to the end-of-comment (*/) is ignored. The line after
+# end-of-comment is ignored by this pre-processor.
 #
-# The declarations are terminated a line containing "*/". The entire
-# line is ignored, so put "*/" on a line by itself.
-
+# On the next line, begin the handler, which should look like:
+#    void service_node1_node2_node3(O2_HANDLER_ARGS)
+#    {
+#        // begin unpack message (machine-generated):
+#        // end unpack message
+#        ...  message parameters id and period can be used here ...
+#    }
+# You should use O2SM_HANDLER_ARGS or O2LITE_HANDLER_ARGS in place
+# of O2_HANDLER_ARGS if it applies.
+# When this preprocessor is run, lines are inserted between the
+# "// begin" and "// end" lines to extract parameters, which will
+# be named according to the interface description, e.g. "id" and 
+# "period" in this example. Use the parameters in the handler
+# implementation. Parameters declared with type "string" are of
+# C++ type "char *" and are not copied from the message, so the
+# address becomes invalid after the handler returns. (You can copy
+# the string if you need to retain it.)
+#
+# To activate these handlers, you need to call o2_method_new() (or
+# o2sm_method_new() or o2l_method_new()) to register the handlers
+# with O2 (or O2-shared-memory, O2Lite). This is accomplished at the
+# end of the file by writing:
+#
+#    static void service_init()
+#    {
+#        // O2 INTERFACE INITIALIZATION: (machine generated)
+#        // END INTERFACE INITIALIZATION
+#    }
+#
+# Name this function with an actual service name, e.g. xysensor_init().
+# This function will be populated with calls to o2_method_new() for
+# all handlers declared previously in the file. Use O2SM or O2LITE if
+# applicable.
+# 
+# You must call this _init() function once after O2 is initialized to 
+# install the handlers.
+#
+# The preprocessor overwrites the .cpp file and is idempotent, meaning
+# you can run the preprocessor again without damage.
 
 import sys
 import os
 
-
-# def found_method(desc, filename):
-#     """returns false if an error occurs
-#     """
-#     print("process found method", desc, "in", filename)
-#     pos = desc.find("(")
-#     if pos < 1:
-#         print("o2idc: expected method name in file", filename, "description",
-#               desc)
-#         return False
-#     method = desc[0:pos].strip()
-#     params = []
-#     while pos < len(desc) and desc[pos] != ")":
-#         pos += 1  # skip over comma or open paren
-#         # get a type
-#         while pos < len(desc) and desc[pos].isspace():  # skip whitespace
-#             pos += 1
-#         pos2 = desc.find(" ", pos)
-#         if pos2 <= 0:
-#             print("o2idc: expected type in file", filename, "after", 
-#                   desc)
-#             return False
-#         type = desc[pos:pos2]
-#         
-#         # get parameter name
-#         while pos2 < len(desc) and desc[pos2].isspace():  # skip whitespace
-#             pos2 += 1
-#         pos = pos2
-#         while pos2 < len(desc) and desc[pos2] not in " ,;":
-#             pos2 += 1
-#         if pos == pos2:
-#             print("o2idc: expected parameter name in file", filename, "after", 
-#                   desc[0:pos2])
-#             return False
-#         param = desc[pos:pos2]
-#         params.append((type, param))
-#         print("Params: ", (type, param))
-# 
-#         # get comma or semicolon
-#         pos = pos2
-#         while pos < len(desc) and desc[pos] not in ",;":
-#             print("Scanning at", repr(desc[pos]))
-#             if not desc[pos].isspace():
-#                 print('o2idc: expected "," or ";" after parameter in file',
-#                       filename, "after", desc[0:pos2])
-#                 return False
-#             pos += 1
-# 
-#     new_method(method, params)
-#     return True
-
-
 typecodes = {"string": "s", "int32": "i", "int64": "h", "float": "f",
              "double": "d", "bool": "B"}
- 
- 
-# typestring = make_typestring(meth[1]);
-# 
-# def make_typestring(params):
-#     # construct o2 typestring from a list of parameter info of the
-#     # form [[type, paramname], [type, paramname], ...]
-#     ts = ""
-#     for p in params:
-#         ts += typecodes[p[0]]
-#     return ts
-# 
-
-# def write_interface_decls(basename, prefix, hfile):
-#     global o2id_methods, o2id_service
-#     print("void", basename + "_initialize();\n", file=hfile)
-#     for meth in o2id_methods:
-#         print("void ", o2id_service, "_", meth[0], "_", 
-#               "handler(", prefix, "_HANDLER_ARGS);", sep='', file=hfile)
-
-
 
 
 def write_initialize(outf, o2id_type, methods):

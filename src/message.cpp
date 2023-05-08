@@ -127,8 +127,8 @@ static bool is_normal = false;
 #endif
 
 static const char zeros[4] = {0, 0, 0, 0};
-#define ADD_PADDING(data) { int size = (data).size(); \
-    int pad_len = ROUNDUP_TO_32BIT(size) - size; \
+#define ADD_PADDING(data) { int size = (int) (data).size(); \
+    int pad_len = (int) ROUNDUP_TO_32BIT(size) - size; \
     (data).append(zeros, pad_len); }
 
 
@@ -307,13 +307,13 @@ O2message_ptr o2_service_message_finish(
     // if service is provided, we'll prepend '/', so add 1 to string length
     int service_len = (service ? (int) strlen(service) + 1 : 0);
     // total service + address length with zero padding
-    int addr_size = ROUNDUP_TO_32BIT(service_len + addr_len + 1);
+    int addr_size = (int) ROUNDUP_TO_32BIT(service_len + addr_len + 1);
     int types_len = o2_ctx->msg_types.size();
 #ifdef O2_NO_BUNDLES
     int types_size = ROUNDUP_TO_32BIT(types_len + 1);
     int prefix = '/';
 #else
-    int types_size = (is_bundle ? 0 : ROUNDUP_TO_32BIT(types_len + 1));
+    int types_size = (int) (is_bundle ? 0 : ROUNDUP_TO_32BIT(types_len + 1));
     int prefix = (is_bundle ? '#' : '/');
 #endif
     O2message_ptr msg = NULL;
@@ -334,6 +334,7 @@ O2message_ptr o2_service_message_finish(
         dst += service_len;
     }
     memcpy(dst, address, addr_len);
+    assert(*dst == '/' || *dst == '!');
 
 #ifndef O2_NO_BUNDLES
     if (is_bundle) {

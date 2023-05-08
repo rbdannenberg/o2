@@ -65,7 +65,7 @@ Bridge_protocol::~Bridge_protocol() {
     }
     int i = o2_bridge_find_protocol(protocol, NULL);
     if (i >= 0) {
-        O2_DBb(printf("%s removing Bridge_protocol@p name %s index %d "
+        O2_DBb(printf("%s removing Bridge_protocol@%p name %s index %d "
                       "size %d from array of protocols\n", o2_debug_prefix,
                       this, protocol, i, instances.size()));
         bridges.remove(i);
@@ -377,7 +377,7 @@ public:
     }
 
     virtual ~O2lite_info() {
-        O2_DBb(printf("%g deleting O2lite_info@%p\n", o2_debug_prefix, this));
+        O2_DBb(printf("%s deleting O2lite_info@%p\n", o2_debug_prefix, this));
         if (!this) return;
         // remove all sockets serviced by this connection
         proto->remove_services(this);
@@ -441,7 +441,7 @@ public:
 
 O2lite_protocol::~O2lite_protocol()
 {
-    O2_DBb(printf("%g deleting O2lite_protocol@%p\n", o2_debug_prefix, this));
+    O2_DBb(printf("%s deleting O2lite_protocol@%p\n", o2_debug_prefix, this));
     o2_method_free("/_o2/o2lite");
     // also free all O2lite connections
     for (int i = 0; i < o2n_fds_info.size(); i++) {
