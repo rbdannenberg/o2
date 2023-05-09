@@ -981,7 +981,7 @@ static void ping_reply_handler(o2l_msg_ptr msg, const char *types,
             // clip to [lower, upper] if outside range
             if (global_minus_local < lower) {
                 global_minus_local = lower;
-            } else if (global_minus_local < upper) {
+            } else if (global_minus_local > upper) {
                 global_minus_local = upper;
             } else if (global_minus_local < new_gml - 0.002) {
                 bump = 0.002F; // increase by 2ms if too low by more than 2ms
