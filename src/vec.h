@@ -29,8 +29,11 @@ template <typename T> class Vec : public O2obj {
 
     ~Vec() { finish(); }
 
-    // explicitly (re)initialize the vector and array storage
-    // with option to zero fill all the entries
+    // explicitly initialize the vector and array storage
+    // with option to zero fill all the entries. Call this ONLY if
+    // initialization was not already performed by a constructor OR
+    // if array is NULL, e.g. when size was initialized to zero or
+    // after a call to Vec::finish().
     void init(int siz, bool z = false) {
         array = (siz > 0 ? O2_MALLOCNT(siz, T) : NULL);
         allocated = siz;
