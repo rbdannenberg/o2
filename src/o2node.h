@@ -158,7 +158,7 @@ class O2node : public O2obj {
     void o2_delete() {
         assert(this);  // compiler may ignore this since methods are undefined
         // if object is NULL, but will often work at least in debug mode.
-        if (!(tag & O2TAG_DELETE_IN_PROGRESS)) {
+        if (!(tag & O2TAG_DELETE_IN_PROGRESS)) {\
             tag |= O2TAG_DELETE_IN_PROGRESS;
              delete this;
         }

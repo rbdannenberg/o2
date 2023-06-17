@@ -334,7 +334,6 @@ O2message_ptr o2_service_message_finish(
         dst += service_len;
     }
     memcpy(dst, address, addr_len);
-    assert(*dst == '/' || *dst == '!');
 
 #ifndef O2_NO_BUNDLES
     if (is_bundle) {

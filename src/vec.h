@@ -9,7 +9,7 @@ template <typename T> class Vec : public O2obj {
     int length;
     T *array;
   public:
-    Vec(int siz) { array = NULL; init(siz); }
+    Vec(int siz) { init(siz); }
 
     // initialization with optional fill with zeros
     // if not z(erofill), the initial length is zero.
@@ -25,14 +25,13 @@ template <typename T> class Vec : public O2obj {
             v.array = NULL; v.allocated = 0; v.length = 0; }
 
     // default constructor does not allocate any memory
-    Vec() { array = NULL; init(0); }
+    Vec() { init(0); }
 
     ~Vec() { finish(); }
 
     // explicitly (re)initialize the vector and array storage
     // with option to zero fill all the entries
     void init(int siz, bool z = false) {
-        if (array) finish();
         array = (siz > 0 ? O2_MALLOCNT(siz, T) : NULL);
         allocated = siz;
         length = 0;
