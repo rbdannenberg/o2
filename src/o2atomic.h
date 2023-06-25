@@ -41,10 +41,8 @@ typedef struct O2list_elem {
 #include <windows.h>
 #include <interlockedapi.h>
 
-// An atomic queue must be 16-byte aligned, but malloc and O2MALLOC (new)
-// only align to 8 bytes, so the atomic queue here has some padding and 
-// we treat it as being whereever the 16-byte boundary occurs. We use a
-// method to find it.
+// An atomic queue must be 16-byte aligned, which is guaranteed by
+// O2MALLOC (new).
 class O2queue {
   public:
     SLIST_HEADER queue_head;
@@ -113,13 +111,20 @@ typedef _Atomic(O2queue_na) *O2queue_atomic_ptr;
   #pragma clang diagnostic ignored "-Wunused-private-field"
 #endif
 
-// An atomic queue must be 16-byte aligned, but malloc and O2MALLOC (new)
-// only align to 8 bytes, so the atomic queue here has some padding and 
-// we treat it as being whereever the 16-byte boundary occurs. We use a
-// method to find it.
+// An atomic queue must be 16-byte aligned, which is guaranteed by
+// O2MALLOC (new).
 class O2queue {
   public:
     O2queue_atomic queue_head;
+    // for 32-machines, we pad O2queue out with 8 more bytes to get 16,
+    // which is assumed in o2mem.{cpp,h}. Probably, o2mem could be
+    // optimized so as not to waste these 8 bytes, but there are a lot of
+    // low-level pointer operations in there and very little type checking
+    // to catch errors, so for now, this seems the safe way to support
+    // 32-bit machines (Raspberry Pi Zero W in particular):
+#if (INTPTR_MAX == INT32_MAX)
+    int64_t padding;
+#endif
 
     O2queue() { clear(); }
     

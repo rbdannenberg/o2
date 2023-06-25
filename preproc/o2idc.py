@@ -74,6 +74,29 @@ typecodes = {"string": "s", "int32": "i", "int64": "h", "float": "f",
              "double": "d", "bool": "B"}
 
 
+def pprint(outf, fn, strings):
+    """
+    Print a function call on outf with no separator.
+    fn - the indentation and function name (without open paren)
+    params - strings representing each parameter, with no commas or spaces
+    The function call is wrapped and indented (at least we try to look nice).
+    """
+    params_col = len(fn) + 1
+    # print a space before each parameter
+    print(fn, "(", strings[0], file=outf, sep="", end="")
+    col = params_col + len(strings[0])  # don't count "(" because we'll
+    for i in range(1, len(strings)):
+        print(",", file=outf, sep="", end="")
+        col += 1
+        if col + 1 + len(strings[i]) + 2 >= 80:  # 2 for ");"
+            print(file=outf)  # newline
+            print(" " * params_col, file=outf, sep="", end="")  # indent
+            col = params_col
+        print(" ", strings[i], file=outf, sep="", end="")
+        col += 1 + len(strings[i])
+    print(");", file=outf, sep="")
+
+
 def write_initialize(outf, o2id_type, methods):
     """write o2[l]_method_new calls for methods, which is a list 
     of (address, function, typestring) tuples
@@ -82,12 +105,12 @@ def write_initialize(outf, o2id_type, methods):
           "(machine generated)", file=outf)
     for meth in methods:
         if o2id_type == 'o2lite':
-            print('    o2l_method_new("', meth[0], '", "', meth[2], 
-                  '", true, ', meth[1], ', NULL);', sep='', file=outf)
+            pprint(outf, "    o2l_method_new", ['"' + meth[0] + '"',
+                   '"' + meth[2] + '"', "true", meth[1], "NULL"])
         else:
-            print("    ", o2id_type, '_method_new("', meth[0], '", "',
-                  meth[2], '", ', meth[1], ', NULL, true, true);', 
-                  sep='', file=outf)
+            pprint(outf, "    " + o2id_type + "_method_new",
+                   ['"' + meth[0] + '"', '"' + meth[2] + '"', meth[1],
+                    "NULL", "true", "true"])
         # show progress on stdout:
         print("       ", meth[0], '"' + meth[2] + '"', meth[1])
     print("    // END INTERFACE INITIALIZATION", file=outf)
