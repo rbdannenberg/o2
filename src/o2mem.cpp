@@ -125,6 +125,9 @@ typedef struct preamble_struct {
     int64_t start_sentinal;
 #endif
     size_t size;    // usable bytes in payload, aligned to 16-byte boundary
+#if (INTPTR_MAX == INT32_MAX)
+    int32_t padding;  // for 32-bit machines, pad the size to 8 bytes
+#endif
     char payload[8]; // the application memory, odd number of 8-byte units
 } preamble_t, *preamble_ptr;
 
@@ -619,6 +622,10 @@ void *o2_malloc(size_t size)
         allocated_chunk_list.push((O2list_elem *) o2_ctx->chunk);
         o2_ctx->chunk += sizeof(char *); // skip over chunk list pointer
         o2_ctx->chunk_remaining = O2MEM_CHUNK_SIZE - sizeof(char *);
+#if (INTPTR_MAX == INT32_MAX)
+        o2_ctx->chunk += 4; // skip another 4 bytes to get 8-byte alignment
+        o2_ctx->chunk_remaining -= 4;  // lost those 4 bytes
+#endif
     }
     preamble = (preamble_ptr) o2_ctx->chunk;
 #if O2MEM_DEBUG

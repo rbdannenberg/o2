@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20.0)
+cmake_minimum_required(VERSION 3.18.0)  # changed from 3.20.0 - not sure what will break
 cmake_policy(SET CMP0091 NEW)
 project(o2)
 
