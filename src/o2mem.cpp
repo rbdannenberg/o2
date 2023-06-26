@@ -155,6 +155,10 @@ typedef struct chunk_struct {
 #define PREAMBLE_TO_POSTLUDE(pre) \
         ((postlude_ptr) ((pre)->payload + (pre)->size))
 
+// Compute the actual number of bytes we must get from a chunk of free
+// bytes, given that size is the object size passed to o2_malloc. The
+// result includes the size field, debug prelude, the payload and
+// debug postlude (if any):
 #define SIZE_TO_REALSIZE(size) \
     ((size) + offsetof(preamble_t, payload) + SIZEOF_POSTLUDE_T)
 
@@ -582,8 +586,26 @@ void *o2_malloc(size_t size)
 #if O2MEM_DEBUG // debug needs sentinal after last allocated block:
     need_debug_space = sizeof(int64_t);
 #endif
-    
-    if (o2_ctx->chunk_remaining < realsize + need_debug_space) {
+
+    // since the next free memory may not be aligned, we may have to
+    // allocate an extra 8 or so bytes, so we don't know yet whether
+    // we have enough space. Compute preamble as if we have space, and
+    // use it to compute how much we really need given the start address:
+    preamble = (preamble_ptr) o2_ctx->chunk;
+#if O2MEM_DEBUG
+    // round up to 16-byte boundary if necessary:
+    preamble = (preamble_ptr) O2MEM_ALIGNUP((uintptr_t) preamble);
+#else
+    // must align size to an odd number of 8-byte units so that the payload
+    // is 16-byte aligned. Low-order preamble bits are either 0000 or 1000.
+    // If 0000, we want to add 8, giving 1000, otherwise we want to do nothing.
+    // Or'ing wtih 1000 will do it:
+    preamble = (preamble_ptr) (((uintptr_t) preamble) | 8);
+#endif
+
+    // compare end of available space to end of needed object
+    if (o2_ctx->chunk + o2_ctx->chunk_remaining <
+            ((char *) preamble) + realsize + need_debug_space) {
         if (!malloc_ok) {
             result = NULL; // no more memory
             goto done;
@@ -626,24 +648,26 @@ void *o2_malloc(size_t size)
         o2_ctx->chunk += 4; // skip another 4 bytes to get 8-byte alignment
         o2_ctx->chunk_remaining -= 4;  // lost those 4 bytes
 #endif
-    }
-    preamble = (preamble_ptr) o2_ctx->chunk;
+        preamble = (preamble_ptr) o2_ctx->chunk;  // old preamble wasn't good
 #if O2MEM_DEBUG
-    // round up to 16-byte boundary if necessary:
-    preamble = (preamble_ptr) O2MEM_ALIGNUP((uintptr_t) preamble);
+        // round up to 16-byte boundary if necessary:
+        preamble = (preamble_ptr) O2MEM_ALIGNUP((uintptr_t) preamble);
 #else
-    // must align size to an odd number of 8-byte units so that the payload
-    // is 16-byte aligned. Low-order preamble bits are either 0000 or 1000.
-    // If 0000, we want to add 8, giving 1000, otherwise we want to do nothing.
-    // Or'ing wtih 1000 will do it:
-    preamble = (preamble_ptr) (((uintptr_t) preamble) | 8);
+        // must align size to an odd number of 8-byte units so that
+        // the payload is 16-byte aligned. Low-order preamble bits are
+        // either 0000 or 1000.  If 0000, we want to add 8, giving
+        // 1000, otherwise we want to do nothing.  Or'ing wtih 1000
+        // will do it:
+        preamble = (preamble_ptr) (((uintptr_t) preamble) | 8);
 #endif
+    }
     next = ((char *) preamble) + realsize;
     o2_ctx->chunk_remaining -= (next - o2_ctx->chunk);
     assert(o2_ctx->chunk_remaining >= 0);
     o2_ctx->chunk = next;
   gotnew:
 #if O2MEM_DEBUG
+    // set sentinal that marks after the last allocated block in the chunk:
     ((preamble_ptr) ((char *) preamble + realsize))->start_sentinal =
             0xDEADDEEDCACA0000;
 #endif
