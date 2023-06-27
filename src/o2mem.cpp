@@ -144,8 +144,14 @@ typedef struct postlude_struct {
 
 typedef struct chunk_struct {
     struct chunk_struct *next;
+#if (INTPTR_MAX == INT32_MAX)
+    int32_t next_padding;  // make pointer field take 8 bytes in 32-bit arch.
+#endif
 #if O2MEM_DEBUG
     char *padding;  // used to align preamble to 16-bytes
+#if (INTPTR_MAX == INT32_MAX)
+    int32_t align_padding; // extend char * to take 8 bytes in 32-bit arch.
+#endif
 #endif
     preamble_t first;
 } chunk_t, *chunk_ptr;
@@ -265,10 +271,10 @@ static bool block_check(void *ptr, int alloc_ok, int free_ok)
     int64_t size = preamble->size;
     int64_t realsize = SIZE_TO_REALSIZE(size);
     postlude_ptr postlude = PREAMBLE_TO_POSTLUDE(preamble);
-    if (preamble->start_sentinal == ~realsize) {
+    if (preamble->start_sentinal == ~ (int64_t) realsize) {
         if (alloc_ok) goto good_sentinal;
         fprintf(stderr, "block at %p is allocated\n", ptr);
-    } else if (preamble->start_sentinal == 0xDea110c8dDebac1e) {
+    } else if (preamble->start_sentinal == 0xDea110c8dDebac1eULL) {
         if (free_ok) goto good_sentinal;
         fprintf(stderr, "block at %p has sentinal of freed block\n", ptr);
     } else {
@@ -285,7 +291,7 @@ static bool block_check(void *ptr, int alloc_ok, int free_ok)
     rslt = true;
   good_sentinal:
     for (int i = 0; i < O2MEM_ISOLATION; i++) {
-        if (postlude->padding[i] != 0xabababababababab) {
+        if (postlude->padding[i] != 0xababababababababULL) {
             fprintf(stderr, "block %p padding was overwritten, seqno %lld\n",
                     ptr, (long long) postlude->seqno);
             fflush(stderr);
@@ -293,8 +299,8 @@ static bool block_check(void *ptr, int alloc_ok, int free_ok)
             return rslt;
         }
     }
-    if (postlude->end_sentinal == 0x5ea1ed5caff01d) { // freed end sentinal
-        if (preamble->start_sentinal != 0xDea110c8dDebac1e) {
+    if (postlude->end_sentinal == 0x5ea1ed5caff01dULL) { // freed end sentinal
+        if (preamble->start_sentinal != 0xDea110c8dDebac1eULL) {
             fprintf(stderr, "free block start sentinal but block %p start "
                     "indicates it\nis still allocated: end sentinal %lld "
                     "(0x%llx) size %lld\n", ptr,
@@ -304,8 +310,8 @@ static bool block_check(void *ptr, int alloc_ok, int free_ok)
             assert(false);
             return rslt;
         }
-    } else if (postlude->end_sentinal == 0xBADCAFE8DEADBEEF) {
-        if (preamble->start_sentinal != ~realsize) { // allocated
+    } else if (postlude->end_sentinal == 0xBADCAFE8DEADBEEFULL) {
+        if (preamble->start_sentinal != ~ (int64_t) realsize) { // allocated
             fprintf(stderr, "allocated block start sentinal but block %p "
                     "start indicates it\nis freed: end sentinal %lld "
                     "(0x%llx) size %lld\n", ptr,
@@ -337,7 +343,8 @@ static bool mem_check_all(int report_leaks)
     while (chunk) { // walk the chunk list and see if everything is freed
         // within each chunk, blocks are allocated sequentially
         preamble_ptr preamble = &chunk->first;
-        while (preamble->start_sentinal != 0xDEADDEEDCACA0000) {
+        preamble = (preamble_ptr) (((uintptr_t) preamble) | 8);
+        while (preamble->start_sentinal != 0xDEADDEEDCACA0000ULL) {
             leak_found |= block_check(preamble->payload, !report_leaks, true);
             preamble = (preamble_ptr) (PREAMBLE_TO_POSTLUDE(preamble) + 1);
         }
@@ -555,6 +562,7 @@ void *o2_malloc(size_t size)
     if (!p) { // too big, no corresponding freelist, maybe 
         if (malloc_ok) { // allocate directly with malloc if malloc_ok
             preamble = (preamble_ptr) malloc(realsize);
+            printf("MALLOC 1 %p\n", preamble);
             goto gotit;
         }
         fprintf(stderr, "o2_malloc of %zu bytes failed\n", realsize);
@@ -574,12 +582,12 @@ void *o2_malloc(size_t size)
         // make sure we get the expected freed block
         assert(preamble->size == size);
 #if O2MEM_DEBUG
-        assert(preamble->start_sentinal == 0xDea110c8dDebac1e); // cute words
+        assert(preamble->start_sentinal == 0xDea110c8dDebac1eULL); // cute words
         postlude = PREAMBLE_TO_POSTLUDE(preamble);
         for (int i = 0; i < O2MEM_ISOLATION; i++) {
-            assert(postlude->padding[i] == 0xabababababababab);
+            assert(postlude->padding[i] == 0xababababababababULL);
         }
-        assert(postlude->end_sentinal == 0x5ea1ed5caff01d);
+        assert(postlude->end_sentinal == 0x5ea1ed5caff01dULL);
 #endif
         goto gotit;
     }
@@ -625,15 +633,20 @@ void *o2_malloc(size_t size)
             // allocate either realsize + 16 or realsize + 32.
             chunk_ptr chunk2 = (chunk_ptr) malloc(realsize + sizeof(char *) +
                                                   need_debug_space * 2);
+            printf("MALLOC 2 %p\n", chunk2);
             // add chunk2 to list
             allocated_chunk_list.push((O2list_elem *) chunk2);
-            preamble = &chunk2->first;
+            // if this is a 32-bit machine, chunk2->first could be on a
+            // 16-byte boundary, but we want preamble to be on an odd
+            // number of 8-bytes boundary, so fix it here:
+            preamble = (preamble_ptr) (((uintptr_t) &chunk2->first) | 8);
             goto gotnew;
         } 
         // note that we throw away remaining chunk if there isn't enough now
         // since we need less than MAX_LINEAR_BYTES, we know O2MEM_CHUNK_SIZE
         // is enough:
         if (!(o2_ctx->chunk = (char *) malloc(O2MEM_CHUNK_SIZE))) {
+            printf("MALLOC 3 %p\n", o2_ctx->chunk);
             o2_ctx->chunk_remaining = 0;
             fprintf(stderr,
                     "Warning: no more memory in o2_malloc, return NULL");
@@ -669,12 +682,12 @@ void *o2_malloc(size_t size)
 #if O2MEM_DEBUG
     // set sentinal that marks after the last allocated block in the chunk:
     ((preamble_ptr) ((char *) preamble + realsize))->start_sentinal =
-            0xDEADDEEDCACA0000;
+            0xDEADDEEDCACA0000ULL;
 #endif
   gotit: // invariant: preamble points to base of block of size realsize
     result = preamble->payload;
 #if O2MEM_DEBUG
-    preamble->start_sentinal = ~realsize; // sentinal is complement of size
+    preamble->start_sentinal = ~ (int64_t) realsize; // sentinal is complement of size
 #if O2MEM_DEBUG > 1
     printf("realsize %lld, writing size %lld at %p\n", (long long) realsize,
            (long long) size, &preamble->size);
@@ -693,13 +706,13 @@ void *o2_malloc(size_t size)
     postlude = PREAMBLE_TO_POSTLUDE(preamble);
     assert(((int64_t) postlude->padding) % 8 == 0);
     for (int i = 0; i < O2MEM_ISOLATION; i++) {
-        postlude->padding[i] = 0xabababababababab;
+        postlude->padding[i] = 0xababababababababULL;
     }
     postlude->seqno = o2_mem_seqno;
     if (o2_mem_watch_seqno == o2_mem_seqno) {
         o2_mem_watch = result;
     }
-    postlude->end_sentinal = 0xBADCAFE8DEADBEEF;
+    postlude->end_sentinal = 0xBADCAFE8DEADBEEFULL;
     if (result == o2_mem_watch) {
         fprintf(stderr, "o2_mem_watch %p allocated at seqno %ld\n",
                 result, o2_mem_seqno);
@@ -753,8 +766,8 @@ void o2_free(void *ptr)
                 ptr, (long long) postlude->seqno);
     }
     // change sentinals to indicate a free block
-    preamble->start_sentinal = 0xDea110c8dDebac1e; // cute words
-    postlude->end_sentinal = 0x5ea1ed5caff01d;
+    preamble->start_sentinal = 0xDea110c8dDebac1eULL; // cute words
+    postlude->end_sentinal = 0x5ea1ed5caff01dULL;
 #endif
     // head_ptr_for_size can round up size
     head_ptr = head_ptr_for_size(&preamble->size);

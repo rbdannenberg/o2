@@ -24,7 +24,11 @@ O2list_elem *O2queue::pop()
 {
     O2queue_na next_head;
     O2queue_na orig_head = atomic_load(&queue_head);
-    assert(((uintptr_t) &queue_head & 0xF) == 0);
+#if (INTPTR_MAX == INT32_MAX)
+    assert(((uintptr_t) &queue_head & 0x7) == 0); // 32-bit: 8-byte aligned
+#else
+    assert(((uintptr_t) &queue_head & 0xF) == 0); // 64-bit: 16-byte aligned
+#endif
     do {
         if (orig_head.first == NULL)
             return NULL;  // empty stack
