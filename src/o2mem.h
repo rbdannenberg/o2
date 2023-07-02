@@ -14,6 +14,17 @@
    block sizes that are powers of 2.
    
    The linear list block sizes go up to MAX_LINEAR_BYTES.
+
+   When the current large block of memory (called chunk) runs out of
+   space, and IF allocation is enabled (the malloc_ok variable, set
+   through the mallocp parameter passed to o2_memory()), then malloc
+   another chunk if the needed memory size is < 512. For bigger blocks,
+   instead of allocating another chunk (which might waste what's left
+   in the current chunk), directly allocate the needed block with malloc.
+   This block becomes a chunk with a single object allocated from it.
+
+   All chunks are kept on a global list in order to free all O2 memory
+   back to to the system if/when O2 is shut down.
  */
 
 #define O2MEM_H

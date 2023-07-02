@@ -267,6 +267,7 @@ function(o2litetestprogram name ext)
   set_property(TARGET ${name} PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
 endfunction()
 
+o2testprogram(memtest)
 o2testprogram(dispatchtest)
 o2testprogram(typestest)
 o2testprogram(taptest)

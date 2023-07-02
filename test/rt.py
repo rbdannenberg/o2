@@ -275,6 +275,7 @@ def runAllTests():
                      os.path.exists(BIN + "/hubserver/" + EXE)
     print("Running regression tests for O2 ...")
 
+    if not runTest("memtest"): return
     if not runTest("stuniptest", quit_on_port_loss=True): return
     if not runTest("dispatchtest"): return
     if not runTest("typestest"): return

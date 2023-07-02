@@ -100,13 +100,20 @@
 //         but rather intended for the application to define.
 //     o2ws_status_msg(msg) (externally defined) - status messages
 //         (strings) are passed to this function if it is defined.
-//     Appication may get a list of all services and their info by
-//         sending a message to "/_o2/ws/ls" with no parameters.
+//     /_o2/ls is an address that may be handled by the application.
+//         Application may get a list of all services and their info
+//         by sending a message to "/_o2/ws/ls" with no parameters.
 //         Replies will come to /_o2/ls with typespec "siss" and
 //         parameters service_name service_type, process_name,
 //         properties (unless service_type is O2_TAP, in which case
-//         the tapper name replaces properties.) service_type is
-//         an integer from O2_LOCAL_NOTIME through O2_TAP (see code).
+//         the tapper name replaces properties.) service_type is an
+//         integer from O2_LOCAL_NOTIME through O2_TAP (see code).
+//     /_o2/st is an address that may be handled by the application.
+//         Application may get the status of a particular service
+//         by sending a message to "/_o2/ws/st" with type string "s"
+//         and the service name. A reply will be sent to /_o2/st
+//         with typespec "si" and parameters service_name, status, an
+//         integer from O2_LOCAL_NOTIME through O2_TAP (see code).
 //     Initialization: something like
 //         window.addEventListener("load", o2wsInit, false);
 //         function o2wsInit() { o2ws_initialize("myensemblename");

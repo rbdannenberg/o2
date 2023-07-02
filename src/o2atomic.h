@@ -116,15 +116,6 @@ typedef _Atomic(O2queue_na) *O2queue_atomic_ptr;
 class O2queue {
   public:
     O2queue_atomic queue_head;
-    // for 32-machines, we pad O2queue out with 8 more bytes to get 16,
-    // which is assumed in o2mem.{cpp,h}. Probably, o2mem could be
-    // optimized so as not to waste these 8 bytes, but there are a lot of
-    // low-level pointer operations in there and very little type checking
-    // to catch errors, so for now, this seems the safe way to support
-    // 32-bit machines (Raspberry Pi Zero W in particular):
-#if (INTPTR_MAX == INT32_MAX)
-    int64_t padding;
-#endif
 
     O2queue() { clear(); }
     
