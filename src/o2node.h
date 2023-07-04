@@ -115,13 +115,6 @@ are all the possible tag values:
 #define IS_SYNCED(x) ((x)->tag & O2TAG_SYNCED)
 
 
-/* compute the size of a string including EOS and padding to next word */
-int o2_strsize(const char *s);
-
-void o2_string_pad(char *dst, const char *src);
-
-O2string o2_heapify(const char *path);
-
 /**
  *  Structures for hash look up.
  */

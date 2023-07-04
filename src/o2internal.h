@@ -40,8 +40,38 @@
 // classes before that:
 
 // hash keys are processed in 32-bit chunks so we declare a special
-// string type. These are used in messages as well.
+// string type. These are used in messages as well, where strings
+// occupy a multiple of 4 bytes.
 typedef const char *O2string; // string padded to 4-byte boundary
+
+/* o2_strsize - compute the size of a string including EOS and padding
+ * to next word. s can be a C string or O2string.
+ */
+int o2_strsize(const char *s);
+
+/* copy src to dst, padding with zeros to a 32-bit word boundary. dst
+ * must be of size NAME_BUF_LEN or bigger and src will be truncated to
+ * NAME_BUF_LEN - 4 == O2_MAX_NODE_NAME_LEN == 1020 if it is longer.
+ */
+void o2_string_pad(char *dst, const char *src);
+
+/* Copy path to the O2 heap, creating an O2string with zero padding to
+ * a 32-bit word boundary.
+ */
+O2string o2_heapify(const char *path);
+
+// o2_strcpy is like strlcpy but it does not return length.
+// precisely, o2_strcpy() copies up to n characters (including EOS) from
+// s to d. String s is truncated to a maximum length of n - 1 and terminated
+// with a zero EOS byte. (Any remainder of d may or may not be filled with
+// zeros, unlike strlcpy, which zero fills.)
+#ifdef __APPLE__
+#define o2_strcpy(d, s, n) ((void) strlcpy(d, s, n))
+#else
+void o2_strcpy(char *__restrict dst, const char *__restrict src,
+              size_t dstsize);
+#endif
+
 
 #include "o2network.h"
 #include "o2node.h"
@@ -231,18 +261,6 @@ void o2_mem_finish(void); // implemented by o2mem.c, called to free
 
 #define ROUNDUP_TO_32BIT(i) ((((size_t) i) + 3) & ~3)
 
-
-// o2_strcpy is like strlcpy but it does not return length.
-// precisely, o2_strcpy() copies up to n characters (including EOS) from
-// s to d. String s is truncated to a maximum length of n - 1 and terminated
-// with a zero EOS byte. (Any remainder of d may or may not be filled with
-// zeros, unlike strlcpy, which zero fills.)
-#ifdef __APPLE__
-#define o2_strcpy(d, s, n) ((void) strlcpy(d, s, n))
-#else
-void o2_strcpy(char *__restrict dst, const char *__restrict src,
-              size_t dstsize);
-#endif
 
 extern O2time o2_local_now;
 extern O2time o2_global_now;

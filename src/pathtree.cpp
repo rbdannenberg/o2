@@ -533,7 +533,7 @@ void o2_string_pad(char *dst, const char *src)
     if (len >= NAME_BUF_LEN) {
         len = NAME_BUF_LEN;
     }
-    // now copy the string; this also fills in zero pad bytes
+    // now copy the string; strncpy also fills in zero pad bytes
     strncpy(dst, src, len);
     dst[NAME_BUF_LEN - 1] = 0; // finish padding and/or terminate string
 }
