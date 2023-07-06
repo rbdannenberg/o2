@@ -669,7 +669,7 @@ typedef struct O2msg_data {
  */
 // 8 bytes for 32-bit architectures, 16-bytes for 64-bit architectures:
 #define O2MEM_ALIGN (sizeof(size_t) * 2)
-#define O2MEM_ALIGNUP(s) ( ((s)+(O2MEM_ALIGN-1)) & ~(O2MEM_ALIGN-1) )
+#define O2MEM_ALIGNUP(s) ( ((uintptr_t)(s)+(O2MEM_ALIGN-1)) & ~(O2MEM_ALIGN-1) )
 #define O2MEM_BIT32_ALIGN_PTR(p) ((char *) (((size_t) (p)) & ~3))
 // returns the address of the byte AFTER the message
 #define O2_MSG_DATA_END(data) (PTR(&(data)->misc) + (data)->length)

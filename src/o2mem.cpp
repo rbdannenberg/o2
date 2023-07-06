@@ -39,9 +39,36 @@
    with O2MEM_UNUSED.
  */
 
-// this will cause errors in shared-memory/multiple thread applications:
-#define EXTRA 0
+/* Memory layout for "objects" (allocated blocks of memory):
 
+       64-bit-debug    64-bit             32-bit-debug     32-bit
+0x??00
+0x??04
+0x??08 start_sentinal
+0x??0c
+0x??10 padding
+0x??14
+0x??18 size            size               start_sentinal
+0x??1c                                    size            size
+0x??20 PAYLOAD         PAYLOAD            PAYLOAD         PAYLOAD
+0x??24    |               |                  |               |
+0x??28    |               |                  |               |
+0x??2c    |               |                  |               |
+0x??30    |               |                  |               |
+0x??34 END PAYLOAD     END PAYLOAD           |               |
+0x??38 padding         begin next block   END PAYLOAD     END PAYLOAD
+0x??3c    |                               padding         begin next block
+...       |                                  |
+0x??b0    |                                  |
+0x??b4 end padding                           |
+0x??b8 seqno                              end padding
+0x??bc                                    more_pad
+0x??c0 end_sentinal                       seqno
+0x??c4                                    end_sentinal
+------
+0x??c8 begin next block
+
+*/
 
 #include <stddef.h>
 #include <inttypes.h>
@@ -155,19 +182,24 @@ static void mem_unlock()
 typedef struct preamble_struct {
 #if O2MEM_DEBUG
     size_t start_sentinal;
-    size_t padding;  // to get O2MEM_ALIGNment
+#if INTPTR_MAX == INT64_MAX
+    size_t padding;  // to get 16-byte alignment on 64-bit architectures
+#endif
 #endif
     size_t size;     // usable bytes in payload
     char payload[8]; // the application memory, aligned to O2MEM_ALIGN
 } preamble_t, *preamble_ptr;
 
 #if O2MEM_DEBUG
-// the postlude_struce, used when O2MEM_DEBUG uses a multiple of O2MEM_ALIGN
+// the postlude_struct, used when O2MEM_DEBUG uses a multiple of O2MEM_ALIGN
 // and is aligned to a multiple of O2MEM_ALIGN + O2MEM_ALIGN / 2, so the
 // next location, which is the next preamble is also not aligned, leaving
 // the next payload in alignment:
 typedef struct postlude_struct {
     size_t padding[O2MEM_ISOLATION];
+#if INTPTR_MAX == INT32_MAX
+    size_t more_pad;  // needed for alignment in 32-bit architectures
+#endif
     size_t seqno;
     size_t end_sentinal;  // this will be aligned
 } postlude_t, *postlude_ptr;
@@ -199,11 +231,17 @@ typedef struct chunk_struct {
 
 // convert the requested size to actual size of allocated object space
 // not including prelude with size or postlude space. Result is always
-// a multiple of 16 plus an extra 8. (On 32-bit architectures, we could
-// allocate multiples of 8 plus an extra 4, but to reduce the number of
-// memory sizes, the allocation sizes are still increments of 16.)
+// a multiple of 16 plus an extra 8 on 64-bit architectures (so the
+// object size + sizeof(size) is a multiple of 16) and plus an
+// extra 12 on 32-bit architectures so that object size + sizeof(size)
+// is also a multiple of 16.
+#if INTPTR_MAX == INT64_MAX
 #define SIZE_REQUEST_TO_ACTUAL(size) ((((size) + 7) & ~0xF) + 8)
-
+#elif INTPTR_MAX == INT32_MAX
+#define SIZE_REQUEST_TO_ACTUAL(size) ((((size) + 3) & ~0xF) + 12)
+#else
+#error not 32 or 64 bit architecture?
+#endif
 // Compute the actual number of bytes we must get from a chunk of free
 // bytes, given that size is the object size passed to o2_malloc. The
 // result includes the prelude with size field, the payload and debug
@@ -234,7 +272,7 @@ void ((*o2_free_ptr)(void *)) = &o2_free;
 // linear_free has to be 02MEM_ALIGNed, so initialize it to start within
 // a suitably sized block of memory
 static char lf_storage[sizeof(O2queue) * ((MAX_LINEAR_BYTES / 16) + 1)];
-static O2queue* linear_free = (O2queue*) O2MEM_ALIGNUP((uintptr_t) lf_storage);
+static O2queue* linear_free = (O2queue*) O2MEM_ALIGNUP(lf_storage);
 
 
 // array of freelists with log2(size) from LOG_MAX_LINEAR_BYTES + 8 to
@@ -243,7 +281,7 @@ static O2queue* linear_free = (O2queue*) O2MEM_ALIGNUP((uintptr_t) lf_storage);
 static char ef_storage[sizeof(O2queue) * ((LOG2_MAX_EXPONENTIAL_BYTES -
                                            LOG2_MAX_LINEAR_BYTES) + 1)];
 static O2queue *exponential_free =
-                        (O2queue*) O2MEM_ALIGNUP((uintptr_t) ef_storage);
+                        (O2queue*) O2MEM_ALIGNUP(ef_storage);
 
 #ifndef O2_NO_DEBUG
 static int64_t o2mem_get_seqno(const void *ptr);
@@ -546,16 +584,19 @@ static O2queue *head_ptr_for_size(size_t *size)
     *size = SIZE_REQUEST_TO_ACTUAL(*size);
     size_t index = *size >> 4;  // in linear range, size increment is 16
     // index is 0 for 8, 1 for 24, etc. up to 31 for 504
+    // or on 32-bit machines, index 0 for 12, 1 for 28, etc. up to 31 for 508
     if (index < (MAX_LINEAR_BYTES / 16)) {
         return &linear_free[index];
     }
-    // The first element of exponential_free has blocks for size 520, and
-    // each element has (2^N)+(O2MEM_ALIGN/2) usable bytes,
+    // The first element of exponential_free has blocks for size 520
+    // (or 524 for 32-bit machines), and
+    // each element has (2^N)+(16-sizeof(uintptr_t)) usable bytes,
     // not counting the size field. So to find N, we take the log2 of
-    // size - (O2MEM_ALIGN/2):
-    index = power_of_2_block_size(*size - 8);
+    // size - (16 - sizeof(uintptr_t))
+    index = power_of_2_block_size(*size - (16 - sizeof(uintptr_t)));
     if (index < LOG2_MAX_EXPONENTIAL_BYTES) {
-        *size = ((size_t) 1 << index) + 8;  // what is actually available
+        // what is actually available:
+        *size = ((size_t) 1 << index) + (16 - sizeof(uintptr_t));
         // assert: index - LOG2_MAX_LINEAR_BYTES is in bounds
         // proof: (1) show index - LOG2_MAX_LINEAR_BYTES >= 0
         //    equivalent to index >= LOG2_MAX_LINEAR_BYTES
