@@ -1,4 +1,4 @@
-/* o2mem.c -- real-time allocation
+/* o2mem.cpp -- real-time allocation
  *
  * Roger B. Dannenberg
  * April 2020
@@ -47,8 +47,8 @@
 0x??08 start_sentinal
 0x??0c
 0x??10 padding
-0x??14
-0x??18 size            size               start_sentinal
+0x??14                                    start_sentinal
+0x??18 size            size               padding
 0x??1c                                    size            size
 0x??20 PAYLOAD         PAYLOAD            PAYLOAD         PAYLOAD
 0x??24    |               |                  |               |
@@ -62,9 +62,9 @@
 0x??b0    |                                  |
 0x??b4 end padding                           |
 0x??b8 seqno                              end padding
-0x??bc                                    more_pad
-0x??c0 end_sentinal                       seqno
-0x??c4                                    end_sentinal
+0x??bc                                    seqno
+0x??c0 end_sentinal                       end_sentinal
+0x??c4                                    
 ------
 0x??c8 begin next block
 
@@ -182,9 +182,7 @@ static void mem_unlock()
 typedef struct preamble_struct {
 #if O2MEM_DEBUG
     size_t start_sentinal;
-#if INTPTR_MAX == INT64_MAX
-    size_t padding;  // to get 16-byte alignment on 64-bit architectures
-#endif
+    size_t padding;  // to get 8- or 16-byte alignment
 #endif
     size_t size;     // usable bytes in payload
     char payload[8]; // the application memory, aligned to O2MEM_ALIGN
@@ -197,9 +195,6 @@ typedef struct preamble_struct {
 // the next payload in alignment:
 typedef struct postlude_struct {
     size_t padding[O2MEM_ISOLATION];
-#if INTPTR_MAX == INT32_MAX
-    size_t more_pad;  // needed for alignment in 32-bit architectures
-#endif
     size_t seqno;
     size_t end_sentinal;  // this will be aligned
 } postlude_t, *postlude_ptr;
@@ -294,7 +289,7 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
     void *obj = (*o2_malloc_ptr)(size);
     O2_DBm(if (o2_memory_mgmt)
                printf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj));
-    assert(obj && ((((intptr_t) obj) & 0xF) == 0));
+    assert(obj && IS_ALIGNED(obj));
     return obj;
 }
 
@@ -351,7 +346,7 @@ static bool block_check(void *ptr, int alloc_ok, int free_ok)
     int64_t size = preamble->size;
     int64_t realsize = SIZE_TO_REALSIZE(size);
     postlude_ptr postlude = PREAMBLE_TO_POSTLUDE(preamble);
-    if (preamble->start_sentinal == ~realsize) {
+    if (preamble->start_sentinal == (size_t) ~realsize) {
         if (alloc_ok) goto good_sentinal;
         fprintf(stderr, "block at %p is allocated\n", ptr);
     } else if (preamble->start_sentinal == O2MEM_FREE_START) {
@@ -391,7 +386,7 @@ static bool block_check(void *ptr, int alloc_ok, int free_ok)
             return rslt;
         }
     } else if (postlude->end_sentinal == O2MEM_DATA_END) {
-        if (preamble->start_sentinal != ~realsize) { // allocated
+        if (preamble->start_sentinal != (size_t) ~realsize) { // allocated
             fprintf(stderr, "allocated block start sentinal but block %p "
                     "start indicates it\nis freed: end sentinal %lld "
                     "(0x%llx) size %lld\n", ptr,
@@ -522,7 +517,7 @@ void o2_mem_init(char *chunk, int64_t size)
     // whether we are INITIALIZED or not, we clean up when called, so this
     // *must* only be called by o2_initialize() or o2_finish() (which calls
     // o2_mem_finish().
-    for (int i = 0; i < MAX_LINEAR_BYTES / O2MEM_ALIGN; i++) {
+    for (int i = 0; i < MAX_LINEAR_BYTES / 16; i++) {
         linear_free[i].clear();
     }
     for (int i = 0;
@@ -614,7 +609,7 @@ static O2queue *head_ptr_for_size(size_t *size)
 #if O2MEM_DEBUG
 void write_debug_info_into(preamble_ptr preamble, size_t realsize)
 {
-    preamble->start_sentinal = ~realsize;
+    preamble->start_sentinal = (size_t) ~realsize;
     postlude_ptr postlude = PREAMBLE_TO_POSTLUDE(preamble);
     assert(IS_ALIGNED(&postlude->end_sentinal));
     for (int i = 0; i < O2MEM_ISOLATION; i++) {
