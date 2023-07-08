@@ -164,9 +164,9 @@ void loop() {
                 strcpy(client_addresses[i], path);
 
                 sprintf(path, "/server/benchmark/%d", i);
-                server_addresses[i] = (char *) (malloc(strlen(path)));
+                server_addresses[i] = (char *) (malloc(strlen(path) + 1));
                 strcpy(server_addresses[i], path);
-                o2l_method_new(server_addresses[i], "i", true, 
+                o2l_method_new(server_addresses[i], "i", true, 
                                &server_test, NULL);
                 // we are ready for the client, so announce the server services
                 o2l_set_services("sift,server");

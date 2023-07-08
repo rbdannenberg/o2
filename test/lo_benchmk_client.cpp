@@ -46,7 +46,7 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < n_addrs; i++) {
         char path[100];
         sprintf(path, "/benchmark/%d", i);
-        addresses[i] = (char *) malloc(strlen(path));
+        addresses[i] = (char *) malloc(strlen(path) + 1);
         strcpy(addresses[i], path);
         lo_server_add_method(client, path, "i", &handler, NULL);
     }

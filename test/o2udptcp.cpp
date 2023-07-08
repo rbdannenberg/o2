@@ -78,7 +78,7 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < n_addrs; i++) {
         char path[100];
         sprintf(path, "!server/benchmark/%d", i);
-        server_addresses[i] = (char *) (O2_MALLOC(strlen(path)));
+        server_addresses[i] = (char *) (O2_MALLOC(strlen(path) + 1));
         strcpy(server_addresses[i], path);
     }
 

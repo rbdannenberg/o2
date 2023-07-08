@@ -146,11 +146,11 @@ int main(int argc, const char * argv[])
         char path[100];
 
         sprintf(path, "!client/benchmark/%d", i);
-        client_addresses[i] = (char *) (malloc(strlen(path)));
+        client_addresses[i] = (char *) (malloc(strlen(path) + 1));
         strcpy(client_addresses[i], path);
 
         sprintf(path, "/server/benchmark/%d", i);
-        server_addresses[i] = (char *) (malloc(strlen(path)));
+        server_addresses[i] = (char *) (malloc(strlen(path) + 1));
         strcpy(server_addresses[i], path);
         o2l_method_new(server_addresses[i], "i", true, &server_test, NULL);
     }

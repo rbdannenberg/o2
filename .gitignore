@@ -91,6 +91,7 @@ bugs/osctest.eml
 /unisub
 /websockhost
 /shmembench
+/memtest
 
 /demo/buttons/srp.log
 
@@ -100,4 +101,3 @@ bugs/osctest.eml
 
 /pdo2.zip
 
-/memtest
