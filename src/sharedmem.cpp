@@ -195,7 +195,6 @@ void *shared_memory_thread(void *ignore) // the thread entry point
 #include "message.h"
 #include "msgsend.h"
 #include "pathtree.h"
-#include "o2mem.h"
 #include "sharedmem.h"
 
 O2queue o2sm_incoming;

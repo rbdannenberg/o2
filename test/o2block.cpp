@@ -1,7 +1,7 @@
 //  o2block.c - test for blocking
 //
 //  This program works with o2unblock.c. It waits for client to
-//  sent 0 to "/server/hello"; then we start sending 1000 messages
+//  send 0 to "/server/hello"; then we start sending 1000 messages
 //  but we pause when the message stream blocks. As soon as we block
 //  we wait for client to send 1. Then we continue. After MAX_MSG_COUNT
 //  messages are sent, we should get MAX_MSG_COUNT back from client.
@@ -33,9 +33,18 @@ void server_test(O2msg_data_ptr msg, const char *types,
 {
     assert(argc == 1);
     assert(strcmp(types, "i") == 0);
-    if (argv[0]->i32 == 0) got_start = true;
-    if (argv[0]->i32 == 1) got_one = true;
-    if (argv[0]->i32 == MAX_MSG_COUNT) got_max = true;
+    if (argv[0]->i32 == 0) {
+        got_start = true;
+        printf("Got start (0) at %g\n", o2_time_get());
+    }
+    if (argv[0]->i32 == 1) {
+        got_one = true;
+        printf("Got one (1) at %g\n", o2_time_get());
+    }
+    if (argv[0]->i32 == MAX_MSG_COUNT) {
+        got_max = true;
+        printf("Got MAX_MSG_COUNT (%d) at %g\n", MAX_MSG_COUNT, o2_time_get());
+    }
 }
 
 
@@ -68,7 +77,7 @@ int main(int argc, const char *argv[])
     
     printf("We discovered the client at time %g.\n", o2_time_get());
     
-    // delay 1 second
+    // delay 1 second (maybe not needed)
     double now = o2_time_get();
     while (o2_time_get() < now + 1) {
         o2_poll();
@@ -95,14 +104,21 @@ int main(int argc, const char *argv[])
         }
         o2_poll();
     }
-    // after we're done sending, look for got_max
+    // now we wait for client to get all MAX_MSG_COUNT messages and
+    // reply with MAX_MSG_COUNT -- might take awhile if we are way ahead
     now = o2_time_get();
-    while (o2_time_get() < now + 1) {
+    while (!got_max && o2_time_get() < now + 5) {
         o2_poll();
-        o2_can_send("client"); // what happens when client disappears?
         o2_sleep(2);
     }
     assert(got_max);
+    // after got_max, client waits 1 sec and exits, so if we "got_max"
+    // and wait 2 sec, then we should see that the client does not exist
+    now = o2_time_get();
+    while (o2_time_get() < now + 2) {
+        o2_poll();
+        o2_sleep(2);
+    }
     assert(o2_can_send("client") == O2_FAIL); // does not exist
 
     o2_finish();

@@ -154,6 +154,9 @@ void Vec<T>::expand_array(int newsize)
     if (allocated < newsize) allocated = newsize;
     T *bigger = O2_MALLOCNT(allocated, T);
     memcpy(bigger, array, length * sizeof(T));
+    // Maybe we got more memory than requested. Make use of it:
+    allocated = o2_allocation_size(bigger, allocated * sizeof(T)) /
+                sizeof(T);
     if (array) O2_FREE(array);
     array = bigger;
 }

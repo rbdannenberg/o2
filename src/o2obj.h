@@ -4,7 +4,6 @@
 // November 2020
 
 #include "o2base.h"
-#include "o2mem.h"
 
 class O2obj {
   public:

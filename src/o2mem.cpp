@@ -31,7 +31,7 @@
    before the sentinal. This applies to memory blocks allocated from
    the chunk as well.
 
-   To support concurrent allocation, each thread has it's own chunk in
+   To support concurrent allocation, each thread has its own chunk in
    o2_ctx. The chunks are linked onto a master list atomically and 
    freed by o2_mem_finish().
 
@@ -513,6 +513,8 @@ void o2_mem_init(char *chunk, int64_t size)
     if (o2mem_state == NOT_USED) {
         return;
     }
+    assert(o2_ctx);  // Sorry - you cannot use o2mem without fully
+                     // initializing O2 with o2_initialize().
     assert(sizeof(O2queue) == O2MEM_ALIGN);
     // whether we are INITIALIZED or not, we clean up when called, so this
     // *must* only be called by o2_initialize() or o2_finish() (which calls
@@ -886,3 +888,15 @@ void o2_free(void *ptr)
 }
 
 
+// Get actual allocation size. minimum is returned if o2_malloc is not
+// in use, and should be the same byte count passed to O2_MALLOC, i.e.
+// it is the largest number of bytes guaranteed to be available.
+//
+size_t o2_allocation_size(void *obj, size_t minimum)
+{
+    if (o2_malloc_ptr == &o2_malloc) {
+        return OBJ_SIZE(obj);
+    } else {
+        return minimum;
+    }
+}

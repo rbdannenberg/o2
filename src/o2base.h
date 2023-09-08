@@ -175,6 +175,12 @@ void o2_mem_check(void *ptr);
 #endif
 
 
+// get actual allocation size
+// some memory optimizations are possible if we can get the actual
+// allocation size, which is possible using o2_malloc:
+//
+size_t o2_allocation_size(void *obj, size_t minimum);
+
 #ifdef __cplusplus
 }
 #endif

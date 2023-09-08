@@ -141,8 +141,10 @@ def unpack_args(outf, o2id_type, description, handler, methods):
     for i, param in enumerate(description):
         fields = param.split()
         if len(fields) != 2:
-            print("o2idc: could not parse parameters near", fields)
-            print("    expected <type> <name>")
+            print("o2idc: could not parse parameter near", fields)
+            print('    expected <type> <name>. Check for valid type ("int" is')
+            print('    not valid, but "int32" is. Check for comma separating')
+            print('    <type> <name> pairs. Check for terminating ";".')
             return False
         typ = fields[0]
         pname = fields[1]
@@ -157,7 +159,9 @@ def unpack_args(outf, o2id_type, description, handler, methods):
             ctype = (typ + " ")
         typecode = typecodes.get(typ)
         if not typecode:
-            print("o2idc: invalid type", typ, "near", fields)
+            print("o2idc: invalid type name \"" + typ + "\" near", fields)
+            if typ == "int":
+                print("    Did you mean to use O2 type int32 or int64?")
             return False
         typestring = typestring + typecode
         if o2id_type == 'o2lite':
@@ -173,11 +177,13 @@ def unpack_args(outf, o2id_type, description, handler, methods):
 
 
 def process(filename, output_filename):
-    """"rewrite filename to output_filename, replacing generated code sections"""
+    """rewrite filename to output_filename, replacing generated code sections
+    """
     print("   ", filename)
     wrote_initialize = False
     methods = []  # list of (address, handler, typestring) pairs
     outf = open(output_filename, "w")
+    o2id_type = None
     with open(filename, "r") as file:
         state = 'findid'
         description = ""
@@ -277,11 +283,15 @@ def process(filename, output_filename):
                 print("o2idc: unexpected condition, state", state)
                 return False
     if state == 'findid' and not wrote_initialize:
-        filebase = os.path.basename(filename)
-        filebase = os.path.splitext(filebase)[0]
-        print("void", filebase + "_initialize()\n{", file=outf)
-        write_initialize(outf, o2id_type, methods);
-        print("}", file=outf)
+        if o2id_type:
+            filebase = os.path.basename(filename)
+            filebase = os.path.splitext(filebase)[0]
+            print("void", filebase + "_initialize()\n{", file=outf)
+            write_initialize(outf, o2id_type, methods);
+            print("}", file=outf)
+        else:
+            print("o2idc: Unexpected condition. o2id_type is not defined.")
+            print("    Maybe no INTERFACE directives found in this file.")
     elif state != 'findid':
         print("o2idc: something was not closed properly. Unexpected state")
         print("    at the end of", filename, " (final state", state, ")")

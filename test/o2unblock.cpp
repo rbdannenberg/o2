@@ -69,9 +69,9 @@ int main(int argc, const char *argv[])
         o2_poll();
     }
 
-    // delay 0.1 second to make sure last message is sent
+    // delay 1 second to make sure last message is sent
     double now = o2_time_get();
-    while (o2_time_get() < now + 0.1) {
+    while (o2_time_get() < now + 1) {
         o2_poll();
         o2_sleep(2);
     }
