@@ -1,8 +1,58 @@
-class o2lite_object(debug):
+from dataclasses import dataclass
 
+# define O2_MALLOC malloc
+# define O2_CALLOC calloc
+# define O2_FREE free
+
+MAX_MSG_LEN = 256
+PORT_MAX = 16
+O2L_SUCCESS = 0
+O2L_FAIL = -1
+O2L_ALREADY_RUNNING = -5
+O2_UDP_FLAG = 0
+O2_TCP_FLAG = 1
+
+
+# typedef struct o2l_msg {
+#     int32_t length; // length of flags, timestamp, address, and the rest
+#     int32_t misc;   // flags and ttl (see O2msg_data)
+#     double timestamp; // regardless of o2l_time, this is O2time = double
+#     char address[4];
+# } o2l_msg, *o2l_msg_ptr;
+
+@dataclass
+class O2lMsg:
+    length: int
+    misc: int
+    timestamp: float
+    message_address: chr[4]
+
+
+class O2liteObject:
     # TODO: think about how to set up these constants
-    def __init__(self, o2_no_o2discovery, o2l_no_broadcast):
-        debug = false
+    def __init__(self, o2_no_o2discovery=None, o2l_no_broadcast=None):
+        debug = False
+
+        # if defined(O2_NO_O2DISCOVERY) && !defined(O2L_NO_BROADCAST)
+        # define O2L_NO_BROADCAST 1
+        # endif
+        # if defined(O2_NO_O2DISCOVERY) && defined(O2_NO_ZEROCONF)
+        # error O2_NO_O2DISCOVERY and O2_NO_ZEROCONF are both defined - no discovery
+        # endif
+
+        if o2_no_o2discovery is not None and o2l_no_broadcast is None:
+            o2_no_o2discovery = 1
+
+        if o2_no_o2discovery is not None and o2l_no_broadcast is not None:
+            raise ValueError("error O2_NO_O2DISCOVERY and O2_NO_ZEROCONF are both defined - no discovery")
+
+        # default is ZEROCONF, so if necessary, disable O2_NO_O2DISCOVERY:
+        # if !defined(O2_NO_O2DISCOVERY) && !defined(O2_NO_ZEROCONF)
+        # define O2_NO_O2DISCOVERY
+        # if !defined(O2L_NO_BROADCAST)
+        # define O2L_NO_BROADCAST
+        # endif
+        # endif
 
     def o2l_send_start(self, address, time, types, tcp):
         """
@@ -116,4 +166,3 @@ class o2lite_object(debug):
 
     def o2l_bind_recv_socket(self, sock, port):
         pass
-
