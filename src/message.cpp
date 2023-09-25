@@ -345,9 +345,9 @@ O2message_ptr o2_service_message_finish(
         dst = PTR(end);
         end = (int32_t *) (dst + types_size);
         end[-1] = 0; // fill last 32-bit word with zeros
-        memcpy(dst, &o2_ctx->msg_types[0], types_len);
+        o2_ctx->msg_types.copy_to(dst);
     }
-    memcpy(end, &o2_ctx->msg_data[0], o2_ctx->msg_data.size());
+    o2_ctx->msg_data.copy_to((char *) end);
     o2_mem_check(msg);
     return msg;
 }
@@ -398,7 +398,7 @@ int o2_add_raw_bytes(int32_t len, char *bytes)
 char *o2_msg_data_get(int32_t *len_ptr)
 {
     *len_ptr = o2_ctx->msg_data.size();
-    return PTR(&o2_ctx->msg_data[0]);
+    return PTR(o2_ctx->msg_data.get_array());
 }
 
 

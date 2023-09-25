@@ -503,6 +503,8 @@ O2err o2_discovered_a_remote_process_name(const char *name, int version,
                   o2_debug_prefix, udp_port, internal_ip,
                   ntohs(proc->udp_address.sa.sin_port),
                   proc->udp_address.get_port()));
+    // NOTE: The remote process may not exist! Maybe discovery info was stale.
+    // Do not set is_connected until we get a !_o2/cs message from remote.
     return err;
 }
 
@@ -661,6 +663,14 @@ void o2_services_handler(O2msg_data_ptr msg, const char *types,
         
         return; // message is bogus (should we report this?)
     }
+    
+    // When we receive /_o2/sv, we have confirmation that the remote proc
+    // really exists (not just something we tried to connect to because of
+    // a suggestion from discovery that might have been stale. Setting the
+    // is_connected flag causes a an /_o2/si status info to be sent when
+    // the Proc_info is deleted due to a socket closing the connection:
+    ((Proc_info *) proc)->is_connected = true;
+    
     O2arg_ptr addarg;     // boolean - adding a service or deleting one?
     O2arg_ptr isservicearg; // boolean - service (true) or tap (false)?
     O2arg_ptr prop_tap_arg;  // string - properties string or tappee name

@@ -16,6 +16,10 @@
 
 #define N_ADDRS 10
 
+char remote_ip_port[O2_MAX_PROCNAME_LEN];
+
+int si_msg_count = 0;
+
 
 void service_one(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
@@ -33,9 +37,10 @@ void clockmaster(O2msg_data_ptr msg, const char *types,
 {
     int ss = o2_status("server");
     int cs = o2_status("client");
+    int rs = o2_status(remote_ip_port);
     printf("infotest2: local time %g global time %g "
-           "server status %d client status %d\n",
-           o2_local_time(), o2_time_get(), ss, cs);
+           "server status %d client status %d remote status %d\n",
+           o2_local_time(), o2_time_get(), ss, cs, rs);
     // record when the client synchronizes
     if (cs == O2_REMOTE) {
         if (o2_time_get() < cs_time) {
@@ -52,10 +57,6 @@ void clockmaster(O2msg_data_ptr msg, const char *types,
     o2_send("!server/clockmaster", o2_time_get() + 1, "");
 }
 
-
-char remote_ip_port[O2_MAX_PROCNAME_LEN];
-
-int si_msg_count = 0;
 
 // local services are create first in this order.
 // LN is local non-synchronized, L is local synchronized
@@ -135,6 +136,10 @@ int check_service(const char *service, const char *ip_port, int status)
         strcpy(remote_ip_port, ip_port);
         printf("remote_ip_port is %s\n", remote_ip_port);
     }
+    if (!group) {
+        printf("In check_service, no group found - test fails\n");
+        return false;
+    }
     // search group for expected service/status
     int i = 0;
     while (group[i]) {
@@ -144,7 +149,8 @@ int check_service(const char *service, const char *ip_port, int status)
         if (streql(group[i], service)) { // found it
             bool good_ip_port =
                     (group[i + 1][0] == 'L' && streql(ip_port, "_o2")) ||
-                    (group[i + 1][0] == 'R' && streql(ip_port, remote_ip_port)) ||
+                    (group[i + 1][0] == 'R' &&
+                     streql(ip_port, remote_ip_port)) ||
                     (group[i + 1][0] == 'X');
             if (!good_ip_port) {
 #ifndef O2_NO_DEBUG

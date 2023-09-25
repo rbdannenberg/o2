@@ -65,7 +65,6 @@ const char *o2_tag_to_string(int tag)
         case O2TAG_HANDLER:            return "HANDLER";
         case O2TAG_SERVICES:           return "SERVICES";
         case O2TAG_PROC_TCP_SERVER:    return "PROC_TCP_SERVER";
-        case O2TAG_PROC_NOMSGYET:      return "PROC_NOMSGYET";
         case O2TAG_PROC:               return "PROC";
         case O2TAG_PROC_TEMP:          return "PROC_TEMP";
         case O2TAG_MQTT:               return "MQTT_CLIENT";
