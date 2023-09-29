@@ -186,7 +186,7 @@ if(${BUILD_WITH_O2MEM_DEBUG} GREATER 0 AND NOT WIN32)
   target_link_libraries(o2 PRIVATE pthread)
 endif()
 target_include_directories(o2 PRIVATE ${BONJOUR_INCLUDE_PATH})  
- set_target_properties(o2 PROPERTIES
+set_target_properties(o2 PROPERTIES
     OUTPUT_NAME ${O2}
     MSVC_RUNTIME_LIBRARY MultiThreaded
     IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}"
