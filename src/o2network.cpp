@@ -298,6 +298,9 @@ static int bind_recv_socket(SOCKET sock, int *port, bool tcp_recv_flag,
         if (tcp_recv_flag) {
             perror("Bind receive socket");
             fprintf(stderr, "    (Address is INADDR_ANY on port %d)\n", *port);
+        } else {
+            perror("Bind udp receive socket");
+            fprintf(stderr, "    (Tried to bind port %d)\n", *port);
         }
         return O2_FAIL;
     }
@@ -550,15 +553,17 @@ Fds_info::~Fds_info()
     assert(o2n_fds.bounds_check(fds_index));
     struct pollfd *pfd = &o2n_fds[fds_index];
 
-    O2_DBc(if (owner) {
-               Proxy_info *proxy = (Proxy_info *) owner;
-               proxy->co_info(this, "deleting Fds_info");
-           } else {
-               printf("%s deleting Fds_info: net_tag %s port %d closing "
-                      "socket %ld index %d (no owner)\n",
-                      o2_debug_prefix, Fds_info::tag_to_string(net_tag),
-                      port, (long) pfd->fd, fds_index);
-           });
+    O2_DBc({   if (owner) {
+                   Proxy_info *proxy = (Proxy_info *) owner;
+                   proxy->co_info(this, "deleting Fds_info");
+               } else {
+                   printf("%s deleting Fds_info: net_tag %s port %d closing "
+                          "socket %ld index %d (no owner)\n",
+                          o2_debug_prefix, Fds_info::tag_to_string(net_tag),
+                          port, (long) pfd->fd, fds_index);
+               }
+               printf("    o2n_fds.size() %d, o2n_fds_info.size() %d\n",
+                      o2n_fds.size(), o2n_fds_info.size());})
     if (o2n_fds.size() > fds_index + 1) { // move last to i
         struct pollfd *lastfd = &o2n_fds.last();
         memcpy(pfd, lastfd, sizeof *lastfd);
@@ -577,6 +582,12 @@ Fds_info::~Fds_info()
     }
     o2n_fds.pop_back();
     o2n_fds_info.pop_back();
+    O2_DBc({ printf("    After ~Fds_info, sockets are");
+             for (int i = 0; i < o2n_fds.size(); i++) {
+                 printf(" %ld", (long) o2n_fds[i].fd);
+             }
+             printf("\n");
+           })
     assert(net_tag == NET_INFO_CLOSED);
     if (owner) {
         owner->remove();
@@ -601,6 +612,10 @@ void o2n_free_deleted_sockets()
         while (i < o2n_fds_info.size()) {
             Fds_info *fi = o2n_fds_info[i];
             if (fi->delete_me == 2) {  // if we delete fi at index i, it will
+                O2_DBc(if (fi->owner) {
+                    Proxy_info *proxy = (Proxy_info *) fi->owner;
+                    proxy->co_info(fi,
+                            "deleting socket in o2n_free_deleted_sockets"); })
                 delete fi;             // replace itself with the last Fds_info
             } else {                   // so we iterate and reexamine index i;
                 i++;                   // otherwise, move on to index i+1.
@@ -1005,7 +1020,7 @@ O2err o2n_recv()
     // if there are any bad socket descriptions, remove them now
     if (o2n_socket_delete_flag) o2n_free_deleted_sockets();
 
-    poll(&o2n_fds[0], o2n_fds.size(), 0);
+    poll(o2n_fds.get_array(), o2n_fds.size(), 0);
     int len = o2n_fds.size(); // length can grow while we're looping!
     for (i = 0; i < len; i++) {
         Fds_info *fi;

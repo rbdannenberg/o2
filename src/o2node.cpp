@@ -213,8 +213,8 @@ void Handler_entry::invoke(O2msg_data_ptr msg, const char *types)
     } else {
         o2_ctx->argv_data.clear();
     }
-    (*handler)(msg, types, &o2_ctx->argv_data[0], o2_ctx->argv_data.size(),
-               user_data);
+    (*handler)(msg, types, o2_ctx->argv_data.get_array(),
+               o2_ctx->argv_data.size(), user_data);
 }
 
 
@@ -280,8 +280,8 @@ O2node **Hash_node::lookup(O2string key)
     // since a Hash_node can be initialized with no table, we might have to
     // create the table to proceed:
     if (n <= 0) {
-        n = 2;
-        table_init(n);
+        table_init(2);  // make table size >= n
+        n = children.size();  // table could now be bigger than n
     }
     int64_t hash = get_hash(key);
     int index = hash % n;

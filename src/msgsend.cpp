@@ -546,10 +546,10 @@ O2err o2_send_marker(const char *path, double time, bool tcp_flag,
 {
     va_list ap;
     va_start(ap, typestring);
-
     O2message_ptr msg;
     RETURN_IF_ERROR(o2_message_build(&msg, time, NULL, path,
                                      typestring, tcp_flag, ap));
+
     O2_DB((msg->data.address[1] == '_' || msg->data.address[1] == '@') ?
           O2_DBS_FLAG : O2_DBs_FLAG,  // either non-system (s) or system (S)
           printf("%s sending%s (%p) ", o2_debug_prefix,

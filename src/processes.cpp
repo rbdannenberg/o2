@@ -209,6 +209,9 @@ O2err Proc_info::connected()
         Service_provider *spp = &se->services[0];
         o2_send_cmd("!_o2/si", 0.0, "siss", key, status(NULL),
                     key, spp->properties ? spp->properties + 1 : "");
+        O2_DBd(printf("Proc_info::connected: key %s status %d\n",
+                      key, status(NULL)))
+        is_connected = true;
     }
     return O2_SUCCESS;
 }
@@ -264,10 +267,14 @@ void o2_processes_initialize()
         assert(false);  // that truncation *might* occur without a check
     }
     o2_ctx->proc->key = o2_heapify(name);
-    O2_DBG(printf("\n====================================================\n"
-                  "%s Local Process Name is %s\n"
-                  "====================================================\n\n",
-                  o2_debug_prefix, o2_ctx->proc->key));
+    O2_DBG(
+        char ipdot[O2N_IP_LEN];
+        o2_hex_to_dot(o2n_internal_ip, ipdot);
+        printf("\n===================================================="
+               "===================\n%s Local Process Name is %s (%s:%d)\n"
+               "===================================================="
+               "===================\n\n",
+                  o2_debug_prefix, o2_ctx->proc->key, ipdot, port))
     // finally, connect o2_udp_server to local proc to begin processing
     // incoming UDP messages:
     o2_udp_server->owner = o2_ctx->proc;

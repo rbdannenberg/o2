@@ -6,7 +6,7 @@ project(o2)
 #       CACHE STRING "only build for x86_64" FORCE)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "controls OSX SDK")
 
-option(CMAKE_BUILD_SHARED_LIBS "Build shared libraries" OFF)
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 option(TESTS_BUILD "Compile regression and other tests" ON)
 
 option(TESTS_WITH_LIBLO "Compile tests that use liblo, 
@@ -186,7 +186,7 @@ if(${BUILD_WITH_O2MEM_DEBUG} GREATER 0 AND NOT WIN32)
   target_link_libraries(o2 PRIVATE pthread)
 endif()
 target_include_directories(o2 PRIVATE ${BONJOUR_INCLUDE_PATH})  
- set_target_properties(o2 PROPERTIES
+set_target_properties(o2 PROPERTIES
     OUTPUT_NAME ${O2}
     MSVC_RUNTIME_LIBRARY MultiThreaded
     IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}"

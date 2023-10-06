@@ -310,15 +310,6 @@ Http_conn::Http_conn(Fds_info *conn, const char *root_, int port_) :
 }
 
 
-// socket is about to be deleted
-void Http_conn::remove()
-{
-    O2_DBw(printf("%s removing socket %d for Http_conn %p\n", o2_debug_prefix,
-                  fds_info->get_socket(), this));
-    o2_delete();
-}
-
-
 // close a connection
 O2err Http_conn::close()
 {
@@ -344,9 +335,9 @@ O2err Http_conn::close()
 Http_conn::~Http_conn()
 {
     if (!this) return;
-    O2_DBw(printf("%s delete Http_conn %p, socket %d is_web_socket %d "
+    O2_DBw(printf("%s delete Http_conn %p, is_web_socket %d "
                   "sent_close_command %d\n", o2_debug_prefix, this,
-                  fds_info->get_socket(), is_web_socket, sent_close_command));
+                  is_web_socket, sent_close_command));
     // even though we may have sent a CLOSE command, we do not wait for it
     // to be sent in cases where sends are pending. If the CLOSE was sent,
     // we DO wait for the asynchronous command to complete.
@@ -385,8 +376,11 @@ const char *Http_conn::find_field(const char *name, const char *value,
 {
     // since strnstr is not always defined, we'll temporarily put in an EOS
     // to mark the end of the request. But the request might not be followed
-    // by any bytes, so we'll pad with an EOS (possibly forcing reallocation)
-    // to avoid the edge case where there is no space for EOS
+    // by any bytes, i.e. what if length == inbuf.size()? So we'll pad inbuf
+    // with an EOS (possibly forcing reallocation) to make sure we can
+    // temporarily set inbuf[length] = 0, which provides a stop for strstr().
+    // After the search, we restore inbuf[length], then pop out pad byte at
+    // the end to restore inbuf.size() to its original value.
     const char *result = NULL;
     inbuf.push_back(0);
     char save_byte_after_end = inbuf[length];

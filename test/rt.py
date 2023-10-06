@@ -29,12 +29,16 @@ print_all_output = False
 IS_OSX = False
 TIMEOUT_SEC = 60  # appfollow/applead take about 40s (is 60s long enough?)
 LOCALDOMAIN = "local"  # but on linux, it's "localhost"
+
 # I saw a failure of oscbndlsend+oscbndlrecv because port 8100 could
 # not be bound, but I could then run by hand, so I am guessing that
 # maybe it was used in a previous test and linux would not reuse it
 # so quickly. So now, we wait betwen tests to see if it helps.
 # 5s was not enough, but 30s seems to work. Trying 20s now.
-STALL_SEC = 20  # time after run to make sure ports are free
+STALL_SEC = 120  # time after run to make sure ports are free and
+    # see if this avoids race condition where Avahi already has "test"
+    # registered from a previously running instance of O2
+
 if platform.system() == "Darwin":
     STALL_SEC = 1  # I don't think we need to stall for macOS
     IS_OSX = True
@@ -68,7 +72,7 @@ for arg in sys.argv[1:]:
         print("Printing all output")
     else:
         BIN = arg
-        print("Directory for test binaries:", BIN)
+    print("Directory for test binaries:", BIN)
 
 def findLineInString(line, aString):
     return ('\n' + line + '\n') in aString
@@ -160,7 +164,7 @@ def runTest(command, stall=False, quit_on_port_loss=False):
 
     os.remove("stdout.txt")
     os.remove("stderr.txt")
-
+    dostall()
     return allOK
 
 
@@ -189,7 +193,7 @@ def finishDouble(prog1, p1, out1, prog2, p2, out2, stall):
 
     # Ports were left open in some earlier versions of O2, so we checked
     # them carefully, but now with Bonjour/Avahi, this is not a problem
-    # and we are not using any particular et of ports, so I have removed
+    # and we are not using any particular set of ports, so I have removed
     # the checks (except at the very end, just in case):
     # portsOK, countmsg = checkports(False, False)
     countmsg = ""
@@ -234,7 +238,7 @@ def finishDouble(prog1, p1, out1, prog2, p2, out2, stall):
     os.remove("stderr1.txt")
     os.remove("stdout2.txt")
     os.remove("stderr2.txt")
-
+    dostall()
     return allOK
 
 
@@ -256,9 +260,6 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
 
 def runWsTest(prog1, out1, url, out2, stall=False):
     global allOK
-    # see if this avoids race condition where Avahi already has "test"
-    # registered from a previously running instance of O2
-    time.sleep(5)
     prog2 = "websockhost @"
     p1p2 = startDouble(prog1, prog2, url)
     os.system(HTMLOPEN + '"http://test.' + LOCALDOMAIN + ':8080/' + url + '"');
@@ -311,7 +312,8 @@ def runAllTests():
                          "wsserv.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("tapsub", "CLIENT DONE", 
                          "tappub.htm", "WEBSOCKETHOST DONE"): return
-
+    time.sleep(120)  # infotest1 will fail if Bonjour has an entry from
+                     # a previous o2 process; long timeout
     if not runTest("infotest1 o"): return
     # proptest returns almost instantly; maybe it takes awhile for
     #     the port to be released
@@ -327,6 +329,8 @@ def runAllTests():
                      "o2liteserv u", "SERVER DONE"): return
     if not runDouble("statusclient", "CLIENT DONE",
                      "statusserver", "SERVER DONE"): return
+    time.sleep(120)  # infotest2 will fail if Bonjour has an entry from
+                     # a previous o2 process; long timeout
     if not runDouble("infotest2", "INFOTEST2 DONE",
                      "clockmirror", "CLOCKMIRROR DONE"): return
     if not runDouble("clockref", "CLOCKREF DONE",

@@ -5,11 +5,11 @@
 // Roger B. Dannenberg
 // Oct 2020
 
-#include "stdlib.h"
+#include <stdlib.h>
 #ifdef __GNUC__
 #endif
-#include "stdint.h"
-#include "assert.h"
+#include <stdint.h>
+#include <assert.h>
 #include "o2atomic.h"
 
 #ifdef WIN32
