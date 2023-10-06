@@ -56,8 +56,6 @@ build CMakeFiles/o2.dir/src/o2atomic.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/bridge.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/bridge.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -66,8 +64,6 @@ build CMakeFiles/o2.dir/src/bridge.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/br
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/clock.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/clock.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -76,8 +72,6 @@ build CMakeFiles/o2.dir/src/clock.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/clo
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/debug.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/debug.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -86,8 +80,6 @@ build CMakeFiles/o2.dir/src/debug.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/deb
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/discovery.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/discovery.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -96,8 +88,6 @@ build CMakeFiles/o2.dir/src/discovery.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/hostip.c.obj: C_COMPILER__o2_Debug D$:/o2/src/hostip.c || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -106,8 +96,6 @@ build CMakeFiles/o2.dir/src/hostip.c.obj: C_COMPILER__o2_Debug D$:/o2/src/hostip
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/vec.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/vec.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -116,8 +104,6 @@ build CMakeFiles/o2.dir/src/vec.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/vec.c
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/dynarray.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/dynarray.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -126,8 +112,6 @@ build CMakeFiles/o2.dir/src/dynarray.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/o2node.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2node.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -136,8 +120,6 @@ build CMakeFiles/o2.dir/src/o2node.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/message.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/message.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -146,8 +128,6 @@ build CMakeFiles/o2.dir/src/message.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/m
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/mqtt.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/mqtt.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -156,8 +136,6 @@ build CMakeFiles/o2.dir/src/mqtt.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/mqtt
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/mqttcomm.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/mqttcomm.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -166,8 +144,6 @@ build CMakeFiles/o2.dir/src/mqttcomm.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/msgsend.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/msgsend.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -176,8 +152,6 @@ build CMakeFiles/o2.dir/src/msgsend.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/m
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/msgprint.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/msgprint.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -186,8 +160,6 @@ build CMakeFiles/o2.dir/src/msgprint.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/o2network.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2network.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -196,8 +168,6 @@ build CMakeFiles/o2.dir/src/o2network.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/websock.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/websock.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -206,8 +176,6 @@ build CMakeFiles/o2.dir/src/websock.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/w
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/o2sha1.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2sha1.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -216,8 +184,6 @@ build CMakeFiles/o2.dir/src/o2sha1.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/o2zcdisc.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2zcdisc.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -226,8 +192,6 @@ build CMakeFiles/o2.dir/src/o2zcdisc.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/o2.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -236,8 +200,6 @@ build CMakeFiles/o2.dir/src/o2.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2.cpp
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/o2osc.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2osc.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -246,8 +208,6 @@ build CMakeFiles/o2.dir/src/o2osc.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2o
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/pathtree.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/pathtree.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -256,8 +216,6 @@ build CMakeFiles/o2.dir/src/pathtree.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/processes.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/processes.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -266,8 +224,6 @@ build CMakeFiles/o2.dir/src/processes.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/properties.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/properties.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -276,8 +232,6 @@ build CMakeFiles/o2.dir/src/properties.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/sr
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/o2sched.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2sched.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -286,8 +240,6 @@ build CMakeFiles/o2.dir/src/o2sched.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/o2sleep.c.obj: C_COMPILER__o2_Debug D$:/o2/src/o2sleep.c || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -296,8 +248,6 @@ build CMakeFiles/o2.dir/src/o2sleep.c.obj: C_COMPILER__o2_Debug D$:/o2/src/o2sle
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/services.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/services.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -306,8 +256,6 @@ build CMakeFiles/o2.dir/src/services.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/sharedmem.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/sharedmem.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -316,8 +264,6 @@ build CMakeFiles/o2.dir/src/sharedmem.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/o2mem.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2mem.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -326,8 +272,6 @@ build CMakeFiles/o2.dir/src/o2mem.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/o2m
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 build CMakeFiles/o2.dir/src/stun.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/stun.cpp || cmake_object_order_depends_target_o2
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -336,8 +280,6 @@ build CMakeFiles/o2.dir/src/stun.cpp.obj: CXX_COMPILER__o2_Debug D$:/o2/src/stun
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2.dir
   OBJECT_FILE_DIR = CMakeFiles\o2.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
-  TARGET_PDB = libo2_static.pdb
 
 
 # =============================================================================
@@ -352,9 +294,8 @@ build libo2_static.a: CXX_STATIC_LIBRARY_LINKER__o2_Debug CMakeFiles/o2.dir/src/
   OBJECT_DIR = CMakeFiles\o2.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\o2.dir\o2.pdb
   TARGET_FILE = libo2_static.a
-  TARGET_PDB = libo2_static.pdb
+  TARGET_PDB = o2_static.a.dbg
 
 # =============================================================================
 # Object build statements for STATIC_LIBRARY target o2lite
@@ -372,8 +313,6 @@ build CMakeFiles/o2lite.dir/src/o2lite.c.obj: C_COMPILER__o2lite_Debug D$:/o2/sr
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2lite.dir
   OBJECT_FILE_DIR = CMakeFiles\o2lite.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2lite.dir\o2lite.pdb
-  TARGET_PDB = libo2lite_static.pdb
 
 build CMakeFiles/o2lite.dir/src/o2sleep.c.obj: C_COMPILER__o2lite_Debug D$:/o2/src/o2sleep.c || cmake_object_order_depends_target_o2lite
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -382,8 +321,6 @@ build CMakeFiles/o2lite.dir/src/o2sleep.c.obj: C_COMPILER__o2lite_Debug D$:/o2/s
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2lite.dir
   OBJECT_FILE_DIR = CMakeFiles\o2lite.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2lite.dir\o2lite.pdb
-  TARGET_PDB = libo2lite_static.pdb
 
 build CMakeFiles/o2lite.dir/src/o2liteo2disc.c.obj: C_COMPILER__o2lite_Debug D$:/o2/src/o2liteo2disc.c || cmake_object_order_depends_target_o2lite
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -392,8 +329,6 @@ build CMakeFiles/o2lite.dir/src/o2liteo2disc.c.obj: C_COMPILER__o2lite_Debug D$:
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2lite.dir
   OBJECT_FILE_DIR = CMakeFiles\o2lite.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2lite.dir\o2lite.pdb
-  TARGET_PDB = libo2lite_static.pdb
 
 build CMakeFiles/o2lite.dir/src/o2liteavahi.c.obj: C_COMPILER__o2lite_Debug D$:/o2/src/o2liteavahi.c || cmake_object_order_depends_target_o2lite
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -402,8 +337,6 @@ build CMakeFiles/o2lite.dir/src/o2liteavahi.c.obj: C_COMPILER__o2lite_Debug D$:/
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2lite.dir
   OBJECT_FILE_DIR = CMakeFiles\o2lite.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2lite.dir\o2lite.pdb
-  TARGET_PDB = libo2lite_static.pdb
 
 build CMakeFiles/o2lite.dir/src/o2litebonjour.c.obj: C_COMPILER__o2lite_Debug D$:/o2/src/o2litebonjour.c || cmake_object_order_depends_target_o2lite
   DEFINES = -DO2MEM_DEBUG=0 -DO2_NO_O2DISCOVERY -D_FORTIFY_SOURCE=0
@@ -412,8 +345,6 @@ build CMakeFiles/o2lite.dir/src/o2litebonjour.c.obj: C_COMPILER__o2lite_Debug D$
   INCLUDES = -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2lite.dir
   OBJECT_FILE_DIR = CMakeFiles\o2lite.dir\src
-  TARGET_COMPILE_PDB = CMakeFiles\o2lite.dir\o2lite.pdb
-  TARGET_PDB = libo2lite_static.pdb
 
 
 # =============================================================================
@@ -428,9 +359,8 @@ build libo2lite_static.a: C_STATIC_LIBRARY_LINKER__o2lite_Debug CMakeFiles/o2lit
   OBJECT_DIR = CMakeFiles\o2lite.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\o2lite.dir\o2lite.pdb
   TARGET_FILE = libo2lite_static.a
-  TARGET_PDB = libo2lite_static.pdb
+  TARGET_PDB = o2lite_static.a.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target winnbserver
@@ -447,8 +377,6 @@ build CMakeFiles/winnbserver.dir/test/winnbserver.cpp.obj: CXX_COMPILER__winnbse
   FLAGS = -g -fdiagnostics-color=always   -D_CRT_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -DIS_BIG_ENDIAN=0
   OBJECT_DIR = CMakeFiles\winnbserver.dir
   OBJECT_FILE_DIR = CMakeFiles\winnbserver.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\winnbserver.dir\
-  TARGET_PDB = winnbserver.pdb
 
 
 # =============================================================================
@@ -465,10 +393,9 @@ build winnbserver.exe: CXX_EXECUTABLE_LINKER__winnbserver_Debug CMakeFiles/winnb
   OBJECT_DIR = CMakeFiles\winnbserver.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\winnbserver.dir\
   TARGET_FILE = winnbserver.exe
   TARGET_IMPLIB = libwinnbserver.dll.a
-  TARGET_PDB = winnbserver.pdb
+  TARGET_PDB = winnbserver.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target winnbclient
@@ -485,8 +412,6 @@ build CMakeFiles/winnbclient.dir/test/winnbclient.cpp.obj: CXX_COMPILER__winnbcl
   FLAGS = -g -fdiagnostics-color=always   -D_CRT_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -DIS_BIG_ENDIAN=0
   OBJECT_DIR = CMakeFiles\winnbclient.dir
   OBJECT_FILE_DIR = CMakeFiles\winnbclient.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\winnbclient.dir\
-  TARGET_PDB = winnbclient.pdb
 
 
 # =============================================================================
@@ -503,10 +428,9 @@ build winnbclient.exe: CXX_EXECUTABLE_LINKER__winnbclient_Debug CMakeFiles/winnb
   OBJECT_DIR = CMakeFiles\winnbclient.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\winnbclient.dir\
   TARGET_FILE = winnbclient.exe
   TARGET_IMPLIB = libwinnbclient.dll.a
-  TARGET_PDB = winnbclient.pdb
+  TARGET_PDB = winnbclient.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target memtest
@@ -524,8 +448,6 @@ build CMakeFiles/memtest.dir/test/memtest.cpp.obj: CXX_COMPILER__memtest_Debug D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\memtest.dir
   OBJECT_FILE_DIR = CMakeFiles\memtest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\memtest.dir\
-  TARGET_PDB = memtest.pdb
 
 
 # =============================================================================
@@ -542,10 +464,9 @@ build memtest.exe: CXX_EXECUTABLE_LINKER__memtest_Debug CMakeFiles/memtest.dir/t
   OBJECT_DIR = CMakeFiles\memtest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\memtest.dir\
   TARGET_FILE = memtest.exe
   TARGET_IMPLIB = libmemtest.dll.a
-  TARGET_PDB = memtest.pdb
+  TARGET_PDB = memtest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target dispatchtest
@@ -563,8 +484,6 @@ build CMakeFiles/dispatchtest.dir/test/dispatchtest.cpp.obj: CXX_COMPILER__dispa
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\dispatchtest.dir
   OBJECT_FILE_DIR = CMakeFiles\dispatchtest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\dispatchtest.dir\
-  TARGET_PDB = dispatchtest.pdb
 
 
 # =============================================================================
@@ -581,10 +500,9 @@ build dispatchtest.exe: CXX_EXECUTABLE_LINKER__dispatchtest_Debug CMakeFiles/dis
   OBJECT_DIR = CMakeFiles\dispatchtest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\dispatchtest.dir\
   TARGET_FILE = dispatchtest.exe
   TARGET_IMPLIB = libdispatchtest.dll.a
-  TARGET_PDB = dispatchtest.pdb
+  TARGET_PDB = dispatchtest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target typestest
@@ -602,8 +520,6 @@ build CMakeFiles/typestest.dir/test/typestest.cpp.obj: CXX_COMPILER__typestest_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\typestest.dir
   OBJECT_FILE_DIR = CMakeFiles\typestest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\typestest.dir\
-  TARGET_PDB = typestest.pdb
 
 
 # =============================================================================
@@ -620,10 +536,9 @@ build typestest.exe: CXX_EXECUTABLE_LINKER__typestest_Debug CMakeFiles/typestest
   OBJECT_DIR = CMakeFiles\typestest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\typestest.dir\
   TARGET_FILE = typestest.exe
   TARGET_IMPLIB = libtypestest.dll.a
-  TARGET_PDB = typestest.pdb
+  TARGET_PDB = typestest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target taptest
@@ -641,8 +556,6 @@ build CMakeFiles/taptest.dir/test/taptest.cpp.obj: CXX_COMPILER__taptest_Debug D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\taptest.dir
   OBJECT_FILE_DIR = CMakeFiles\taptest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\taptest.dir\
-  TARGET_PDB = taptest.pdb
 
 
 # =============================================================================
@@ -659,10 +572,9 @@ build taptest.exe: CXX_EXECUTABLE_LINKER__taptest_Debug CMakeFiles/taptest.dir/t
   OBJECT_DIR = CMakeFiles\taptest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\taptest.dir\
   TARGET_FILE = taptest.exe
   TARGET_IMPLIB = libtaptest.dll.a
-  TARGET_PDB = taptest.pdb
+  TARGET_PDB = taptest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target coercetest
@@ -680,8 +592,6 @@ build CMakeFiles/coercetest.dir/test/coercetest.cpp.obj: CXX_COMPILER__coercetes
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\coercetest.dir
   OBJECT_FILE_DIR = CMakeFiles\coercetest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\coercetest.dir\
-  TARGET_PDB = coercetest.pdb
 
 
 # =============================================================================
@@ -698,10 +608,9 @@ build coercetest.exe: CXX_EXECUTABLE_LINKER__coercetest_Debug CMakeFiles/coercet
   OBJECT_DIR = CMakeFiles\coercetest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\coercetest.dir\
   TARGET_FILE = coercetest.exe
   TARGET_IMPLIB = libcoercetest.dll.a
-  TARGET_PDB = coercetest.pdb
+  TARGET_PDB = coercetest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target longtest
@@ -719,8 +628,6 @@ build CMakeFiles/longtest.dir/test/longtest.cpp.obj: CXX_COMPILER__longtest_Debu
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\longtest.dir
   OBJECT_FILE_DIR = CMakeFiles\longtest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\longtest.dir\
-  TARGET_PDB = longtest.pdb
 
 
 # =============================================================================
@@ -737,10 +644,9 @@ build longtest.exe: CXX_EXECUTABLE_LINKER__longtest_Debug CMakeFiles/longtest.di
   OBJECT_DIR = CMakeFiles\longtest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\longtest.dir\
   TARGET_FILE = longtest.exe
   TARGET_IMPLIB = liblongtest.dll.a
-  TARGET_PDB = longtest.pdb
+  TARGET_PDB = longtest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target arraytest
@@ -758,8 +664,6 @@ build CMakeFiles/arraytest.dir/test/arraytest.cpp.obj: CXX_COMPILER__arraytest_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\arraytest.dir
   OBJECT_FILE_DIR = CMakeFiles\arraytest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\arraytest.dir\
-  TARGET_PDB = arraytest.pdb
 
 
 # =============================================================================
@@ -776,10 +680,9 @@ build arraytest.exe: CXX_EXECUTABLE_LINKER__arraytest_Debug CMakeFiles/arraytest
   OBJECT_DIR = CMakeFiles\arraytest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\arraytest.dir\
   TARGET_FILE = arraytest.exe
   TARGET_IMPLIB = libarraytest.dll.a
-  TARGET_PDB = arraytest.pdb
+  TARGET_PDB = arraytest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target o2client
@@ -797,8 +700,6 @@ build CMakeFiles/o2client.dir/test/o2client.cpp.obj: CXX_COMPILER__o2client_Debu
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2client.dir
   OBJECT_FILE_DIR = CMakeFiles\o2client.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\o2client.dir\
-  TARGET_PDB = o2client.pdb
 
 
 # =============================================================================
@@ -815,10 +716,9 @@ build o2client.exe: CXX_EXECUTABLE_LINKER__o2client_Debug CMakeFiles/o2client.di
   OBJECT_DIR = CMakeFiles\o2client.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\o2client.dir\
   TARGET_FILE = o2client.exe
   TARGET_IMPLIB = libo2client.dll.a
-  TARGET_PDB = o2client.pdb
+  TARGET_PDB = o2client.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target o2server
@@ -836,8 +736,6 @@ build CMakeFiles/o2server.dir/test/o2server.cpp.obj: CXX_COMPILER__o2server_Debu
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2server.dir
   OBJECT_FILE_DIR = CMakeFiles\o2server.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\o2server.dir\
-  TARGET_PDB = o2server.pdb
 
 
 # =============================================================================
@@ -854,10 +752,9 @@ build o2server.exe: CXX_EXECUTABLE_LINKER__o2server_Debug CMakeFiles/o2server.di
   OBJECT_DIR = CMakeFiles\o2server.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\o2server.dir\
   TARGET_FILE = o2server.exe
   TARGET_IMPLIB = libo2server.dll.a
-  TARGET_PDB = o2server.pdb
+  TARGET_PDB = o2server.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target nonblocksend
@@ -875,8 +772,6 @@ build CMakeFiles/nonblocksend.dir/test/nonblocksend.cpp.obj: CXX_COMPILER__nonbl
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\nonblocksend.dir
   OBJECT_FILE_DIR = CMakeFiles\nonblocksend.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\nonblocksend.dir\
-  TARGET_PDB = nonblocksend.pdb
 
 
 # =============================================================================
@@ -893,10 +788,9 @@ build nonblocksend.exe: CXX_EXECUTABLE_LINKER__nonblocksend_Debug CMakeFiles/non
   OBJECT_DIR = CMakeFiles\nonblocksend.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\nonblocksend.dir\
   TARGET_FILE = nonblocksend.exe
   TARGET_IMPLIB = libnonblocksend.dll.a
-  TARGET_PDB = nonblocksend.pdb
+  TARGET_PDB = nonblocksend.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target nonblockrecv
@@ -914,8 +808,6 @@ build CMakeFiles/nonblockrecv.dir/test/nonblockrecv.cpp.obj: CXX_COMPILER__nonbl
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\nonblockrecv.dir
   OBJECT_FILE_DIR = CMakeFiles\nonblockrecv.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\nonblockrecv.dir\
-  TARGET_PDB = nonblockrecv.pdb
 
 
 # =============================================================================
@@ -932,10 +824,9 @@ build nonblockrecv.exe: CXX_EXECUTABLE_LINKER__nonblockrecv_Debug CMakeFiles/non
   OBJECT_DIR = CMakeFiles\nonblockrecv.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\nonblockrecv.dir\
   TARGET_FILE = nonblockrecv.exe
   TARGET_IMPLIB = libnonblockrecv.dll.a
-  TARGET_PDB = nonblockrecv.pdb
+  TARGET_PDB = nonblockrecv.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target statusclient
@@ -953,8 +844,6 @@ build CMakeFiles/statusclient.dir/test/statusclient.cpp.obj: CXX_COMPILER__statu
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\statusclient.dir
   OBJECT_FILE_DIR = CMakeFiles\statusclient.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\statusclient.dir\
-  TARGET_PDB = statusclient.pdb
 
 
 # =============================================================================
@@ -971,10 +860,9 @@ build statusclient.exe: CXX_EXECUTABLE_LINKER__statusclient_Debug CMakeFiles/sta
   OBJECT_DIR = CMakeFiles\statusclient.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\statusclient.dir\
   TARGET_FILE = statusclient.exe
   TARGET_IMPLIB = libstatusclient.dll.a
-  TARGET_PDB = statusclient.pdb
+  TARGET_PDB = statusclient.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target statusserver
@@ -992,8 +880,6 @@ build CMakeFiles/statusserver.dir/test/statusserver.cpp.obj: CXX_COMPILER__statu
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\statusserver.dir
   OBJECT_FILE_DIR = CMakeFiles\statusserver.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\statusserver.dir\
-  TARGET_PDB = statusserver.pdb
 
 
 # =============================================================================
@@ -1010,10 +896,9 @@ build statusserver.exe: CXX_EXECUTABLE_LINKER__statusserver_Debug CMakeFiles/sta
   OBJECT_DIR = CMakeFiles\statusserver.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\statusserver.dir\
   TARGET_FILE = statusserver.exe
   TARGET_IMPLIB = libstatusserver.dll.a
-  TARGET_PDB = statusserver.pdb
+  TARGET_PDB = statusserver.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target tcpclient
@@ -1031,8 +916,6 @@ build CMakeFiles/tcpclient.dir/test/tcpclient.cpp.obj: CXX_COMPILER__tcpclient_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\tcpclient.dir
   OBJECT_FILE_DIR = CMakeFiles\tcpclient.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\tcpclient.dir\
-  TARGET_PDB = tcpclient.pdb
 
 
 # =============================================================================
@@ -1049,10 +932,9 @@ build tcpclient.exe: CXX_EXECUTABLE_LINKER__tcpclient_Debug CMakeFiles/tcpclient
   OBJECT_DIR = CMakeFiles\tcpclient.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\tcpclient.dir\
   TARGET_FILE = tcpclient.exe
   TARGET_IMPLIB = libtcpclient.dll.a
-  TARGET_PDB = tcpclient.pdb
+  TARGET_PDB = tcpclient.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target tcpserver
@@ -1070,8 +952,6 @@ build CMakeFiles/tcpserver.dir/test/tcpserver.cpp.obj: CXX_COMPILER__tcpserver_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\tcpserver.dir
   OBJECT_FILE_DIR = CMakeFiles\tcpserver.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\tcpserver.dir\
-  TARGET_PDB = tcpserver.pdb
 
 
 # =============================================================================
@@ -1088,10 +968,9 @@ build tcpserver.exe: CXX_EXECUTABLE_LINKER__tcpserver_Debug CMakeFiles/tcpserver
   OBJECT_DIR = CMakeFiles\tcpserver.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\tcpserver.dir\
   TARGET_FILE = tcpserver.exe
   TARGET_IMPLIB = libtcpserver.dll.a
-  TARGET_PDB = tcpserver.pdb
+  TARGET_PDB = tcpserver.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target clockmirror
@@ -1109,8 +988,6 @@ build CMakeFiles/clockmirror.dir/test/clockmirror.cpp.obj: CXX_COMPILER__clockmi
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\clockmirror.dir
   OBJECT_FILE_DIR = CMakeFiles\clockmirror.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\clockmirror.dir\
-  TARGET_PDB = clockmirror.pdb
 
 
 # =============================================================================
@@ -1127,10 +1004,9 @@ build clockmirror.exe: CXX_EXECUTABLE_LINKER__clockmirror_Debug CMakeFiles/clock
   OBJECT_DIR = CMakeFiles\clockmirror.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\clockmirror.dir\
   TARGET_FILE = clockmirror.exe
   TARGET_IMPLIB = libclockmirror.dll.a
-  TARGET_PDB = clockmirror.pdb
+  TARGET_PDB = clockmirror.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target clockref
@@ -1148,8 +1024,6 @@ build CMakeFiles/clockref.dir/test/clockref.cpp.obj: CXX_COMPILER__clockref_Debu
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\clockref.dir
   OBJECT_FILE_DIR = CMakeFiles\clockref.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\clockref.dir\
-  TARGET_PDB = clockref.pdb
 
 
 # =============================================================================
@@ -1166,10 +1040,9 @@ build clockref.exe: CXX_EXECUTABLE_LINKER__clockref_Debug CMakeFiles/clockref.di
   OBJECT_DIR = CMakeFiles\clockref.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\clockref.dir\
   TARGET_FILE = clockref.exe
   TARGET_IMPLIB = libclockref.dll.a
-  TARGET_PDB = clockref.pdb
+  TARGET_PDB = clockref.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target appfollow
@@ -1187,8 +1060,6 @@ build CMakeFiles/appfollow.dir/test/appfollow.cpp.obj: CXX_COMPILER__appfollow_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\appfollow.dir
   OBJECT_FILE_DIR = CMakeFiles\appfollow.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\appfollow.dir\
-  TARGET_PDB = appfollow.pdb
 
 
 # =============================================================================
@@ -1205,10 +1076,9 @@ build appfollow.exe: CXX_EXECUTABLE_LINKER__appfollow_Debug CMakeFiles/appfollow
   OBJECT_DIR = CMakeFiles\appfollow.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\appfollow.dir\
   TARGET_FILE = appfollow.exe
   TARGET_IMPLIB = libappfollow.dll.a
-  TARGET_PDB = appfollow.pdb
+  TARGET_PDB = appfollow.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target applead
@@ -1226,8 +1096,6 @@ build CMakeFiles/applead.dir/test/applead.cpp.obj: CXX_COMPILER__applead_Debug D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\applead.dir
   OBJECT_FILE_DIR = CMakeFiles\applead.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\applead.dir\
-  TARGET_PDB = applead.pdb
 
 
 # =============================================================================
@@ -1244,10 +1112,9 @@ build applead.exe: CXX_EXECUTABLE_LINKER__applead_Debug CMakeFiles/applead.dir/t
   OBJECT_DIR = CMakeFiles\applead.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\applead.dir\
   TARGET_FILE = applead.exe
   TARGET_IMPLIB = libapplead.dll.a
-  TARGET_PDB = applead.pdb
+  TARGET_PDB = applead.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target infotest1
@@ -1265,8 +1132,6 @@ build CMakeFiles/infotest1.dir/test/infotest1.cpp.obj: CXX_COMPILER__infotest1_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\infotest1.dir
   OBJECT_FILE_DIR = CMakeFiles\infotest1.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\infotest1.dir\
-  TARGET_PDB = infotest1.pdb
 
 
 # =============================================================================
@@ -1283,10 +1148,9 @@ build infotest1.exe: CXX_EXECUTABLE_LINKER__infotest1_Debug CMakeFiles/infotest1
   OBJECT_DIR = CMakeFiles\infotest1.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\infotest1.dir\
   TARGET_FILE = infotest1.exe
   TARGET_IMPLIB = libinfotest1.dll.a
-  TARGET_PDB = infotest1.pdb
+  TARGET_PDB = infotest1.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target infotest2
@@ -1304,8 +1168,6 @@ build CMakeFiles/infotest2.dir/test/infotest2.cpp.obj: CXX_COMPILER__infotest2_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\infotest2.dir
   OBJECT_FILE_DIR = CMakeFiles\infotest2.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\infotest2.dir\
-  TARGET_PDB = infotest2.pdb
 
 
 # =============================================================================
@@ -1322,10 +1184,9 @@ build infotest2.exe: CXX_EXECUTABLE_LINKER__infotest2_Debug CMakeFiles/infotest2
   OBJECT_DIR = CMakeFiles\infotest2.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\infotest2.dir\
   TARGET_FILE = infotest2.exe
   TARGET_IMPLIB = libinfotest2.dll.a
-  TARGET_PDB = infotest2.pdb
+  TARGET_PDB = infotest2.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target o2utclient
@@ -1343,8 +1204,6 @@ build CMakeFiles/o2utclient.dir/test/o2utclient.cpp.obj: CXX_COMPILER__o2utclien
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2utclient.dir
   OBJECT_FILE_DIR = CMakeFiles\o2utclient.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\o2utclient.dir\
-  TARGET_PDB = o2utclient.pdb
 
 
 # =============================================================================
@@ -1361,10 +1220,9 @@ build o2utclient.exe: CXX_EXECUTABLE_LINKER__o2utclient_Debug CMakeFiles/o2utcli
   OBJECT_DIR = CMakeFiles\o2utclient.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\o2utclient.dir\
   TARGET_FILE = o2utclient.exe
   TARGET_IMPLIB = libo2utclient.dll.a
-  TARGET_PDB = o2utclient.pdb
+  TARGET_PDB = o2utclient.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target o2utserver
@@ -1382,8 +1240,6 @@ build CMakeFiles/o2utserver.dir/test/o2utserver.cpp.obj: CXX_COMPILER__o2utserve
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2utserver.dir
   OBJECT_FILE_DIR = CMakeFiles\o2utserver.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\o2utserver.dir\
-  TARGET_PDB = o2utserver.pdb
 
 
 # =============================================================================
@@ -1400,10 +1256,9 @@ build o2utserver.exe: CXX_EXECUTABLE_LINKER__o2utserver_Debug CMakeFiles/o2utser
   OBJECT_DIR = CMakeFiles\o2utserver.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\o2utserver.dir\
   TARGET_FILE = o2utserver.exe
   TARGET_IMPLIB = libo2utserver.dll.a
-  TARGET_PDB = o2utserver.pdb
+  TARGET_PDB = o2utserver.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target rawtcpserver
@@ -1421,8 +1276,6 @@ build CMakeFiles/rawtcpserver.dir/test/rawtcpserver.cpp.obj: CXX_COMPILER__rawtc
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\rawtcpserver.dir
   OBJECT_FILE_DIR = CMakeFiles\rawtcpserver.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\rawtcpserver.dir\
-  TARGET_PDB = rawtcpserver.pdb
 
 
 # =============================================================================
@@ -1439,10 +1292,9 @@ build rawtcpserver.exe: CXX_EXECUTABLE_LINKER__rawtcpserver_Debug CMakeFiles/raw
   OBJECT_DIR = CMakeFiles\rawtcpserver.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\rawtcpserver.dir\
   TARGET_FILE = rawtcpserver.exe
   TARGET_IMPLIB = librawtcpserver.dll.a
-  TARGET_PDB = rawtcpserver.pdb
+  TARGET_PDB = rawtcpserver.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target proptest
@@ -1460,8 +1312,6 @@ build CMakeFiles/proptest.dir/test/proptest.cpp.obj: CXX_COMPILER__proptest_Debu
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\proptest.dir
   OBJECT_FILE_DIR = CMakeFiles\proptest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\proptest.dir\
-  TARGET_PDB = proptest.pdb
 
 
 # =============================================================================
@@ -1478,10 +1328,9 @@ build proptest.exe: CXX_EXECUTABLE_LINKER__proptest_Debug CMakeFiles/proptest.di
   OBJECT_DIR = CMakeFiles\proptest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\proptest.dir\
   TARGET_FILE = proptest.exe
   TARGET_IMPLIB = libproptest.dll.a
-  TARGET_PDB = proptest.pdb
+  TARGET_PDB = proptest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target o2block
@@ -1499,8 +1348,6 @@ build CMakeFiles/o2block.dir/test/o2block.cpp.obj: CXX_COMPILER__o2block_Debug D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2block.dir
   OBJECT_FILE_DIR = CMakeFiles\o2block.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\o2block.dir\
-  TARGET_PDB = o2block.pdb
 
 
 # =============================================================================
@@ -1517,10 +1364,9 @@ build o2block.exe: CXX_EXECUTABLE_LINKER__o2block_Debug CMakeFiles/o2block.dir/t
   OBJECT_DIR = CMakeFiles\o2block.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\o2block.dir\
   TARGET_FILE = o2block.exe
   TARGET_IMPLIB = libo2block.dll.a
-  TARGET_PDB = o2block.pdb
+  TARGET_PDB = o2block.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target o2unblock
@@ -1538,8 +1384,6 @@ build CMakeFiles/o2unblock.dir/test/o2unblock.cpp.obj: CXX_COMPILER__o2unblock_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2unblock.dir
   OBJECT_FILE_DIR = CMakeFiles\o2unblock.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\o2unblock.dir\
-  TARGET_PDB = o2unblock.pdb
 
 
 # =============================================================================
@@ -1556,10 +1400,9 @@ build o2unblock.exe: CXX_EXECUTABLE_LINKER__o2unblock_Debug CMakeFiles/o2unblock
   OBJECT_DIR = CMakeFiles\o2unblock.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\o2unblock.dir\
   TARGET_FILE = o2unblock.exe
   TARGET_IMPLIB = libo2unblock.dll.a
-  TARGET_PDB = o2unblock.pdb
+  TARGET_PDB = o2unblock.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target propsend
@@ -1577,8 +1420,6 @@ build CMakeFiles/propsend.dir/test/propsend.cpp.obj: CXX_COMPILER__propsend_Debu
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\propsend.dir
   OBJECT_FILE_DIR = CMakeFiles\propsend.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\propsend.dir\
-  TARGET_PDB = propsend.pdb
 
 
 # =============================================================================
@@ -1595,10 +1436,9 @@ build propsend.exe: CXX_EXECUTABLE_LINKER__propsend_Debug CMakeFiles/propsend.di
   OBJECT_DIR = CMakeFiles\propsend.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\propsend.dir\
   TARGET_FILE = propsend.exe
   TARGET_IMPLIB = libpropsend.dll.a
-  TARGET_PDB = propsend.pdb
+  TARGET_PDB = propsend.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target proprecv
@@ -1616,8 +1456,6 @@ build CMakeFiles/proprecv.dir/test/proprecv.cpp.obj: CXX_COMPILER__proprecv_Debu
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\proprecv.dir
   OBJECT_FILE_DIR = CMakeFiles\proprecv.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\proprecv.dir\
-  TARGET_PDB = proprecv.pdb
 
 
 # =============================================================================
@@ -1634,10 +1472,9 @@ build proprecv.exe: CXX_EXECUTABLE_LINKER__proprecv_Debug CMakeFiles/proprecv.di
   OBJECT_DIR = CMakeFiles\proprecv.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\proprecv.dir\
   TARGET_FILE = proprecv.exe
   TARGET_IMPLIB = libproprecv.dll.a
-  TARGET_PDB = proprecv.pdb
+  TARGET_PDB = proprecv.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target tappub
@@ -1655,8 +1492,6 @@ build CMakeFiles/tappub.dir/test/tappub.cpp.obj: CXX_COMPILER__tappub_Debug D$:/
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\tappub.dir
   OBJECT_FILE_DIR = CMakeFiles\tappub.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\tappub.dir\
-  TARGET_PDB = tappub.pdb
 
 
 # =============================================================================
@@ -1673,10 +1508,9 @@ build tappub.exe: CXX_EXECUTABLE_LINKER__tappub_Debug CMakeFiles/tappub.dir/test
   OBJECT_DIR = CMakeFiles\tappub.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\tappub.dir\
   TARGET_FILE = tappub.exe
   TARGET_IMPLIB = libtappub.dll.a
-  TARGET_PDB = tappub.pdb
+  TARGET_PDB = tappub.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target tapsub
@@ -1694,8 +1528,6 @@ build CMakeFiles/tapsub.dir/test/tapsub.cpp.obj: CXX_COMPILER__tapsub_Debug D$:/
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\tapsub.dir
   OBJECT_FILE_DIR = CMakeFiles\tapsub.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\tapsub.dir\
-  TARGET_PDB = tapsub.pdb
 
 
 # =============================================================================
@@ -1712,10 +1544,9 @@ build tapsub.exe: CXX_EXECUTABLE_LINKER__tapsub_Debug CMakeFiles/tapsub.dir/test
   OBJECT_DIR = CMakeFiles\tapsub.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\tapsub.dir\
   TARGET_FILE = tapsub.exe
   TARGET_IMPLIB = libtapsub.dll.a
-  TARGET_PDB = tapsub.pdb
+  TARGET_PDB = tapsub.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target dropserver
@@ -1733,8 +1564,6 @@ build CMakeFiles/dropserver.dir/test/dropserver.cpp.obj: CXX_COMPILER__dropserve
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\dropserver.dir
   OBJECT_FILE_DIR = CMakeFiles\dropserver.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\dropserver.dir\
-  TARGET_PDB = dropserver.pdb
 
 
 # =============================================================================
@@ -1751,10 +1580,9 @@ build dropserver.exe: CXX_EXECUTABLE_LINKER__dropserver_Debug CMakeFiles/dropser
   OBJECT_DIR = CMakeFiles\dropserver.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\dropserver.dir\
   TARGET_FILE = dropserver.exe
   TARGET_IMPLIB = libdropserver.dll.a
-  TARGET_PDB = dropserver.pdb
+  TARGET_PDB = dropserver.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target dropclient
@@ -1772,8 +1600,6 @@ build CMakeFiles/dropclient.dir/test/dropclient.cpp.obj: CXX_COMPILER__dropclien
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\dropclient.dir
   OBJECT_FILE_DIR = CMakeFiles\dropclient.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\dropclient.dir\
-  TARGET_PDB = dropclient.pdb
 
 
 # =============================================================================
@@ -1790,10 +1616,9 @@ build dropclient.exe: CXX_EXECUTABLE_LINKER__dropclient_Debug CMakeFiles/dropcli
   OBJECT_DIR = CMakeFiles\dropclient.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\dropclient.dir\
   TARGET_FILE = dropclient.exe
   TARGET_IMPLIB = libdropclient.dll.a
-  TARGET_PDB = dropclient.pdb
+  TARGET_PDB = dropclient.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target websockhost
@@ -1811,8 +1636,6 @@ build CMakeFiles/websockhost.dir/test/websockhost.cpp.obj: CXX_COMPILER__websock
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\websockhost.dir
   OBJECT_FILE_DIR = CMakeFiles\websockhost.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\websockhost.dir\
-  TARGET_PDB = websockhost.pdb
 
 
 # =============================================================================
@@ -1829,10 +1652,9 @@ build websockhost.exe: CXX_EXECUTABLE_LINKER__websockhost_Debug CMakeFiles/webso
   OBJECT_DIR = CMakeFiles\websockhost.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\websockhost.dir\
   TARGET_FILE = websockhost.exe
   TARGET_IMPLIB = libwebsockhost.dll.a
-  TARGET_PDB = websockhost.pdb
+  TARGET_PDB = websockhost.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target stuniptest
@@ -1850,8 +1672,6 @@ build CMakeFiles/stuniptest.dir/test/stuniptest.cpp.obj: CXX_COMPILER__stuniptes
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\stuniptest.dir
   OBJECT_FILE_DIR = CMakeFiles\stuniptest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\stuniptest.dir\
-  TARGET_PDB = stuniptest.pdb
 
 
 # =============================================================================
@@ -1868,10 +1688,9 @@ build stuniptest.exe: CXX_EXECUTABLE_LINKER__stuniptest_Debug CMakeFiles/stunipt
   OBJECT_DIR = CMakeFiles\stuniptest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\stuniptest.dir\
   TARGET_FILE = stuniptest.exe
   TARGET_IMPLIB = libstuniptest.dll.a
-  TARGET_PDB = stuniptest.pdb
+  TARGET_PDB = stuniptest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target mqttclient
@@ -1889,8 +1708,6 @@ build CMakeFiles/mqttclient.dir/test/mqttclient.cpp.obj: CXX_COMPILER__mqttclien
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\mqttclient.dir
   OBJECT_FILE_DIR = CMakeFiles\mqttclient.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\mqttclient.dir\
-  TARGET_PDB = mqttclient.pdb
 
 
 # =============================================================================
@@ -1907,10 +1724,9 @@ build mqttclient.exe: CXX_EXECUTABLE_LINKER__mqttclient_Debug CMakeFiles/mqttcli
   OBJECT_DIR = CMakeFiles\mqttclient.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\mqttclient.dir\
   TARGET_FILE = mqttclient.exe
   TARGET_IMPLIB = libmqttclient.dll.a
-  TARGET_PDB = mqttclient.pdb
+  TARGET_PDB = mqttclient.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target mqttserver
@@ -1928,8 +1744,6 @@ build CMakeFiles/mqttserver.dir/test/mqttserver.cpp.obj: CXX_COMPILER__mqttserve
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\mqttserver.dir
   OBJECT_FILE_DIR = CMakeFiles\mqttserver.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\mqttserver.dir\
-  TARGET_PDB = mqttserver.pdb
 
 
 # =============================================================================
@@ -1946,10 +1760,9 @@ build mqttserver.exe: CXX_EXECUTABLE_LINKER__mqttserver_Debug CMakeFiles/mqttser
   OBJECT_DIR = CMakeFiles\mqttserver.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\mqttserver.dir\
   TARGET_FILE = mqttserver.exe
   TARGET_IMPLIB = libmqttserver.dll.a
-  TARGET_PDB = mqttserver.pdb
+  TARGET_PDB = mqttserver.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target unipub
@@ -1967,8 +1780,6 @@ build CMakeFiles/unipub.dir/test/unipub.cpp.obj: CXX_COMPILER__unipub_Debug D$:/
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\unipub.dir
   OBJECT_FILE_DIR = CMakeFiles\unipub.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\unipub.dir\
-  TARGET_PDB = unipub.pdb
 
 
 # =============================================================================
@@ -1985,10 +1796,9 @@ build unipub.exe: CXX_EXECUTABLE_LINKER__unipub_Debug CMakeFiles/unipub.dir/test
   OBJECT_DIR = CMakeFiles\unipub.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\unipub.dir\
   TARGET_FILE = unipub.exe
   TARGET_IMPLIB = libunipub.dll.a
-  TARGET_PDB = unipub.pdb
+  TARGET_PDB = unipub.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target unisub
@@ -2006,8 +1816,6 @@ build CMakeFiles/unisub.dir/test/unisub.cpp.obj: CXX_COMPILER__unisub_Debug D$:/
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\unisub.dir
   OBJECT_FILE_DIR = CMakeFiles\unisub.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\unisub.dir\
-  TARGET_PDB = unisub.pdb
 
 
 # =============================================================================
@@ -2024,10 +1832,9 @@ build unisub.exe: CXX_EXECUTABLE_LINKER__unisub_Debug CMakeFiles/unisub.dir/test
   OBJECT_DIR = CMakeFiles\unisub.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\unisub.dir\
   TARGET_FILE = unisub.exe
   TARGET_IMPLIB = libunisub.dll.a
-  TARGET_PDB = unisub.pdb
+  TARGET_PDB = unisub.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target o2litehost
@@ -2045,8 +1852,6 @@ build CMakeFiles/o2litehost.dir/test/o2litehost.cpp.obj: CXX_COMPILER__o2litehos
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2litehost.dir
   OBJECT_FILE_DIR = CMakeFiles\o2litehost.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\o2litehost.dir\
-  TARGET_PDB = o2litehost.pdb
 
 
 # =============================================================================
@@ -2063,10 +1868,9 @@ build o2litehost.exe: CXX_EXECUTABLE_LINKER__o2litehost_Debug CMakeFiles/o2liteh
   OBJECT_DIR = CMakeFiles\o2litehost.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\o2litehost.dir\
   TARGET_FILE = o2litehost.exe
   TARGET_IMPLIB = libo2litehost.dll.a
-  TARGET_PDB = o2litehost.pdb
+  TARGET_PDB = o2litehost.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target o2litemsg
@@ -2084,8 +1888,6 @@ build CMakeFiles/o2litemsg.dir/test/o2litemsg.c.obj: C_COMPILER__o2litemsg_Debug
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2litemsg.dir
   OBJECT_FILE_DIR = CMakeFiles\o2litemsg.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\o2litemsg.dir\
-  TARGET_PDB = o2litemsg.pdb
 
 
 # =============================================================================
@@ -2102,10 +1904,9 @@ build o2litemsg.exe: C_EXECUTABLE_LINKER__o2litemsg_Debug CMakeFiles/o2litemsg.d
   OBJECT_DIR = CMakeFiles\o2litemsg.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\o2litemsg.dir\
   TARGET_FILE = o2litemsg.exe
   TARGET_IMPLIB = libo2litemsg.dll.a
-  TARGET_PDB = o2litemsg.pdb
+  TARGET_PDB = o2litemsg.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target o2liteserv
@@ -2123,8 +1924,6 @@ build CMakeFiles/o2liteserv.dir/test/o2liteserv.c.obj: C_COMPILER__o2liteserv_De
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\o2liteserv.dir
   OBJECT_FILE_DIR = CMakeFiles\o2liteserv.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\o2liteserv.dir\
-  TARGET_PDB = o2liteserv.pdb
 
 
 # =============================================================================
@@ -2141,10 +1940,9 @@ build o2liteserv.exe: C_EXECUTABLE_LINKER__o2liteserv_Debug CMakeFiles/o2liteser
   OBJECT_DIR = CMakeFiles\o2liteserv.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\o2liteserv.dir\
   TARGET_FILE = o2liteserv.exe
   TARGET_IMPLIB = libo2liteserv.dll.a
-  TARGET_PDB = o2liteserv.pdb
+  TARGET_PDB = o2liteserv.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target patterntest
@@ -2162,8 +1960,6 @@ build CMakeFiles/patterntest.dir/test/patterntest.cpp.obj: CXX_COMPILER__pattern
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\patterntest.dir
   OBJECT_FILE_DIR = CMakeFiles\patterntest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\patterntest.dir\
-  TARGET_PDB = patterntest.pdb
 
 
 # =============================================================================
@@ -2180,10 +1976,9 @@ build patterntest.exe: CXX_EXECUTABLE_LINKER__patterntest_Debug CMakeFiles/patte
   OBJECT_DIR = CMakeFiles\patterntest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\patterntest.dir\
   TARGET_FILE = patterntest.exe
   TARGET_IMPLIB = libpatterntest.dll.a
-  TARGET_PDB = patterntest.pdb
+  TARGET_PDB = patterntest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target bridgeapi
@@ -2201,8 +1996,6 @@ build CMakeFiles/bridgeapi.dir/test/bridgeapi.cpp.obj: CXX_COMPILER__bridgeapi_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\bridgeapi.dir
   OBJECT_FILE_DIR = CMakeFiles\bridgeapi.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\bridgeapi.dir\
-  TARGET_PDB = bridgeapi.pdb
 
 
 # =============================================================================
@@ -2219,10 +2012,9 @@ build bridgeapi.exe: CXX_EXECUTABLE_LINKER__bridgeapi_Debug CMakeFiles/bridgeapi
   OBJECT_DIR = CMakeFiles\bridgeapi.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\bridgeapi.dir\
   TARGET_FILE = bridgeapi.exe
   TARGET_IMPLIB = libbridgeapi.dll.a
-  TARGET_PDB = bridgeapi.pdb
+  TARGET_PDB = bridgeapi.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target shmemserv
@@ -2240,8 +2032,6 @@ build CMakeFiles/shmemserv.dir/test/shmemserv.cpp.obj: CXX_COMPILER__shmemserv_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\shmemserv.dir
   OBJECT_FILE_DIR = CMakeFiles\shmemserv.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\shmemserv.dir\
-  TARGET_PDB = shmemserv.pdb
 
 
 # =============================================================================
@@ -2258,10 +2048,9 @@ build shmemserv.exe: CXX_EXECUTABLE_LINKER__shmemserv_Debug CMakeFiles/shmemserv
   OBJECT_DIR = CMakeFiles\shmemserv.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\shmemserv.dir\
   TARGET_FILE = shmemserv.exe
   TARGET_IMPLIB = libshmemserv.dll.a
-  TARGET_PDB = shmemserv.pdb
+  TARGET_PDB = shmemserv.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target shmembench
@@ -2279,8 +2068,6 @@ build CMakeFiles/shmembench.dir/test/shmembench.cpp.obj: CXX_COMPILER__shmembenc
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\shmembench.dir
   OBJECT_FILE_DIR = CMakeFiles\shmembench.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\shmembench.dir\
-  TARGET_PDB = shmembench.pdb
 
 
 # =============================================================================
@@ -2297,10 +2084,9 @@ build shmembench.exe: CXX_EXECUTABLE_LINKER__shmembench_Debug CMakeFiles/shmembe
   OBJECT_DIR = CMakeFiles\shmembench.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\shmembench.dir\
   TARGET_FILE = shmembench.exe
   TARGET_IMPLIB = libshmembench.dll.a
-  TARGET_PDB = shmembench.pdb
+  TARGET_PDB = shmembench.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target oscsendtest
@@ -2318,8 +2104,6 @@ build CMakeFiles/oscsendtest.dir/test/oscsendtest.cpp.obj: CXX_COMPILER__oscsend
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\oscsendtest.dir
   OBJECT_FILE_DIR = CMakeFiles\oscsendtest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\oscsendtest.dir\
-  TARGET_PDB = oscsendtest.pdb
 
 
 # =============================================================================
@@ -2336,10 +2120,9 @@ build oscsendtest.exe: CXX_EXECUTABLE_LINKER__oscsendtest_Debug CMakeFiles/oscse
   OBJECT_DIR = CMakeFiles\oscsendtest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\oscsendtest.dir\
   TARGET_FILE = oscsendtest.exe
   TARGET_IMPLIB = liboscsendtest.dll.a
-  TARGET_PDB = oscsendtest.pdb
+  TARGET_PDB = oscsendtest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target oscrecvtest
@@ -2357,8 +2140,6 @@ build CMakeFiles/oscrecvtest.dir/test/oscrecvtest.cpp.obj: CXX_COMPILER__oscrecv
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\oscrecvtest.dir
   OBJECT_FILE_DIR = CMakeFiles\oscrecvtest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\oscrecvtest.dir\
-  TARGET_PDB = oscrecvtest.pdb
 
 
 # =============================================================================
@@ -2375,10 +2156,9 @@ build oscrecvtest.exe: CXX_EXECUTABLE_LINKER__oscrecvtest_Debug CMakeFiles/oscre
   OBJECT_DIR = CMakeFiles\oscrecvtest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\oscrecvtest.dir\
   TARGET_FILE = oscrecvtest.exe
   TARGET_IMPLIB = liboscrecvtest.dll.a
-  TARGET_PDB = oscrecvtest.pdb
+  TARGET_PDB = oscrecvtest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target oscanytest
@@ -2396,8 +2176,6 @@ build CMakeFiles/oscanytest.dir/test/oscanytest.cpp.obj: CXX_COMPILER__oscanytes
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\oscanytest.dir
   OBJECT_FILE_DIR = CMakeFiles\oscanytest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\oscanytest.dir\
-  TARGET_PDB = oscanytest.pdb
 
 
 # =============================================================================
@@ -2414,10 +2192,9 @@ build oscanytest.exe: CXX_EXECUTABLE_LINKER__oscanytest_Debug CMakeFiles/oscanyt
   OBJECT_DIR = CMakeFiles\oscanytest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\oscanytest.dir\
   TARGET_FILE = oscanytest.exe
   TARGET_IMPLIB = liboscanytest.dll.a
-  TARGET_PDB = oscanytest.pdb
+  TARGET_PDB = oscanytest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target bundletest
@@ -2435,8 +2212,6 @@ build CMakeFiles/bundletest.dir/test/bundletest.cpp.obj: CXX_COMPILER__bundletes
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\bundletest.dir
   OBJECT_FILE_DIR = CMakeFiles\bundletest.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\bundletest.dir\
-  TARGET_PDB = bundletest.pdb
 
 
 # =============================================================================
@@ -2453,10 +2228,9 @@ build bundletest.exe: CXX_EXECUTABLE_LINKER__bundletest_Debug CMakeFiles/bundlet
   OBJECT_DIR = CMakeFiles\bundletest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\bundletest.dir\
   TARGET_FILE = bundletest.exe
   TARGET_IMPLIB = libbundletest.dll.a
-  TARGET_PDB = bundletest.pdb
+  TARGET_PDB = bundletest.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target oscbndlsend
@@ -2474,8 +2248,6 @@ build CMakeFiles/oscbndlsend.dir/test/oscbndlsend.cpp.obj: CXX_COMPILER__oscbndl
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\oscbndlsend.dir
   OBJECT_FILE_DIR = CMakeFiles\oscbndlsend.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\oscbndlsend.dir\
-  TARGET_PDB = oscbndlsend.pdb
 
 
 # =============================================================================
@@ -2492,10 +2264,9 @@ build oscbndlsend.exe: CXX_EXECUTABLE_LINKER__oscbndlsend_Debug CMakeFiles/oscbn
   OBJECT_DIR = CMakeFiles\oscbndlsend.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\oscbndlsend.dir\
   TARGET_FILE = oscbndlsend.exe
   TARGET_IMPLIB = liboscbndlsend.dll.a
-  TARGET_PDB = oscbndlsend.pdb
+  TARGET_PDB = oscbndlsend.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target oscbndlrecv
@@ -2513,8 +2284,6 @@ build CMakeFiles/oscbndlrecv.dir/test/oscbndlrecv.cpp.obj: CXX_COMPILER__oscbndl
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\oscbndlrecv.dir
   OBJECT_FILE_DIR = CMakeFiles\oscbndlrecv.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\oscbndlrecv.dir\
-  TARGET_PDB = oscbndlrecv.pdb
 
 
 # =============================================================================
@@ -2531,10 +2300,9 @@ build oscbndlrecv.exe: CXX_EXECUTABLE_LINKER__oscbndlrecv_Debug CMakeFiles/oscbn
   OBJECT_DIR = CMakeFiles\oscbndlrecv.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\oscbndlrecv.dir\
   TARGET_FILE = oscbndlrecv.exe
   TARGET_IMPLIB = liboscbndlrecv.dll.a
-  TARGET_PDB = oscbndlrecv.pdb
+  TARGET_PDB = oscbndlrecv.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target hubserver
@@ -2552,8 +2320,6 @@ build CMakeFiles/hubserver.dir/test/hubserver.cpp.obj: CXX_COMPILER__hubserver_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\hubserver.dir
   OBJECT_FILE_DIR = CMakeFiles\hubserver.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\hubserver.dir\
-  TARGET_PDB = hubserver.pdb
 
 
 # =============================================================================
@@ -2570,10 +2336,9 @@ build hubserver.exe: CXX_EXECUTABLE_LINKER__hubserver_Debug CMakeFiles/hubserver
   OBJECT_DIR = CMakeFiles\hubserver.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\hubserver.dir\
   TARGET_FILE = hubserver.exe
   TARGET_IMPLIB = libhubserver.dll.a
-  TARGET_PDB = hubserver.pdb
+  TARGET_PDB = hubserver.exe.dbg
 
 # =============================================================================
 # Object build statements for EXECUTABLE target hubclient
@@ -2591,8 +2356,6 @@ build CMakeFiles/hubclient.dir/test/hubclient.cpp.obj: CXX_COMPILER__hubclient_D
   INCLUDES = -ID:/o2/src -I"C:/Program Files/Bonjour SDK/Include"
   OBJECT_DIR = CMakeFiles\hubclient.dir
   OBJECT_FILE_DIR = CMakeFiles\hubclient.dir\test
-  TARGET_COMPILE_PDB = CMakeFiles\hubclient.dir\
-  TARGET_PDB = hubclient.pdb
 
 
 # =============================================================================
@@ -2609,10 +2372,9 @@ build hubclient.exe: CXX_EXECUTABLE_LINKER__hubclient_Debug CMakeFiles/hubclient
   OBJECT_DIR = CMakeFiles\hubclient.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\hubclient.dir\
   TARGET_FILE = hubclient.exe
   TARGET_IMPLIB = libhubclient.dll.a
-  TARGET_PDB = hubclient.pdb
+  TARGET_PDB = hubclient.exe.dbg
 
 
 #############################################
@@ -2773,14 +2535,14 @@ build all: phony libo2_static.a libo2lite_static.a winnbserver.exe winnbclient.e
 #############################################
 # Re-run CMake if any of its inputs changed.
 
-build build.ninja: RERUN_CMAKE | C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCCompiler.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCCompilerABI.c C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCXXCompiler.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCXXCompilerABI.cpp C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCompilerIdDetection.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCXXCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCompileFeatures.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCompilerABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCompilerId.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineRCCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineSystem.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeFindBinUtils.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeParseImplicitIncludeInfo.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeParseImplicitLinkInfo.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeParseLibraryArchitecture.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeRCCompiler.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeRCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeSystem.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeTestCCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeTestCXXCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeTestCompilerCommon.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeTestRCCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/ADSP-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/ARMCC-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/ARMClang-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/AppleClang-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Borland-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Bruce-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Clang-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Clang-DetermineCompilerInternal.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Comeau-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Compaq-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Compaq-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Cray-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Embarcadero-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Fujitsu-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/FujitsuClang-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GHS-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-FindBinUtils.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/HP-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/HP-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IAR-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IBMCPP-C-DetermineVersionInternal.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IBMCPP-CXX-DetermineVersionInternal.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IBMClang-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IBMClang-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Intel-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IntelLLVM-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/LCC-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/LCC-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/MSVC-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/NVHPC-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/NVIDIA-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/OpenWatcom-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/PGI-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/PathScale-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/SCO-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/SDCC-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/SunPro-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/SunPro-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/TI-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/TinyCC-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/VisualAge-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/VisualAge-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Watcom-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/XL-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/XL-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/XLClang-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/XLClang-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/zOS-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/zOS-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Internal/FeatureTesting.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-Determine-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/WindowsPaths.cmake CMakeCache.txt CMakeFiles/3.24.2/CMakeCCompiler.cmake CMakeFiles/3.24.2/CMakeCXXCompiler.cmake CMakeFiles/3.24.2/CMakeRCCompiler.cmake CMakeFiles/3.24.2/CMakeSystem.cmake D$:/o2/CMakeLists.txt
+build build.ninja: RERUN_CMAKE | C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeRCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/WindowsPaths.cmake CMakeCache.txt CMakeFiles/3.24.2/CMakeCCompiler.cmake CMakeFiles/3.24.2/CMakeCXXCompiler.cmake CMakeFiles/3.24.2/CMakeRCCompiler.cmake CMakeFiles/3.24.2/CMakeSystem.cmake D$:/o2/CMakeLists.txt
   pool = console
 
 
 #############################################
 # A missing CMake input file is not an error.
 
-build C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCCompiler.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCCompilerABI.c C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCXXCompiler.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCXXCompilerABI.cpp C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCompilerIdDetection.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCXXCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCompileFeatures.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCompilerABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineCompilerId.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineRCCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeDetermineSystem.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeFindBinUtils.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeParseImplicitIncludeInfo.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeParseImplicitLinkInfo.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeParseLibraryArchitecture.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeRCCompiler.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeRCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeSystem.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeTestCCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeTestCXXCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeTestCompilerCommon.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeTestRCCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/ADSP-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/ARMCC-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/ARMClang-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/AppleClang-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Borland-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Bruce-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Clang-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Clang-DetermineCompilerInternal.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Comeau-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Compaq-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Compaq-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Cray-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Embarcadero-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Fujitsu-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/FujitsuClang-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GHS-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-FindBinUtils.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/HP-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/HP-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IAR-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IBMCPP-C-DetermineVersionInternal.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IBMCPP-CXX-DetermineVersionInternal.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IBMClang-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IBMClang-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Intel-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/IntelLLVM-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/LCC-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/LCC-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/MSVC-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/NVHPC-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/NVIDIA-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/OpenWatcom-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/PGI-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/PathScale-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/SCO-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/SDCC-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/SunPro-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/SunPro-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/TI-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/TinyCC-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/VisualAge-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/VisualAge-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/Watcom-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/XL-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/XL-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/XLClang-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/XLClang-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/zOS-C-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/zOS-CXX-DetermineCompiler.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Internal/FeatureTesting.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-Determine-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/WindowsPaths.cmake CMakeCache.txt CMakeFiles/3.24.2/CMakeCCompiler.cmake CMakeFiles/3.24.2/CMakeCXXCompiler.cmake CMakeFiles/3.24.2/CMakeRCCompiler.cmake CMakeFiles/3.24.2/CMakeSystem.cmake D$:/o2/CMakeLists.txt: phony
+build C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeRCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Compiler/GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/Windows.cmake C$:/Program$ Files/JetBrains/CLion$ 2022.3.2/bin/cmake/win/x64/share/cmake-3.24/Modules/Platform/WindowsPaths.cmake CMakeCache.txt CMakeFiles/3.24.2/CMakeCCompiler.cmake CMakeFiles/3.24.2/CMakeCXXCompiler.cmake CMakeFiles/3.24.2/CMakeRCCompiler.cmake CMakeFiles/3.24.2/CMakeSystem.cmake D$:/o2/CMakeLists.txt: phony
 
 
 #############################################
