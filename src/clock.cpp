@@ -10,7 +10,6 @@
 #include "o2sched.h"
 #include "msgsend.h"
 #include "pathtree.h"
-#include "sched.h"
 
 // get the reference clock - clock time is estimated as
 //   global_time_base + elapsed_time * clock_rate, where
