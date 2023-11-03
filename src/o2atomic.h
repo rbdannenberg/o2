@@ -85,6 +85,15 @@ class O2queue {
     O2list_elem *grab() {
         return (O2list_elem *) InterlockedFlushSList(&queue_head);
     }
+
+    void free() {  // empties queue and frees all messages found
+        O2list_elem *all = grab();
+        while (all) {
+            O2list_elem* msg = all;
+            all = all->next;
+            O2_FREE(msg);
+        }
+    }
 };
 
 #else

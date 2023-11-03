@@ -256,8 +256,9 @@ Http_server::Http_server(int port, const char *root_) :
     if (root[root_len - 1] == '/') {
         ((char *) root)[root_len - 1] = 0;
     }
-    O2_DBw(printf("%s     server socket %d port %d root %s\n", o2_debug_prefix,
-                  fds_info->get_socket(), port, root);
+    O2_DBw(printf("%s     server socket %lld port %ld root %s\n",
+                  o2_debug_prefix, (long long) fds_info->get_socket(),
+                  port, root);
            fds_info->trace_socket_flag = true);
     // register with zeroconf
 #ifndef O2_NO_ZEROCONF
@@ -268,8 +269,8 @@ Http_server::Http_server(int port, const char *root_) :
 
 Http_server::~Http_server()
 {
-    O2_DBw(printf("%s delete Http_server %p socket %d\n", o2_debug_prefix,
-                  this, (fds_info ? fds_info->get_socket() : -1)));
+    O2_DBw(printf("%s delete Http_server %p socket %lld\n", o2_debug_prefix,
+                  this, (long long) (fds_info ? fds_info->get_socket() : -1)));
     // close all the client connections
     int n = o2n_fds_info.size();
     for (int i = 0; i < n; i++) {
@@ -294,8 +295,8 @@ O2err Http_server::accepted(Fds_info *conn)
 Http_conn::Http_conn(Fds_info *conn, const char *root_, int port_) :
         Bridge_info(o2ws_protocol)
 {
-    O2_DBw(printf("%s new Http_conn %p socket %d\n",
-                    o2_debug_prefix, this, conn->get_socket());
+    O2_DBw(printf("%s new Http_conn %p socket %lld\n",
+                    o2_debug_prefix, this, (long long) conn->get_socket());
            conn->trace_socket_flag = true;);
     root = root_;
     port = port_;
@@ -877,8 +878,9 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
         const char *end = strchr(sec_web_key, '\r');
         // terminate the string:
         *((char *) end) = 0;  // (modifies the request header!)
-        O2_DBw(printf("%s upgrading socket %d to websocket\n", o2_debug_prefix,
-                      fds_info->get_socket()));
+        O2_DBw(printf("%s upgrading socket %lld to websocket\n",
+                      o2_debug_prefix,
+                      (long long) fds_info->get_socket()));
         return websocket_upgrade(sec_web_key, msg_len);
     } else if (strncmp(&inbuf[0], "GET /", 5) == 0) {
         // find full path to open

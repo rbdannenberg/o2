@@ -17,6 +17,9 @@
 #include <stdio.h>
 #include "o2internal.h"
 #include "assert.h"
+#if WIN32
+#define random rand
+#endif
 
 #define FULLO2 1
 

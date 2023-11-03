@@ -7,7 +7,16 @@
 // run this program and open the URL http://wstest.local in a browser.
 
 #include "o2.h"
+#if WIN32
+#include "Direct.h"
+#define getcwd _getcwd
+#define MAXPATHLEN 4096
+// note: this number is arbitrary and program may fail if it is too small
+// Linux apparently has the same problem: it defines MAXPATHLEN, but it
+// allows paths to be even longer. This code should check return values.
+#else
 #include <unistd.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,7 +60,9 @@ int main(int argc, const char *argv[])
     }
     if (argc >= 5) {
         path = argv[4];
-        printf("HTTP service root: %s/%s\n", getwd(NULL), path);
+        char* cwd = getcwd(NULL, MAXPATHLEN);
+        printf("HTTP service root: %s/%s\n",  cwd, path);
+        free(cwd);
     }
     if (argc > 5) {
         printf("WARNING: websockhost ignoring extra command line argments\n");
@@ -60,8 +71,10 @@ int main(int argc, const char *argv[])
     printf("O2_NO_WEBSOCKETS defined, so this program does nothing.\n");
     printf("WEBSOCKETHOST DONE\n");
 #else
+    char* cwd = getcwd(NULL, MAXPATHLEN);
     printf("Server port %d, ensemble \"%s\", path \"%s/%s\"\n",
-           port, ens_name, getwd(NULL), path);
+           port, ens_name, cwd, path);
+    free(cwd);
     o2_initialize(ens_name);
 
     // enable websockets
