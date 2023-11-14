@@ -75,11 +75,23 @@ int main(int argc, const char * argv[])
     for (int i = 0; i < 100; i++) {
         for (int j = 0; j < 1000; j++) {
             // pick in 2 ranges (small and large)
+            #if WIN32
+            long r = rand();
+            #else
             long r = random();
+            #endif
             if (r & 1) { // small
+                #if WIN32
+                r = rand() & 0x3FF;  // 0 to 1023
+                #else 
                 r = random() & 0x3FF;  // 0 to 1023
+                #endif 
             } else {
+                #if WIN32
+                r = rand() & 0xFFFFF; // 0 to ~1M
+                #else 
                 r = random() & 0xFFFFF; // 0 to ~1M
+                #endif 
             }
             objs[j] = O2_MALLOCNT(r, char);
         }

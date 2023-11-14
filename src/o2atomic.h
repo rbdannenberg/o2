@@ -85,6 +85,8 @@ class O2queue {
     O2list_elem *grab() {
         return (O2list_elem *) InterlockedFlushSList(&queue_head);
     }
+
+    // void free();  // hotfix for windos system
 };
 
 #else
