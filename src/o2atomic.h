@@ -86,6 +86,7 @@ class O2queue {
         return (O2list_elem *) InterlockedFlushSList(&queue_head);
     }
 
+    // hotfix for windos system
     void free();  // hotfix for windos system
 };
 
