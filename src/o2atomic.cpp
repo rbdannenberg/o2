@@ -16,6 +16,15 @@
 /********************** WINDOWS ATOMIC LISTS *****************/
 
 // nothing to implement here - see o2atomic.h
+void O2queue::free()
+{
+    O2list_elem* all = grab();
+    while (all) {
+        O2list_elem* msg = all;
+        all = all->next;
+        O2_FREE(msg);
+    }
+}
 
 #else
 /********************** LINUX AND MACOS ATOMIC LISTS ******************/
