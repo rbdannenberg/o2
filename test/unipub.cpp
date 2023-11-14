@@ -109,8 +109,8 @@ void run_for_awhile(double dur)
 int check_args(O2arg_ptr *argv, int argc)
 {
     assert(argc == 3);
-    assert(streql(argv[0]->s, "Iñtërnâtiônà£ißætiøn☃😎"));
-    assert(streql(argv[1]->S, "Iñtërnâtiônà£ißætiøn☃😎"));
+    assert(streql(argv[0]->s, "Iñtërnâtiônà£ißætiøn☃😎 "));
+    assert(streql(argv[1]->S, "Iñtërnâtiônà£ißætiøn☃😎 "));
     return argv[2]->i;
 }
 
@@ -173,7 +173,7 @@ int main(int argc, const char *argv[])
         printf("WARNING: tappub ignoring extra command line argments\n");
     }
 
-    o2_initialize("Iñtërnâtiônà£ißætiøn☃😎");
+    o2_initialize("Iñtërnâtiônà£ißætiøn☃😎 ");
     
     // add our handler for incoming messages to each server address
     for (int i = 0; i < n_addrs; i++) {
@@ -185,8 +185,8 @@ int main(int argc, const char *argv[])
     }
 
     o2_service_set_property("pubIñtërnâtiônà£ißætiøn☃😎0",
-                            "attr_Iñtërnâtiônà£ißætiøn☃😎",
-                            "value_Iñtërnâtiônà£ißætiøn☃😎");
+                            "attr_Iñtërnâtiônà£ißætiøn☃😎 ",
+                            "value_Iñtërnâtiônà£ißætiøn☃😎 ");
     o2_service_set_property("pubIñtërnâtiônà£ißætiøn☃😎0",
                             "attr1", "value1");
     o2_service_set_property("pubIñtërnâtiônà£ißætiøn☃😎0",
@@ -211,7 +211,7 @@ int main(int argc, const char *argv[])
                     "subIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
     // remove properties
     o2_service_property_free("pubIñtërnâtiônà£ißætiøn☃😎0",
-                            "attr_Iñtërnâtiônà£ißætiøn☃😎");
+                            "attr_Iñtërnâtiônà£ißætiøn☃😎 ");
     o2_service_property_free("pubIñtërnâtiônà£ißætiøn☃😎0", "attr1");
     o2_service_property_free("pubIñtërnâtiônà£ißætiøn☃😎0", "norwegian");
 

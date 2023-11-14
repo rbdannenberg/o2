@@ -66,8 +66,8 @@ void client_test(O2msg_data_ptr data, const char *types,
         printf("client message %d: s=%s S=%s i=%d\n", msg_count, 
                argv[0]->s, argv[1]->S, argv[2]->i32);
     }
-    assert(streql(argv[0]->s, "Iñtërnâtiônà£ißætiøn☃😎"));
-    assert(streql(argv[1]->S, "Iñtërnâtiônà£ißætiøn☃😎"));
+    assert(streql(argv[0]->s, "Iñtërnâtiônà£ißætiøn☃😎 "));
+    assert(streql(argv[1]->S, "Iñtërnâtiônà£ißætiøn☃😎 "));
 
     msg_count++;
     if (argv[2]->i32 == -1) {
@@ -77,7 +77,7 @@ void client_test(O2msg_data_ptr data, const char *types,
         assert(msg_count == argv[2]->i32 + 1);
         int i = msg_count < MAX_MSG_COUNT ? msg_count : -1;
         o2_send_cmd(server_addresses[msg_count % n_addrs], 0, "sSi", 
-                "Iñtërnâtiônà£ißætiøn☃😎", "Iñtërnâtiônà£ißætiøn☃😎", i);
+                "Iñtërnâtiônà£ißætiøn☃😎 ", "Iñtërnâtiônà£ißætiøn☃😎 ", i);
     }
     if (msg_count % 100 == 0) {
         printf("client received %d messages\n", msg_count);
@@ -94,8 +94,8 @@ void copy_sSi(O2msg_data_ptr data, const char *types,
         printf("copy_sSi got %s s=%s S=%s i=%d\n", data->address,
                argv[0]->s, argv[1]->S, argv[2]->i);
     }
-    assert(streql(argv[0]->s, "Iñtërnâtiônà£ißætiøn☃😎"));
-    assert(streql(argv[1]->S, "Iñtërnâtiônà£ißætiøn☃😎"));
+    assert(streql(argv[0]->s, "Iñtërnâtiônà£ißætiøn☃😎 "));
+    assert(streql(argv[1]->S, "Iñtërnâtiônà£ißætiøn☃😎 "));
     if (argv[2]->i != -1) {
         assert(argv[2]->i == copy_count);
     }
@@ -110,7 +110,7 @@ int list_properties()
     const char *pubname;
     while ((pubname = o2_service_name(pub0))) {
         if (o2_service_type(pub0) != O2_TAP &&
-            streql(pubname, "pubIñtërnâtiônà£ißætiøn☃😎0")) {
+            streql(pubname, "pubIñtërnâtiônà£ißætiøn☃😎 0")) {
             return pub0;
         }
         pub0++;
@@ -140,7 +140,7 @@ int main(int argc, const char *argv[])
         printf("WARNING: tapsub ignoring extra command line argments\n");
     }
 
-    o2_initialize("Iñtërnâtiônà£ißætiøn☃😎");
+    o2_initialize("Iñtërnâtiônà£ißætiøn☃😎 ");
     
     for (int i = 0; i < n_addrs; i++) {
         char path[128];
@@ -180,8 +180,8 @@ int main(int argc, const char *argv[])
     int pub0 = list_properties();
 
     const char *value = 
-            o2_service_getprop(pub0, "attr_Iñtërnâtiônà£ißætiøn☃😎");
-    assert(streql(value, "value_Iñtërnâtiônà£ißætiøn☃😎"));
+            o2_service_getprop(pub0, "attr_Iñtërnâtiônà£ißætiøn☃😎 ");
+    assert(streql(value, "value_Iñtërnâtiônà£ißætiøn☃😎 "));
     O2_FREE((char *) value);
 
     value = o2_service_getprop(pub0, "attr1");
@@ -193,7 +193,7 @@ int main(int argc, const char *argv[])
     O2_FREE((char *) value);
 
     // search for unicode substrings of values:
-    assert(pub0 == o2_service_search(0, "attr_Iñtërnâtiônà£ißætiøn☃😎",
+    assert(pub0 == o2_service_search(0, "attr_Iñtërnâtiônà£ißætiøn☃😎 ",
                                      "nâtiônà£"));
     assert(pub0 == o2_service_search(0, "norwegian", "æ"));
 
@@ -204,8 +204,8 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < n_addrs; i++) {
         char tappee[128];
         char tapper[128];
-        sprintf(tappee, "pubIñtërnâtiônà£ißætiøn☃😎%d", i);
-        sprintf(tapper, "subIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(tappee, "pubIñtërnâtiônà£ißætiøn☃😎 %d", i);
+        sprintf(tapper, "subIñtërnâtiônà£ißætiøn☃😎 %d", i);
         assert(o2_tap(tappee, tapper, TAP_RELIABLE) == O2_SUCCESS);
     }
     // another second to deliver/install taps
@@ -213,8 +213,8 @@ int main(int argc, const char *argv[])
 
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
 
-    o2_send_cmd("!pubIñtërnâtiônà£ißætiøn☃😎0/äta", 0, "sSi",
-                "Iñtërnâtiônà£ißætiøn☃😎", "Iñtërnâtiônà£ißætiøn☃😎", 0);
+    o2_send_cmd("!pubIñtërnâtiônà£ißætiøn☃😎 0/äta", 0, "sSi",
+                "Iñtërnâtiônà£ißætiøn☃😎 ", "Iñtërnâtiônà£ißætiøn☃😎 ", 0);
     
     while (running) {
         o2_poll();
@@ -237,7 +237,7 @@ int main(int argc, const char *argv[])
 
     // check for no properties
     pub0 = list_properties();
-    value = o2_service_getprop(pub0, "attr_Iñtërnâtiônà£ißætiøn☃😎");
+    value = o2_service_getprop(pub0, "attr_Iñtërnâtiônà£ißætiøn☃😎 ");
     assert(value == NULL);
 
     value = o2_service_getprop(pub0, "attr1");

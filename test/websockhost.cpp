@@ -7,7 +7,19 @@
 // run this program and open the URL http://wstest.local in a browser.
 
 #include "o2.h"
+#if WIN32
+#include <direct.h>
+#include <string>
+
+std::string getwd(std::string param)
+{
+    char temp[260];
+    return (getcwd(temp, sizeof(temp)) ? std::string(temp) : std::string(""));
+}
+
+#else 
 #include <unistd.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
