@@ -81,17 +81,18 @@ def pprint(outf, fn, strings):
     params - strings representing each parameter, with no commas or spaces
     The function call is wrapped and indented (at least we try to look nice).
     """
-    params_col = len(fn) + 1
+    params_col = len(fn) + 1  # includes "("
     # print a space before each parameter
     print(fn, "(", strings[0], file=outf, sep="", end="")
-    col = params_col + len(strings[0])  # don't count "(" because we'll
+    col = params_col + len(strings[0])
     for i in range(1, len(strings)):
         print(",", file=outf, sep="", end="")
         col += 1
         if col + 1 + len(strings[i]) + 2 >= 80:  # 2 for ");"
             print(file=outf)  # newline
-            print(" " * params_col, file=outf, sep="", end="")  # indent
-            col = params_col
+            # indent to params_col - 1 because we're about to print space
+            print(" " * (params_col - 1), file=outf, sep="", end="")  # indent
+            col = params_col - 1
         print(" ", strings[i], file=outf, sep="", end="")
         col += 1 + len(strings[i])
     print(");", file=outf, sep="")

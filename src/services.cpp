@@ -443,10 +443,15 @@ O2err Services_entry::service_remove(const char *srv_name,
     if (!proc) {
         proc = o2_ctx->proc;  // during shutdown, this proc might be NULL too
     }
-    // send notification message
-    o2_send_cmd("!_o2/si", 0.0, "siss", srv_name, O2_UNKNOWN,
-                proc ? proc->get_proc_name() : "unknown", "");
-
+    
+    // send notification message; do not send status if we never connected
+    if (srv_name[0] != '@' || !proc || !ISA_PROC(proc) ||
+        ((Proc_info *) proc)->is_connected) {
+        o2_send_cmd("!_o2/si", 0.0, "siss", srv_name, O2_UNKNOWN,
+                    proc ? proc->get_proc_name() : "unknown", "");
+    } else {
+        printf("***** !_o2/si suppressed\n");
+    }
     // if we deleted active service, pick a new one
     if (index == 0) { // move top @public:internal:port provider to top spot
         pick_service_provider();

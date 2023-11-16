@@ -31,12 +31,24 @@ public:
     hub_type uses_hub;
 #endif
     Net_address udp_address;
+    // Proc_info is created when a remote process is "discovered," but that
+    // does not mean it really exists because discovery info could be stale.
+    // After discovery, we try to TCP connect. If the connection is made,
+    // is_connected is set. When the socket is deleted, there are two cases:
+    //     is_connected is true: a connection was made and the process was
+    //         reported as a service using !_o2/si message. Send another
+    //         !_o2/si status message reporting the deletion of the service.
+    //     is_connected is false: a connection was never made and the
+    //         process was never reported as a service. Do not send a new
+    //         !_o2/si status message.
+    bool is_connected;
 
     Proc_info() : Proxy_info(NULL, O2TAG_PROC) {
 #ifndef O2_NO_HUB
         uses_hub = O2_NOT_HUB;
 #endif
         memset(&udp_address, 0, sizeof udp_address);
+        is_connected = false;
     }
     virtual ~Proc_info();
 

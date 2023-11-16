@@ -179,7 +179,9 @@ O2err o2_osc_port_new(const char *service_name, int port, bool tcp_flag)
     } else {
         osc->fds_info = Fds_info::create_udp_server(&port, true);
         O2_DBc(osc->co_info(osc->fds_info, "created OSC_UDP_SERVER"));
-        osc->fds_info->owner = osc;
+        if (osc->fds_info) {
+            osc->fds_info->owner = osc;
+        }
     }
     if (!osc->fds_info) { // failure, remove osc
         O2_FREE((char *) (osc->key));

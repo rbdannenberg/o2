@@ -24,7 +24,6 @@ are all the possible tag values:
 #define O2TAG_HANDLER 4
 #define O2TAG_SERVICES 8
 #define O2TAG_PROC_TCP_SERVER 0x10
-#define O2TAG_PROC_NOMSGYET 0x20
 #define O2TAG_PROC 0x40
 #define O2TAG_PROC_TEMP 0x80
 #define O2TAG_MQTT 0x100
@@ -70,13 +69,14 @@ are all the possible tag values:
 #define ISA_HASH(x)     ((x)->tag & O2TAG_HASH)
 #define ISA_SERVICES(x) ((x)->tag & O2TAG_SERVICES)
 #define ISA_PROC(x)     ((x)->tag & O2TAG_PROC)
+#define ISA_PROC_TEMP(x)           ((x)->tag & O2TAG_PROC_TEMP)
 #define ISA_PROC_TCP_SERVER(x)     ((x)->tag & O2TAG_PROC_TCP_SERVER)
 #define ISA_MQTT(x)     ((x)->tag & O2TAG_MQTT)
 #define ISA_OSC_UDP_CLIENT(x)      ((x)->tag & O2TAG_OSC_UDP_CLIENT)
 #define ISA_OSC_TCP_CLIENT(x)      ((x)->tag & O2TAG_OSC_TCP_CLIENT)
 #define ISA_BRIDGE(x)   ((x)->tag & O2TAG_BRIDGE)
-#define ISA_HTTP_SERVER(x) ((x)->tag & O2TAG_HTTP_SERVER)
-#define ISA_STUN_CONN(x) ((x)->tag == O2TAG_STUN)
+#define ISA_HTTP_SERVER(x)         ((x)->tag & O2TAG_HTTP_SERVER)
+#define ISA_STUN_CONN(x)           ((x)->tag == O2TAG_STUN)
 
 
 // ISA_PROXY tells us if the node, considered as a service provider,

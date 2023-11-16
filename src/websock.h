@@ -123,8 +123,6 @@ public:
     virtual O2err accepted(Fds_info *conn) { return O2_FAIL; }  // not a server
     virtual O2err deliver(O2netmsg_ptr msg);
     virtual O2err send(bool block);
-    virtual void remove();
-
 };
 
 
