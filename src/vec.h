@@ -40,13 +40,13 @@ template <typename T> class Vec : public O2obj {
     // 1. You want to zero fill:
     //    A. You want all available storage: v.init(n, true);
     //    B. You want size to be exactly n:
-    //       i. Vec is uninitialized: { v.init(n); v.set_size(n); }
+    //       i. Vec is uninitialized: { v.init(0); v.set_size(n); }
     //       ii. Vec is initialized: v.set_size(n);
     // 2. You want to avoid the (small) cost of zero fill:
     //    A. You want all available storage:
     //       { v.init(n); v.set_size(v.get_allocated(), false); }
     //    B. You want size to be exactly n:
-    //       i. Vec is uninitialized: { v.init(n); v.set_size(n, false); }
+    //       i. Vec is uninitialized: { v.init(0); v.set_size(n, false); }
     //       ii. Vec is initialized: v.set_size(n, false);
     void init(int siz, bool z = false) {
         if (siz > 0) {
