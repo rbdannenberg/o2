@@ -3,8 +3,6 @@
 // Roger B. Dannenberg
 // November 2020
 
-#include "o2base.h"
-
 class O2obj {
   public:
     void *operator new(size_t size) { return O2_MALLOC(size); }

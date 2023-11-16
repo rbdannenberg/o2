@@ -6,5 +6,6 @@
 #include "o2base.h"
 #include "o2obj.h"
 #include <string.h>
+#include <assert.h>
 #include "vec.h"
 

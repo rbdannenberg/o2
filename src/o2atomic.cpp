@@ -5,26 +5,17 @@
 // Roger B. Dannenberg
 // Oct 2020
 
-#include "stdlib.h"
+#include <stdlib.h>
 #ifdef __GNUC__
 #endif
-#include "stdint.h"
-#include "assert.h"
+#include <stdint.h>
+#include <assert.h>
 #include "o2atomic.h"
 
 #ifdef WIN32
 /********************** WINDOWS ATOMIC LISTS *****************/
 
 // nothing to implement here - see o2atomic.h
-void O2queue::free()
-{
-    O2list_elem* all = grab();
-    while (all) {
-        O2list_elem* msg = all;
-        all = all->next;
-        O2_FREE(msg);
-    }
-}
 
 #else
 /********************** LINUX AND MACOS ATOMIC LISTS ******************/
