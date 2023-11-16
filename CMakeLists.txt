@@ -6,7 +6,7 @@ project(o2)
 #       CACHE STRING "only build for x86_64" FORCE)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "controls OSX SDK")
 
-option(CMAKE_BUILD_SHARED_LIBS "Build shared libraries" OFF)
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 option(TESTS_BUILD "Compile regression and other tests" ON)
 
 option(TESTS_WITH_LIBLO "Compile tests that use liblo, 
