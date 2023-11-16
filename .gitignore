@@ -1,6 +1,7 @@
 *.cmake
 o2.xcodeproj/
 o2.build/
+o2litepy/.idea
 CMakeFiles/
 CMakeScripts/
 Debug/
@@ -101,3 +102,4 @@ bugs/osctest.eml
 
 /pdo2.zip
 
+.idea
