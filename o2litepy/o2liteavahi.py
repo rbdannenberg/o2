@@ -39,7 +39,7 @@ class O2LiteDiscovery:
         version = properties.get(b'vers', b'0').decode('utf-8')
         if name and version:
             # Assuming o2l_is_valid_proc_name, o2l_address_init, and o2l_network_connect
-            # are provided somewhere in your code or you need to implement them.
+            # are provided somewhere in code or need to implement them.
             internal_ip, udp_port = self.o2l_is_valid_proc_name(name, port)
             if internal_ip and udp_port:
                 self.o2l_address_init(internal_ip, udp_port)
@@ -89,8 +89,23 @@ class O2LiteDiscovery:
         self.browser = ServiceBrowser(self.zeroconf, "_o2proc._tcp.local.", handlers=[self.on_service_state_change])
 
     def o2ldisc_events(self):
-        # Fill in this function based on the C code if required.
-        pass
+        """
+        Check for events on the sockets.
+        """
+        # We assume self.tcp_socket is a member of O2LiteDiscovery
+        # that holds the socket connection.
+        if self.tcp_socket:
+            read_sockets, _, _ = select.select([self.tcp_socket], [], [], 0.1)
+            for s in read_sockets:
+                if s is self.tcp_socket:
+                    # Handle incoming data or other events.
+                    data = s.recv(1024)
+                    if data:
+                        print("Received:", data)
+                    else:
+                        print("Connection closed by the remote host.")
+                        self.tcp_socket.close()
+                        self.tcp_socket = None
 
     def o2ldisc_poll(self):
         # Placeholder for o2l_local_now, assuming it's current time in seconds
