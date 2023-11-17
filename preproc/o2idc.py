@@ -88,7 +88,7 @@ def pprint(outf, fn, strings):
     for i in range(1, len(strings)):
         print(",", file=outf, sep="", end="")
         col += 1
-        if col + 1 + len(strings[i]) + 2 >= 80:  # 2 for ");"
+        if col + 1 + len(strings[i]) + 2 >= 78:  # 2 for ");"
             print(file=outf)  # newline
             # indent to params_col - 1 because we're about to print space
             print(" " * (params_col - 1), file=outf, sep="", end="")  # indent
