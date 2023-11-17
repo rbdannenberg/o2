@@ -110,6 +110,7 @@ endif(WIN32)
 
 if(UNIX)
   if(APPLE)
+    set(CMAKE_CXX_FLAGS "-std=c++11")
     find_library(COREAUDIO CoreAudio)
     set(EXTRA_LIBS "${COREAUDIO}")
   else(APPLE) # must be Linux
