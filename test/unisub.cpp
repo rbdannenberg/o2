@@ -66,8 +66,8 @@ void client_test(O2msg_data_ptr data, const char *types,
         printf("client message %d: s=%s S=%s i=%d\n", msg_count, 
                argv[0]->s, argv[1]->S, argv[2]->i32);
     }
-    assert(streql(argv[0]->s, "Iñtërnâtiônà£ißætiøn☃😎"));
-    assert(streql(argv[1]->S, "Iñtërnâtiônà£ißætiøn☃😎"));
+    assert(streql(argv[0]->s, u8"Iñtërnâtiônà£ißætiøn☃😎"));
+    assert(streql(argv[1]->S, u8"Iñtërnâtiônà£ißætiøn☃😎"));
 
     msg_count++;
     if (argv[2]->i32 == -1) {
@@ -77,7 +77,7 @@ void client_test(O2msg_data_ptr data, const char *types,
         assert(msg_count == argv[2]->i32 + 1);
         int i = msg_count < MAX_MSG_COUNT ? msg_count : -1;
         o2_send_cmd(server_addresses[msg_count % n_addrs], 0, "sSi", 
-                "Iñtërnâtiônà£ißætiøn☃😎", "Iñtërnâtiônà£ißætiøn☃😎", i);
+                    u8"Iñtërnâtiônà£ißætiøn☃😎", u8"Iñtërnâtiônà£ißætiøn☃😎", i);
     }
     if (msg_count % 100 == 0) {
         printf("client received %d messages\n", msg_count);
@@ -94,8 +94,8 @@ void copy_sSi(O2msg_data_ptr data, const char *types,
         printf("copy_sSi got %s s=%s S=%s i=%d\n", data->address,
                argv[0]->s, argv[1]->S, argv[2]->i);
     }
-    assert(streql(argv[0]->s, "Iñtërnâtiônà£ißætiøn☃😎"));
-    assert(streql(argv[1]->S, "Iñtërnâtiônà£ißætiøn☃😎"));
+    assert(streql(argv[0]->s, u8"Iñtërnâtiônà£ißætiøn☃😎"));
+    assert(streql(argv[1]->S, u8"Iñtërnâtiônà£ißætiøn☃😎"));
     if (argv[2]->i != -1) {
         assert(argv[2]->i == copy_count);
     }
@@ -110,12 +110,12 @@ int list_properties()
     const char *pubname;
     while ((pubname = o2_service_name(pub0))) {
         if (o2_service_type(pub0) != O2_TAP &&
-            streql(pubname, "pubIñtërnâtiônà£ißætiøn☃😎0")) {
+            streql(pubname, u8"pubIñtërnâtiônà£ißætiøn☃😎0")) {
             return pub0;
         }
         pub0++;
     }
-    printf("Could not find pubIñtërnâtiônà£ißætiøn☃😎0 in services\n");
+    printf(u8"Could not find pubIñtërnâtiônà£ißætiøn☃😎0 in services\n");
     assert(false);
     return -1;
 }
@@ -144,33 +144,33 @@ int main(int argc, const char *argv[])
     
     for (int i = 0; i < n_addrs; i++) {
         char path[128];
-        sprintf(path, "/subIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(path, u8"/subIñtërnâtiônà£ißætiøn☃😎%d", i);
         o2_service_new(path + 1);
-        strcat(path, "/äta");
+        strcat(path, u8"/äta");
         o2_method_new(path, "sSi", &client_test, NULL, false, true);
     }
     
     // make one tap before the service
-    assert(o2_tap("pubIñtërnâtiônà£ißætiøn☃😎0", 
-                  "copyIñtërnâtiônà£ißætiøn☃😎0", 
+    assert(o2_tap(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
+                  u8"copyIñtërnâtiônà£ißætiøn☃😎0",
                   TAP_RELIABLE) == O2_SUCCESS);
-    assert(o2_service_new("copyIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
-    assert(o2_method_new("/copyIñtërnâtiônà£ißætiøn☃😎0/äta", "sSi",
+    assert(o2_service_new(u8"copyIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
+    assert(o2_method_new(u8"/copyIñtërnâtiônà£ißætiøn☃😎0/äta", "sSi",
                          &copy_sSi, NULL, false, true) == O2_SUCCESS);
 
     server_addresses = O2_MALLOCNT(n_addrs, char *);
     for (int i = 0; i < n_addrs; i++) {
         char path[100];
-        sprintf(path, "!pubIñtërnâtiônà£ißætiøn☃😎%d/äta", i);
+        sprintf(path, u8"!pubIñtërnâtiônà£ißætiøn☃😎%d/äta", i);
         server_addresses[i] = O2_MALLOCNT(strlen(path), char);
         strcpy(server_addresses[i], path);
     }
 
-    while (o2_status("pubIñtërnâtiônà£ißætiøn☃😎0") < O2_REMOTE) {
+    while (o2_status(u8"pubIñtërnâtiônà£ißætiøn☃😎0") < O2_REMOTE) {
         o2_poll();
         o2_sleep(2); // 2ms
     }
-    printf("We discovered pubIñtërnâtiônà£ißætiøn☃😎0 sevice.\ntime is %g.\n",
+    printf(u8"We discovered pubIñtërnâtiônà£ißætiøn☃😎0 sevice.\ntime is %g.\n",
            o2_time_get());
     
     run_for_awhile(1);
@@ -180,8 +180,8 @@ int main(int argc, const char *argv[])
     int pub0 = list_properties();
 
     const char *value = 
-            o2_service_getprop(pub0, "attr_Iñtërnâtiônà£ißætiøn☃😎");
-    assert(streql(value, "value_Iñtërnâtiônà£ißætiøn☃😎"));
+            o2_service_getprop(pub0, u8"attr_Iñtërnâtiônà£ißætiøn☃😎");
+    assert(streql(value, u8"value_Iñtërnâtiônà£ißætiøn☃😎"));
     O2_FREE((char *) value);
 
     value = o2_service_getprop(pub0, "attr1");
@@ -189,13 +189,13 @@ int main(int argc, const char *argv[])
     O2_FREE((char *) value);
 
     value = o2_service_getprop(pub0, "norwegian");
-    assert(streql(value, "Blåbærsyltetøy"));
+    assert(streql(value, u8"Blåbærsyltetøy"));
     O2_FREE((char *) value);
 
     // search for unicode substrings of values:
-    assert(pub0 == o2_service_search(0, "attr_Iñtërnâtiônà£ißætiøn☃😎",
-                                     "nâtiônà£"));
-    assert(pub0 == o2_service_search(0, "norwegian", "æ"));
+    assert(pub0 == o2_service_search(0, u8"attr_Iñtërnâtiônà£ißætiøn☃😎",
+                                     u8"nâtiônà£"));
+    assert(pub0 == o2_service_search(0, "norwegian", u8"æ"));
 
     assert(o2_services_list_free() == O2_SUCCESS);
 
@@ -204,8 +204,8 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < n_addrs; i++) {
         char tappee[128];
         char tapper[128];
-        sprintf(tappee, "pubIñtërnâtiônà£ißætiøn☃😎%d", i);
-        sprintf(tapper, "subIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(tappee, u8"pubIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(tapper, u8"subIñtërnâtiônà£ißætiøn☃😎%d", i);
         assert(o2_tap(tappee, tapper, TAP_RELIABLE) == O2_SUCCESS);
     }
     // another second to deliver/install taps
@@ -213,8 +213,8 @@ int main(int argc, const char *argv[])
 
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
 
-    o2_send_cmd("!pubIñtërnâtiônà£ißætiøn☃😎0/äta", 0, "sSi",
-                "Iñtërnâtiônà£ißætiøn☃😎", "Iñtërnâtiônà£ißætiøn☃😎", 0);
+    o2_send_cmd(u8"!pubIñtërnâtiônà£ißætiøn☃😎0/äta", 0, "sSi",
+                u8"Iñtërnâtiônà£ißætiøn☃😎", u8"Iñtërnâtiônà£ißætiøn☃😎", 0);
     
     while (running) {
         o2_poll();
@@ -225,19 +225,19 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < n_addrs; i++) {
         char tappee[128];
         char tapper[128];
-        sprintf(tappee, "pubIñtërnâtiônà£ißætiøn☃😎%d", i);
-        sprintf(tapper, "subIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(tappee, u8"pubIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(tapper, u8"subIñtërnâtiônà£ißætiøn☃😎%d", i);
         assert(o2_untap(tappee, tapper) == O2_SUCCESS);
     }
-    assert(o2_untap("pubIñtërnâtiônà£ißætiøn☃😎0",
-                    "copyIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
+    assert(o2_untap(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
+                    u8"copyIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
     
     // publisher removes properties; wait a second for them to disappear
     run_for_awhile(1);
 
     // check for no properties
     pub0 = list_properties();
-    value = o2_service_getprop(pub0, "attr_Iñtërnâtiônà£ißætiøn☃😎");
+    value = o2_service_getprop(pub0, u8"attr_Iñtërnâtiônà£ißætiøn☃😎");
     assert(value == NULL);
 
     value = o2_service_getprop(pub0, "attr1");
@@ -253,12 +253,12 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < n_addrs; i++) {
         char tappee[128];
         char tapper[128];
-        sprintf(tappee, "pubIñtërnâtiônà£ißætiøn☃😎%d", i);
-        sprintf(tapper, "subIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(tappee, u8"pubIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(tapper, u8"subIñtërnâtiônà£ißætiøn☃😎%d", i);
         search_for_non_tapper(tapper, true);
         search_for_non_tapper(tappee, true); // might as well check
     }
-    search_for_non_tapper("copyIñtërnâtiônà£ißætiøn☃😎0", true);
+    search_for_non_tapper(u8"copyIñtërnâtiônà£ißætiøn☃😎0", true);
 
     // another second for unipub to finish checks
     run_for_awhile(1);

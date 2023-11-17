@@ -109,8 +109,8 @@ void run_for_awhile(double dur)
 int check_args(O2arg_ptr *argv, int argc)
 {
     assert(argc == 3);
-    assert(streql(argv[0]->s, "Iñtërnâtiônà£ißætiøn☃😎"));
-    assert(streql(argv[1]->S, "Iñtërnâtiônà£ißætiøn☃😎"));
+    assert(streql(argv[0]->s, u8"Iñtërnâtiônà£ißætiøn☃😎"));
+    assert(streql(argv[1]->S, u8"Iñtërnâtiônà£ißætiøn☃😎"));
     return argv[2]->i;
 }
 
@@ -173,30 +173,30 @@ int main(int argc, const char *argv[])
         printf("WARNING: tappub ignoring extra command line argments\n");
     }
 
-    o2_initialize("Iñtërnâtiônà£ißætiøn☃😎");
+    o2_initialize(u8"Iñtërnâtiônà£ißætiøn☃😎");
     
     // add our handler for incoming messages to each server address
     for (int i = 0; i < n_addrs; i++) {
         char path[128];
-        sprintf(path, "/pubIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(path, u8"/pubIñtërnâtiônà£ißætiøn☃😎%d", i);
         o2_service_new(path + 1);
-        strcat(path, "/äta");
+        strcat(path, u8"/äta");
         o2_method_new(path, "sSi", &server_test, NULL, false, true);
     }
 
-    o2_service_set_property("pubIñtërnâtiônà£ißætiøn☃😎0",
-                            "attr_Iñtërnâtiônà£ißætiøn☃😎",
-                            "value_Iñtërnâtiônà£ißætiøn☃😎");
-    o2_service_set_property("pubIñtërnâtiônà£ißætiøn☃😎0",
+    o2_service_set_property(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
+                            u8"attr_Iñtërnâtiônà£ißætiøn☃😎",
+                            u8"value_Iñtërnâtiônà£ißætiøn☃😎");
+    o2_service_set_property(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
                             "attr1", "value1");
-    o2_service_set_property("pubIñtërnâtiônà£ißætiøn☃😎0",
-                            "norwegian", "Blåbærsyltetøy");
+    o2_service_set_property(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
+                            "norwegian", u8"Blåbærsyltetøy");
 
-    assert(o2_tap("pubIñtërnâtiônà£ißætiøn☃😎0",
-                  "subIñtërnâtiônà£ißætiøn☃😎0", 
+    assert(o2_tap(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
+                  u8"subIñtërnâtiônà£ißætiøn☃😎0",
                   TAP_RELIABLE) == O2_SUCCESS);
-    assert(o2_service_new("subIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
-    assert(o2_method_new("/subIñtërnâtiônà£ißætiøn☃😎0/äta", "sSi", &copy_sSi,
+    assert(o2_service_new(u8"subIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
+    assert(o2_method_new("ul/subIñtërnâtiônà£ißætiøn☃😎0/äta", "sSi", &copy_sSi,
                          NULL, false, true) == O2_SUCCESS);
     
     // we are the master clock
@@ -207,13 +207,13 @@ int main(int argc, const char *argv[])
         o2_sleep(2); // 2ms
     }
     // remove our tap
-    assert(o2_untap("pubIñtërnâtiônà£ißætiøn☃😎0",
-                    "subIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
+    assert(o2_untap(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
+                    u8"subIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
     // remove properties
-    o2_service_property_free("pubIñtërnâtiônà£ißætiøn☃😎0",
-                            "attr_Iñtërnâtiônà£ißætiøn☃😎");
-    o2_service_property_free("pubIñtërnâtiônà£ißætiøn☃😎0", "attr1");
-    o2_service_property_free("pubIñtërnâtiônà£ißætiøn☃😎0", "norwegian");
+    o2_service_property_free(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
+                             u8"attr_Iñtërnâtiônà£ißætiøn☃😎");
+    o2_service_property_free(u8"pubIñtërnâtiônà£ißætiøn☃😎0", "attr1");
+    o2_service_property_free(u8"pubIñtërnâtiônà£ißætiøn☃😎0", "norwegian");
 
     // unisub will wait one second and then check for properties and taps
     // to be gone
@@ -225,8 +225,8 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < n_addrs; i++) {
         char tappee[128];
         char tapper[128];
-        sprintf(tappee, "pubIñtërnâtiônà£ißætiøn☃😎%d", i);
-        sprintf(tapper, "subIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(tappee, u8"pubIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(tapper, u8"subIñtërnâtiônà£ißætiøn☃😎%d", i);
         search_for_non_tapper(tapper, true);
         search_for_non_tapper(tappee, true); // might as well check
     }
