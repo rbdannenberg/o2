@@ -10,13 +10,11 @@
 #if WIN32
 #include "Direct.h"
 #define getcwd _getcwd
-#define MAXPATHLEN 4096
-// note: this number is arbitrary and program may fail if it is too small
-// Linux apparently has the same problem: it defines MAXPATHLEN, but it
-// allows paths to be even longer. This code should check return values.
 #else
 #include <unistd.h>
 #endif
+// note: this number is arbitrary and program may fail if it is too small:
+#define MAXPATHLEN 4096
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
