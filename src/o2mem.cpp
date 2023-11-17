@@ -295,7 +295,7 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
 
 void o2_dbg_free(void *obj, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_FREE %ld bytes in %s:%d : #%" PRId64 "@%p\n",
+    O2_DBm(printf("%s O2_FREE %zu bytes in %s:%d : #%" PRId64 "@%p\n",
                   o2_debug_prefix, OBJ_SIZE(obj),
                   file, line, o2mem_get_seqno(obj), obj));
     // bug in C. free should take a const void * but it doesn't

@@ -1237,7 +1237,12 @@ O2_EXPORT int o2_service_type(int i);
  *         process name contains the IP address and TCP port number
  *         of the process, making it a unique identifier. If the
  *         #i-th service is a tap, the returned value is the 
- *         tapping process name.
+ *         tapping process name. Note: if O2 has not yet resolved
+ *         the local process IP address (both internal and public),
+ *         the process name is reported as "local". Applications
+ *         should generally not rely on the process name since
+ *         the process name for any service can change from
+ *         "local" to a name based on IP addresses and port number.
  */
 O2_EXPORT const char *o2_service_process(int i);
 

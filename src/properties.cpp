@@ -55,7 +55,8 @@ O2err o2_services_list()
             Service_tap *stp = &services->taps[i];
             service_info_ptr sip = service_list.append_space(1);
             sip->name = o2_heapify(entry->key);
-            sip->process = o2_heapify(stp->proc->key);
+            sip->process = o2_heapify(stp->proc->key ? stp->proc->key :
+                                                       "local");
             sip->service_type = O2_TAP;
             sip->properties = o2_heapify(stp->tapper);
 

@@ -76,7 +76,7 @@ unsigned int o2_hex_to_int(const char *hex);
 *         notation is written.
 *
 */
-void o2_hex_to_dot(const char *hex, char *dot);
+// void o2_hex_to_dot(const char *hex, char *dot);
 
 
     

@@ -12,13 +12,10 @@ extern bool o2n_network_enabled;
 extern bool o2n_network_found;
 extern char o2n_internal_ip[O2N_IP_LEN];
 
-// #ifndef O2_EXPORT
+#ifndef O2_EXPORT
 // must be in o2lite or some other static library client
-// #define O2_EXPORT extern
-// #endif
-
 #define O2_EXPORT extern
-
+#endif
 
 O2_EXPORT void o2n_get_internal_ip(char *internal_ip);
 O2_EXPORT void o2_hex_to_dot(const char *hex, char *dot);

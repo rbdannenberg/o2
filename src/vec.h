@@ -163,13 +163,19 @@ template <typename T> class Vec : public O2obj {
     // return the number of elements in use
     int size() { return length; }
     
-    // set the size - CAUTION! content is uninitialized if z is false
-    // storage is reallocated if needed.  See comments for init() above
+    // set the size - CAUTION! Original content from 0 to length (size())
+    // is retained, but any additional content is uninitialized if z is false
+    // and *only* additional content is intialized to zero if z is true.
+    // To set *all* content to zero, call v.set_size(n, false) followed by
+    // v.zero().
+    // Storage is reallocated if needed.  See comments for init() above
     // for details on how/when to call set_size().
     void set_size(int n, bool z = true) {
         if (allocated < n) expand_array(n);
+        if (z && (n > length)) {
+            memset(array + length, 0, (n - length) * sizeof(T));
+        }
         length = n;
-        if (z) zero();
     }
     
     // return the maximum count of elements that could be stored

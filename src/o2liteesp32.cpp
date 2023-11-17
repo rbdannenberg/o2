@@ -152,6 +152,7 @@ void o2ldisc_poll()
         return;
     }
     if (o2l_local_now < resolve_timeout) {
+    if (o2l_local_now < resolve_timeout) {
         blink(2);  // 2 means waiting to find an O2 host
         return;
     }

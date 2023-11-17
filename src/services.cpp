@@ -104,10 +104,10 @@ O2err Services_entry::service_provider_new(O2string service_name,
             const char *properties, O2node *service, Proxy_info *proc)
 {
     bool active = false;
-    O2_DBd(printf("%s %s service_provider_new adding %s to %s\n",
+    O2_DBd(printf("%s%s service_provider_new adding %s to %s\n",
                   o2_debug_prefix,
                   // highlight when proc->key is our IP:Port info:
-                  (streql(service_name, "_o2") ? "****" : ""),
+                  (streql(service_name, "_o2") ? " ****" : ""),
                   service_name, proc->key));
     Services_entry *ss = must_get_services(service_name);
     // services exists, is this service already offered by proc?
