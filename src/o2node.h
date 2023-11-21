@@ -216,7 +216,7 @@ class Hash_node : public O2node { // "subclass" of o2_node
     O2err entry_remove(O2node **child, bool resize);
   protected:
     void table_init(int locations) {
-        children.init(locations, true);
+        children.init(locations, true, true);
     }
     O2err table_resize(int new_locs);
 };

@@ -13,11 +13,12 @@ template <typename T> class Vec : public O2obj {
 
     // initialization with optional fill with zeros
     // if not z(erofill), the initial length is zero.
-    // if z(erofill), vector initial length will be
-    // at least size and filled with zero. It may be
+    // if z(erofill), the vector is filled with zero and
+    // the vector initial length will be size if expand
+    // is false and otherwise at least size. It may be
     // larger than size if the memory allocator returns
     // more space than requested.
-    Vec(int siz, bool z) { init(siz, z); }
+    Vec(int siz, bool z, bool expand) { init(siz, z, expand); }
 
     // move vector to new one, initialize src vector to empty
     Vec(Vec &v) { allocated = v.allocated;
@@ -38,17 +39,24 @@ template <typename T> class Vec : public O2obj {
     // Even when it is acceptable to call init(), there are several
     // interesting initialization cases:
     // 1. You want to zero fill:
-    //    A. You want all available storage: v.init(n, true);
+    //    A. You want all available storage:
+    //       i. Vec is uninitialized: v.init(n, true, true);
+    //       ii. Vec is initialized: v.set_size(n, true, true);
+    //           Note: if Vec is initialized and has non-zero size,
+    //            and you want to zero existing items too, use:
+    //            { v.set_size(n, false, true); v.zero(); }
     //    B. You want size to be exactly n:
-    //       i. Vec is uninitialized: { v.init(0); v.set_size(n); }
+    //       i. Vec is uninitialized: { v.init(n, true); }
     //       ii. Vec is initialized: v.set_size(n);
     // 2. You want to avoid the (small) cost of zero fill:
     //    A. You want all available storage:
-    //       { v.init(n); v.set_size(v.get_allocated(), false); }
+    //       i. Vec is uninitialized: v.init(n, false, true);
+    //       ii. Vec is initialized: v.set_size(n, false, true);
     //    B. You want size to be exactly n:
-    //       i. Vec is uninitialized: { v.init(0); v.set_size(n, false); }
+    //       i. Vec is uninitialized: { v.init(n); v.set_size(n, false); }
+    //          Note: { v.init(0); v.set_size(n, false); } also works
     //       ii. Vec is initialized: v.set_size(n, false);
-    void init(int siz, bool z = false) {
+    void init(int siz, bool z = false, bool expand = false) {
         if (siz > 0) {
             array = O2_MALLOCNT(siz, T);
             // Maybe we got more memory than requested. Make use of it:
@@ -59,9 +67,11 @@ template <typename T> class Vec : public O2obj {
             allocated = 0;
         }
         length = 0;
-        if (z) {
-            zero();
-            length = allocated;
+        if (z || expand) {
+            if (z) {
+                zero();
+            }
+            length = expand ? allocated : siz;
         }
     }
 
@@ -168,14 +178,16 @@ template <typename T> class Vec : public O2obj {
     // and *only* additional content is intialized to zero if z is true.
     // To set *all* content to zero, call v.set_size(n, false) followed by
     // v.zero().
+    // If expand is true, any additional storage (from otherwise internal
+    // fragmentation) is used to the array size could be larger than n.
     // Storage is reallocated if needed.  See comments for init() above
     // for details on how/when to call set_size().
-    void set_size(int n, bool z = true) {
+    void set_size(int n, bool z = true, bool expand = false) {
         if (allocated < n) expand_array(n);
         if (z && (n > length)) {
             memset(array + length, 0, (n - length) * sizeof(T));
         }
-        length = n;
+        length = expand ? allocated : n;
     }
     
     // return the maximum count of elements that could be stored

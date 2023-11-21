@@ -112,7 +112,7 @@ class runInBackground(threading.Thread):
 # stall parameter is ignored now
 def runTest(command, stall=False, quit_on_port_loss=False):
     global allOK
-    time.sleep(1)  # see runDouble for extensive comment on this
+    # time.sleep(1)  # see runDouble for extensive comment on this
     print(command.rjust(30) + ": ", end='', flush=True)
     args = shlex.split(command)
     args[0] = BIN + '/' + args[0] + EXE
@@ -133,8 +133,8 @@ def runTest(command, stall=False, quit_on_port_loss=False):
     countmsg = ""
     portsOK = True
 
-    # is there a race condition with the file system?
-    time.sleep(1)
+    # is there a race condition with the file system?  Could use dostall,
+    time.sleep(1)  # but delay is short and output is distracting
 
     with open("stdout.txt", "r") as outf:
         stdout = outf.read()
@@ -164,15 +164,24 @@ def runTest(command, stall=False, quit_on_port_loss=False):
 
     os.remove("stdout.txt")
     os.remove("stderr.txt")
-    dostall()
+    dostall(STALL_SEC)
     return allOK
 
 
-def dostall():
-    print("stalling...", end="", flush=True)
-    time.sleep(STALL_SEC)
-    print("\b\b\b\b\b\b\b\b\b\b\b           \b\b\b\b\b\b\b\b\b\b\b", \
-          end="")
+def dostall(dur):
+    msg = "stalling (" + str(dur) + "s) ..."
+    print(msg, end="", flush=True)
+    time.sleep(dur)
+    # back up to beginning of message:
+    for i in range(len(msg)):
+        print("\b", end="")
+    # erase message:
+    for i in range(len(msg)):
+        print(" ", end="")
+    # back up to beginning again
+    for i in range(len(msg)):
+        print("\b", end="")
+    print("", end="", flush=True)
 
 
 def startDouble(prog1, prog2, url=""):
@@ -189,6 +198,7 @@ def finishDouble(prog1, p1, out1, prog2, p2, out2, stall):
     global allOK
     p1.join()
     p2.join()
+    # could use dostall() here, but the delay is short and output is distracting
     time.sleep(1)  # debugging test: is there a race to get stdout?
 
     # Ports were left open in some earlier versions of O2, so we checked
@@ -238,7 +248,7 @@ def finishDouble(prog1, p1, out1, prog2, p2, out2, stall):
     os.remove("stderr1.txt")
     os.remove("stdout2.txt")
     os.remove("stderr2.txt")
-    dostall()
+    dostall(STALL_SEC)
     return allOK
 
 
@@ -312,8 +322,8 @@ def runAllTests():
                          "wsserv.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("tapsub", "CLIENT DONE", 
                          "tappub.htm", "WEBSOCKETHOST DONE"): return
-    time.sleep(120)  # infotest1 will fail if Bonjour has an entry from
-                     # a previous o2 process; long timeout
+    dostall(120)  # infotest1 will fail if Bonjour has an entry from
+                  # a previous o2 process; long timeout
     if not runTest("infotest1 o"): return
     # proptest returns almost instantly; maybe it takes awhile for
     #     the port to be released
@@ -329,8 +339,8 @@ def runAllTests():
                      "o2liteserv u", "SERVER DONE"): return
     if not runDouble("statusclient", "CLIENT DONE",
                      "statusserver", "SERVER DONE"): return
-    time.sleep(120)  # infotest2 will fail if Bonjour has an entry from
-                     # a previous o2 process; long timeout
+    dostall(120)  # infotest2 will fail if Bonjour has an entry from
+                  # a previous o2 process; long timeout
     if not runDouble("infotest2", "INFOTEST2 DONE",
                      "clockmirror", "CLOCKMIRROR DONE"): return
     if not runDouble("clockref", "CLOCKREF DONE",
@@ -406,7 +416,7 @@ def runAllTests():
 # checkports(True, True)
 runAllTests()
 print("stall to recover ports".rjust(30) + ": ", end='', flush=True)
-dostall()
+dostall(STALL_SEC)
 print()
 
 ports_ok = True

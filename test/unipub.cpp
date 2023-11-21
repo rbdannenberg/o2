@@ -196,7 +196,7 @@ int main(int argc, const char *argv[])
                   u8"subIñtërnâtiônà£ißætiøn☃😎0",
                   TAP_RELIABLE) == O2_SUCCESS);
     assert(o2_service_new(u8"subIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
-    assert(o2_method_new("ul/subIñtërnâtiônà£ißætiøn☃😎0/äta", "sSi", &copy_sSi,
+    assert(o2_method_new(u8"/subIñtërnâtiônà£ißætiøn☃😎0/äta", "sSi", &copy_sSi,
                          NULL, false, true) == O2_SUCCESS);
     
     // we are the master clock
