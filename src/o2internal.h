@@ -130,6 +130,24 @@ public:
     // disables the downsizing of hash tables.
     bool finishing;
 
+    //------------------ message parsing ------------------
+    // these are thread-local so that the main o2 and shared-memory
+    // threads can both parse messages using message.cpp
+    O2msg_data_ptr mx_msg;    // the message we are extracting from
+    const char *mx_types;     // the type codes
+    const char *mx_type_next; // the next type code
+    const char *mx_data_next; // the next data item in mx_msg
+    const char *mx_barrier;   // pointer to end of message
+    bool mx_vector_to_vector_pending; // expecting vector element
+    // type code, will return a whole vector
+    bool mx_array_to_vector_pending;  // expecting vector element
+    // type code, will return whole vector from array elements
+    int mx_vector_to_array;   // when non-zero, we are extracting
+    // vector elements as array elements. The value will be one of "ihfd"
+    // depending on the vector element type
+    int mx_vector_remaining;  // when mx_vector_to_array is set, this
+    // counts how many vector elements remain to be retrieved
+
     O2_context() {
         argv = NULL;
         argc = 0;
@@ -141,6 +159,16 @@ public:
         msgs = NULL;
         warning = &o2_message_drop_warning;
         finishing = false;
+
+        mx_msg = NULL;
+        mx_types = NULL;
+        mx_type_next = NULL;
+        mx_data_next = NULL;
+        mx_barrier = NULL;
+        mx_vector_to_vector_pending = false;
+        mx_array_to_vector_pending = false;
+        mx_vector_to_array = false;
+        mx_vector_remaining = 0;
     }
 
     ~O2_context() {
@@ -183,9 +211,7 @@ public:
  * is the shared memory bridged processes call functions designed
  * to run in a high-priority thread
  * (such as an audio callback) that exchanges messages with a full O2
- * process. There is a small problem that O2 message construction and
- * decoding functions use some static, preallocated storage, so sharing
- * across threads is not allowed. To avoid this, we put shared storage
+ * process. To avoid this, we put shared storage
  * in an O2_context structure. One structure must be allocated per
  * thread, and we use a thread-local variable o2_ctx to locate
  * the context.

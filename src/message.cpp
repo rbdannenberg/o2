@@ -472,37 +472,22 @@ const char *o2_next_o2string(const char *str)
 }
 
 
-static O2msg_data_ptr mx_msg = NULL;   // the message we are extracting from
-static const char *mx_types = NULL;     // the type codes
-static const char *mx_type_next = NULL; // the next type code
-static const char *mx_data_next = NULL; // the next data item in mx_msg
-static const char *mx_barrier = NULL;   // pointer to end of message
-static bool mx_vector_to_vector_pending = false; // expecting vector element
-// type code, will return a whole vector
-static bool mx_array_to_vector_pending = false;  // expecting vector element
-// type code, will return whole vector from array elements
-static int mx_vector_to_array = false;   // when non-zero, we are extracting
-// vector elements as array elements. The value will be one of "ihfd" depending
-// on the vector element type
-static int mx_vector_remaining = 0;  // when mx_vector_to_array is set, this
-// counts how many vector elements remain to be retrieved
-
 // macros to extract data:
 // define functions to read different types from mx_data_next and increment it
-#define MX_TYPE(fn, typ) typ fn() { typ x = *((typ *) mx_data_next);    \
-        mx_data_next += sizeof(typ); return x; }
+#define MX_TYPE(fn, typ) typ fn() { typ x = *((typ *) o2_ctx->mx_data_next);    \
+        o2_ctx->mx_data_next += sizeof(typ); return x; }
 
 MX_TYPE(rd_float, float)
 MX_TYPE(rd_double, double)
 MX_TYPE(rd_int32, int32_t)
 MX_TYPE(rd_int64, int64_t)
 
-#define MX_FLOAT (*((float *) mx_data_next))
-#define MX_DOUBLE (*((double *) mx_data_next))
-#define MX_INT32 (*((int32_t *) mx_data_next))
-#define MX_INT64 (*((int64_t *) mx_data_next))
+#define MX_FLOAT (*((float *) o2_ctx->mx_data_next))
+#define MX_DOUBLE (*((double *) o2_ctx->mx_data_next))
+#define MX_INT32 (*((int32_t *) o2_ctx->mx_data_next))
+#define MX_INT64 (*((int64_t *) o2_ctx->mx_data_next))
 
-#define MX_SKIP(n) mx_data_next += ((n) + 3) & ~3
+#define MX_SKIP(n) o2_ctx->mx_data_next += ((n) + 3) & ~3
 
 
 // ------- PART 5 : GENERAL MESSAGE FUNCTIONS -------
@@ -879,22 +864,23 @@ O2err o2_send_finish(O2time time, const char *address, bool tcp_flag)
 //
 int o2_extract_start(O2msg_data_ptr msg)
 {
-    mx_msg = msg;
+    o2_ctx->mx_msg = msg;
     // point temp_type_end to the first type code byte.
     // skip over padding and ','
-    mx_types = o2_msg_data_types(msg);
-    mx_type_next = mx_types;
-    int types_len = (int) strlen(mx_types);
+    const char *types = o2_msg_data_types(msg);
+    o2_ctx->mx_types = types;
+    o2_ctx->mx_type_next = types;
+    int types_len = (int) strlen(types);
     // mx_types + types_len points to the end-of-typestring byte and there can
     // be up to 3 more zero-pad bytes to the next word boundary
-    mx_data_next = O2MEM_BIT32_ALIGN_PTR(mx_types + types_len + 4);
+    o2_ctx->mx_data_next = O2MEM_BIT32_ALIGN_PTR(types + types_len + 4);
     // now, mx_data_next points to the first byte of "real" data (after
     // timestamp, address and type codes). Subtract this from the end of
     // the message to get the length of the "real" data. Coerce to int
     // to avoid compiler warning; message cannot be big, so int (as
     // opposed to long) is plenty big.
-    mx_barrier = O2_MSG_DATA_END(msg);
-    int msg_data_len = (int) (mx_barrier - mx_data_next);
+    o2_ctx->mx_barrier = O2_MSG_DATA_END(msg);
+    int msg_data_len = (int) (o2_ctx->mx_barrier - o2_ctx->mx_data_next);
     // add 2 for safety
     int argv_needed = types_len * 4 + msg_data_len * 2 + 2;
     
@@ -906,9 +892,9 @@ int o2_extract_start(O2msg_data_ptr msg)
     need_argv(argv_needed, arg_needed);
     
     // use WR_ macros to write coerced parameters
-    mx_vector_to_array = false;
-    mx_vector_remaining = 0;
-    mx_vector_to_vector_pending = false;
+    o2_ctx->mx_vector_to_array = false;
+    o2_ctx->mx_vector_remaining = 0;
+    o2_ctx->mx_vector_to_vector_pending = false;
     
     return types_len;
 }
@@ -1028,14 +1014,16 @@ O2arg_ptr o2_got_start_array = &sa;
 ///
 O2arg_ptr o2_get_next(O2type to_type)
 {
-    O2arg_ptr rslt = (O2arg_ptr) mx_data_next;
-    if (mx_type_next >= mx_barrier) return NULL; // overrun
-    if (*mx_type_next == 0) return NULL; // no more args, end of type string
-    if (mx_vector_to_vector_pending) {
-        mx_vector_to_vector_pending = false;
+    O2arg_ptr rslt = (O2arg_ptr) o2_ctx->mx_data_next;
+    if (o2_ctx->mx_type_next >= o2_ctx->mx_barrier) return NULL; // overrun
+    if (*o2_ctx->mx_type_next == 0) {  // no more args, end of type string
+        return NULL;
+    }
+    if (o2_ctx->mx_vector_to_vector_pending) {
+        o2_ctx->mx_vector_to_vector_pending = false;
         // returns pointer to a vector descriptor with typ, len, and vector
         //   address; this descriptor is always allocated in o2_ctx->arg_data
-        // mx_data_next points to vector in message
+        // o2_ctx->mx_data_next points to vector in message
         // allowed types for target are i, h, f, t, d
         // get location of next arg which is at end of arg_data.
         // When we found 'v', we appended an O2arg to arg_data; now we
@@ -1046,23 +1034,23 @@ O2arg_ptr o2_get_next(O2type to_type)
         rslt = &((O2arg_ptr) o2_ctx->arg_data.append_space(0))[-1];
         // get pointer to the vector (pointed to type doesn't actually matter)
         // so this code is common to all the different type cases
-        if (to_type == *mx_type_next) {
-            rslt->v.vi = (int32_t *) mx_data_next;
+        if (to_type == *o2_ctx->mx_type_next) {
+            rslt->v.vi = (int32_t *) o2_ctx->mx_data_next;
         } else {
             rslt->v.vi = (int32_t *) (o2_ctx->arg_data.append_space(0));
         }
-        if (mx_data_next + rslt->v.len > mx_barrier) {
-            mx_vector_to_vector_pending = false;
+        if (o2_ctx->mx_data_next + rslt->v.len > o2_ctx->mx_barrier) {
+            o2_ctx->mx_vector_to_vector_pending = false;
             return NULL; // bad message
         }
-        switch (*mx_type_next++) { // switch on actual (in message) type
+        switch (*o2_ctx->mx_type_next++) { // switch on actual (in message) type
             case O2_INT32:
                 rslt->v.len >>= 2; // byte count / 4
                 if (to_type != O2_INT32) {
                     for (int i = 0; i < rslt->v.len; i++) {
                         if (!convert_int(to_type, MX_INT32))
                             return NULL;
-                        mx_data_next += sizeof(int32_t);
+                        o2_ctx->mx_data_next += sizeof(int32_t);
                     }
                 } else {
                     MX_SKIP(sizeof(int32_t) * rslt->v.len);
@@ -1075,7 +1063,7 @@ O2arg_ptr o2_get_next(O2type to_type)
                     for (int i = 0; i < rslt->v.len; i++) {
                         if (!convert_int(to_type, MX_INT64))
                             return NULL;
-                        mx_data_next += sizeof(int64_t);
+                        o2_ctx->mx_data_next += sizeof(int64_t);
                     }
                 } else {
                     MX_SKIP(sizeof(int64_t) * rslt->v.len);
@@ -1087,7 +1075,7 @@ O2arg_ptr o2_get_next(O2type to_type)
                     for (int i = 0; i < rslt->v.len; i++) {
                         if (!convert_float(to_type, MX_FLOAT))
                             return NULL;
-                        mx_data_next += sizeof(float);
+                        o2_ctx->mx_data_next += sizeof(float);
                     }
                 } else {
                     MX_SKIP(sizeof(float) * rslt->v.len);
@@ -1099,7 +1087,7 @@ O2arg_ptr o2_get_next(O2type to_type)
                     for (int i = 0; i < rslt->v.len; i++) {
                         if (!convert_float(to_type, MX_DOUBLE))
                             return NULL;
-                        mx_data_next += sizeof(double);
+                        o2_ctx->mx_data_next += sizeof(double);
                     }
                 } else {
                     MX_SKIP(sizeof(double) * rslt->v.len);
@@ -1109,57 +1097,57 @@ O2arg_ptr o2_get_next(O2type to_type)
                 return NULL;
                 break;
         }
-    } else if (mx_vector_to_array) {
+    } else if (o2_ctx->mx_vector_to_array) {
         // return vector elements as array elements
         if (to_type == O2_ARRAY_END) {
-            if (mx_vector_remaining == 0) {
+            if (o2_ctx->mx_vector_remaining == 0) {
                 rslt = o2_got_end_array;
-                mx_vector_to_array = false;
+                o2_ctx->mx_vector_to_array = false;
             } else {
                 return NULL;
             }
         } else {
-            int siz = ((mx_vector_to_array == 'h' ||
-                        mx_vector_to_array == 'd') ? 8 : 4);
-            mx_vector_remaining -= siz;
-            if (mx_vector_remaining < 0) {
+            int siz = ((o2_ctx->mx_vector_to_array == 'h' ||
+                        o2_ctx->mx_vector_to_array == 'd') ? 8 : 4);
+            o2_ctx->mx_vector_remaining -= siz;
+            if (o2_ctx->mx_vector_remaining < 0) {
                 return NULL; // perhaps message was invalid
             }
         }
-        switch (mx_vector_to_array) {
+        switch (o2_ctx->mx_vector_to_array) {
             case O2_INT32:
                 if (to_type != O2_INT32) {
                     rslt = convert_int(to_type, MX_INT32);
                 }
-                mx_data_next += sizeof(int32_t);
+                o2_ctx->mx_data_next += sizeof(int32_t);
                 break;
             case O2_INT64:
                 if (to_type != O2_INT64) {
                     rslt = convert_int(to_type, MX_INT64);
                 }
-                mx_data_next += sizeof(int64_t);
+                o2_ctx->mx_data_next += sizeof(int64_t);
                 break;
             case O2_FLOAT:
                 if (to_type != O2_FLOAT) {
                     rslt = convert_float(to_type, MX_FLOAT);
                 }
-                mx_data_next += sizeof(float);
+                o2_ctx->mx_data_next += sizeof(float);
                 break;
             case O2_DOUBLE:
                 if (to_type != O2_DOUBLE) {
                     rslt = convert_float(to_type, MX_DOUBLE);
                 }
-                mx_data_next += sizeof(double);
+                o2_ctx->mx_data_next += sizeof(double);
                 break;
             default: // this happens when we reach the end of the vector
                 break;
         }
-        if (mx_data_next > mx_barrier) {
-            mx_vector_to_array = false;
+        if (o2_ctx->mx_data_next > o2_ctx->mx_barrier) {
+            o2_ctx->mx_vector_to_array = false;
             return NULL; // badly formatted message
         }
-    } else if (mx_array_to_vector_pending) { // to_type is desired vector type
-        // array types are in mx_type_next
+    } else if (o2_ctx->mx_array_to_vector_pending) { // to_type is desired vector type
+        // array types are in o2_ctx->mx_type_next
         // already allocated vector header:
         rslt = ((O2arg_ptr) o2_ctx->arg_data.append_space(0)) - 1;
         // "vi" should get just one element in the arg vector.
@@ -1168,42 +1156,42 @@ O2arg_ptr o2_get_next(O2type to_type)
         o2_ctx->argv_data.pop_back();
         rslt->v.vi = (int32_t *) o2_ctx->arg_data.append_space(0);
         rslt->v.typ = to_type; // now we know what the element type will be
-        while (*mx_type_next != O2_ARRAY_END) {
-            switch (*mx_type_next++) {
+        while (*o2_ctx->mx_type_next != O2_ARRAY_END) {
+            switch (*o2_ctx->mx_type_next++) {
                 case O2_INT32:
                     convert_int(to_type, MX_INT32);
-                    mx_data_next += sizeof(int32_t);
+                    o2_ctx->mx_data_next += sizeof(int32_t);
                     break;
                 case O2_INT64:
                     convert_int(to_type, MX_INT64);
-                    mx_data_next += sizeof(int64_t);
+                    o2_ctx->mx_data_next += sizeof(int64_t);
                     break;
                 case O2_FLOAT:
                     convert_float(to_type, MX_FLOAT);
-                    mx_data_next += sizeof(float);
+                    o2_ctx->mx_data_next += sizeof(float);
                     break;
                 case O2_DOUBLE:
                     convert_float(to_type, MX_DOUBLE);
-                    mx_data_next += sizeof(double);
+                    o2_ctx->mx_data_next += sizeof(double);
                     break;
                 default:
                     return NULL; // bad type string (no ']') or bad types
             }
             rslt->v.len++;
-            if (mx_data_next > mx_barrier) {
-                mx_array_to_vector_pending = false;
+            if (o2_ctx->mx_data_next > o2_ctx->mx_barrier) {
+                o2_ctx->mx_array_to_vector_pending = false;
                 return NULL; // badly formatted message
             }
         }
-        mx_array_to_vector_pending = false;
+        o2_ctx->mx_array_to_vector_pending = false;
     } else {
-        O2type type_code = (O2type) (*mx_type_next++);
+        O2type type_code = (O2type) (*o2_ctx->mx_type_next++);
         switch (type_code) {
             case O2_INT32:
                 if (to_type != O2_INT32) {
                     rslt = convert_int(to_type, MX_INT32);
                 }
-                mx_data_next += sizeof(int32_t);
+                o2_ctx->mx_data_next += sizeof(int32_t);
                 break;
             case O2_TRUE:
                 if (to_type != O2_TRUE) {
@@ -1219,26 +1207,26 @@ O2arg_ptr o2_get_next(O2type to_type)
                 if (to_type != O2_BOOL) {
                     rslt = convert_int(to_type, MX_INT32);
                 }
-                mx_data_next += sizeof(int32_t);
+                o2_ctx->mx_data_next += sizeof(int32_t);
                 break;
             case O2_FLOAT:
                 if (to_type != O2_FLOAT) {
                     rslt = convert_float(to_type, MX_FLOAT);
                 }
-                mx_data_next += sizeof(float);
+                o2_ctx->mx_data_next += sizeof(float);
                 break;
             case O2_SYMBOL:
             case O2_STRING:
                 if (to_type != O2_SYMBOL && to_type != O2_STRING) {
                     rslt = NULL; // type error
                 } // otherwise the requested type is suitable
-                MX_SKIP(strlen(mx_data_next) + 1); // add one for end-of-string
-                break;
+                MX_SKIP(strlen(o2_ctx->mx_data_next) + 1); // add one for 
+                break;                                     // end-of-string
             case O2_CHAR:
                 if (to_type != O2_CHAR) {
                     rslt = NULL;
                 }
-                mx_data_next += sizeof(int32_t); // char stored as int32_t
+                o2_ctx->mx_data_next += sizeof(int32_t); // char stored as int32
                 break;
             case O2_BLOB:
                 if (to_type != O2_BLOB) {
@@ -1251,14 +1239,14 @@ O2arg_ptr o2_get_next(O2type to_type)
                 if (to_type != O2_INT64) {
                     rslt = convert_int(to_type, MX_INT64);
                 }
-                mx_data_next += sizeof(int64_t);
+                o2_ctx->mx_data_next += sizeof(int64_t);
                 break;
             case O2_DOUBLE:
             case O2_TIME:
                 if (to_type != O2_DOUBLE && to_type != O2_TIME) {
                     rslt = convert_float(to_type, MX_DOUBLE);
                 } // otherwise the requested type is suitable
-                mx_data_next += sizeof(double);
+                o2_ctx->mx_data_next += sizeof(double);
                 break;
             case O2_MIDI:
                 if (to_type != O2_MIDI) {
@@ -1278,12 +1266,12 @@ O2arg_ptr o2_get_next(O2type to_type)
                 } else if (to_type == O2_VECTOR) {
                     // see if we can extract a vector next time
                     // when we get an element type
-                    mx_array_to_vector_pending = true;
+                    o2_ctx->mx_array_to_vector_pending = true;
                     rslt = (O2arg_ptr)
                            o2_ctx->arg_data.append_space(sizeof(O2arg));
                     // initially, the vector type is the type of the first
                     // element in the array, or double if the array is empty
-                    rslt->v.typ = *mx_type_next;
+                    rslt->v.typ = *o2_ctx->mx_type_next;
                     if (rslt->v.typ == ']') rslt->v.typ = 'd';
                     rslt->v.len = 0; // unkknown
                     rslt->v.vi = NULL; // pointer to data is not valid yet
@@ -1301,17 +1289,18 @@ O2arg_ptr o2_get_next(O2type to_type)
             case O2_VECTOR:
                 if (to_type == O2_ARRAY_START) {
                     // extract the vector as array elements
-                    mx_vector_to_array = *mx_type_next++;
-                    mx_vector_remaining = rd_int32();
+                    o2_ctx->mx_vector_to_array = *o2_ctx->mx_type_next++;
+                    o2_ctx->mx_vector_remaining = rd_int32();
                     // assuming 'v' was followed by a type, we have a vector
-                    rslt = mx_vector_to_array ? o2_got_start_array : NULL;
+                    rslt = o2_ctx->mx_vector_to_array ? o2_got_start_array :
+                           NULL;
                 } else if (to_type == O2_VECTOR) {
                     // next call to o2_get_next() will get special processing
-                    mx_vector_to_vector_pending = true;
+                    o2_ctx->mx_vector_to_vector_pending = true;
                     rslt = (O2arg_ptr)
                            o2_ctx->arg_data.append_space(sizeof(O2arg));
-                    rslt->v.typ = *mx_type_next;
-                    // do not increment mx_type_next because we will use
+                    rslt->v.typ = *o2_ctx->mx_type_next;
+                    // do not increment o2_ctx->mx_type_next because we will use
                     //    it again (and increment on next call to o2_get_next()
                     rslt->v.len = rd_int32();
                     rslt->v.vi = NULL; // pointer to data is not valid yet
@@ -1324,9 +1313,9 @@ O2arg_ptr o2_get_next(O2type to_type)
                         type_code);
                 return NULL;
         }
-        if (mx_data_next > mx_barrier) {
-            mx_data_next = mx_barrier; // which points to 4 zero bytes at end
-            return NULL;         // of the message
+        if (o2_ctx->mx_data_next > o2_ctx->mx_barrier) {
+            o2_ctx->mx_data_next = o2_ctx->mx_barrier; // which points to 4 zero 
+            return NULL;         // bytes at end of the message
         }
     }
     // o2_ctx->argv is o2_ctx->argv_data.array as O2arg_ptr:
