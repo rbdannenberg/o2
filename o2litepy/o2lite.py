@@ -2,6 +2,18 @@ import struct
 import sys
 from socket import socket
 
+import select
+
+# Constants
+O2L_MAX_ARGS = 16
+O2L_ENSEMBLE_LEN = 64
+O2L_SERVICES_LEN = 100
+O2L_IP_LEN = 16
+MAX_MSG_LEN = 100  # not sure about the value
+
+O2_UDP_FLAG = 0
+O2_TCP_FLAG = 1
+
 
 def hex_to_nibble(hex_char):
     if hex_char.isdigit():
@@ -50,11 +62,6 @@ def o2lswap64(i):
 
 
 class O2Lite:
-    # Constants
-    O2L_MAX_ARGS = 16
-    O2L_ENSEMBLE_LEN = 64
-    O2L_SERVICES_LEN = 100
-    O2L_IP_LEN = 16
 
     def __init__(self):
         self.parse_msg = None
@@ -62,6 +69,7 @@ class O2Lite:
         self.parse_error = None
 
         self.max_parse_cnt = 100
+        self.out_msg_cnt = 0
 
         self.remote_ip_port = ""  # Placeholder for the IP and port of the bridged O2 process
         self.bridge_id = -1  # Identifier for this bridged process
@@ -74,6 +82,9 @@ class O2Lite:
         self.o2l_ensemble = None
         self.verbose = False  # Verbose for debugging
         self.platform = sys.platform
+
+        self.read_set = []
+        self.outbuf = []
 
         if not (O2_NO_ZEROCONF or O2_NO_O2DISCOVERY):
             raise ValueError("O2lite supports either ZeroConf or built-in discovery, but not both. "
@@ -103,20 +114,20 @@ class O2Lite:
         return self.parse_error
 
     def check_error(self, typ):
-        if parse_cnt + struct.calcsize(typ) > max_parse_cnt:
-            print(f"o2lite: parse error reading message to {parse_msg.address}")
+        if self.parse_cnt + struct.calcsize(typ) > self.max_parse_cnt:
+            print(f"o2lite: parse error reading message to {self.parse_msg.address}")
             parse_error = True
             return 0
 
     def cur_data_addr(self, typ):
-        offset = parse_cnt
+        offset = self.parse_cnt
         return struct.unpack(typ, self.parse_msg[offset:offset + struct.calcsize(typ)])
 
     def cur_data(self, var_name, typ):
         self.check_error(typ)
         var = self.cur_data_addr(typ)[0]
         globals()[var_name] = var
-        parse_cnt += struct.calcsize(typ)
+        self.parse_cnt += struct.calcsize(typ)
 
     # Functions to get data types from incoming message
     def o2l_get_time(self):
@@ -125,9 +136,9 @@ class O2Lite:
         t_size = struct.calcsize(t_format)
 
         # Equivalent of CURDATA(t, int64_t);
-        t_bytes = self.parse_msg[parse_cnt:parse_cnt + t_size]
+        t_bytes = self.parse_msg[self.parse_cnt:self.parse_cnt + t_size]
         t = struct.unpack(t_format, t_bytes)[0]
-        parse_cnt += t_size
+        self.parse_cnt += t_size
 
         # Assuming o2lswap64 swaps byte order (endianness)
         t_swapped = struct.unpack('>q', struct.pack('<q', t))[0]  # Swap from little-endian to big-endian
@@ -141,9 +152,9 @@ class O2Lite:
         x_size = struct.calcsize(x_format)
 
         # Equivalent of CURDATA(x, int32_t);
-        x_bytes = self.parse_msg[parse_cnt:parse_cnt + x_size]
+        x_bytes = self.parse_msg[self.parse_cnt:self.parse_cnt + x_size]
         x = struct.unpack(x_format, x_bytes)[0]
-        parse_cnt += x_size
+        self.parse_cnt += x_size
 
         # Assuming o2lswap32 swaps byte order (endianness)
         x_swapped = struct.unpack('>i', struct.pack('<i', x))[0]  # Swap from little-endian to big-endian
@@ -157,9 +168,9 @@ class O2Lite:
         i_size = struct.calcsize(i_format)
 
         # Equivalent of CURDATA(i, int32_t);
-        i_bytes = self.parse_msg[parse_cnt:parse_cnt + i_size]
+        i_bytes = self.parse_msg[self.parse_cnt:self.parse_cnt + i_size]
         i = struct.unpack(i_format, i_bytes)[0]
-        parse_cnt += i_size
+        self.parse_cnt += i_size
 
         # Assuming o2lswap32 swaps byte order (endianness)
         return struct.unpack('>i', struct.pack('<i', i))[0]
@@ -186,19 +197,19 @@ class O2Lite:
     def o2l_add_string(self, s):
         for char in s:
             # still need to write char and EOS, so need space for 2 chars:
-            if out_msg_cnt + 2 > MAX_MSG_LEN:
+            if self.out_msg_cnt + 2 > MAX_MSG_LEN:
                 self.parse_error = True
                 return
-            outbuf[out_msg_cnt] = char
-            out_msg_cnt += 1
+            self.outbuf[self.out_msg_cnt] = char
+            self.out_msg_cnt += 1
 
         # write EOS (end-of-string), which is represented as a null character in C
-        outbuf.append('\0')
+        self.outbuf.append('\0')
 
         # fill to word boundary (assuming 4-byte boundary since `out_msg_cnt & 0x3` checks the last two bits)
-        while out_msg_cnt & 0x3:
-            outbuf.append('\0')
-            out_msg_cnt += 1
+        while self.out_msg_cnt & 0x3:
+            self.outbuf.append('\0')
+            self.out_msg_cnt += 1
 
     def o2l_add_float(self, x):
         # Convert the float value to its binary representation
@@ -209,30 +220,30 @@ class O2Lite:
         swapped_value = o2lswap32(int32_value)
 
         # Check for buffer overflow
-        if out_msg_cnt + 4 > MAX_MSG_LEN:  # sizeof(float) is typically 4 bytes
+        if self.out_msg_cnt + 4 > MAX_MSG_LEN:  # sizeof(float) is typically 4 bytes
             parse_error = True
             return
 
         # Append swapped_value to the buffer
-        outbuf[out_msg_cnt:out_msg_cnt + 4] = struct.pack('i', swapped_value)
-        out_msg_cnt += 4
+        self.outbuf[self.out_msg_cnt:self.out_msg_cnt + 4] = struct.pack('i', swapped_value)
+        self.out_msg_cnt += 4
 
     def o2l_add_int32(self, i):
         # Swap the byte order
         swapped_value = o2lswap32(i)
 
         # Check for buffer overflow
-        if out_msg_cnt + 4 > MAX_MSG_LEN:  # sizeof(int32_t) is typically 4 bytes
+        if self.out_msg_cnt + 4 > MAX_MSG_LEN:  # sizeof(int32_t) is typically 4 bytes
             parse_error = True
             return
 
         # Append swapped_value to the buffer
-        outbuf[out_msg_cnt:out_msg_cnt + 4] = struct.pack('i', swapped_value)
-        out_msg_cnt += 4
+        self.outbuf[self.out_msg_cnt:self.out_msg_cnt + 4] = struct.pack('i', swapped_value)
+        self.out_msg_cnt += 4
 
     def o2l_add_time(self, time):
         # Check for buffer overflow
-        if out_msg_cnt + 8 > MAX_MSG_LEN:  # sizeof(double) is typically 8 bytes
+        if self.out_msg_cnt + 8 > MAX_MSG_LEN:  # sizeof(double) is typically 8 bytes
             parse_error = True
             return
 
@@ -241,8 +252,8 @@ class O2Lite:
         swapped_value = o2lswap64(t)
 
         # Append swapped_value to the buffer
-        outbuf[out_msg_cnt:out_msg_cnt + 8] = struct.pack('Q', swapped_value)
-        out_msg_cnt += 8
+        self.outbuf[self.out_msg_cnt:self.out_msg_cnt + 8] = struct.pack('Q', swapped_value)
+        self.out_msg_cnt += 8
 
     def o2l_send_start(self, address, time, types, tcp):
         # global parse_error, out_msg_cnt, out_msg, outbuf
@@ -253,7 +264,7 @@ class O2Lite:
         self.o2l_add_int32(O2_TCP_FLAG if tcp else O2_UDP_FLAG)
         self.o2l_add_time(time)
         self.o2l_add_string(address)
-        outbuf[out_msg_cnt] = ','  # type strings have a leading ','
+        self.outbuf[out_msg_cnt] = ','  # type strings have a leading ','
         out_msg_cnt += 1
         self.o2l_add_string(types)
 
@@ -261,12 +272,12 @@ class O2Lite:
         if self.parse_error or tcp_sock == INVALID_SOCKET:
             return
 
-        out_msg.length = o2lswap32(out_msg_cnt - len(out_msg.length))
+        out_msg.length = o2lswap32(self.out_msg_cnt - len(out_msg.length))
 
         if out_msg.misc & o2lswap32(O2_TCP_FLAG):
-            tcp_sock.send(outbuf[:out_msg_cnt])
+            tcp_sock.send(self.outbuf[:self.out_msg_cnt])
         else:
-            message_to_send = outbuf[len(out_msg.length):out_msg_cnt]
+            message_to_send = self.outbuf[len(out_msg.length):self.out_msg_cnt]
             bytes_sent = udp_send_sock.sendto(message_to_send, udp_server_sa)
             if bytes_sent < 0:
                 print("Error attempting to send udp message")
@@ -342,6 +353,33 @@ class O2Lite:
     def o2ldisc_poll():
         pass
 
+    def network_poll(self):
+        # Initialize the read set
+        read_set = [] 
+
+        # Add TCP and UDP sockets to the read set
+        if tcp_sock.fileno() != -1:  # Check if TCP socket is valid
+            read_set.append(tcp_sock)
+            if udp_recv_sock.fileno() != -1:  # Add UDP socket only if TCP is connected
+                read_set.append(udp_recv_sock)
+
+        o2ldisc_poll()  # Assuming this is another function that needs to be called
+
+        # Check if read_set is empty
+        if not read_set:
+            return
+
+        # Wait for an event on the sockets
+        readable, _, _ = select.select(read_set, [], [], 0)
+
+        # Handle events
+        if tcp_sock in readable:
+            read_from_tcp()
+        if udp_recv_sock in readable:
+            read_from_udp()
+
+        o2ldisc_events(readable)  # Assuming this handles additional events
+
     @staticmethod
     def o2ldisc_events(readset):
         pass
@@ -365,8 +403,41 @@ class O2Lite:
 
     @staticmethod
     def add_socket(s):
-        pass
+        global nfds
+        # Check if the socket is valid
+        if s.fileno() != -1:
+            # Add the socket to the read_set
+            self.read_set.append(s)
+            # Update nfds
+            if s.fileno() >= nfds:
+                nfds = s.fileno() + 1
 
     @staticmethod
     def bind_recv_socket(sock, port):
-        pass
+        # Define constants for success and failure
+        O2L_SUCCESS = 0
+        O2L_FAIL = -1
+
+        # Set socket options
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        except socket.error as err:
+            print(f"setsockopt(SO_REUSEADDR) failed: {err}")
+            return O2L_FAIL
+
+        # Bind the socket
+        try:
+            sock.bind(('', port))
+        except socket.error as err:
+            print(f"Socket binding failed: {err}")
+            return O2L_FAIL
+
+        # If port is 0, find the allocated port
+        if port == 0:
+            try:
+                port = sock.getsockname()[1]
+            except socket.error as err:
+                print(f"getsockname call to get port number failed: {err}")
+                return O2L_FAIL
+
+        return O2L_SUCCESS
