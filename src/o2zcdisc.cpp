@@ -182,7 +182,7 @@ O2err Bonjour_info::deliver(O2netmsg_ptr msg) {
 }
 
 
-void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
+void DNSSD_API zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                          uint32_t interface_index, DNSServiceErrorType err,
                          const char *fullname, const char *hosttarget,
                          uint16_t port, uint16_t txt_len,
@@ -309,10 +309,9 @@ void resolve()
 }
 
 
-void zc_register_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
-                          DNSServiceErrorType err, const char *name,
-                          const char *regtype, const char *domain,
-                          void *context)
+void DNSSD_API zc_register_callback(DNSServiceRef sd_ref,
+        DNSServiceFlags flags, DNSServiceErrorType err, const char *name,
+        const char *regtype, const char *domain, void *context)
 {
     O2_DBz(printf("%s zc_register_callback err %d registered %s as %s domain "
                   "%s\n", o2_debug_prefix, err, name, regtype, domain));
@@ -333,9 +332,9 @@ void resolve_watchdog(O2msg_data_ptr msg, const char *types,
 }
 
 
-static void rr_callback(DNSServiceRef sd_ref, DNSRecordRef record_ref,
-                        DNSServiceFlags flags, DNSServiceErrorType err,
-                        void *context)
+static void DNSSD_API rr_callback(DNSServiceRef sd_ref,
+        DNSRecordRef record_ref, DNSServiceFlags flags,
+        DNSServiceErrorType err, void *context)
 {
     O2_DBz(printf("rr_callback sd_ref %p record_ref %p flags %d err %d\n",
                   sd_ref, record_ref, flags, err));
@@ -411,7 +410,7 @@ void o2_zc_register_record(int port)
 }
 
 
-static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
+static void DNSSD_API zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                 uint32_t interfaceIndex, DNSServiceErrorType err,
                 const char *name, const char *regtype,
                 const char *domain, void *context)

@@ -108,11 +108,11 @@ static void free_pending_services()
 }    
 
 
-static void zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
-                         uint32_t interface_index, DNSServiceErrorType err,
-                         const char *fullname, const char *hosttarget,
-                         uint16_t tcp_port, uint16_t txt_len,
-                         const unsigned char *txt_record, void *context)
+static void DNSSD_API zc_resolve_callback(DNSServiceRef sd_ref,
+        DNSServiceFlags flags, uint32_t interface_index,
+        DNSServiceErrorType err, const char *fullname,
+        const char *hosttarget, uint16_t tcp_port, uint16_t txt_len,
+        const unsigned char *txt_record, void *context)
 {
     char name[32];
     char internal_ip[O2N_IP_LEN];
@@ -190,10 +190,10 @@ static void start_resolving()
     }
 }
 
-static void zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
-                uint32_t interfaceIndex, DNSServiceErrorType err,
-                const char *name, const char *regtype,
-                const char *domain, void *context)
+static void DNSSD_API zc_browse_callback(DNSServiceRef sd_ref, 
+        DNSServiceFlags flags, uint32_t interfaceIndex,
+        DNSServiceErrorType err, const char *name, const char *regtype,
+        const char *domain, void *context)
 {
     // match if ensemble name is a prefix of name, e.g. "ensname (2)"
     if ((flags & kDNSServiceFlagsAdd) &&
