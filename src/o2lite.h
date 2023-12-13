@@ -154,10 +154,10 @@ typedef void (*o2l_handler)(o2l_msg_ptr msg, const char *types,
                             void *data, void *info);
 
 /// \brief enable extra debugging
-extern int verbose;
+O2_EXPORT int verbose;
 
 /// \brief The current local time, maintained by #o2_poll
-extern o2l_time o2l_local_now;
+O2_EXPORT o2l_time o2l_local_now;
 
 #ifdef ESP32
 /// \brief used for debugging ESP32 Thing implementation
@@ -175,11 +175,11 @@ void button_poll();
  * Start every message by calling this function. After adding parameters
  * according to the type string, send the message with #o2l_send().
  */
-void o2l_send_start(const char *address, o2l_time time,
+O2_EXPORT void o2l_send_start(const char *address, o2l_time time,
                     const char *types, bool tcp);
 
 /// \brief Send a fully constructed message
-void o2l_send();
+O2_EXPORT void o2l_send();
 
 /**
  * \brief Add a handler for an O2 address.
@@ -217,34 +217,34 @@ void o2l_send();
  * immediately, and o2lite will call the handler immediately, so it is
  * up to the application to deal with the timestamp.
  */
-void o2l_method_new(const char *path, const char *typespec,
+O2_EXPORT void o2l_method_new(const char *path, const char *typespec,
                     bool full, o2l_handler h, void *info);
 
 /// \brief returns time in seconds since #o2l_initialize.
-o2l_time o2l_local_time();
+O2_EXPORT o2l_time o2l_local_time();
 
 /// \brief return O2 time in seconds.
 ///
 /// Returns -1 if clock synchronization has not completed.
 ///
-o2l_time o2l_time_get();
+O2_EXPORT o2l_time o2l_time_get();
 
 /// \brief call this frequently to poll for messages.
-void o2l_poll();
+O2_EXPORT void o2l_poll();
 
 #if ESP32
 /// \brief WiFi connection
 ///
 /// Blinks LED until connected, then prints IP address
 ///
-void connect_to_wifi(const char *hostname, const char *ssid, const char *pwd);
+O2_EXPORT void connect_to_wifi(const char *hostname, const char *ssid, const char *pwd);
 
 /// \brief print a horizontal line to highlight debug info
 ///
 /// This is used by connect_to_wifi() to highlight the IP address,
 /// but the routine is exported here to make it available for general use.
 ///
-void print_line();
+O2_EXPORT void print_line();
 #endif
 
 
@@ -266,28 +266,28 @@ void print_line();
  *                 string. o2lite will not modify or free this string.
  * @return O2L_SUCCESS normally or O2L_FAIL if initialization fails
  */
-int o2l_initialize(const char *ensemble);
+O2_EXPORT int o2l_initialize(const char *ensemble);
 
 /// \brief shut down o2lite resources (not fully implemented)
-int o2l_finish();
+O2_EXPORT int o2l_finish();
 
 /// \brief call between #o2l_send_start and #o2l_send to add a string.
-void o2l_add_string(const char *s);
+O2_EXPORT void o2l_add_string(const char *s);
 
 /// \brief call between #o2l_send_start and #o2l_send to add a time.
-void o2l_add_time(double time);
+O2_EXPORT void o2l_add_time(double time);
 
 /// \brief call between #o2l_send_start and #o2l_send to add a double.
 #define o2l_add_double(x) o2l_add_time(x)
 
 /// \brief call between #o2l_send_start and #o2l_send to add a float.
-void o2l_add_float(float x);
+O2_EXPORT void o2l_add_float(float x);
 
 /// \brief call between #o2l_send_start and #o2l_send to add an int32.
 #define o2l_add_int(i) o2l_add_int32(i)
 
 /// \brief call between #o2l_send_start and #o2l_send to add an int32.
-void o2l_add_int32(int32_t i);
+O2_EXPORT void o2l_add_int32(int32_t i);
 
 /**
  * \brief call between #o2l_send_start and #o2l_send to check for overflow.
@@ -300,22 +300,22 @@ void o2l_add_int32(int32_t i);
  * reading past the end of the incoming message or trying to write past
  * the end of the send buffer (which is set to MAX_MSG_LEN).
  */
-bool o2l_get_error();
+O2_EXPORT bool o2l_get_error();
 
 /// \brief call in a message handler to get the message timestamp.
-double o2l_get_timestamp();
+O2_EXPORT double o2l_get_timestamp();
 
 /// \brief call in a message handler to get the next parameter as time.
-double o2l_get_time();
+O2_EXPORT double o2l_get_time();
 
 /// \brief call in a message handler to get the next parameter as double.
 #define o2l_get_double() o2l_get_time()
 
 /// \brief call in a message handler to get the next parameter as float.
-float o2l_get_float();
+O2_EXPORT float o2l_get_float();
 
 /// \brief call in a message handler to get the next parameter as int32.
-int32_t o2l_get_int32();
+O2_EXPORT int32_t o2l_get_int32();
 
 /// \brief call in a message handler to get the next parameter as int32.
 #define o2l_get_int(i) o2l_get_int32(i)
@@ -324,7 +324,7 @@ int32_t o2l_get_int32();
 ///
 /// The string is not copied to the heap, so the data will be invalid
 /// when the handler returns.
-char *o2l_get_string();
+O2_EXPORT char *o2l_get_string();
 
 /**
  * \brief Announce services offered to O2 by this bridged process
@@ -343,7 +343,7 @@ char *o2l_get_string();
  * You *must* call #o2l_set_services to receive any messages. Creating 
  * a method (handler) is not sufficient.
  */
-void o2l_set_services(const char *services);
+O2_EXPORT void o2l_set_services(const char *services);
 
 /**
  * \brief The IP and port number of the bridged O2 process.
@@ -359,7 +359,7 @@ void o2l_set_services(const char *services);
  * until you disconnect, at which point another bridge process can reuse
  * the bridge id.
  */
-extern char o2l_remote_ip_port[16];
+O2_EXPORT char o2l_remote_ip_port[16];
 
 /** 
  * \brief A small integer to identify this bridged process.
@@ -369,7 +369,7 @@ extern char o2l_remote_ip_port[16];
  * connection to the O2 process is closed or lost, so this is also a 
  * good indicator that the connection is up and running.
  */
-extern int o2l_bridge_id;
+O2_EXPORT int o2l_bridge_id;
 
 // define IS_BIG_ENDIAN, IS_LITTLE_ENDIAN, and swap64(i),
 // swap32(i), and swap16(i)
@@ -427,15 +427,15 @@ extern int o2l_bridge_id;
 
 // o2ldisc_init() -- called in o2l_initialize() for
 //     implementation-specific actions
-int o2ldisc_init(const char *ensemble);
+O2_EXPORT int o2ldisc_init(const char *ensemble);
 
 // o2ldisc_poll() -- called before select(), which polls sockets. Here, you
 //     can add_socket() to add to the read_set passed to select or poll for
 //     timeouts.
-void o2ldisc_poll();
+O2_EXPORT void o2ldisc_poll();
 
 // o2ldisc_events() -- called to check for incoming messages or socket errors
-void o2ldisc_events(fd_set *readset);
+O2_EXPORT void o2ldisc_events(fd_set *readset);
 
 /**********************************************************************/
 /* Internal symbols declared for use by Discovery API Implementations */
@@ -446,26 +446,35 @@ void o2ldisc_events(fd_set *readset);
 typedef int SOCKET;  // we use SOCKET to denote the type of a socket
 #endif
 
-extern SOCKET tcp_sock;
-extern const char *o2l_ensemble;
-extern struct sockaddr_in udp_server_sa;
-extern int udp_recv_port;
-extern SOCKET udp_recv_sock;
+O2_EXPORT SOCKET tcp_sock;
+O2_EXPORT const char *o2l_ensemble;
+O2_EXPORT struct sockaddr_in udp_server_sa;
+O2_EXPORT int udp_recv_port;
+O2_EXPORT SOCKET udp_recv_sock;
 
-bool o2l_is_valid_proc_name(const char *name, int port,
+O2_EXPORT bool o2l_is_valid_proc_name(const char *name, int port,
                             char *internal_ip, int *udp_port);
 
-int o2l_parse_version(const char *vers, int vers_len);
+O2_EXPORT int o2l_parse_version(const char *vers, int vers_len);
 
-int o2l_address_init(struct sockaddr_in *sa, const char *ip, int port_num,
-                     bool tcp);
+O2_EXPORT int o2l_address_init(struct sockaddr_in *sa, const char *ip, 
+                               int port_num, bool tcp);
 
-void o2l_network_connect(const char *ip, int port);
+O2_EXPORT void o2l_network_connect(const char *ip, int port);
 
-void o2l_add_socket(SOCKET s);
+O2_EXPORT void o2l_add_socket(SOCKET s);
 
-int o2l_bind_recv_socket(SOCKET sock, int *port);
+O2_EXPORT int o2l_bind_recv_socket(SOCKET sock, int *port);
 
+/*********************************/
+/* exported for use in test code */
+/*********************************/
+
+O2_EXPORT void o2l_dispatch(o2l_msg_ptr msg);
+O2_EXPORT char tcpinbuf[MAX_MSG_LEN];
+O2_EXPORT char outbuf[MAX_MSG_LEN];
+O2_EXPORT o2l_msg_ptr out_msg;
+O2_EXPORT int out_msg_cnt;
 
 #ifdef __cplusplus
 }

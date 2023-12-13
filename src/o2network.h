@@ -248,11 +248,12 @@ class Fds_info : public O2obj {
 
 extern Vec<Fds_info *> o2n_fds_info;
 
-extern bool o2n_network_enabled;  // network connections are permitted
-extern bool o2n_network_found;    // local area network exists
+// see hostip.h for declaration:
+// extern bool o2n_network_enabled;  // network connections are permitted
+O2_EXPORT bool o2n_network_found;    // local area network exists
 // if !o2n_network_found, o2n_internal_ip will be "7f000001" (localhost)
-extern char o2n_public_ip[O2N_IP_LEN];     // in 8 hex characters
-extern char o2n_internal_ip[O2N_IP_LEN];   // in 8 hex characters
+O2_EXPORT char o2n_public_ip[O2N_IP_LEN];     // in 8 hex characters
+O2_EXPORT char o2n_internal_ip[O2N_IP_LEN];   // in 8 hex characters
 
 // initialize this module
 O2err o2n_initialize();

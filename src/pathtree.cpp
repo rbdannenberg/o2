@@ -14,6 +14,11 @@
 
 thread_local O2_context *o2_ctx = NULL;
 
+O2_context* o2_get_context() {
+    return o2_ctx;
+}
+
+
 #ifndef O2_NO_PATTERNS
 static bool o2_pattern_match(const char *str, const char *p);
 #endif

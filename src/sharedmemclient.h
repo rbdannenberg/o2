@@ -55,28 +55,29 @@
     o2sm_send_marker(path, time, true, \
                    __VA_ARGS__, O2_MARKER_A, O2_MARKER_B)
 
-O2err o2sm_send_marker(const char *path, double time, bool tcp_flag,
+O2_EXPORT O2err o2sm_send_marker(const char *path, double time, bool tcp_flag,
                           const char *typestring, ...);
-O2err o2sm_send_finish(O2time time, const char *address, bool tcp_flag);
-O2err o2sm_message_send(O2message_ptr msg);
+O2_EXPORT O2err o2sm_send_finish(O2time time, const char *address,
+                                 bool tcp_flag);
+O2_EXPORT O2err o2sm_message_send(O2message_ptr msg);
 
-int o2sm_get_id(); 
-void o2sm_poll();
-O2time o2sm_time_get();
-O2err o2_shmem_inst_finish(Bridge_info *inst);
-void o2sm_initialize(O2_context *ctx, Bridge_info *inst);
-O2err o2_shmem_finish();
-O2message_ptr o2sm_get_message(Bridge_info *inst);
+O2_EXPORT int o2sm_get_id();
+O2_EXPORT void o2sm_poll();
+O2_EXPORT O2time o2sm_time_get();
+O2_EXPORT O2err o2_shmem_inst_finish(Bridge_info *inst);
+O2_EXPORT void o2sm_initialize(O2_context *ctx, Bridge_info *inst);
+O2_EXPORT O2err o2_shmem_finish();
+O2_EXPORT O2message_ptr o2sm_get_message(Bridge_info *inst);
 // o2sm_service_new announces services to the O2 process.
-O2err o2sm_service_new(const char *service, const char *properties);
+O2_EXPORT O2err o2sm_service_new(const char *service, const char *properties);
 
 // o2sm_method_new attaches a handler to a path. Unless O2SM_PATTERNS
 // is defined, this function does not require a service to have been
 // created, saving a check for the service when a message arrives.
 // But without a call to o2sm_service_new, no messages will be sent to
 // this path.
-O2err o2sm_method_new(const char *path, const char *typespec,
-                      O2method_handler h, void *user_data,
-                      bool coerce, bool parse);
-void o2sm_finish();
+O2_EXPORT O2err o2sm_method_new(const char *path, const char *typespec,
+                                O2method_handler h, void *user_data,
+                                bool coerce, bool parse);
+O2_EXPORT void o2sm_finish();
 

@@ -57,7 +57,6 @@ void time_check()
     }
 }
 
-extern char o2n_public_ip[O2N_IP_LEN];
 
 int main(int argc, const char *argv[])
 {
@@ -82,7 +81,6 @@ int main(int argc, const char *argv[])
     }
 
     o2_initialize("test");
-    strcpy(o2n_public_ip, "000.000.000.000");
 #ifndef O2_NO_BRIDGES
     o2lite_initialize(); // enable o2lite - this test is used with o2liteserv
 #endif

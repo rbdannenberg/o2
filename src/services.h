@@ -21,7 +21,7 @@ class Service_tap : O2obj {
 };
 
 
-class Services_entry : public O2node {
+class O2_CLASS_EXPORT Services_entry : public O2node {
   public:
     Vec<Service_provider> services;
             // dynamic array of type Service_provider
@@ -92,5 +92,3 @@ class Services_entry : public O2node {
 #define TO_SERVICES_ENTRY(node) (assert(ISA_SERVICES(node)), \
                                  (Services_entry *) node)
 #endif
-
-O2err o2_service_free(const char *service_name);

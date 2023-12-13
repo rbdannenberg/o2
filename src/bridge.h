@@ -110,9 +110,9 @@
 
 class Bridge_info;
 
-extern int o2_bridge_next_id;
+O2_EXPORT int o2_bridge_next_id;
 
-class Bridge_protocol : public O2obj {
+class O2_CLASS_EXPORT Bridge_protocol : public O2obj {
 public:
     char protocol[8];
     Bridge_protocol(const char *name);
@@ -143,7 +143,7 @@ public:
 };
 
 
-class Bridge_info : public Proxy_info {
+class O2_CLASS_EXPORT Bridge_info : public Proxy_info {
 public:
     int id;  // a unique id for the bridged process
     Bridge_protocol *proto;  // this could almost be information returned

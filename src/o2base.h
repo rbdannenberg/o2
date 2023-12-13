@@ -6,19 +6,23 @@
  */
 
 #ifndef O2_EXPORT
-#ifdef o2_EXPORTS
+// note: hidden feature of CMake is it defines {libraryname}_EXPORTS
+//     when building a shared library:
+#if defined(o2_EXPORTS) || defined(o2lite_EXPORTS)
  /* We are building this library */
 # if defined(__GNUC__)
 #  define O2_EXPORT __attribute__((visibility("default"))) extern
 # elif defined _MSC_VER
-#  define O2_EXPORT __declspec(dllimport) extern
+#  define O2_EXPORT __declspec(dllexport) extern
+#  define O2_CLASS_EXPORT __declspec(dllexport)
 # endif
 #else
  /* We are using this library */
 # if defined(__GNUC__)
 #  define O2_EXPORT __attribute__((visibility("default"))) extern
 # elif defined _MSC_VER
-#  define O2_EXPORT __declspec(dllexport) extern
+#  define O2_EXPORT __declspec(dllimport) extern
+#  define O2_CLASS_EXPORT __declspec(dllimport)
 # endif
 #endif
 #endif
@@ -50,7 +54,7 @@ extern "C" {
  * @param n number of milliseconds to sleep
  *
  */
-void o2_sleep(int n);
+O2_EXPORT void o2_sleep(int n);
 
 
 /**
@@ -110,7 +114,7 @@ extern void ((*o2_free_ptr)(void *));
 #define O2_MALLOC(x) (*o2_malloc_ptr)(x)
 #define O2_MALLOCNT(n, typ) ((typ *) ((*o2_malloc_ptr)((n) * sizeof(typ))))
 #else
-void *o2_dbg_malloc(size_t size, const char *file, int line);
+O2_EXPORT void *o2_dbg_malloc(size_t size, const char *file, int line);
 #define O2_MALLOC(x) o2_dbg_malloc(x, __FILE__, __LINE__)
 #endif
 #endif
@@ -128,7 +132,7 @@ void *o2_dbg_malloc(size_t size, const char *file, int line);
 #ifdef O2_NO_DEBUG
 #define O2_FREE(x) (*o2_free_ptr)(x)
 #else
-void o2_dbg_free(void *obj, const char *file, int line);
+O2_EXPORT void o2_dbg_free(void *obj, const char *file, int line);
 #define O2_FREE(x) o2_dbg_free(x, __FILE__, __LINE__)
 #endif
 #endif
@@ -141,7 +145,7 @@ void *o2_calloc(size_t n, size_t s);
 #define O2_CALLOC(n, s) o2_calloc(n, s)
 #define O2_CALLOCNT(n, typ) ((typ *) o2_calloc(n, sizeof(typ)))
 #else
-void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
+O2_EXPORT void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
 #define O2_CALLOC(n, s) o2_dbg_calloc(n, s, __FILE__, __LINE__)
 #endif
 #endif
@@ -169,7 +173,7 @@ void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line);
 // if O2MEM_DEBUG, extra checks are made for memory consistency,
 // and you can check any pointer using o2_mem_check(ptr):
 #if O2MEM_DEBUG
-void o2_mem_check(void *ptr);
+O2_EXPORT void o2_mem_check(void *ptr);
 #else   // make #o2_mem_check a noop
 #define o2_mem_check(ptr) 0
 #endif
@@ -179,7 +183,7 @@ void o2_mem_check(void *ptr);
 // some memory optimizations are possible if we can get the actual
 // allocation size, which is possible using o2_malloc:
 //
-size_t o2_allocation_size(void *obj, size_t minimum);
+O2_EXPORT size_t o2_allocation_size(void *obj, size_t minimum);
 
 #ifdef __cplusplus
 }

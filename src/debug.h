@@ -50,12 +50,12 @@ extern "C" {
 #else
 const char *o2_tag_to_string(int tag);
 
-extern int o2_debug;
-extern const char *o2_debug_prefix;
+O2_EXPORT int o2_debug;
+O2_EXPORT const char *o2_debug_prefix;
 void o2_dbg_msg(const char *src, O2message_ptr msg, O2msg_data_ptr data,
                 const char *extra_label, const char *extra_data);
-void o2_print_path_tree(void);
-void o2_print_bytes(const char* prefix, const char* bytes, int len);
+O2_EXPORT void o2_print_path_tree(void);
+O2_EXPORT void o2_print_bytes(const char* prefix, const char* bytes, int len);
 
 // Note: The ordering of these flags is coordinated with debug_chars, 
 // defined in debug.c. See o2_debug_flags() implementation there too.

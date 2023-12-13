@@ -24,12 +24,6 @@ This test:
 #include "o2lite.h"
 #include <string.h>
 
-// these are duplicate declarations to access "private" stuff in o2lite.c:
-extern char tcpinbuf[MAX_MSG_LEN];
-extern char outbuf[MAX_MSG_LEN];
-extern o2l_msg_ptr out_msg;
-extern int out_msg_cnt;
-void o2l_dispatch(o2l_msg_ptr msg);
 
 bool about_equal(double a, double b)
 {

@@ -129,7 +129,7 @@ are all the possible tag values:
 // Any O2node can be an entry in a hash table, so hash tables
 // can be used to form trees with named links, i.e. path trees
 // for O2 address search.
-class O2node : public O2obj {
+class O2_CLASS_EXPORT O2node : public O2obj {
   public:
     int tag;
     O2string key; // key is "owned" by this generic entry struct
@@ -179,7 +179,7 @@ class O2node : public O2obj {
 
 
 // Hash table node, another hash table
-class Hash_node : public O2node { // "subclass" of o2_node
+class O2_CLASS_EXPORT Hash_node : public O2node { // "subclass" of o2_node
     friend class Enumerate;
     int num_children;
     Vec<O2node *> children; // children is a dynamic array of o2_node_ptr.
@@ -305,7 +305,7 @@ public:
 
 // A message handler that uses a socket or other connection to
 // deliver messages remotely
-class Proxy_info : public O2node, public Net_interface {
+class O2_CLASS_EXPORT Proxy_info : public O2node, public Net_interface {
 public:
     Proxy_info(const char *key, int tag) : O2node(key, tag) { fds_info = NULL; }
     // remove is only called from ~Fds_info(): it's purpose is to delete

@@ -134,7 +134,7 @@ public:
 };
 
 
-O2sm_info *o2_shmem_inst_new();
+O2_EXPORT O2sm_info *o2_shmem_inst_new();
 
 // return number of shared memory instances
-int o2_shmem_inst_count();
+O2_EXPORT int o2_shmem_inst_count();

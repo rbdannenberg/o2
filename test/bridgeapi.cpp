@@ -155,7 +155,7 @@ int main(int argc, const char * argv[])
 
     // create a service named "demobridge1"
     err = Services_entry::service_provider_new(
-            "demobridge1", NULL, demo_info, o2_ctx->proc);
+            "demobridge1", NULL, demo_info, o2_get_context()->proc);
     assert(err == O2_SUCCESS);
 
     // view the service status

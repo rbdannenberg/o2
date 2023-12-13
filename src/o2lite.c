@@ -848,6 +848,7 @@ void o2l_method_new(const char *path, const char *typespec,
                     bool full, o2l_handler h, void *info)
 {
     o2l_method_ptr mp = O2_MALLOCT(o2l_method);
+    assert(mp);
     mp->next = methods;
     mp->address = path;
     mp->typespec = typespec;

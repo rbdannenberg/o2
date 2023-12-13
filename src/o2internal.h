@@ -58,7 +58,7 @@ void o2_string_pad(char *dst, const char *src);
 /* Copy path to the O2 heap, creating an O2string with zero padding to
  * a 32-bit word boundary.
  */
-O2string o2_heapify(const char *path);
+O2_EXPORT O2string o2_heapify(const char *path);
 
 // o2_strcpy is like strlcpy but it does not return length.
 // precisely, o2_strcpy() copies up to n characters (including EOS) from
@@ -77,9 +77,9 @@ void o2_strcpy(char *__restrict dst, const char *__restrict src,
 #include "o2node.h"
 
 class Proc_info;
-class Bridge_info;
+class O2_CLASS_EXPORT Bridge_info;
 
-class O2_context {
+class O2_CLASS_EXPORT O2_context {
 public:
     // msg_types is used to hold type codes as message args are accumulated
     Vec<char> msg_types;
@@ -209,14 +209,22 @@ public:
 
 /* O2 should not be called from multiple threads. One exception
  * is the shared memory bridged processes call functions designed
- * to run in a high-priority thread
- * (such as an audio callback) that exchanges messages with a full O2
- * process. To avoid this, we put shared storage
- * in an O2_context structure. One structure must be allocated per
- * thread, and we use a thread-local variable o2_ctx to locate
- * the context.
+ * to run in a high-priority thread (such as an audio callback)
+ * that exchanges messages with a full O2 process. Each bridge
+ * requires a separate heap, tables to map addresses to handlers,
+ * message queues, and message parsing structures (which are reused
+ * serially within threads. We put all this storage in an O2_context
+ * structure. One structure must be allocated per thread, and we use
+ * a thread-local variable o2_ctx to locate the context.
  */
 extern thread_local O2_context *o2_ctx;
+
+/* On Windows, there is a problem referencing o2_ctx as a dll export
+ * from outside the O2 DLL (when O2 is compiled as a dynamic library
+ * which is not normally recommended anyway). To allow access from
+ * outside the library, use o2_get_context(): 
+ */
+O2_EXPORT O2_context* o2_get_context();
 
 
 #include "clock.h"
