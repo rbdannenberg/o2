@@ -9,7 +9,7 @@ extern "C" {
 
 #ifndef O2_EXPORT
 // must be in o2lite or some other static library client
-#define O2_EXPORT extern
+#error "O2_EXPORT undefined -- probably need to include o2lite.h or o2.h first"
 #endif
 
 O2_EXPORT bool o2n_internet_enabled;

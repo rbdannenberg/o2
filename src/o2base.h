@@ -5,29 +5,31 @@
  * @{
  */
 
-#ifndef O2_EXPORT
+#if !defined(O2_EXPORT) && defined(WIN32) && defined(BUILD_SHARED_LIBS)
 // note: hidden feature of CMake is it defines {libraryname}_EXPORTS
 //     when building a shared library:
-#if defined(o2_EXPORTS) || defined(o2lite_EXPORTS)
+#  if defined(o2_EXPORTS) || defined(o2lite_EXPORTS)
  /* We are building this library */
-# if defined(__GNUC__)
-#  define O2_EXPORT __attribute__((visibility("default"))) extern
-# elif defined _MSC_VER
-#  define O2_EXPORT __declspec(dllexport) extern
-#  define O2_CLASS_EXPORT __declspec(dllexport)
-# endif
-#else
+#   if defined(__GNUC__)
+#    define O2_EXPORT __attribute__((visibility("default"))) extern
+#   elif defined _MSC_VER
+#    define O2_EXPORT __declspec(dllexport) extern
+#    define O2_CLASS_EXPORT __declspec(dllexport)
+#   endif
+#  else
  /* We are using this library */
-# if defined(__GNUC__)
-#  define O2_EXPORT __attribute__((visibility("default"))) extern
-# elif defined _MSC_VER
-#  define O2_EXPORT __declspec(dllimport) extern
-#  define O2_CLASS_EXPORT __declspec(dllimport)
-# endif
-#endif
-#endif
-#ifndef O2_EXPORT
-# define O2_EXPORT extern
+#   if defined(__GNUC__)
+#    define O2_EXPORT __attribute__((visibility("default"))) extern
+#   elif defined _MSC_VER
+#    define O2_EXPORT __declspec(dllimport) extern
+#    define O2_CLASS_EXPORT __declspec(dllimport)
+#   endif
+#  endif
+# else
+#  ifndef O2_EXPORT
+#   define O2_EXPORT extern
+#   define O2_CLASS_EXPORT 
+#  endif
 #endif
 
 

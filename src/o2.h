@@ -675,7 +675,7 @@ typedef struct O2msg_data {
 #define O2_MSG_DATA_END(data) (PTR(&(data)->misc) + (data)->length)
 
 // find the next word-aligned string after str in a message:
-O2_EXPORT const char *o2_next_o2string(const char *str);
+const char *o2_next_o2string(const char *str);
 // find the type string from O2msg_data_ptr, skips initial ',':
 #define o2_msg_data_types(data) (o2_next_o2string((data)->address) + 1)
 #define o2_msg_types(msg) o2_msg_data_types(&msg->data)
@@ -1109,7 +1109,7 @@ O2_EXPORT O2err o2_get_addresses(const char **public_ip,
  *         O2 is unable to obtain the host's IP address or unable to
  *         obtain a TCP server port.
  */
-O2_EXPORT const char *o2_get_proc_name(void);
+const char *o2_get_proc_name(void);
 
 /**
  * \brief Parse Public:Local:Port string and extract fields
@@ -1124,8 +1124,8 @@ O2_EXPORT const char *o2_get_proc_name(void);
  *
  *  @return O2_SUCCESS if all parameters were written, otherwise O2_FAIL
  */
-O2_EXPORT int o2_parse_name(const char *name, char *public_ip,
-                            char *internal_ip, int *port);
+int o2_parse_name(const char *name, char *public_ip,
+                  char *internal_ip, int *port);
     
 /**
  *  \brief Add a service to the current process.
@@ -1531,7 +1531,7 @@ O2err o2_method_free(const char *path);
  * #o2_drop_message or #o2_drop_msg_data instead. You can pass this
  * function to #o2_message_warnings to restore default warning behavior.
  */
-O2_EXPORT void o2_message_drop_warning(const char *warn, O2msg_data_ptr msg);
+void o2_message_drop_warning(const char *warn, O2msg_data_ptr msg);
 
 /**
  * \brief Tell world that a message was dropped.
@@ -1698,7 +1698,7 @@ O2_EXPORT int o2_status(const char *service);
  * than a specific error description). Normally, you will retrieve an int
  * from #o2_status and call #o2_status_to_string((#O2status) stat).
  */
-O2_EXPORT const char *o2_status_to_string(int status);
+const char *o2_status_to_string(int status);
 #endif
 
 
@@ -2734,7 +2734,7 @@ O2_EXPORT O2err o2_sched_flush(void);
  */
 
 /// \brief enable O2lite protocol connections to this proces
-O2_EXPORT O2err o2lite_initialize(void);
+O2err o2lite_initialize(void);
 
 
 /** @} */ // end of a bridgeapi group
@@ -2747,7 +2747,7 @@ O2_EXPORT O2err o2lite_initialize(void);
  * reference to the message to be sent, but it does not assume ownership
  * of the message.
  */
-O2_EXPORT O2message_ptr o2_current_message(void);
+O2message_ptr o2_current_message(void);
 
 
 /**
@@ -2759,7 +2759,7 @@ O2_EXPORT O2message_ptr o2_current_message(void);
  * but if the message is to be freed later, use #o2_postpone_delivery instead.
  * Never call this function from a message handler passed to #o2_method_new.
  */
-O2_EXPORT void o2_complete_delivery(void);
+void o2_complete_delivery(void);
 
 
 /**
@@ -2804,14 +2804,14 @@ O2message_ptr o2_postpone_delivery(void);
  *         (see #o2_network_enable) or no Internet connection was
  *         found.
  */
- O2_EXPORT O2err o2_mqtt_enable(const char *broker, int port_num);
+ O2err o2_mqtt_enable(const char *broker, int port_num);
 
 /** @} */ // end of a mqttapi group
 #endif
 
 // note: shared mem process support depends on bridge support
 #ifndef O2_NO_SHAREDMEM
- O2_EXPORT O2err o2_shmem_initialize(void);
+O2err o2_shmem_initialize(void);
 #endif
 
 
@@ -2856,7 +2856,7 @@ O2message_ptr o2_postpone_delivery(void);
  *         (see #o2_network_enable) or no Internet connection was
  *         found.
  */
-O2_EXPORT O2err o2_http_initialize(int port, const char *root);
+O2err o2_http_initialize(int port, const char *root);
 
 /** @} */ // end of a httpapi group
 
