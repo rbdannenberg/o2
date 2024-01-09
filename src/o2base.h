@@ -5,6 +5,7 @@
  * @{
  */
 
+
 #if !defined(O2_EXPORT) && defined(WIN32) && defined(BUILD_SHARED_LIBS)
 // note: hidden feature of CMake is it defines {libraryname}_EXPORTS
 //     when building a shared library:

@@ -675,7 +675,7 @@ typedef struct O2msg_data {
 #define O2_MSG_DATA_END(data) (PTR(&(data)->misc) + (data)->length)
 
 // find the next word-aligned string after str in a message:
-const char *o2_next_o2string(const char *str);
+O2_EXPORT const char *o2_next_o2string(const char *str);
 // find the type string from O2msg_data_ptr, skips initial ',':
 #define o2_msg_data_types(data) (o2_next_o2string((data)->address) + 1)
 #define o2_msg_types(msg) o2_msg_data_types(&msg->data)
@@ -1109,7 +1109,7 @@ O2_EXPORT O2err o2_get_addresses(const char **public_ip,
  *         O2 is unable to obtain the host's IP address or unable to
  *         obtain a TCP server port.
  */
-const char *o2_get_proc_name(void);
+O2_EXPORT const char *o2_get_proc_name(void);
 
 /**
  * \brief Parse Public:Local:Port string and extract fields
@@ -1124,8 +1124,8 @@ const char *o2_get_proc_name(void);
  *
  *  @return O2_SUCCESS if all parameters were written, otherwise O2_FAIL
  */
-int o2_parse_name(const char *name, char *public_ip,
-                  char *internal_ip, int *port);
+O2_EXPORT int o2_parse_name(const char *name, char *public_ip,
+                            char *internal_ip, int *port);
     
 /**
  *  \brief Add a service to the current process.
@@ -1698,7 +1698,7 @@ O2_EXPORT int o2_status(const char *service);
  * than a specific error description). Normally, you will retrieve an int
  * from #o2_status and call #o2_status_to_string((#O2status) stat).
  */
-const char *o2_status_to_string(int status);
+O2_EXPORT const char *o2_status_to_string(int status);
 #endif
 
 
@@ -2734,7 +2734,7 @@ O2_EXPORT O2err o2_sched_flush(void);
  */
 
 /// \brief enable O2lite protocol connections to this proces
-O2err o2lite_initialize(void);
+O2_EXPORT O2err o2lite_initialize(void);
 
 
 /** @} */ // end of a bridgeapi group
@@ -2804,14 +2804,14 @@ O2message_ptr o2_postpone_delivery(void);
  *         (see #o2_network_enable) or no Internet connection was
  *         found.
  */
- O2err o2_mqtt_enable(const char *broker, int port_num);
+ O2_EXPORT O2err o2_mqtt_enable(const char *broker, int port_num);
 
 /** @} */ // end of a mqttapi group
 #endif
 
 // note: shared mem process support depends on bridge support
 #ifndef O2_NO_SHAREDMEM
-O2err o2_shmem_initialize(void);
+O2_EXPORT O2err o2_shmem_initialize(void);
 #endif
 
 
@@ -2856,7 +2856,7 @@ O2err o2_shmem_initialize(void);
  *         (see #o2_network_enable) or no Internet connection was
  *         found.
  */
-O2err o2_http_initialize(int port, const char *root);
+O2_EXPORT O2err o2_http_initialize(int port, const char *root);
 
 /** @} */ // end of a httpapi group
 

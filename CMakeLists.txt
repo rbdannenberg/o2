@@ -48,6 +48,9 @@ add_definitions("-D_FORTIFY_SOURCE=0")
 add_definitions("-DO2_NO_O2DISCOVERY") 
 
 add_definitions("-DO2MEM_DEBUG=${BUILD_WITH_O2MEM_DEBUG}")
+if (BUILD_SHARED_LIBS)
+  add_definitions("-DBUILD_SHARED_LIBS=1")
+endif()
 
 if(BUILD_WITH_DEBUG_SUPPORT) 
 else(BUILD_WITH_DEBUG_SUPPORT) 
@@ -181,6 +184,7 @@ else()
   set(O2LITE ${O2LITE_STATIC_LIBRARY_NAME})
 endif() 
 
+message(STATUS "BUILD_SHARED_LIBS is ${BUILD_SHARED_LIBS}")
 add_library(o2 ${O2_SRC})
 # O2MEM_DEBUG uses mutex from pthreads except for Windows:
 if(${BUILD_WITH_O2MEM_DEBUG} GREATER 0 AND NOT WIN32)

@@ -1464,6 +1464,7 @@ const char *o2_error_to_string(O2err i)
 }
 
 
+#ifndef O2_NO_DEBUG
 static const char *status_strings[] = {
     "O2_UNKNOWN",
     "O2_LOCAL_NOTIME",
@@ -1475,6 +1476,7 @@ static const char *status_strings[] = {
     "O2_BRIDGE",
     "O2_TO_OSC" };
 
+
 const char *o2_status_to_string(int status)
 {
     if (status >= O2_UNKNOWN && status <= O2_TO_OSC) {
@@ -1483,7 +1485,7 @@ const char *o2_status_to_string(int status)
         return o2_error_to_string((O2err) status);
     }
 }
-
+#endif
 
 O2err o2_finish()
 {
