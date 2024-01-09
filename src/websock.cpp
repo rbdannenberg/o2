@@ -69,7 +69,7 @@ class O2ws_protocol : public Bridge_protocol {
 public:
     Http_conn *pending_ws_senders;
 #ifdef WIN32
-    Http_reader *readers;  // list of file readers to poll for async read
+    Http_reader *readers = nullptr;  // list of file readers to poll for async read
 
     // insert reader to list so that it is polled to read file
     void add_reader(Http_reader *reader) {
@@ -298,10 +298,12 @@ Http_conn::Http_conn(Fds_info *conn, const char *root_, int port_) :
     O2_DBw(printf("%s new Http_conn %p socket %lld\n",
                     o2_debug_prefix, this, (long long) conn->get_socket());
            conn->trace_socket_flag = true;);
+    inf = 0;
     root = root_;
     port = port_;
     reader = NULL;
     next_pending = NULL;
+    ws_msg_len = -1;
     is_web_socket = false;
     sent_close_command = false;
     confirmed_ensemble = false;

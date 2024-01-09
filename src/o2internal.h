@@ -160,6 +160,10 @@ public:
         warning = &o2_message_drop_warning;
         finishing = false;
 
+        proc = NULL;
+        schedule_head = NULL;
+        schedule_tail = NULL;
+
         mx_msg = NULL;
         mx_types = NULL;
         mx_type_next = NULL;

@@ -603,11 +603,9 @@ void o2sm_initialize(O2_context *ctx, Bridge_info *inst)
     // should not be freed until O2 finishes. (Note that the lifetime of this
     // chunk is longer than the lifetime of the shared memory thread because
     // memory gets passed around as messages.)
+
     o2_ctx->proc = NULL;
     o2_ctx->binst = inst;
-
-    o2_ctx->schedule_head = NULL;
-    o2_ctx->schedule_tail = NULL;
 }
 
 

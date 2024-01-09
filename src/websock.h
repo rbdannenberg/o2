@@ -51,7 +51,6 @@ class Http_conn;
 //
 class Http_server: public Proxy_info {
 public:
-    long page_len;     // string length of page
     const char *root;
     Http_server(int port, const char *root);
     virtual ~Http_server();
@@ -97,7 +96,6 @@ public:
     bool sent_close_command;  // sent a CLOSE command
     bool confirmed_ensemble; // first message must be /_o2/ws/dy "ensemble"
     int maskx;  // index for masking key
-    int payload_offset;  // state to help parse incoming data
     int ws_msg_len;
     O2message_ptr outgoing;  // pending outgoing messages: To send a message,
     // we parse it, and if we're already sending a message, we could already
