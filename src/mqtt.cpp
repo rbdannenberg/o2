@@ -82,8 +82,10 @@ O2err o2_mqtt_send_disc()
     O2_DBq(printf("%s publishing to O2-%s/disc with payload %s\n",
                   o2_debug_prefix, o2_ensemble_name, o2_ctx->proc->key));
     char suffix[20];
-    strcpy(suffix, o2_clock_is_synchronized ? "/cs/" : "/dy/");
-    o2_version(suffix + 4);  // append version number
+    int udp_port = o2_ctx->proc->udp_address.get_port();
+    snprintf(suffix, 19, ":%04x", udp_port);
+    strcpy(suffix + 5, o2_clock_is_synchronized ? "/cs/" : "/dy/");
+    o2_version(suffix + 9);  // append version number
     mqtt_comm.publish("disc", (const uint8_t *) o2_ctx->proc->key,
                       (int) strlen(o2_ctx->proc->key), suffix, 0, false);
     // check for expired MQTT processes
@@ -295,7 +297,7 @@ void send_callback_via_mqtt(const char *name)
 
 // handler for mqtt discovery message
 // payload should be of the form @xxxxxxxx:yyyyyyyy:ddddd/dy/vers
-// or @xxxxxxxx:yyyyyyyy:ddddd/cs
+// or @xxxxxxxx:yyyyyyyy:ddddd/cs/vers
 // payload may be altered and restored by this function, hence not const
 //
 void O2_MQTTcomm::disc_handler(char *payload, int payload_len)

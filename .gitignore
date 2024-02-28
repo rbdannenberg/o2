@@ -111,3 +111,7 @@ bugs/osctest.eml
 /pd/o2pd.xcodeproj/
 
 /pd/pd-patches/
+
+/o2host/o2host.xcodeproj/
+
+/o2host/src/o2host-v0.cpp
