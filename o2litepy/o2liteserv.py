@@ -1,8 +1,20 @@
+# o2liteserv.py -- port of test/o2liteserv.c for o2lite in python
+#
+# Zekai Shen and Roger B. Dannenberg
+# Feb 2024
+ 
+# This test:
+# - initialize o2lite
+# - wait for discovery
+# - wait for clock sync
+# - send a message to self over O2 with sift types
+# - respond to messages from o2litehost's client services
+
 from functools import partial
 
 from src.msg_parser import MessageParser
 from src.o2lite import O2Lite
-from util.sleep import o2l_sleep
+# from util.sleep import o2l_sleep
 
 sift_called = False
 msg_count = 0
@@ -40,10 +52,10 @@ def server_test(o2l, msg, types, data, info):
     o2l.send()
 
     if msg_count % 10000 == 0:
-        print(f"------------------------server received {msg_count} messages------------------------")
+        print(f"-------------server received {msg_count} messages------------")
 
     if msg_count < 100:
-        print(f"---------------------------------------------server message {msg_count} is {got_i}---------------------------------------------")
+        print(f"------------server message {msg_count} is {got_i}------------")
 
     if got_i == -1:
         running = False
@@ -52,7 +64,7 @@ def server_test(o2l, msg, types, data, info):
 
 
 if __name__ == "__main__":
-    o2l = O2Lite("test")
+    o2l = O2Lite()
     o2l.initialize("test")
     o2l.set_services("sift")
     o2l.method_new("/sift", "sift", True, sift_han, 111)
@@ -67,14 +79,14 @@ if __name__ == "__main__":
 
     while o2l.time_get() < 0:
         o2l.poll()
-        o2l_sleep(2)
+        o2l.sleep(2)
 
     print("main detected o2lite clock sync")
 
     start_wait = o2l.time_get()
     while start_wait + 1 > o2l.time_get() and not sift_called:
         o2l.poll()
-        o2l_sleep(2)
+        o2l.sleep(2)
 
     print("main received loop-back message")
 
@@ -100,6 +112,6 @@ if __name__ == "__main__":
 
     while running:
         o2l.poll()
-        o2l_sleep(2)
+        o2l.sleep(2)
 
-    print("server done")
+    print("owliteserv\nSERVER DONE")

@@ -20,7 +20,7 @@
 //     If a resolve is in progress, both resolve_ref and active_service
 // are non-null. Two things can happen: a zc_resolve_callback() can
 // deliver the text record. If it is good and we find an o2 host, then
-// we free teh browse_ref and free_pending_services() so there will
+// we free the browse_ref and free_pending_services() so there will
 // be no more resolve operations. Whether or not we find an o2 host,
 // we call stop_resolving() to free the current active_service and
 // resolve_ref.
