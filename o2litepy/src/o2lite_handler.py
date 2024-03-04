@@ -1,6 +1,8 @@
-class O2LiteHandler:
+class O2lite_handler:
     def __init__(self, address, typespec, full, handler, info):
-        self.address = address
+        # To simplify search, we strip off the initial path character,
+        # which could be "/" or "!"
+        self.address = address[1:]
         self.typespec = typespec.encode('utf-8') if typespec else None
         self.full = full
         self.handler = handler

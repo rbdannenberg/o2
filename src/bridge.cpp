@@ -489,7 +489,7 @@ void o2lite_dy_handler(O2msg_data_ptr msgdata, const char *types,
 
 // o2lite_con_handler - handler for !_o2/o2lite/con; called immediately
 //   after o2lite bridged process makes a TCP connection, message
-//   parameters are ip address and udp port number for bridged process
+//   parameters are ip address (in hex) and udp port number for bridged process
 //
 void o2lite_con_handler(O2msg_data_ptr msgdata, const char *types,
                         O2arg_ptr *argv, int argc, const void *user_data)

@@ -348,16 +348,6 @@ O2_EXPORT void o2l_set_services(const char *services);
 /**
  * \brief The IP and port number of the bridged O2 process.
  *
- * The final step of the connection protocol is setting #o2l_bridge_id.
- * Since there can be multiple servers for any service in O2, you may
- * want the ability to create a unique service name. O2 uses @public:internal:port
- * names, e.g. "@4a6dfb76:c0a801a6:fc1d" as services that denote O2 processes.
- * An o2lite process could do the same, but if it is using NAT, it might
- * share an IP address with an O2 process. A safer way is to take the
- * IP:port name of the O2 host and append the bridge id, e.g. something
- * like "@4a6dfb76:c0a801a6:fc1d:2", which is guaranteed to be unique, at least
- * until you disconnect, at which point another bridge process can reuse
- * the bridge id.
  */
 O2_EXPORT char o2l_remote_ip_port[16];
 
@@ -368,6 +358,20 @@ O2_EXPORT char o2l_remote_ip_port[16];
  * This variable is initially -1 and is reset to -1 whenever the TCP 
  * connection to the O2 process is closed or lost, so this is also a 
  * good indicator that the connection is up and running.
+ *
+ * The final step of the connection protocol is setting
+ * #o2l_bridge_id.  Since there can be multiple servers for any
+ * service in O2, you may want the ability to create a unique service
+ * name. O2 uses @public:internal:port names,
+ * e.g. "@4a6dfb76:c0a801a6:fc1d" as services that denote O2
+ * processes.  An o2lite process could do the same, but if it is using
+ * NAT, it might share an IP address with an O2 process. A safer way
+ * is to take the IP:port name of the O2 host and append the bridge
+ * id, e.g. something like "@4a6dfb76:c0a801a6:fc1d:2", which is
+ * guaranteed to be unique, at least until you disconnect, at which
+ * point another bridge process can reuse the bridge id.
+ */
+
  */
 O2_EXPORT int o2l_bridge_id;
 

@@ -30,8 +30,8 @@
 // start_resolving() to initiate a new active_service and resolve_ref.
 //     If there is no zc_resolve_callback before resolve_timeout, but
 // there is nothing else on pending_services, we can wait forever.
-//     For greater robustness, e.g. Bonjour restarts, if we do not
-// find an o2 host in 20s, we shut down browsing and resolving and
+//     For greater robustness, e.g. what if Bonjour restarts?, if we do
+// not find an o2 host in 20s, we shut down browsing and resolving and
 // reinitialize discovery.
 //    Note that o2lite does not have a way to shut down and disconnect,
 // so there is no other cleanup (currently).

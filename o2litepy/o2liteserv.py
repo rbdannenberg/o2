@@ -10,10 +10,7 @@
 # - send a message to self over O2 with sift types
 # - respond to messages from o2litehost's client services
 
-from functools import partial
-
-from src.msg_parser import MessageParser
-from src.o2lite import O2Lite
+from src.o2lite import O2lite
 # from util.sleep import o2l_sleep
 
 sift_called = False
@@ -26,25 +23,22 @@ def about_equal(val1, val2, tolerance=1e-6):
     return abs(val1 - val2) < tolerance
 
 
-def sift_han(msg, types, data, info):
+def sift_han(msg, address, types, info):
     global sift_called
-    parser = MessageParser(data)
 
     print("sift_han called")
     assert info == 111
-    assert parser.o2l_get_string() == 'this is a test'
-    assert parser.o2l_get_int32() == 1234
-    assert abs(parser.o2l_get_float() - 123.4) < 0.0001
-    assert about_equal(parser.o2l_get_time(), 567.89)
+    assert o2l.get_string() == 'this is a test'
+    assert o2l.get_int32() == 1234
+    assert abs(o2l.get_float() - 123.4) < 0.0001
+    assert about_equal(o2l.get_time(), 567.89)
     sift_called = True
 
 
-def server_test(o2l, msg, types, data, info):
+def server_test(msg, address, types, info):
     global msg_count, running, use_tcp
 
-    parser = MessageParser(data)
-
-    got_i = parser.o2l_get_int32()
+    got_i = o2l.get_int32()
 
     msg_count += 1
     o2l.send_start(client_addresses[msg_count % n_addrs], 0, "i", use_tcp)
@@ -64,11 +58,11 @@ def server_test(o2l, msg, types, data, info):
 
 
 if __name__ == "__main__":
-    o2l = O2Lite()
+    o2l = O2lite()
     o2l.initialize("test")
     o2l.set_services("sift")
     o2l.method_new("/sift", "sift", True, sift_han, 111)
-    while o2l.o2l_bridge_id == 0:
+    while o2l.bridge_id < 0:
         o2l.poll()
     o2l.send_start("/sift", 0, "sift", True)
     o2l.add_string("this is a test")
@@ -80,13 +74,16 @@ if __name__ == "__main__":
     while o2l.time_get() < 0:
         o2l.poll()
         o2l.sleep(2)
+        print("o2l.time_get()", o2l.time_get())
 
     print("main detected o2lite clock sync")
 
     start_wait = o2l.time_get()
+    print("main start_wait", start_wait)
     while start_wait + 1 > o2l.time_get() and not sift_called:
         o2l.poll()
         o2l.sleep(2)
+        if not sift_called: print("sift not called at", o2l.time_get)
 
     print("main received loop-back message")
 
@@ -104,8 +101,7 @@ if __name__ == "__main__":
         server_addresses.append(server_address)
 
         # Assuming server_test is a function defined somewhere as a handler
-        server_test_partial = partial(server_test, o2l=o2l)
-        o2l.method_new(server_address, "i", True, server_test_partial, None)
+        o2l.method_new(server_address, "i", True, server_test, None)
 
     # Announcing the server services
     o2l.set_services("sift,server")
@@ -114,4 +110,5 @@ if __name__ == "__main__":
         o2l.poll()
         o2l.sleep(2)
 
+    assert sift_called
     print("owliteserv\nSERVER DONE")

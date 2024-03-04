@@ -367,6 +367,7 @@ static o2l_msg_ptr udp_in_msg = (o2l_msg_ptr) udpinbuf;
 static o2l_msg_ptr tcp_in_msg = (o2l_msg_ptr) tcpinbuf;
 o2l_msg_ptr out_msg = (o2l_msg_ptr) outbuf;
 static o2l_msg_ptr parse_msg; // incoming message to parse
+static char *parse_type;      // next type to retrieve from parse_msg
 static int parse_cnt;         // how many bytes retrieved
 static int max_parse_cnt;     // how many bytes can be retrieved
 static bool parse_error;      // was there an error parsing message?
@@ -404,41 +405,65 @@ bool o2l_get_error()
 }
 
 
-#define CHECKERROR(typ) \
+static void report_length_error()
+{
+    O2LDB printf("o2lite: parse error reading message to %s,"
+                 " message too short\n", parse_msg->address);
+    parse_error = true;
+}
+    
+
+static void report_type_error(char typecode)
+{
+    char got[4];
+    got[0] = parse_type[-1];
+    got[1] = 0;
+    if (typecode == 0) {
+        strncpy(got, "EOS", 4);
+    }
+    O2LDB printf("o2lite: parse error reading message to %s,"
+                 " expected type %c but got type %s\n",
+                 parse_msg->address, typecode, got);
+    parse_error = true;
+}
+
+
+#define CHECKERROR(typ, typecode) \
     if (parse_cnt + sizeof(typ) > max_parse_cnt) { \
-        O2LDB printf("o2lite: parse error reading message to %s\n", \
-                     parse_msg->address); \
-        parse_error = true; return 0; }
+        report_length_error(); return 0; \
+    } else if (*parse_type++ != typecode) { \
+        report_type_error(typecode); return 0; }
+
 
 #define CURDATAADDR(typ) ((typ) ((char *) parse_msg + parse_cnt))
 
-#define CURDATA(var, typ) CHECKERROR(typ) \
+#define CURDATA(var, typ, typecode) CHECKERROR(typ, typecode) \
     typ var = *CURDATAADDR(typ *); parse_cnt += sizeof(typ);
 
 
 double o2l_get_time()
 {
-    CURDATA(t, int64_t);
+    CURDATA(t, int64_t, 't');
     t = o2lswap64(t);
     return *(double *)&t;
 }
 
 float o2l_get_float()
 {
-    CURDATA(x, int32_t);
+    CURDATA(x, int32_t, 'f');
     x = o2lswap32(x);
     return *(float *)&x;
 }
 
 int32_t o2l_get_int32()
 {
-    CURDATA(i, int32_t);
+    CURDATA(i, int32_t, 'i');
     return o2lswap32(i);
 }
 
 char *o2l_get_string()
 {
-    CHECKERROR(char *)
+    CHECKERROR(char *, 's')
     char *s = CURDATAADDR(char *);
     int len = (int) strlen(s);
     parse_cnt += (len + 4) & ~3;
@@ -897,10 +922,11 @@ void o2l_dispatch(o2l_msg_ptr msg)
             }
         }
         parse_msg = msg;
+        parse_type = typespec + 1;
         parse_cnt = (int) (data - (char *) msg);
         parse_error = false;
         max_parse_cnt = sizeof msg->length + msg->length;
-        (*m->handler)(msg, typespec + 1, (void *) data, m->info);
+        (*m->handler)(msg, parse_type, (void *) data, m->info);
         return;
       no_match:
         m = m->next;

@@ -3,6 +3,56 @@
 # Zekai Shen and Roger B. Dannenberg
 # Feb 2024
 
+# TIME:
+# O2lite.local_now is the current local time, updated every
+#     O2lite.poll(), which starts from 0
+# O2lite.time_get() retrieves the global time in seconds, but -1
+#     until clock synchronization completes.
+# O2lite.local_time() retrieves the local time (local_now is identical
+#     within the polling period and should be faster).
+# o2l_sys_time() is a system-dependent function that returns time
+#     in seconds (for internal use to implement O2lite.local_time())
+# o2l_start_time (for internal use) is the start time of the
+#     reference clock (may or may not be 0)
+# O2lite.global_minus_local is (for internal use) the skew between
+#     global and local time as estimated by clock synchronization.
+# Caution: O2lite.get_time() and O2lite.add_time() are for message
+#     reading and constructing; they do not tell time
+# DISCOVERY:
+# discovery will find services representing O2 hosts as quickly
+# as possible. We could initiate connections with all possible
+# hosts, but since O2lite only connects to one host, it is better
+# to attempt connections sequentially until one is successful.
+# Normally, we will connect to the first host and not bother with
+# the rest.
+#
+# To conduct orderly, sequential connection attempts, we will
+# call discovery.get_host() if no host is connected and no
+# connection is in progress. This is done in our polling loop
+# and is fast because the real work of discovery is happening
+# in another thread (or in the case of MicroPython, checks take
+# about 10-15 msec on ESP32).
+#
+# Once we get a candidate host, we attempt to synchronously make
+# a TCP connection. The connection may eventually fail, e.g. the
+# host might refuse an O2lite connection or the host might crash,
+# but until then, our tcp_socket is not None, and we use this
+# condition to block further connection attempts to O2 hosts. If
+# the TCP connect fails or closes, the tcp_socket is set to None
+# so that we will go back to get_host() and try to connect to a
+# new O2 host (as soon as we find one).
+#
+# If every connection fails, we will exhaust the list of services
+# obtained by discovery. Since Bonjour is asynchronous, there
+# might be a race condition that allowed us to miss an O2 host
+# starting or restarting.  Therefore, if no new hosts appear after
+# some time, we should restart the whole discovery process. The
+# instance variable idle_start_time records when we notice that
+# there are no hosts to try and no tcp_socket representing a
+# connection attempt or successful connection. After 20 sec, we
+# restart discovery.
+
+
 import ctypes
 import math
 import select
@@ -10,13 +60,20 @@ import socket
 import struct
 import sys
 import time
-from threading import Lock
 
-from src.msg_parser import MessageParser
-from src.o2lite_discovery import O2LiteDiscovery
-from src.o2lite_handler import O2LiteHandler
-from util.byte_swap import o2lswap32
-from util.ip_util import find_my_ip_address, hex_to_ip
+# Some system dependencies
+if sys.implementation.name == "micropython":
+    from .upyfns import o2l_sys_time, find_my_ip_address
+    from .upydiscovery import Upydiscovery as O2lite_discovery
+    # micropython cannot allocate a port number and tell you what it is
+    initial_udp_recv_port = 55967  # chosen randomly from unassigned range
+else:
+    from .py3fns import o2l_sys_time, find_my_ip_address
+    from .py3discovery import Py3discovery as O2lite_discovery
+    # python can bind to port 0, allocate a free port, and tell you what it is:
+    initial_udp_recv_port = 0  # chosen randomly from unassigned range
+from .o2lite_handler import O2lite_handler
+from .byte_swap import o2lswap32
 
 # constants and flags
 O2L_VERSION = 0x020000
@@ -61,34 +118,29 @@ def o2l_address_init(ip, port_num, use_tcp):
     return addr_info[0][4]
 
 
-class O2Lite:
+class O2lite:
     def __init__(self):
         # basic info
         self.udp_send_address = None
         self.socket_list = []
-        self.o2n_internal_ip = None
-        self.udp_recv_port = 0
+        self.internal_ip = None
+        self.udp_recv_port = initial_udp_recv_port
         self.clock_sync_id = 0
         # discovery
-        self.most_recent_host_lock = Lock()
-        self.most_recent_host = None
-        # use 0 instead of -1 in python
-        self.o2l_bridge_id = 0
+        self.bridge_id = -1  # "no bridge"
         self.handlers = []
         self.services = None
+        self.idle_start_time = 1e7
         self.error = False
         # message
-        self.tcpinbuf = bytearray(MAX_MSG_LEN)
-        self.udpinbuf = bytearray(MAX_MSG_LEN)
+        self.udpinbuf = None  # gets bytearray from udp recv
         self.outbuf = bytearray(256)
-        self.tcp_len_got = 0
-        self.tcp_msg_got = 0
-        self.udp_in_msg = self.udpinbuf
-        self.tcp_in_msg = self.tcpinbuf
-        self.out_msg = self.outbuf
         self.parse_msg = None  # incoming message to parse
+        self.parse_address = None  # extracted address from parse_msg
         self.parse_cnt = 0  # how many bytes retrieved
         self.max_parse_cnt = 0  # how many bytes can be retrieved
+        self.parse_types = None  # the type string (without the ',')
+        self.parse_type_index = 0  # index of next type character
         self.parse_error = False  # was there an error parsing message?
         self.out_msg_cnt = 0  # how many bytes written to outbuf
         self.num_msg = 0
@@ -98,12 +150,12 @@ class O2Lite:
         self.tcp_socket = None
         self.udp_socket = None
         # clock sync
-        self.o2l_local_now = -1
+        self.local_time = o2l_sys_time  # system-dependent implementation
+        self.local_now = -1
         self.clock_initialized = False
         self.clock_synchronized = False
         self.ping_reply_count = 0
         self.global_minus_local = 0
-        self.start_time = 0
         self.start_sync_time = None
         self.time_for_clock_ping = 1e7
         self.clock_ping_send_time = None
@@ -113,7 +165,7 @@ class O2Lite:
 
     def initialize(self, ensemble_name):
         self.ensemble_name = ensemble_name
-        self.discovery = O2LiteDiscovery(ensemble_name, self)
+        self.discovery = O2lite_discovery(ensemble_name)
         # Initialize clock (if not disabled)
         if O2L_CLOCKSYNC:
             self.clock_initialize()
@@ -130,9 +182,10 @@ class O2Lite:
 
         self.udp_recv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,
                                            socket.IPPROTO_UDP)
-        if self.udp_recv_sock == socket.error:
-            print("o2lite: udp socket creation error")
-            return O2L_FAIL
+        # I think this cannot fail, or perhaps raises an error:
+        # if self.udp_recv_sock == socket.error:
+        #     print("o2lite: udp socket creation error")
+        #     return O2L_FAIL
 
         if self.get_recv_udp_port(self.udp_recv_sock) != 0:
             print("o2lite: could not allocate udp_recv_port")
@@ -140,10 +193,10 @@ class O2Lite:
         else:
             print("o2lite: UDP server port", self.udp_recv_port)
 
-        self.o2n_internal_ip = find_my_ip_address()
+        self.internal_ip = find_my_ip_address()
 
         # running discovery
-        self.discovery.run_discovery_continuous()
+        self.discovery.run_discovery()
 
 
     def send_cmd(self, *args):
@@ -158,13 +211,13 @@ class O2Lite:
             self.send_start(args[0], args[1], type_string, tcp)
             for type_char, arg in zip(type_string, args):
                 if type_char == 'i':
-                    o2l.add_int(arg)
+                    self.add_int(arg)
                 elif type_char == 'f':
-                    o2l.add_float(arg)
+                    self.add_float(arg)
                 elif type_char == 's':
-                    o2l.add_string(arg)
+                    self.add_string(arg)
                 elif type_char == 't':
-                    o2l.add_time(arg)
+                    self.add_time(arg)
             # now we fall through to the send() code
         if self.error or self.tcp_socket is None:
             return
@@ -205,10 +258,10 @@ class O2Lite:
 
 
     def poll(self):
-        self.o2l_local_now = self.local_time()
+        self.local_now = self.local_time()
 
         if O2L_CLOCKSYNC:
-            if self.time_for_clock_ping < self.o2l_local_now:
+            if self.time_for_clock_ping < self.local_now:
                 self.clock_ping()
 
         self.network_poll()
@@ -270,22 +323,20 @@ class O2Lite:
 
 
     def ping_reply_handler(self, msg, types, data, info):
-        parser = MessageParser(data)
-
-        id_in_data = parser.o2l_get_int32()
+        id_in_data = self.get_int32()
 
         if id_in_data != self.clock_sync_id:
             return
 
-        rtt = self.o2l_local_now - self.clock_ping_send_time
-        ref_time = parser.o2l_get_time() + rtt * 0.5
+        rtt = self.local_now - self.clock_ping_send_time
+        ref_time = self.get_time() + rtt * 0.5
 
         if self.parse_error:
             return
 
         i = self.ping_reply_count % CLOCK_SYNC_HISTORY_LEN
         self.rtts[i] = rtt
-        self.ref_minus_local[i] = ref_time - self.o2l_local_now
+        self.ref_minus_local[i] = ref_time - self.local_now
 
         if self.ping_reply_count >= CLOCK_SYNC_HISTORY_LEN:
             # find minimum round trip time
@@ -299,6 +350,8 @@ class O2Lite:
 
             if not self.clock_synchronized:
                 print("o2lite: clock synchronized")
+                print("ref_minus_local", self.ref_minus_local,
+                      "local_now", self.local_now, "new_gml", new_gml)
                 self.clock_synchronized = True
                 self.send_start("!_o2/o2lite/cs/cs", 0, "", True)
                 self.send()  # notify O2 via tcp
@@ -337,16 +390,14 @@ class O2Lite:
 
 
     def id_handler(self, msg, types, data, info):
-        parser = MessageParser(data)
-
-        self.o2l_bridge_id = parser.o2l_get_int32()
-        print("o2lite: got id =", self.o2l_bridge_id)
+        self.bridge_id = self.get_int32()
+        print("o2lite: got id =", self.bridge_id)
         # We're connected now, send services if any
         self.send_services()
         if O2L_CLOCKSYNC:
             # Sends are synchronous. Since we just sent a bunch of messages,
             # take 50ms to service any other real-time tasks before this:
-            self.time_for_clock_ping = self.o2l_local_now + 0.05
+            self.time_for_clock_ping = self.local_now + 0.05
             # When does syncing start?:
             self.start_sync_time = self.time_for_clock_ping
 
@@ -359,9 +410,6 @@ class O2Lite:
             self.method_new("!_o2/cs/put", "it", True,
                             self.ping_reply_handler, None)
 
-        # initialize start time
-        self.start_time = time.perf_counter()
-
         self.global_minus_local = 0
         self.clock_synchronized = False
         self.ping_reply_count = 0
@@ -370,10 +418,14 @@ class O2Lite:
 
 
     def clock_ping(self):
-        self.clock_ping_send_time = self.o2l_local_now
+        if self.bridge_id <  0:  # make sure we still have a connection
+            self.time_for_clock_ping += 1e7  # no more pings until connected
+            return
+        print("clock_ping, bridge_id", self.bridge_id)
+        self.clock_ping_send_time = self.local_now
         self.clock_sync_id += 1
         self.send_start("!_o2/o2lite/cs/get", 0, "iis", False)
-        self.add_int(self.o2l_bridge_id)
+        self.add_int(self.bridge_id)
         self.add_int(self.clock_sync_id)
         self.add_string("!_o2/cs/put")
         self.send()
@@ -395,16 +447,6 @@ class O2Lite:
             return -1
 
 
-    def local_time(self):
-        """
-        Get the current local time in seconds, with the precision of 
-        fractional seconds, relative to 'start_time'.
-        """
-        current_time = time.perf_counter()  # Get current high-resolution time
-        elapsed_time = current_time - self.start_time  # Calculate elapsed secs
-        return elapsed_time
-
-
     def get_recv_udp_port(self, sock):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -416,16 +458,18 @@ class O2Lite:
             print(f"Socket error: {e}")
             return O2L_FAIL
 
-        if self.udp_recv_port == 0:
+        if self.udp_recv_port == 0:  # Python3 only
             # If port was 0, find the port that was allocated
             udp_port = sock.getsockname()[1]
             self.udp_recv_port = udp_port
-            print(f"Allocated port: {self.udp_recv_port}")
+        print(f"Bind UDP receive socket to port: {self.udp_recv_port}")
         return O2L_SUCCESS
 
 
     def send_services(self):
-        if self.o2l_bridge_id < 0:
+        print("send_services:", self.services, "bridge_id", self.bridge_id)
+
+        if self.bridge_id < 0:
             return
 
         s = self.services
@@ -442,6 +486,8 @@ class O2Lite:
             if len(service_name) > 31:  # Check if the service name is too long
                 print("service name too long")
                 return
+
+            print("send_services: sending", service_name, "to go:", s)
 
             # Process the service name
             print("Service:", service_name)
@@ -463,37 +509,41 @@ class O2Lite:
         # get the address
         address_start = 12
         address_end = msg.find(b'\x00', address_start)
-        address = msg[address_start:address_end]
+        # O2lite_handler.address is a string starting after the leading
+        # "/" or "!", so make address compatible:
+        address = msg[address_start + 1 : address_end].decode('utf-8')
 
         # get the typespec
         typespec_start = msg.find(b',', address_end)
         # typespec_start = address_end + 1
         typespec_end = msg.find(b'\x00', typespec_start)
-        typespec = msg[typespec_start + 1:typespec_end]
+        typespec = msg[typespec_start + 1 : typespec_end]
 
-        data_start = (math.floor(typespec_end / 4) + 1) * 4  # get the data
-        data = msg[data_start:]
+        data_start = (typespec_end + 4) & ~3  # get the data after zero pad
 
         for h in self.handlers:
             if h.full:
-                if h.address[1:] != address[1:].decode('utf-8') or \
-                        (h.typespec is not None and h.typespec != typespec):
+                if h.address != address or \
+                   (h.typespec is not None and h.typespec != typespec):
                     continue
             else:
-                if not all(a == b for a, b in zip(h.address[1:], address[1:])):
+                if not all(a == b for a, b in zip(h.address, addresss)):
                     continue
-                if (address[1:][len(h.address[1:])] not in ['\0', '/']) or \
-                        (h.typespec is not None and h.typespec != typespec[1:]):
+                if (address[len(h.address)] not in ['\0', '/']) or \
+                   (h.typespec is not None and h.typespec != typespec):
                     continue
 
             # Setup for parsing
             self.parse_msg = msg
-            # +2 for null terminators:
-            self.parse_cnt = len(address) + len(typespec) + 2
+            # address is missing the initial character, so restore it:
+            self.parse_address = chr(msg[address_start]) + address
+            self.parse_cnt = data_start
             self.parse_error = False
-            # self.max_parse_cnt = len(msg.length) + 4
+            self.parse_types = typespec.decode('utf-8')
+            self.parse_types_index = 0
 
-            h.handler(msg=msg, types=typespec, data=data, info=h.info)
+
+            h.handler(msg, address, self.parse_types, h.info)
             return
 
         print(f"o2l_dispatch dropping msg to {address}")
@@ -501,45 +551,41 @@ class O2Lite:
 
     def read_from_tcp(self):
         tcp_len_got = 0
-        tcp_msg_got = 0
+        tcp_msg_got = 4
         tcp_in_msg_length = 0
 
-        # Receive the length of the message
-        while tcp_len_got < 4:
-            msg_length = self.tcp_socket.recv(4 - tcp_len_got)
-            if not msg_length:
+        # Receive the length of the message. For simplicity, assume we
+        # always get the first 4 bytes of the message in one recv() call:
+        msg_length = self.tcp_socket.recv(4)
+        if not msg_length:  # i.e. error occurred
+            print("read_from_tcp 0, closing tcp", msg_length)
+            return self.tcp_close()  # Error or connection closed
+        tcp_in_msg_length = int.from_bytes(msg_length, 'big')
+
+        capacity = MAX_MSG_LEN - 4  # 4 bytes for the length field
+
+        if tcp_in_msg_length > capacity:
+            # Discard the message if it's too long
+            while tcp_msg_got < tcp_in_msg_length:
+                togo = min(tcp_in_msg_length - tcp_msg_got, capacity)
+                data = self.tcp_socket.recv(togo)
+                if not data:
+                    print("read_from_tcp 2, closing tcp")
+                    return self.tcp_close()  # Error or connection closed
+                tcp_msg_got += len(data)
+            return  # no message could be received
+
+        # Receive the rest of the message, allow multiple recv's:
+        tcpinbuf = b''
+        while len(tcpinbuf) < tcp_in_msg_length:
+            data = self.tcp_socket.recv(tcp_in_msg_length - len(tcpinbuf))
+            if not data:  # i.e. an error occurred
                 return None  # Error or connection closed
-
-            tcp_in_msg_length += int.from_bytes(msg_length, byteorder='big')
-            tcp_len_got += len(msg_length)
-
-        if tcp_len_got == 4:
-            # tcp_in_msg_length = o2lswap32(tcp_in_msg_length)
-            capacity = MAX_MSG_LEN - 4  # 4 bytes for the length field
-
-            if tcp_in_msg_length > capacity:
-                # Discard the message if it's too long
-                while tcp_msg_got < tcp_in_msg_length:
-                    togo = min(tcp_in_msg_length - tcp_msg_got, capacity)
-                    data = self.tcp_socket.recv(togo)
-                    if not data:
-                        return None  # Error or connection closed
-                    tcp_msg_got += len(data)
-                self.cleanup_tcp_msg()
-                return None
-
-        # Receive the rest of the message
-        while tcp_msg_got < tcp_in_msg_length:
-            self.tcpinbuf = self.tcp_socket.recv(tcp_in_msg_length -
-                                                 tcp_msg_got)
-            if not msg_length:
-                return None  # Error or connection closed
-            tcp_msg_got += len(self.tcpinbuf)
-            # Append data to the message (handle accordingly)
-            print("got message: ", self.tcpinbuf)
-
-            self.msg_dispatch(self.tcpinbuf)
-            self.cleanup_tcp_msg()
+            print("got message: ", data, "len", len(data))
+            tcpinbuf += data
+        print("received full msg without len", tcpinbuf,
+              "length", len(tcpinbuf))
+        self.msg_dispatch(tcpinbuf)
 
 
     def read_from_udp(self):
@@ -548,7 +594,7 @@ class O2Lite:
             if data:
                 # Since UDP does not guarantee delivery, no further
                 # action on error or no data:
-                print("got message: ", data)
+                print("got message: ", data, "len", len(data))
                 self.msg_dispatch(data)
                 return "O2L_SUCCESS"
             else:
@@ -560,30 +606,30 @@ class O2Lite:
             return "O2L_FAIL"
 
 
-    def cleanup_tcp_msg(self):
-        self.tcp_len_got = 0
-        self.tcp_msg_got = 0
-
+    def tcp_close(self):
+        self.tcp_socket.close()
+        self.tcp_socket = None
+        self.bridge_id = -1  # no connection, so bridge_id invalid
+        return None
+        
 
     def method_new(self, path, typespec, full, handler, info):
-        self.handlers.append(O2LiteHandler(path, typespec, full, handler, info))
-
-
-    def update_most_recent_host(self, host):
-        with self.most_recent_host_lock:
-            self.most_recent_host = host
+        self.handlers.append(O2lite_handler(path, typespec, full,
+                                            handler, info))
 
 
     def network_poll(self):
-        with self.most_recent_host_lock:
-            if self.tcp_socket is None and self.most_recent_host is not None:
-                # TODO: internal ip or socket ip
-                # internal_ip = hex_to_ip(self.o2n_internal_ip)
-                self.network_connect(self.most_recent_host["ip"], self.most_recent_host["tcp_port"])
-                self.udp_send_address = o2l_address_init(self.most_recent_host["ip"],
-                                                         self.most_recent_host["udp_port"],
-                                                         False)
-                self.most_recent_host = None
+        if self.tcp_socket is None:
+            host = self.discovery.get_host()
+            if host:
+                self.network_connect(host["ip"], host["tcp_port"])
+                self.udp_send_address = o2l_address_init(
+                        host["ip"], host["udp_port"], False)
+            elif self.idle_start_time == 1e7:  # start timeout:
+                self.idle_start_time = self.local_now
+            elif self.local_now > self.idle_start_time + 20:  # timed out:
+                self.discovery.restart()
+                self.idle_start_time = 1e7
 
         self.socket_list = []
         if self.tcp_socket is not None:
@@ -615,20 +661,98 @@ class O2Lite:
         # Attempt to connect
         try:
             self.tcp_socket.connect(server_addr)
-            # set TCP_NODELAY flag
-            self.tcp_socket.setsockopt(socket.IPPROTO_TCP,
-                                       socket.TCP_NODELAY, 1)
+            # set TCP_NODELAY flag. If TCP_NODELAY is defined we use
+            # it. But MicroPython does not define TCP_NODELAY. I know
+            # it exists, at least in the Arduino ESP32 environment, so
+            # if undefined (e.g. on MicroPython) we'll just call
+            # setsockopt with the constant 1 (the actual value of
+            # TCP_NODELAY in Linux) and hope for the best.
+            tcp_nodelay = \
+                    socket.TCP_NODELAY if hasattr(socket, 'TCP_NODELAY') else 1
+            self.tcp_socket.setsockopt(socket.IPPROTO_TCP, tcp_nodelay, 1)
             print(f"Connected to {ip} on port {port}")
-        except socket.error as e:
+        except OSError as e:
             print(f"Connection failed: {e}")
-            self.tcp_socket.close()
+            self.tcp_close()
 
         self.send_start("!_o2/o2lite/con", 0, "si", True)
-        print("o2lite: sending !_o2/o2lite/con")
-        self.add_string(self.o2n_internal_ip)
+        print(f"o2lite: sending !_o2/o2lite/con si {self.internal_ip}",
+              self.udp_recv_port)
+        self.add_string(self.internal_ip)
         self.add_int(self.udp_recv_port)
         self.send()
 
 
     def get_error(self):
         return self.error
+
+    
+######## Message Parsing ###########
+
+    def _check_error(self, byte_count, typecode):
+        if self.parse_cnt + byte_count > len(self.parse_msg):
+            print("O2lite: parse error reading message to",
+                  f"{self.parse_address}, message too short")
+            raise ValueError("Parse error")
+        if self.parse_types_index < len(self.parse_types) and \
+           typecode != self.parse_types[self.parse_types_index]:
+            print("O2lite: parse error reading message to",
+                  f"{self.parse_address}, expected type {typecode}",
+                  "but got type", \
+                  "EOS" if self.parse_types_index >= len(self.parse_types) \
+                        else self.parse_types[self.parse_types_index])
+                  
+            raise ValueError("Parse error")
+        self.parse_types_index += 1
+
+        
+    def _read_data(self, byte_count, format_string, typecode):
+        print("_read_data:", byte_count, "bytes, typecode", typecode,
+              "offset", self.parse_cnt, "into", self.parse_msg)
+        self._check_error(byte_count, typecode)
+        value = struct.unpack(format_string,
+                    self.parse_msg[self.parse_cnt :
+                                   self.parse_cnt + byte_count])
+        self.parse_cnt += byte_count
+        print("_read_data", format_string, value[0])
+        return value[0]
+
+    
+    def get_int32(self):
+        return self._read_data(4, '>i', 'i')  # Read 4 bytes as big-endian int32
+
+    def get_time(self):
+        return self._read_data(8, '>d', 't')  # Read 8 as big-endian double
+
+    def get_float(self):
+        return self._read_data(4, '>f', 'f')  # Read 4 bytes as big-endian float
+
+    def get_string(self):
+        """Get a string parameter from a message."""
+        # Note that we cannot directly use _check_error() because we
+        # do not know the string length (it is arbitrary and depends
+        # on the message).  Therefore, we have to scan the message
+        # here to determine the length.  But first, we should check
+        # for type code 's'. Since we do both of these here, we only
+        # call _check_error when we encounter an error, using
+        # _check_error merely as an error reporting and
+        # exception-raising function -- we know it will report an
+        # error when we call it.
+        if self.parse_types[self.parse_types_index] != 's':
+            self._check_error(4, 's')  # force type error reporting
+        self.parse_types_index += 1
+        start = self.parse_cnt
+        end = self.parse_cnt + 1
+        while end < len(self.parse_msg) and self.parse_msg[end] != 0:
+            end += 1
+        if end >= len(self.parse_msg):
+            self._check_error(end - start, 's')  # force length error reporting
+        try:
+            extracted_string = self.parse_msg[start : end].decode('utf-8')
+        except UnicodeDecodeError:
+            raise ValueError("Error decoding string")
+
+        # Align the parse count to 4 bytes
+        self.parse_cnt = (end + 4) & ~3
+
+        return extracted_string

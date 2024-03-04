@@ -1,4 +1,14 @@
+# py3fns -- Python3 implementations of some O2lite functions
+#
+# Roger B. Dannenberg
+# Feb 2024
+
+import time
 import netifaces as ni
+
+o2l_start_time = time.monotonic()
+def o2l_sys_time():
+    return time.monotonic() - o2l_start_time
 
 
 def find_my_ip_address():
@@ -12,28 +22,10 @@ def find_my_ip_address():
                 ip_address = link['addr']
                 if ip_address != '127.0.0.1':
                     # Convert the IP address to its hex representation
-                    internal_ip_hex = ''.join([f'{int(x):02x}' for x in ip_address.split('.')])
-                    return internal_ip_hex  # Stop searching after finding the first valid IP
+                    internal_ip_hex = ''.join(
+                            [f'{int(x):02x}' for x in ip_address.split('.')])
+                    # Stop searching after finding the first valid IP
+                    return internal_ip_hex  
 
     # If no non-localhost address is found, return localhost in hex
     return '7f000001' if internal_ip_hex == '00000000' else internal_ip_hex
-
-
-def hex_to_ip(hex_str):
-    # Ensure hex_str is 8 characters
-    assert len(hex_str) == 8, "Hex string must be 8 characters long."
-
-    # Convert each 2-character hex segment to decimal
-    return '.'.join(str(int(hex_str[i:i + 2], 16)) for i in range(0, 8, 2))
-
-
-def is_hex(s):
-    try:
-        int(s, 16)
-        return True
-    except ValueError:
-        return False
-
-
-def hex_to_byte(hex_str):
-    return int(hex_str, 16)
