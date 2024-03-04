@@ -8,7 +8,7 @@ default: upload
 SHAREDFILES = o2lite.py o2lite_disc.py o2lite_handler.py \
               byte_swap.py ip_util.py
 
-PY3FILES = $(SHAREDFILES) py3discovery.py py3fns.py
+PY3FILES = $(SHAREDFILES) py3discovery.py py3fns.py __init__.py
 
 UPYFILES = $(SHAREDFILES) globals.py upydiscovery.py upyfns.py
 
