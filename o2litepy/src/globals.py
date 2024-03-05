@@ -1,1 +1,1 @@
-# secrets is an empty module where you can pass secrets from one module to another
+# globals is an empty module where you can pass info from one module to another

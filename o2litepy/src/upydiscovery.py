@@ -3,7 +3,7 @@
 # Roger B. Dannenberg
 # Feb 2024
 
-from src.o2lite_disc import O2lite_disc, validate_and_extract_udp_port
+from .o2lite_disc import O2lite_disc, validate_and_extract_udp_port
 import network
 import uasyncio
 from mdns_client import Client
@@ -12,8 +12,8 @@ import globals  # includes internal_ip_address
 
 
 class Upydiscovery (O2lite_disc):
-    def __init__(self, ensemble):
-        super().__init__(ensemble)
+    def __init__(self, ensemble, debug_flags):
+        super().__init__(ensemble, debug_flags)
 
         self.loop = uasyncio.get_event_loop()
         client = Client(globals.internal_ip_address)
@@ -23,9 +23,7 @@ class Upydiscovery (O2lite_disc):
     async def discover_once(self):
         responses = await self.discovery.query_once("_o2proc", "_tcp")
         for resp in responses:
-            print(resp)
             if 'name' in resp.txt_records:
-                print(resp.txt_records['name'])
                 name = resp.txt_records['name']
                 if isinstance(name, list):
                     name = name[0]
@@ -42,7 +40,9 @@ class Upydiscovery (O2lite_disc):
                     service_discovered = {"ip": resp.ips.pop(),
                                           "tcp_port": resp.port,
                                           "udp_port": udp_port}
-                    print("service_discovered", service_discovered)
+                    if "d" in self.debug_flags:
+                        print("Upydiscovery: service_discovered",
+                              service_discovered)
                     self.discovered_services.append(service_discovered)
 
 

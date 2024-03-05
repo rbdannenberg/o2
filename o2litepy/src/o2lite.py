@@ -18,6 +18,16 @@
 #     global and local time as estimated by clock synchronization.
 # Caution: O2lite.get_time() and O2lite.add_time() are for message
 #     reading and constructing; they do not tell time
+#
+# DEBUGGING:
+# debug flags is a string used to set some debugging options:
+#   s -- print O2 messages when sent
+#   r -- print O2 messages when received
+#   d -- print info about discovery
+#   g -- general debugging info
+#   a -- all debugging messages
+# Setting any flag automatically enables "g"
+#
 # DISCOVERY:
 # discovery will find services representing O2 hosts as quickly
 # as possible. We could initiate connections with all possible
@@ -161,11 +171,21 @@ class O2lite:
         self.clock_ping_send_time = None
         self.rtts = [0.0] * CLOCK_SYNC_HISTORY_LEN
         self.ref_minus_local = [0.0] * CLOCK_SYNC_HISTORY_LEN
+        self.debug_flags = ""
 
 
-    def initialize(self, ensemble_name):
+    def initialize(self, ensemble_name, debug_flags=""):
         self.ensemble_name = ensemble_name
-        self.discovery = O2lite_discovery(ensemble_name)
+
+        # expand "a" to "srd" (all debug flags enabled)
+        if 'a' in debug_flags:
+            debug_flags += "srd"
+        # if any flag is present, set 'g' flag for 'g'eneral messages
+        if not 'g' in debug_flags and debug_flags != "":
+            debug_flags += 'g'
+        self.debug_flags = debug_flags
+
+        self.discovery = O2lite_discovery(ensemble_name, debug_flags)
         # Initialize clock (if not disabled)
         if O2L_CLOCKSYNC:
             self.clock_initialize()
@@ -177,7 +197,7 @@ class O2lite:
             self.udp_send_sock = socket.socket(socket.AF_INET,
                                                socket.SOCK_DGRAM, 0)
         except socket.error as e:
-            print("allocating udp send socket:", e)
+            print("O2lite: allocating udp send socket:", e)
             return O2L_FAIL
 
         self.udp_recv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,
@@ -188,10 +208,10 @@ class O2lite:
         #     return O2L_FAIL
 
         if self.get_recv_udp_port(self.udp_recv_sock) != 0:
-            print("o2lite: could not allocate udp_recv_port")
+            print("O2lite: could not allocate udp_recv_port")
             return O2L_FAIL
-        else:
-            print("o2lite: UDP server port", self.udp_recv_port)
+        elif "g" in self.debug_flags:
+            print("O2lite: UDP server port", self.udp_recv_port)
 
         self.internal_ip = find_my_ip_address()
 
@@ -228,15 +248,15 @@ class O2lite:
 
         if misc & o2lswap32(O2_TCP_FLAG):
             bytes_sent = self.tcp_socket.send(self.outbuf[:self.out_msg_cnt])
-            print("send through tcp socket")
-            print("sending # bytes: ", bytes_sent)
-            print("content: ", self.outbuf[:self.out_msg_cnt])
+            if "s" in self.debug_flags:
+                print("O2lite: sending", bytes_sent, "bytes (",
+                      self.outbuf[:self.out_msg_cnt], ") via TCP.")
         else:
             bytes_sent = self.udp_send_sock.sendto(
                     self.outbuf[4:self.out_msg_cnt], self.udp_send_address)
-            print("send through udp socket")
-            print("sending # bytes: ", bytes_sent)
-            print("content: ", self.outbuf[4:self.out_msg_cnt])
+            if "s" in self.debug_flags:
+                print("O2lite: sending", bytes_sent, "bytes (",
+                      self.outbuf[4 : self.out_msg_cnt], ") via UDP.")
 
         self.num_msg += 1
 
@@ -349,9 +369,10 @@ class O2lite:
             new_gml = self.ref_minus_local[best_i]
 
             if not self.clock_synchronized:
-                print("o2lite: clock synchronized")
-                print("ref_minus_local", self.ref_minus_local,
-                      "local_now", self.local_now, "new_gml", new_gml)
+                if "g" in self.debug_flags:
+                    print("O2lite: clock synchronized.")
+                # print("ref_minus_local", self.ref_minus_local,
+                #       "local_now", self.local_now, "new_gml", new_gml)
                 self.clock_synchronized = True
                 self.send_start("!_o2/o2lite/cs/cs", 0, "", True)
                 self.send()  # notify O2 via tcp
@@ -391,7 +412,8 @@ class O2lite:
 
     def id_handler(self, msg, types, data, info):
         self.bridge_id = self.get_int32()
-        print("o2lite: got id =", self.bridge_id)
+        if "d" in self.debug_flags:
+            print("O2lite: got id =", self.bridge_id)
         # We're connected now, send services if any
         self.send_services()
         if O2L_CLOCKSYNC:
@@ -414,14 +436,11 @@ class O2lite:
         self.clock_synchronized = False
         self.ping_reply_count = 0
 
-        print("o2lite: initializing clock")
-
 
     def clock_ping(self):
         if self.bridge_id <  0:  # make sure we still have a connection
             self.time_for_clock_ping += 1e7  # no more pings until connected
             return
-        print("clock_ping, bridge_id", self.bridge_id)
         self.clock_ping_send_time = self.local_now
         self.clock_sync_id += 1
         self.send_start("!_o2/o2lite/cs/get", 0, "iis", False)
@@ -455,19 +474,21 @@ class O2lite:
         try:
             sock.bind(server_addr)
         except socket.error as e:
-            print(f"Socket error: {e}")
+            print(f"O2lite: socket error: {e}")
             return O2L_FAIL
 
         if self.udp_recv_port == 0:  # Python3 only
             # If port was 0, find the port that was allocated
             udp_port = sock.getsockname()[1]
             self.udp_recv_port = udp_port
-        print(f"Bind UDP receive socket to port: {self.udp_recv_port}")
+        # print(f"Bind UDP receive socket to port: {self.udp_recv_port}")
         return O2L_SUCCESS
 
 
     def send_services(self):
-        print("send_services:", self.services, "bridge_id", self.bridge_id)
+        if "d" in self.debug_flags:
+            print("O2lite: send_services:", self.services,
+                  "bridge_id", self.bridge_id)
 
         if self.bridge_id < 0:
             return
@@ -484,13 +505,13 @@ class O2lite:
                 s = s[comma_index + 1:]
 
             if len(service_name) > 31:  # Check if the service name is too long
-                print("service name too long")
+                print("O2lite error, service name too long:", service_name)
                 return
 
-            print("send_services: sending", service_name, "to go:", s)
+            # print("send_services: sending", service_name, "to go:", s)
 
             # Process the service name
-            print("Service:", service_name)
+            # print("Service:", service_name)
             self.send_start("!_o2/o2lite/sv", 0, "siisi", True)
             self.add_string(service_name)
             self.add_int(1)
@@ -546,7 +567,7 @@ class O2lite:
             h.handler(msg, address, self.parse_types, h.info)
             return
 
-        print(f"o2l_dispatch dropping msg to {address}")
+        print(f"O2lite: no match, dropping msg to {address}.")
 
 
     def read_from_tcp(self):
@@ -558,7 +579,8 @@ class O2lite:
         # always get the first 4 bytes of the message in one recv() call:
         msg_length = self.tcp_socket.recv(4)
         if not msg_length:  # i.e. error occurred
-            print("read_from_tcp 0, closing tcp", msg_length)
+            if "d" in self.debug_flags:
+                print("O2lite: read_from_tcp got nothing, closing tcp.")
             return self.tcp_close()  # Error or connection closed
         tcp_in_msg_length = int.from_bytes(msg_length, 'big')
 
@@ -570,7 +592,8 @@ class O2lite:
                 togo = min(tcp_in_msg_length - tcp_msg_got, capacity)
                 data = self.tcp_socket.recv(togo)
                 if not data:
-                    print("read_from_tcp 2, closing tcp")
+                    if "d" in self.debug_flags:
+                        print("O2lite: read_from_tcp no data, closing tcp.")
                     return self.tcp_close()  # Error or connection closed
                 tcp_msg_got += len(data)
             return  # no message could be received
@@ -581,10 +604,10 @@ class O2lite:
             data = self.tcp_socket.recv(tcp_in_msg_length - len(tcpinbuf))
             if not data:  # i.e. an error occurred
                 return None  # Error or connection closed
-            print("got message: ", data, "len", len(data))
             tcpinbuf += data
-        print("received full msg without len", tcpinbuf,
-              "length", len(tcpinbuf))
+        if "r" in self.debug_flags:
+            print("O2lite: got", len(tcpinbuf), "bytes (", tcpinbuf,
+                  ") via TCP.")
         self.msg_dispatch(tcpinbuf)
 
 
@@ -594,7 +617,9 @@ class O2lite:
             if data:
                 # Since UDP does not guarantee delivery, no further
                 # action on error or no data:
-                print("got message: ", data, "len", len(data))
+                if "r" in self.debug_flags:
+                    print("O2lite: got", len(data), "bytes (", data,
+                          ") via UDP.")
                 self.msg_dispatch(data)
                 return "O2L_SUCCESS"
             else:
@@ -602,7 +627,7 @@ class O2lite:
                 return "O2L_FAIL"
         except Exception as e:
             # Handle exceptions, such as a socket error
-            print("recvfrom in udp_recv_handler error:", e)
+            print("O2lite recvfrom_udp error:", e)
             return "O2L_FAIL"
 
 
@@ -643,11 +668,11 @@ class O2lite:
         readable, _, _ = select.select(self.socket_list, [], [], 0)
 
         if self.tcp_socket in readable:
-            print("o2lite: network_poll got TCP msg")
+            # print("o2lite: network_poll got TCP msg")
             self.read_from_tcp()
 
         if self.udp_recv_sock in readable:
-            print("o2lite: network_poll got UDP msg")
+            # print("o2lite: network_poll got UDP msg")
             self.read_from_udp()
 
 
@@ -670,14 +695,15 @@ class O2lite:
             tcp_nodelay = \
                     socket.TCP_NODELAY if hasattr(socket, 'TCP_NODELAY') else 1
             self.tcp_socket.setsockopt(socket.IPPROTO_TCP, tcp_nodelay, 1)
-            print(f"Connected to {ip} on port {port}")
+            if "g" in self.debug_flags:
+                print(f"O2lite connected to {ip} on port {port}.")
         except OSError as e:
-            print(f"Connection failed: {e}")
+            print(f"O2lite connection failed: {e}.")
             self.tcp_close()
 
         self.send_start("!_o2/o2lite/con", 0, "si", True)
-        print(f"o2lite: sending !_o2/o2lite/con si {self.internal_ip}",
-              self.udp_recv_port)
+        # print(f"o2lite: sending !_o2/o2lite/con si {self.internal_ip}",
+        #       self.udp_recv_port)
         self.add_string(self.internal_ip)
         self.add_int(self.udp_recv_port)
         self.send()
@@ -692,7 +718,7 @@ class O2lite:
     def _check_error(self, byte_count, typecode):
         if self.parse_cnt + byte_count > len(self.parse_msg):
             print("O2lite: parse error reading message to",
-                  f"{self.parse_address}, message too short")
+                  f"{self.parse_address}, message too short.")
             raise ValueError("Parse error")
         if self.parse_types_index < len(self.parse_types) and \
            typecode != self.parse_types[self.parse_types_index]:
@@ -707,14 +733,14 @@ class O2lite:
 
         
     def _read_data(self, byte_count, format_string, typecode):
-        print("_read_data:", byte_count, "bytes, typecode", typecode,
-              "offset", self.parse_cnt, "into", self.parse_msg)
+        # print("_read_data:", byte_count, "bytes, typecode", typecode,
+        #       "offset", self.parse_cnt, "into", self.parse_msg)
         self._check_error(byte_count, typecode)
         value = struct.unpack(format_string,
                     self.parse_msg[self.parse_cnt :
                                    self.parse_cnt + byte_count])
         self.parse_cnt += byte_count
-        print("_read_data", format_string, value[0])
+        # print("_read_data", format_string, value[0])
         return value[0]
 
     

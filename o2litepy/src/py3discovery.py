@@ -11,8 +11,8 @@ from threading import Lock
 
 
 class Py3discovery (O2lite_disc):
-    def __init__(self, ensemble):
-        super().__init__(ensemble)
+    def __init__(self, ensemble, debug_flags):
+        super().__init__(ensemble, debug_flags)
 
         self.zeroconf = Zeroconf()
         self.dslock = Lock()

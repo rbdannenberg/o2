@@ -10,7 +10,7 @@
 # - send a message to self over O2 with sift types
 # - respond to messages from o2litehost's client services
 
-from src.o2lite import O2lite
+from o2litepy import O2lite
 # from util.sleep import o2l_sleep
 
 sift_called = False
@@ -26,7 +26,7 @@ def about_equal(val1, val2, tolerance=1e-6):
 def sift_han(msg, address, types, info):
     global sift_called
 
-    print("sift_han called")
+    # print("sift_han called")
     assert info == 111
     assert o2l.get_string() == 'this is a test'
     assert o2l.get_int32() == 1234
@@ -74,18 +74,17 @@ if __name__ == "__main__":
     while o2l.time_get() < 0:
         o2l.poll()
         o2l.sleep(2)
-        print("o2l.time_get()", o2l.time_get())
 
-    print("main detected o2lite clock sync")
+    print("o2liteserv.py detected o2lite clock sync")
 
     start_wait = o2l.time_get()
-    print("main start_wait", start_wait)
+    print("o2liteserv.py start_wait", start_wait)
     while start_wait + 1 > o2l.time_get() and not sift_called:
         o2l.poll()
         o2l.sleep(2)
-        if not sift_called: print("sift not called at", o2l.time_get)
+        if not sift_called: print("Error: sift not called at", o2l.time_get)
 
-    print("main received loop-back message")
+    print("o2liteserv.py received loop-back message")
 
     n_addrs = 20
 
@@ -111,4 +110,4 @@ if __name__ == "__main__":
         o2l.sleep(2)
 
     assert sift_called
-    print("owliteserv\nSERVER DONE")
+    print("o2liteserv\nSERVER DONE")

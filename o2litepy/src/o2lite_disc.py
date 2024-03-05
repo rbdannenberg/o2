@@ -21,11 +21,11 @@ def validate_and_extract_udp_port(name):
 
 
 class O2lite_disc:
-    def __init__(self, ensemble):
-
+    def __init__(self, ensemble, debug_flags):
         self.services = {}
         self.discovered_services = []  # List to store discovered services
         self.browse_timeout = 2  # seconds
+        self.debug_flags = debug_flags
 
     def get_host(self):
         """Callable from another (main) thread. Pops and returns a
@@ -39,11 +39,14 @@ class O2lite_disc:
 
         with self.dslock:
             service = self.discovered_services.pop(0)
-            print("get_host returns (and pops)", service)
+            if "d" in self.debug_flags:
+                print("O2lite_disc: get_host returns (and pops)", service)
 
         return service
 
     def restart(self):
         """restart discovery"""
+        if "d" in self.debug_flags:
+            print("O2lite_disc: (re)starting discovery")
         self.run_discovery()
         return
