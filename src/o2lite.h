@@ -372,7 +372,6 @@ O2_EXPORT char o2l_remote_ip_port[16];
  * point another bridge process can reuse the bridge id.
  */
 
- */
 O2_EXPORT int o2l_bridge_id;
 
 // define IS_BIG_ENDIAN, IS_LITTLE_ENDIAN, and swap64(i),

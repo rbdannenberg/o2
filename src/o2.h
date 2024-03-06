@@ -81,7 +81,7 @@ service can be delegated to an OSC server address, and O2 can offer an
 OSC server that forwards to an O2 service.
 
 O2 addresses begin with the service name. Thus, a complete O2 address
-would be written simply as "/synth/filterFtoff," where "synth" is
+could be written simply as "/synth/filter/cutoff," where "synth" is
 the service name.
 
 Furthermore, O2 implements a clock synchronization protocol. A single
@@ -2095,7 +2095,8 @@ O2_EXPORT O2err o2_osc_port_free(int port_num);
  *  If `tcp_flag` is set, a TCP connection will be established with
  *  the OSC server.
  *  When the created service receives any O2 messages, it will
- *  send the message to the OSC server. If the incoming message has
+ *  send the message to the OSC server. The OSC address is the O2 address
+ *  with the service name removed. If the incoming message has
  *  a timestamp for some future time, the message will be held until
  *  that time, then sent to the OSC server. (Ideally, O2 could convert
  *  the message to an OSC timestamped bundle and send it immediately

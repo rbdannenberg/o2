@@ -163,6 +163,6 @@ int main(int argc, const char * argv[])
         o2_sleep(2);
     }
 
-    asssert(sift_called);
+    assert(sift_called);
     printf("o2liteserv\nSERVER DONE\n");
 }

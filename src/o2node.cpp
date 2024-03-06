@@ -137,7 +137,7 @@ O2node *Enumerate::next()
     return ret;
 }
    
-
+
 
 Handler_entry::~Handler_entry()
 {

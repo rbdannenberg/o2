@@ -229,15 +229,17 @@ class O2lite:
             if len(args) > 2:  # there is a type string
                 type_string = args[2]
             self.send_start(args[0], args[1], type_string, tcp)
-            for type_char, arg in zip(type_string, args):
+            i = 3
+            for type_char in type_string:
                 if type_char == 'i':
-                    self.add_int(arg)
+                    self.add_int(args[i])
                 elif type_char == 'f':
-                    self.add_float(arg)
+                    self.add_float(args[i])
                 elif type_char == 's':
-                    self.add_string(arg)
+                    self.add_string(args[i])
                 elif type_char == 't':
-                    self.add_time(arg)
+                    self.add_time(args[i])
+                i += 1
             # now we fall through to the send() code
         if self.error or self.tcp_socket is None:
             return
