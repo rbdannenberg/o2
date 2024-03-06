@@ -1,0 +1,28 @@
+#!/bin/sh
+# Run make to transfer updated files to esp32
+# Append Wi-Fi setup code in secrets/wifiprefix.py to main.py
+# Store result into secrets/main.py
+# run secrets/main.py
+# If an argument is provided, use it in place of main.py.
+#
+# See wifiprefix.py for installation instructions and
+# https://www.cs.cmu.edu/~rbd/blog/upyesp/upesp-blog4mar2024.html
+# for more details.
+
+BINPATH=/Users/rbd/bin
+SERIAL=/dev/tty.usbserial-D306EBLS
+
+echo "Running make to copy new files to esp32"
+make upload SERIAL=${SERIAL}
+echo "make completed"
+
+# make ${BINPATH}/secrets/main.py to be read-only
+rm ${BINPATH}/secrets/main.py
+touch ${BINPATH}/secrets/main.py
+chmod og-r ${BINPATH}/secrets/main.py
+# now to protect the content, we will append to created, protected file:
+# ${1:-main} means use the commandline arg if a non-empty arg exists,
+# otherwise, we assume you want to run main.py:
+cat ${BINPATH}/secrets/wifiprefix.py ${1:-main.py} >> ${BINPATH}/secrets/main.py
+echo "Running main.py with Wi-Fi setup prefix"
+ampy --port ${SERIAL} run ${BINPATH}/secrets/main.py
