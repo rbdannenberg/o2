@@ -84,7 +84,7 @@ void send_nested(O2time now, O2time touter, O2time tinner, int base)
 int main(int argc, const char * argv[])
 {
     printf("Usage: oscbndlrecv flags (see o2.h for flags, "
-           "use a for all, also u for UDP, M for master, and\n"
+           "use a for (almost) all, also u for UDP, M for master, and\n"
            "! to send without checking o2_can_send)\n");
     int tcpflag = true;
     int master = false;

@@ -50,10 +50,10 @@ class O2_CLASS_EXPORT Services_entry : public O2node {
         return index >= 0 ? &services[index] : NULL;
     }
     bool add_service(O2string our_ip_port, O2node *service, char *properties);
-    O2err service_remove(const char *srv_name, int index, Proxy_info *proc);
+    O2err remove_service(const char *srv_name, int index, Proxy_info *proc);
     O2err insert_tap(O2string tapper, Proxy_info *proxy,
                      O2tap_send_mode send_mode);
-    O2err tap_remove(Proxy_info *proc, const char *tapper);
+    O2err remove_tap(Proxy_info *proc, const char *tapper);
     void pick_service_provider();
     void remove_if_empty();
     

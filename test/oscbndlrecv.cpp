@@ -116,7 +116,7 @@ void test_handler(ARGS)
 int main(int argc, const char * argv[])
 {
     printf("Usage: oscbndlrecv flags "
-           "(see o2.h for flags, use a for all, also u for UDP)\n");
+           "(see o2.h for flags, use a for (almost) all, also u for UDP)\n");
     int tcpflag = true;
     if (argc == 2) {
         o2_debug_flags(argv[1]);

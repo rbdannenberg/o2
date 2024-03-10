@@ -36,7 +36,7 @@ int main(int argc, const char *argv[])
     int port = 8080;
     const char *path = "www";
     printf("Usage: websockhost [debugflags] ensemble_name port path\n"
-           "    see o2.h for flags, use a for all, - for none\n"
+           "    see o2.h for flags, use a for (almost) all, - for none\n"
            "    Extra flag '@' means exit after 60 seconds\n"
            "    ensemble_name defaults to test\n"
            "    port defaults to 8080\n"

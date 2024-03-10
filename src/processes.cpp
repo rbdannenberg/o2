@@ -126,9 +126,8 @@ Proc_info::~Proc_info()
     if (ISA_REMOTE_PROC(this)) { // not for PROC_TEMP or PROC_TCP_SERVER
         Services_entry::remove_services_by(this);
     } else {
-        O2_DBo(printf("%s freeing local proc_info %p tag %s name %s\n",
-                      o2_debug_prefix, this, o2_tag_to_string(tag),
-                      key));
+        O2_DBo(dbprintf("freeing local proc_info %p tag %s name %s\n",
+                        this, o2_tag_to_string(tag), key));
     }
     delete_fds_info();
 }
@@ -163,17 +162,13 @@ void o2_show_sockets()
         Proxy_info *proc = (Proxy_info *) info->owner;
         if (proc) {
             printf("    %s (%d) net_tag %x (%s) socket %ld info %p "
-                   "owner %p (%s%s)\n",
-                   o2_debug_prefix, i, info->net_tag,
-                   o2_tag_to_string(info->net_tag),
-                   (long) info->get_socket(), info,
-                   proc, o2_tag_to_string(proc->tag),
+                   "owner %p (%s%s)\n", i, info->net_tag,
+                   o2_tag_to_string(info->net_tag), (long) info->get_socket(),
+                   info, proc, o2_tag_to_string(proc->tag),
                    (proc == o2_ctx->proc ? ", local proc" : ""));
         } else {
-            printf("    %s (%d) net_tag %x (%s) socket %ld info %p "
-                   "owner NULL\n",
-                   o2_debug_prefix, i, info->net_tag,
-                   o2_tag_to_string(info->net_tag),
+            printf("    %s (%d) net_tag %x (%s) socket %ld info %p owner "
+                   "NULL\n", i, info->net_tag, o2_tag_to_string(info->net_tag),
                    (long) info->get_socket(), info);
         }
     }
@@ -271,10 +266,10 @@ void o2_processes_initialize()
         char ipdot[O2N_IP_LEN];
         o2_hex_to_dot(o2n_internal_ip, ipdot);
         printf("\n===================================================="
-               "===================\n%s Local Process Name is %s (%s:%d)\n"
-               "===================================================="
-               "===================\n\n",
-                  o2_debug_prefix, o2_ctx->proc->key, ipdot, port))
+               "===================\n");
+        dbprintf("Local Process Name is %s (%s:%d)\n======================="
+                 "================================================\n\n",
+                 o2_ctx->proc->key, ipdot, port));
     // finally, connect o2_udp_server to local proc to begin processing
     // incoming UDP messages:
     o2_udp_server->owner = o2_ctx->proc;

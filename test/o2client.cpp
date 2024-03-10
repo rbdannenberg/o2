@@ -45,7 +45,7 @@ void client_test(O2msg_data_ptr data, const char *types,
 int main(int argc, const char *argv[])
 {
     printf("Usage: o2client [maxmsgs] [debugflags] [n_addrs]\n"
-           "    see o2.h for flags, use a for all, - for none\n"
+           "    see o2.h for flags, use a for (almost) all, - for none\n"
            "    n_addrs is number of addresses to use, default 20\n"
            "    n_addrs must match the number used by o2server\n"
            "    end maxmsgs with t, e.g. 10000t, to test with TCP\n");

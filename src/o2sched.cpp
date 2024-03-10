@@ -72,6 +72,18 @@ int o2_gtsched_started = false;  // cannot use o2_gtsched until clock is in sync
  }
  */
 
+/* SOME DEBUGGING CODE: check integrity of local time scheduler table
+ void sched_check()
+{
+    for (int i = 0; i < O2_SCHED_TABLE_LEN; i++) {
+        O2message_ptr m = o2_ltsched.table[i];       
+        while (m) {
+            assert((uint64_t) m >= 0x100000000);
+            m = m->next;
+        }
+    }
+}
+*/
 
 void o2_sched_finish(O2sched_ptr s)
 {
@@ -130,6 +142,8 @@ O2err o2_schedule(O2sched_ptr s)
     // either *m_ptr is null or it points to a time > mt
     msg->next = *m_ptr;
     *m_ptr = msg;
+    assert((uint64_t) msg > 0x1000000);
+    assert(msg->next == 0 || (uint64_t) (msg->next) > 0x1000000);
     // assert(scheduled_for(s, m->data.timestamp));
     return O2_SUCCESS;
 }
@@ -164,6 +178,7 @@ static void sched_dispatch(O2sched_ptr s, O2time run_until_time)
         O2message_ptr *msg_ptr = &s->table[O2_SCHED_BIN_TO_INDEX(s->last_bin)];
         while (*msg_ptr && ((*msg_ptr)->data.timestamp <= run_until_time)) {
             O2message_ptr msg = *msg_ptr;
+            assert(msg->next == 0 || (uint64_t) msg->next >= 0x100000000);
             *msg_ptr = msg->next; // unlink message msg
             // if we recursively schedule another message, use same scheduler:
             o2_active_sched = s;

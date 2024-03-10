@@ -123,7 +123,7 @@ int main(int argc, const char *argv[])
     setvbuf (stderr, NULL, _IONBF, BUFSIZ);
 
     printf("Usage: tapsub [debugflags] [n_addrs]\n"
-           "    see o2.h for flags, use a for all, - for none\n"
+           "    see o2.h for flags, use a for (almost) all, - for none\n"
            "    n_addrs is number of addresses to use, default %d\n",
            n_addrs);
     if (argc >= 2) {

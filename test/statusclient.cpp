@@ -28,7 +28,7 @@ int main(int argc, const char * argv[])
     const char *iip = NULL;
     int port = 0;
     printf("Usage: statusclient [debugflags] [pip iip port] "
-           "(see o2.h for flags, use a for all)\n"
+           "(see o2.h for flags, use a for (almost) all)\n"
            "    last args, if set, specify a hub to use; if only pip\n"
            "    is given, o2_hub(NULL, NULL, 1) is called to turn off\n"
            "    broadcasting. If port is 0, you will be prompted\n"

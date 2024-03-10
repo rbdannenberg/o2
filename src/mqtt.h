@@ -9,11 +9,16 @@ for design details. */
 
 #ifndef O2_NO_MQTT
 
+#define MQTT_KEEPALIVE_PERIOD 15.0
+#define MQTT_TIMEOUT_PERIOD 20.0
+#define MQTT_CHECK_TIMEOUTS_PERIOD 10.0
+
+
 class MQTT_info : public Proxy_info {
 public:
     O2time timeout;
     MQTT_info(const char *key, int tag) : Proxy_info(key, tag) { 
-        timeout = o2_local_time() + 5;
+        timeout = o2_local_time() + MQTT_TIMEOUT_PERIOD;
     }
     ~MQTT_info();
     
@@ -48,6 +53,8 @@ extern bool o2_mqtt_waiting_for_public_ip;
 O2err o2_mqtt_send_disc();
 
 O2err o2_mqtt_initialize();
+
+O2err o2_mqtt_disconnect();
 
 O2err o2_mqtt_finish();
 

@@ -36,7 +36,7 @@ void client_recv_reply(O2msg_data_ptr data, const char *types,
 int main(int argc, const char *argv[])
 {
     printf("Usage: mqttclient [debugflags]\n"
-           "    see o2.h for flags, use a for all\n");
+           "    see o2.h for flags, use a for (almost) all\n");
     if (argc >= 2) {
         if (argv[1][0] != '-') {
             o2_debug_flags(argv[1]);

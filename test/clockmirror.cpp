@@ -58,7 +58,7 @@ int main(int argc, const char * argv[])
     setvbuf (stderr, NULL, _IONBF, BUFSIZ);
 
     printf("Usage: clockmirror [debugflags] [1000z]\n"
-           "    see o2.h for flags, use a for all, - for none\n"
+           "    see o2.h for flags, use a for (almost) all, - for none\n"
            "    1000 (or another number) specifies O2 polling rate (optional, "
            "default 100)\n"
            "    use optional z flag to stay running for long-term tests\n");

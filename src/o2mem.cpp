@@ -103,7 +103,7 @@
 #define LOG2_MAX_EXPONENTIAL_BYTES 25 // up to 16MB = 2^24
 #define MAX_EXPONENTIAL_BYTES (1 << LOG2_MAX_EXPONENTIAL_BYTES)
 
-long o2_mem_watch_seqno = 0; // set o2_mem_watch after this many mallocs
+long o2_mem_watch_seqno = 119; // set o2_mem_watch after this many mallocs
 long o2_mem_seqno = 0; // counts allocations
 void *o2_mem_watch = 0; // address to watch
 static bool o2_memory_mgmt = true;  // assume our memory management
@@ -283,21 +283,20 @@ static int64_t o2mem_get_seqno(const void *ptr);
 
 void *o2_dbg_malloc(size_t size, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_MALLOC %zd bytes in %s:%d", o2_debug_prefix, 
-                  size, file, line));
+    O2_DBm(dbprintf("O2_MALLOC %zd bytes in %s:%d", size, file, line));
     O2_DBm(fflush(stdout));
     void *obj = (*o2_malloc_ptr)(size);
     O2_DBm(if (o2_memory_mgmt)
-               printf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj));
+               printf(" -> #%" PRId64 "@%p act_sz %zd\n",
+                      o2mem_get_seqno(obj), obj, OBJ_SIZE(obj)));
     assert(obj && IS_ALIGNED(obj));
     return obj;
 }
 
 void o2_dbg_free(void *obj, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_FREE %zu bytes in %s:%d : #%" PRId64 "@%p\n",
-                  o2_debug_prefix, OBJ_SIZE(obj),
-                  file, line, o2mem_get_seqno(obj), obj));
+    O2_DBm(dbprintf("O2_FREE %zu bytes in %s:%d : #%" PRId64 "@%p\n",
+                    OBJ_SIZE(obj), file, line, o2mem_get_seqno(obj), obj));
     // bug in C. free should take a const void * but it doesn't
     (*o2_free_ptr)((void *) obj);
 }
@@ -322,8 +321,8 @@ void *o2_calloc(size_t n, size_t s)
 #else
 void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_CALLOC %zu of %zu in %s:%d", o2_debug_prefix,
-                  n, s, file, line));
+    O2_DBm(dbprintf("O2_CALLOC %zu of %zu in %s:%d", o2_debug_prefix,
+                    n, s, file, line));
     fflush(stdout);
     void *obj = (*o2_malloc_ptr)(n * s);
     O2_DBm(printf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj));

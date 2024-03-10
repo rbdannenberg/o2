@@ -307,7 +307,24 @@ public:
 // deliver messages remotely
 class O2_CLASS_EXPORT Proxy_info : public O2node, public Net_interface {
 public:
-    Proxy_info(const char *key, int tag) : O2node(key, tag) { fds_info = NULL; }
+    // Proc_info is created when a remote process is "discovered," but that
+    // does not mean it really exists because discovery info could be stale.
+    // After discovery, we try to TCP connect. If the connection is made,
+    // is_connected is set. When the socket is deleted, there are two cases:
+    //     is_connected is true: a connection was made and the process was
+    //         reported as a service using !_o2/si message. Send another
+    //         !_o2/si status message reporting the deletion of the service.
+    //     is_connected is false: a connection was never made and the
+    //         process was never reported as a service. Do not send a new
+    //         !_o2/si status message.
+    // Proc_info is a subclass, and is_connected used to be there, but
+    // is_connected is also used by MQTT_info, which is a Proxy_info, so
+    // we moved is_connected here.
+    bool is_connected;
+
+    Proxy_info(const char *key, int tag) : O2node(key, tag) {
+        is_connected = false;
+        fds_info = NULL; }
     // remove is only called from ~Fds_info(): it's purpose is to delete
     // a Proxy without a recursive deletion of Fds_info that it links to.
     virtual void remove() { fds_info = NULL; o2_delete(); }
@@ -352,10 +369,10 @@ public:
     // to print debugging information on connections (O2_DBc):
     void co_info(Fds_info *fds_info, const char *msg) {
         if (!fds_info) return;
-        printf("%s %s (%s)\n    socket %ld index %d tags %s, %s\n",
-               o2_debug_prefix, msg, key ? key : "noname",
-               (long) fds_info->get_socket(), fds_info->fds_index, 
-               o2_tag_to_string(fds_info->net_tag), o2_tag_to_string(tag));
+        dbprintf("%s (%s)\n    socket %ld index %d tags %s, %s\n",
+                 msg, key ? key : "noname", (long) fds_info->get_socket(),
+                 fds_info->fds_index, o2_tag_to_string(fds_info->net_tag),
+                 o2_tag_to_string(tag));
     }
 
 #endif

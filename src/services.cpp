@@ -125,8 +125,8 @@ O2err Services_entry::service_provider_new(O2string service_name,
 
     if (spp && (ISA_REMOTE_PROC(spp->service))) {
         // now we know this is a remote service and we can set the properties
-        O2_DBd(printf("%s service_provider_new service exists %s\n",
-                      o2_debug_prefix, service_name));
+        O2_DBd(dbprintf("service_provider_new service exists %s\n",
+                        service_name));
         // service becomes the active one
         active = (ss->services[0].service == (O2node *) proc);
         if (spp->properties) O2_FREE(spp->properties);
@@ -144,14 +144,14 @@ O2err Services_entry::service_provider_new(O2string service_name,
         // be used in place of an IP address for purposes of picking the active
         // service provider, BUT if there are any other service providers, it
         // means that discovery is running, and that can only happen after we
-        // have a full pip:iip:port name.
+        // have a full pip:iip:port name. If proc is MQTT, it has no
+        // fds_net_info, but it ISA_MQTT
         active = ss->add_service(proc->key, service, (char *) properties) &&
-                  proc->fds_info &&
-                  (proc->fds_info->net_tag & (NET_TCP_SERVER | NET_TCP_CLIENT |
-                                              NET_TCP_CONNECTION));
-        O2_DBG(printf("%s ** new service %s is %p (%s) active %d\n",
-                      o2_debug_prefix, ss->key, service,
-                      o2_tag_to_string(service->tag), active));
+                  ((proc->fds_info && (proc->fds_info->net_tag &
+                     (NET_TCP_SERVER | NET_TCP_CLIENT | NET_TCP_CONNECTION))) ||
+                   ISA_MQTT(proc));
+        O2_DBG(dbprintf("** new service %s is %p (%s) active %d\n",
+                   ss->key, service, o2_tag_to_string(service->tag), active));
     }
     if (active) {
         // we have an update in the active service, so report it to the local
@@ -258,8 +258,8 @@ O2err Services_entry::insert_tap(O2string tapper, Proxy_info *proc,
     tap->send_mode = send_mode;
     // if we are the tapper, notify everyone we are asserting a tap:
     if (proc == o2_ctx->proc) {
-        O2_DBp(printf("%s insert_tap from %s to %s: we are the tapper "
-                      "so notify others\n", o2_debug_prefix, key, tapper));
+        O2_DBp(dbprintf("insert_tap from %s to %s: we are the tapper "
+                        "so notify others\n", key, tapper));
         o2_notify_others(tapper, true, key, NULL, send_mode);
     }
     return O2_SUCCESS;
@@ -358,9 +358,8 @@ O2err Services_entry::service_provider_replace(const char *service_name,
     } else if (ISA_LOCAL_SERVICE(*node_ptr)) {
         return O2_SERVICE_EXISTS;  // can't replace pre-existing OSC or BRIDGE
     } else {
-        O2_DBG(printf("%s service_provider_replace(%s, ...) did not find "
-                      "service offered by this process\n",
-                      o2_debug_prefix, service_name));
+        O2_DBG(dbprintf("service_provider_replace(%s, ...) did not find "
+                        "service offered by this process\n", service_name));
         return O2_FAIL;  // unexpected tag, give up
     }
     *node_ptr = new_service; // install the new service
@@ -387,9 +386,11 @@ void Services_entry::remove_if_empty()
 
 // remove a service at index from this Services_entry. If index < 0, 
 // we ignore index and search for the service offered by proc.
-O2err Services_entry::service_remove(const char *srv_name,
+O2err Services_entry::remove_service(const char *srv_name,
                                      int index, Proxy_info *proc)
 {
+    O2_DBd(dbprintf("remove_service %s in %s\n", o2_debug_prefix,
+                    srv_name, proc->key));
     Service_provider *spp = NULL;
     if (index < 0) {
         index = proc_service_index(proc);
@@ -398,10 +399,9 @@ O2err Services_entry::service_remove(const char *srv_name,
         spp = &services[index];
     } else {  // this is normal since we search every service before
               // removing a proc.
-        //O2_DBG(printf("%s o2_service_remove(%s, %s, ...) did not find "
-        //              "service offered by this process\n",
-        //              o2_debug_prefix, key,
-        //              ISA_REMOTE_PROC(proc) ? proc->key : "local"));
+        //O2_DBG(dbprintf("o2_service_remove(%s, %s, ...) did not find "
+        //                "service offered by this process\n",
+        //                key, ISA_REMOTE_PROC(proc) ? proc->key : "local"));
         return O2_FAIL;
     }
     // Now spp == &services[index]
@@ -411,7 +411,7 @@ O2err Services_entry::service_remove(const char *srv_name,
     }
 
     // There is a cycle: A proxy could be deleted because a socket closes.
-    // So delete calls service_remove to remove back pointers to the proxy.
+    // So delete calls remove_service to remove back pointers to the proxy.
     // But if we directly remove the service, i.e. o2_service_free(), then
     // we must delete the proxy. To break the cycle, we remove the
     // service-to-proxy pointer first, then delete the proxy. It might look
@@ -446,7 +446,7 @@ O2err Services_entry::service_remove(const char *srv_name,
     
     // send notification message; do not send status if we never connected
     if (srv_name[0] != '@' || !proc || !ISA_PROC(proc) ||
-        ((Proc_info *) proc)->is_connected) {
+        proc->is_connected) {
         o2_send_cmd("!_o2/si", 0.0, "siss", srv_name, O2_UNKNOWN,
                     proc ? proc->get_proc_name() : "unknown", "");
     } else {
@@ -493,10 +493,10 @@ O2err Services_entry::service_remove(const char *srv_name,
         // Do we need to worry about a service being removed before we
         // examine it for taps? No, because only removing the last tap
         // will cause the service to be freed.
-        // Free tap using tap_remove. To speed up search, we test for
+        // Free tap using remove_tap. To speed up search, we test for
         // zero taps before calling the search function:
         if (services->taps.size() > 0) {
-            services->tap_remove(proc, srv_name);
+            services->remove_tap(proc, srv_name);
         }
     }
     return O2_SUCCESS;
@@ -538,13 +538,12 @@ O2err Services_entry::proc_service_remove(const char *service_name,
         index = -1; // indicates we should search ss
     }
     if (!ss || !ISA_SERVICES(ss)) {
-        O2_DBG(printf("%s o2_service_remove(%s, %s) did not find "
-                      "service\n",
-                      o2_debug_prefix, service_name,
-                      ISA_REMOTE_PROC(proc) ? proc->key : "local"));
+        O2_DBG(dbprintf("o2_service_remove(%s, %s) did not find "
+                        "service\n", service_name,
+                        ISA_REMOTE_PROC(proc) ? proc->key : "local"));
         return O2_FAIL;
     }
-    return ss->service_remove(service_name, index, proc);
+    return ss->remove_service(service_name, index, proc);
 }
 
 
@@ -552,7 +551,7 @@ O2err Services_entry::proc_service_remove(const char *service_name,
 // to proc.
 // returns O2_SUCCESS if at least one tap was removed, o.w. O2_FAIL
 //
-O2err Services_entry::tap_remove(Proxy_info *proc, const char *tapper)
+O2err Services_entry::remove_tap(Proxy_info *proc, const char *tapper)
 {
     O2err result = O2_FAIL;
     for (int i = 0; i < taps.size(); i++) {
@@ -641,10 +640,10 @@ O2err Services_entry::remove_services_by(Proxy_info *proc)
         // if there are any taps to begin with.
         bool has_taps = services->taps.size() > 0;
         int j = services->proc_service_index(proc);
-        if (!services->service_remove(services->key, j, proc)) {
+        if (!services->remove_service(services->key, j, proc)) {
             result = O2_FAIL; // this should never happen
         }
-        if (has_taps && services->tap_remove(proc, NULL) == O2_FAIL) {
+        if (has_taps && services->remove_tap(proc, NULL) == O2_FAIL) {
             result = O2_FAIL;
         }
     }
@@ -696,6 +695,8 @@ void Services_entry::show(int indent)
 bool Services_entry::add_service(O2string our_ip_port,
                                  O2node *service, char *properties)
 {
+    O2_DBd(dbprintf("add_service %s props %s in %s\n", o2_debug_prefix,
+                    service->key, properties, our_ip_port));
     // find insert location: either at front or at back of services->services
     int index = services.size();
     services.append_space(1);

@@ -30,7 +30,7 @@ static void ppause(double dur)
 int main(int argc, const char *argv[])
 {
     printf("Usage: o2utclient [maxmsgs] [debugflags]\n"
-           "    see o2.h for flags, use a for all, - for none\n");
+           "    see o2.h for flags, use a for (almost) all, - for none\n");
     if (argc >= 2) {
         max_msg_count = atoi(argv[1]);
         printf("max_msg_count set to %d\n", max_msg_count);

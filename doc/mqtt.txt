@@ -49,6 +49,11 @@ Send O2 message via MQTT:
     topic: O2-ens/@pip:iip:port, payload: an_O2_message_starting_with_
                                         _the_misc_field_(after_length)
 
+Internal messages are:
+    /_o2/mqtt/dy -- invokes o2_mqtt_discovery_handler
+    /_o2/mqtt/ps -- invokes mqtt_ping_send
+    /_o2/mqtt/ct -- invokes mqtt_check_timeouts
+
 Do not use the *store* feature so that when you crash, others will not
 "discover" a stale address. However, when you reboot, everyone already
 in the application will get the new correct address. Is there a race
@@ -207,9 +212,19 @@ A clean disconnect or shutdown can be accomplished by sending
 
 For unannounced disconnects, we use keep-alive messages. These are
 broadcast by sending to O2-ens/disc with topic name/dy or name/cs
-every 10s. A timeout is associated with each known remote proc, and
-expired processes are detected and deleted every 10s.
-
+every 15 sec (MQTT_KEEPALIVE_PERIOD). A timeout is associated with each
+known remote proc and set to the local time of the last keep-alive
+message + 20 sec (MQTT_TIMEOUT_PERIOD).  Expired processes are detected and
+deleted every 10 sec (MQTT_CHECK_TIMEOUTS_PERIOD). In the best case, a
+process would crash just before sending a keep-alive message, so it
+would time out in 5 more seconds. The test for timeout could take
+place in 5 sec, so the crash could be detected in 5 sec. In the worst
+case, you would receive a keep-alive message at time t0 and the sender
+would crash shortly after -- call t0 as well. You could check at t0 +
+20 - epsilon and there would be no timeout yet, so the next check at
+t0 + 20 - epsilon + 10 would detect timeout. Therefore, the worst case
+delay to detecting a disconnected process is 30 seconds
+(MQTT_TIMEOUT_PERIOD + MQTT_CHECK_TIMEOUTS_PERIOD).
 
 
 *********************************************************************

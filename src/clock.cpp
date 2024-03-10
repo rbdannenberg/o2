@@ -87,8 +87,7 @@ static void o2_clock_synchronized(O2time local_time, O2time ref_time)
     // in addition, compute the offset to absolute time in case we need an
     // OSC timestamp
     compute_osc_time_offset(ref_time);
-    O2_DBG(printf("%s obtained clock sync at %g\n",
-                  o2_debug_prefix, o2_time_get()));
+    O2_DBG(dbprintf("obtained clock sync at %g\n", o2_time_get()));
 #endif
 }
 
@@ -124,8 +123,8 @@ static void set_clock(double local_time, double new_ref)
 {
     global_time_base = LOCAL_TO_GLOBAL(local_time); // current estimate
     local_time_base = local_time;
-    O2_DBk(printf("%s set_clock: using %.3f, should be %.3f\n",
-        o2_debug_prefix, global_time_base, new_ref));
+    O2_DBk(dbprintf("set_clock: using %.3f, should be %.3f\n",
+                    global_time_base, new_ref));
      double clock_advance = new_ref - global_time_base; // how far to catch up
     clock_rate_id++; // cancel any previous calls to catch_up_handler()
     // compute when we will catch up: estimate will increase at clock_rate
@@ -165,8 +164,8 @@ static void set_clock(double local_time, double new_ref)
             // after a long time) on their own.
         }
     }
-    O2_DBk(printf("%s adjust clock to %g, rate %g\n",
-                  o2_debug_prefix, LOCAL_TO_GLOBAL(local_time), clock_rate));
+    O2_DBk(dbprintf("adjust clock to %g, rate %g\n",
+                    LOCAL_TO_GLOBAL(local_time), clock_rate));
  }
 
 
@@ -213,8 +212,7 @@ static void compute_osc_time_offset(O2time now)
 #endif
     osc_time -= (uint64_t) (now * 4294967296.0);
     o2_osc_time_offset(osc_time);
-    O2_DBk(printf("%s osc_time_offset (in sec) %g\n",
-                  o2_debug_prefix, osc_time / 4294967296.0));
+    O2_DBk(dbprintf("osc_time_offset (in sec) %g\n", osc_time / 4294967296.0));
 }
 #endif
 
@@ -290,18 +288,17 @@ void o2_clock_status_change(Proxy_info *proxy)
             Service_provider *spp = &services->services[0];
             if (status == O2_LOCAL) {
                 if (HANDLER_IS_LOCAL(spp->service)) {
-                    O2_DBk(printf("%s o2_clock_status_change sends /si \"%s\" "
+                    O2_DBk(dbprintf("o2_clock_status_change sends /si \"%s\" "
                             "O2_LOCAL(%d) proc \"_o2\" properties \"%s\"\n",
-                            o2_debug_prefix, services->key, O2_LOCAL,
+                            services->key, O2_LOCAL,
                             spp->properties ? spp->properties + 1 : ""));
                     o2_send_cmd("!_o2/si", 0.0, "siss", services->key, O2_LOCAL,
                             "_o2", spp->properties ? spp->properties + 1 : "");
                 }
             } else if ((status == O2_REMOTE || status == O2_BRIDGE) &&
                        spp->service == proxy) {
-                O2_DBk(printf("%s o2_clock_status_change sends /si \"%s\" "
-                        "%s(%d) proxy \"%s\" properties \"%s\"\n",
-                        o2_debug_prefix, services->key,
+                O2_DBk(dbprintf("o2_clock_status_change sends /si \"%s\" %s(%d)"
+                        " proxy \"%s\" properties \"%s\"\n", services->key,
                         o2_status_to_string(status), status, proxy->key,
                         spp->properties ? spp->properties + 1 : ""));
                 // if proxy->key is null, assume this is a bridge and send
@@ -353,8 +350,8 @@ void o2_clocksynced_handler(O2msg_data_ptr msg, const char *types,
         o2_clock_status_change((Proxy_info *) entry);
         return;
     }
-    O2_DBG(printf("%s ### ERROR in o2_clocksynced_handler, bad service %s\n",
-                  o2_debug_prefix, name));
+    O2_DBG(dbprintf("### ERROR in o2_clocksynced_handler, bad service %s\n",
+                    name));
 }
 
 
@@ -394,8 +391,8 @@ static void cs_ping_reply_handler(O2msg_data_ptr msg, const char *types,
     round_trip_time[i] = rtt;
     ref_minus_local[i] = ref_time - now;
     ping_reply_count++;
-    O2_DBk(printf("%s got clock reply, ref_time %g, rtt %g, count %d\n",
-                  o2_debug_prefix, ref_time, rtt, ping_reply_count));
+    O2_DBk(dbprintf("got clock reply, ref_time %g, rtt %g, count %d\n",
+                    ref_time, rtt, ping_reply_count));
 #ifndef O2_NO_DEBUG
     if (o2_debug & O2_DBk_FLAG) {
         int start, count;
@@ -476,8 +473,7 @@ static void o2_clock_ping_at(O2time when, int id)
 void o2_start_cs_pings()
 {
     ping_process_id++;  // cancel any previous "process"
-    O2_DBc(printf("%s ** found clock service, is_refclk=%d\n",
-                  o2_debug_prefix, is_refclk));
+    O2_DBc(dbprintf("** found clock service, is_refclk=%d\n", is_refclk));
     if (is_refclk) {
         o2_clock_is_synchronized = true;
         return; // no clock sync; we're the reference
@@ -547,8 +543,7 @@ void o2_ping_send_handler(O2msg_data_ptr msg, const char *types,
     O2time t1 = CLOCK_SYNC_HISTORY_LEN * 0.1 - 0.01;
     if (clock_sync_send_time - start_sync_time > t1) when += 0.4;
     if (clock_sync_send_time - start_sync_time > 5.0) when += 9.5;
-    O2_DBk(printf("%s clock request sent at %g\n",
-                  o2_debug_prefix, clock_sync_send_time));
+    O2_DBk(dbprintf("clock request sent at %g\n", clock_sync_send_time));
     // schedule another call to o2_ping_send_handler
     o2_clock_ping_at(when, id);
 }
@@ -625,8 +620,8 @@ static void cs_ping_handler(O2msg_data_ptr msg, const char *types,
 O2err o2_clock_set(o2_time_callback callback, void *data)
 {
     if (!o2_ensemble_name) {
-        O2_DBk(printf("%s o2_clock_set cannot be called before "
-                      "o2_initialize.\n", o2_debug_prefix));
+        O2_DBk(dbprintf("o2_clock_set cannot be called before "
+                        "o2_initialize.\n", o2_debug_prefix));
         return O2_NOT_INITIALIZED;
     }
 
@@ -653,8 +648,8 @@ O2err o2_clock_set(o2_time_callback callback, void *data)
     Services_entry::service_new("_cs\000\000");
     o2_method_new_internal("/_cs/get", "is", &cs_ping_handler,
                            NULL, false, false);
-    O2_DBG(printf("%s ** reference clock established, time is now %g\n",
-                  o2_debug_prefix, o2_local_time()));
+    O2_DBG(dbprintf("** reference clock established, time is now %g\n",
+                    o2_local_time()));
 
     return O2_SUCCESS;
 }

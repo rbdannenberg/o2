@@ -42,7 +42,7 @@ void client_test(O2msg_data_ptr data, const char *types,
 int main(int argc, const char * argv[])
 {
     printf("Usage: tcpclient [msgcount [flags]] "
-           "(see o2.h for flags, use a for all)\n");
+           "(see o2.h for flags, use a for (almost) all)\n");
     if (argc >= 2) {
         max_msg_count = atoi(argv[1]);
         printf("max_msg_count set to %d\n", max_msg_count);

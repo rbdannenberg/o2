@@ -66,7 +66,7 @@ void server_done_fn(O2msg_data_ptr msg, const char *types,
 int main(int argc, const char *argv[])
 {
     printf("Usage: mqttserver [flags]\n"
-           "    see o2.h for flags, use a for all.\n");
+           "    see o2.h for flags, use a for (almost) all.\n");
     if (argc >= 2) {
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);

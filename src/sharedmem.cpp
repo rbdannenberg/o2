@@ -588,8 +588,7 @@ void O2sm_info::poll_outgoing()
 
 void o2sm_initialize(O2_context *ctx, Bridge_info *inst)
 {
-    O2_DBb(printf("%s o2sm_initialize ctx %p Bridge_info %p\n",
-                  o2_debug_prefix, ctx, inst));
+    O2_DBb(dbprintf("o2sm_initialize ctx %p Bridge_info %p\n", ctx, inst));
     o2_ctx = ctx;
     // local memory allocation will use malloc() to get a chunk on the
     // first call to O2_MALLOC by the shared memory thread. If
@@ -618,8 +617,7 @@ void o2sm_finish()
     o2_add_int32(o2_ctx->binst->id);
     O2message_ptr msg = o2_message_finish(0.0, "/_o2/o2sm/fin", true);
     // free the o2_ctx data
-    O2_DBb(printf("%s o2sm_finish finishing O2_context@%p\n",
-                  o2_debug_prefix, o2_ctx));
+    O2_DBb(dbprintf("o2sm_finish finishing O2_context@%p\n", o2_ctx));
     o2_ctx->finish();
     o2_ctx = NULL;
     // notify O2 to remove bridge: does not require o2_ctx

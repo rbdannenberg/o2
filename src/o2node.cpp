@@ -73,9 +73,12 @@ O2err Hash_node::table_resize(int new_locs)
 {
     Vec<O2node *> old(children); // copy whole dynamic array
     Enumerate enumerator(&old);
+    for (int i = 0; i < old.size(); i++) {
+        if (old[i]) assert(old[i]->tag);  // check for points to valid memory
+    }
+    table_init(new_locs);
     // now, old array is in old, children is newly allocated
     // copy all entries from old to children
-    table_init(new_locs);
     O2node *entry;
     while ((entry = enumerator.next())) {
         insert(entry);
@@ -137,7 +140,6 @@ O2node *Enumerate::next()
     return ret;
 }
    
-
 
 Handler_entry::~Handler_entry()
 {

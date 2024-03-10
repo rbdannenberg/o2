@@ -498,12 +498,14 @@ typedef enum {
 /// and clock synchronization status. Enable the debugging
 /// information by calling #o2_debug_flags with a string
 /// containing any of the following characters:
-///   - a - enable all debug flags except m (malloc/free)
-///   - A - enable all debug flags except malloc and scheduling
+///   - A - enable all but "mlF" (malloc/free, msg_deliver, force-MQTT)
+///   - a - enable all but "mlFtT" (malloc/free, msg_deliver, force-MQTT,
+///         scheduled messages)
 ///   - B - trace shared memory bridge messages
 ///   - b - trace bridge setup and take-down
 ///   - c - print basic connection data
 ///   - d - trace discovery messages
+///   - F - force use of MQTT, no local discovery or direct connections
 ///   - g - print general status info, not much detail
 ///   - h - trace hub-related activity
 ///   - I - disable Internet connections, e.g., do not acquire public IP.
@@ -518,7 +520,8 @@ typedef enum {
 ///   - O - open sound control messages
 ///   - o - trace socket creating and closing
 ///   - p - trace tap messages and operations
-///   - q - show MQTT messages
+///   - Q - show MQTT-related info (more low-level detail than q)
+///   - q - show basic MQTT messages and events
 ///   - R - trace system incoming messages
 ///   - r - trace non-system incoming messages
 ///   - S - trace system outgoing messages

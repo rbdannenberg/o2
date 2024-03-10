@@ -10,13 +10,28 @@
 #include "message.h"
 
 #ifndef O2_NO_DEBUG
-const char *o2_debug_prefix = "O2:";
+const char *o2_debug_prefix = "O2";
 int o2_debug = 0;
 
+void dbprintf(const char *format, ...)
+{
+    double time = o2_time_get();
+    const char *islocal = "";
+    if (time < 0) {
+        time = o2_local_time();
+        islocal = "L: ";
+    }
+    printf("%s [%s%4.3f]: ", o2_debug_prefix, islocal, time);
+    va_list args;
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+}
+
 // WARNING: this string is in the exact bit order of debug flags, e.g.
-// O2_DBc_FLAG is 1, O2_DBr_FLAG is 2, O2_DBs_FLAG is 4, etc., hence
-// this string starts with "crs...":
-static const char *debug_chars = "BbcdghklmOopqRrSsTtWwz";
+// O2_DBB_FLAG is 1, O2_DBb_FLAG is 2, O2_DBc_FLAG is 4, etc., hence
+// this string starts with "Bbc...":
+static const char *debug_chars = "BbcdFghklmOopQqRrSsTtWwz";
 #endif
 
 void o2_debug_flags(const char *flags)
@@ -44,7 +59,7 @@ void o2_debug_flags(const char *flags)
 void o2_dbg_msg(const char *src, O2message_ptr msg, O2msg_data_ptr data,
                 const char *extra_label, const char *extra_data)
 {
-    printf("%s %s ", o2_debug_prefix, src);
+    dbprintf("%s ", src);
     if (msg) {
         printf("(%p) ", msg);
     }
@@ -91,7 +106,7 @@ void o2_print_path_tree()
 
 void o2_print_bytes(const char *prefix, const char *bytes, int len)
 {
-    printf("%s %s\n", o2_debug_prefix, prefix);
+    dbprintf("%s @ %g\n", prefix, o2_local_time());
     int i = 0;
     while (i < len) {
         for (int j = 0; j < 16; j++) {  // print hex chars

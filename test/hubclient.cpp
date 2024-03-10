@@ -334,7 +334,7 @@ int main(int argc, const char *argv[])
 {
     srand(100);
     printf("Usage: hubclient [debugflags]\n"
-           "    see o2.h for flags, use a for all, - for none\n");
+           "    see o2.h for flags, use a for (almost) all, - for none\n");
     if (argc >= 2) {
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);

@@ -53,7 +53,7 @@ void osc_i_handler(O2msg_data_ptr data, const char *types,
 int main(int argc, const char * argv[])
 {
     printf("Usage: oscrecvtest [flags] "
-           "(see o2.h for flags, use a for all, also u for UDP)\n");
+           "(see o2.h for flags, use a for (almost) all, also u for UDP)\n");
     int tcpflag = true;
     if (argc == 2) {
         o2_debug_flags(argv[1]);

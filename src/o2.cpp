@@ -1084,7 +1084,11 @@ void o2_init_phase2()
     o2_send_discovery_at(o2_local_time());
 #endif
 #ifndef O2_NO_ZEROCONF
-    o2_zcdisc_initialize();
+    // O2_DBF_FLAG "F" disables all networking except MQTT to facilitate
+    // debugging MQTT using local processes
+    if (o2_debug & O2_DBF_FLAG == 0) {
+        o2_zcdisc_initialize();
+    }
 #endif
 #ifndef O2_NO_MQTT
     if (o2_mqtt_waiting_for_public_ip) {
@@ -1145,10 +1149,9 @@ static void send_one_sv_msg(Proxy_info *proc, const char *service_name,
     if (!msg) return; // must be out of memory, no error is reported
     o2_prepare_to_deliver(msg);
     proc->send(false);
-    O2_DBd(printf("%s o2_notify_others sent %s to %s (%s) "
-                  "tappee %s properties %s\n",
-                  o2_debug_prefix, service_name, proc->key,
-                  added ? "added" : "removed", tappee, properties));
+    O2_DBd(dbprintf("o2_notify_others sent %s to %s (%s) "
+                    "tappee %s properties %s\n", service_name, proc->key,
+                    added ? "added" : "removed", tappee, properties));
 }
 
 
@@ -1192,14 +1195,13 @@ O2err o2_tap_new(const char *tapper, Proxy_info *proxy, O2string tappee,
                  O2tap_send_mode send_mode)
 {
     // proxy is the process providing the tapper service
-    O2_DBd(printf("%s o2_tap_new adding tapper %s in %s to %s\n",
-                  o2_debug_prefix, tapper, proxy->key, tappee));
+    O2_DBd(dbprintf("o2_tap_new adding tapper %s in %s to %s\n",
+                    tapper, proxy->key, tappee));
     Services_entry *ss = Services_entry::must_get_services(tappee);
 
-    O2_DBp(printf("%s o2_tap: forward %s to %s mode %s\n", o2_debug_prefix,
-                  tappee, tapper, (send_mode == TAP_KEEP ? "keep" :
-                                   send_mode == TAP_RELIABLE ? "reliable" :
-                                   "besteffort")));
+    O2_DBp(dbprintf("o2_tap: forward %s to %s mode %s\n", tappee, tapper,
+                    (send_mode == TAP_KEEP ? "keep" :
+                     send_mode == TAP_RELIABLE ? "reliable" : "besteffort")));
 
     // services exists, does the tap already exist?
     // search the service's list of taps:
@@ -1208,8 +1210,7 @@ O2err o2_tap_new(const char *tapper, Proxy_info *proxy, O2string tappee,
         Service_tap *tap = &ss->taps[i];
         if (streql(tap->tapper, tapper) &&
             tap->proc == proxy) {
-            O2_DBp(printf("%s o2_tap of %s ignored - already tapped\n",
-                          o2_debug_prefix, tappee));
+            O2_DBp(dbprintf("o2_tap of %s ignored - already tapped\n", tappee));
             return O2_SERVICE_EXISTS;
         }
     }
@@ -1225,13 +1226,13 @@ O2err o2_tap_new(const char *tapper, Proxy_info *proxy, O2string tappee,
 O2err o2_tap_remove(const char *tapper, Proxy_info *proc,
                     O2string tappee)
 {
-    O2_DBp(printf("%s o2_tap_remove tapper %s in %s tappee %s\n",
-                  o2_debug_prefix, tapper, proc->key, tappee));
+    O2_DBp(dbprintf("o2_tap_remove tapper %s in %s tappee %s\n",
+                    tapper, proc->key, tappee));
 
     Services_entry *ss = (Services_entry *) *o2_ctx->path_tree.lookup(tappee);
     if (!ss) return O2_FAIL;
 
-    return ss->tap_remove(proc, tapper);
+    return ss->remove_tap(proc, tapper);
 }
 
 
@@ -1492,6 +1493,9 @@ O2err o2_finish()
     if (!o2_ensemble_name) { // see if we're running
         return O2_NOT_INITIALIZED;
     }
+#ifndef O2_NO_MQTT
+    o2_mqtt_disconnect();
+#endif
     o2n_free_deleted_sockets();
 
 #ifndef O2_NO_BRIDGES
@@ -1516,18 +1520,16 @@ O2err o2_finish()
             Fds_info *info = o2n_fds_info[i];
             Proxy_info *proxy = (Proxy_info *) (info->owner);
             O2_DBo(if (proxy) \
-                       printf("%s o2_finish calls o2n_close_socket at "     \
-                              "index %d tag %d %s net_tag %x (%s) port %d\n", \
-                              o2_debug_prefix, i, proxy->tag,                \
-                              o2_tag_to_string(proxy->tag), info->net_tag,   \
-                              Fds_info::tag_to_string(info->net_tag), \
-                              info->port);\
+                       dbprintf("o2_finish calls o2n_close_socket at index "  \
+                                "%d tag %d %s net_tag %x (%s) port %d\n", \
+                                i, proxy->tag, o2_tag_to_string(proxy->tag), \
+                                info->net_tag, Fds_info::tag_to_string(  \
+                                info->net_tag), info->port);  \
                    else \
-                       printf("%s o2_finish calls o2n_close_socket at index " \
-                              "%d net_tag %x (%s) port %d no application\n",  \
-                              o2_debug_prefix, i, info->net_tag,            \
-                              Fds_info::tag_to_string(info->net_tag), \
-                              info->port));
+                       dbprintf("%s o2_finish calls o2n_close_socket at index" \
+                                " %d net_tag %x (%s) port %d no application\n",\
+                                i, info->net_tag, Fds_info::tag_to_string(  \
+                                info->net_tag), info->port));
             info->close_socket(true);
         }
         o2n_free_deleted_sockets(); // deletes process_info structs

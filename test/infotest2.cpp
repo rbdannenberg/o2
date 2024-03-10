@@ -229,7 +229,7 @@ int main(int argc, const char * argv[])
 {
     init_si_status();
     printf("Usage: infotest2 [debugflags] "
-           "(see o2.h for flags, use a for all)\n");
+           "(see o2.h for flags, use a for (almost) all)\n");
     if (argc == 2) {
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);

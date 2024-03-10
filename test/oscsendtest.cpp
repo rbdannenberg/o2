@@ -35,8 +35,8 @@ int main(int argc, const char * argv[])
     setvbuf (stderr, NULL, _IONBF, BUFSIZ);
 
     printf("Usage: oscsendtest [flags] (see o2.h for flags,\n"
-           "use a for all, also u for UDP, @ for reference, p for \n"
-           "pause before sending to closed port.)\n");
+           "use a for (almost) all, also u for UDP, @ for reference,\n"
+           "p for pause before sending to closed port.)\n");
 
     bool tcpflag = true;
     bool clockref = false;

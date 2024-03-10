@@ -28,7 +28,7 @@ int main(int argc, const char * argv[])
     const char *iip = NULL;
     int port = 0;
     printf("Usage: statusserver [debugflags] [pip iip port] "
-           "    See o2.h for debugflags, use a for all.\n"
+           "    See o2.h for debugflags, use a for (almost) all.\n"
            "    last args, if set, specify a hub to use as public ip,\n"
            "    internal ip and port number. If only a pip argument\n"
            "    appears (anything), o2_hub(NULL, NULL, 1) is called to\n"

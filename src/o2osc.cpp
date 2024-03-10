@@ -244,9 +244,7 @@ O2err o2_osc_port_free(int port_num)
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
-    O2_DBc(printf("%s o2_osc_port_free port %d\n", \
-                  o2_debug_prefix, port_num); \
-           o2_show_sockets());
+    O2_DBc(dbprintf("o2_osc_port_free port %d\n", port_num); o2_show_sockets());
     O2err rslt = O2_FAIL;
     for (int i = 0; i < o2n_fds_info.size(); i++) {
         Fds_info *info = o2n_fds_info[i];
@@ -413,8 +411,8 @@ O2err Osc_info::deliver(O2netmsg_ptr msg)
 {
     char *msg_data = msg->payload;
     O2_DBO(
-        printf("%s deliver_osc got OSC message %s length %d for service %s\n",
-        o2_debug_prefix, msg_data, msg->length, key));
+        dbprintf("deliver_osc got OSC message %s length %d for service %s\n",
+                 msg_data, msg->length, key));
     O2message_ptr o2msg = osc_to_o2(msg->length, msg_data, key);
     O2_FREE(msg);
     if (!o2msg) {
@@ -423,8 +421,8 @@ O2err Osc_info::deliver(O2netmsg_ptr msg)
     if (o2_message_send(o2msg)) { // failure to deliver message
             // will NOT cause the connection to be closed; only the current
             // message will be dropped
-        O2_DBO(printf("%s os_deliver_osc: message %s forward to %s failed\n",
-                      o2_debug_prefix, msg_data, key));
+        O2_DBO(dbprintf("os_deliver_osc: message %s forward to %s failed\n",
+                        msg_data, key));
     }
     return O2_SUCCESS;
 }
@@ -519,9 +517,8 @@ O2err Osc_info::send(bool block)
     memcpy(o2n_msg->payload, osc_msg, osc_len);
     o2_ctx->building_message_lock = false;
 
-    O2_DBO(printf("%s send_osc sending OSC message %s length %d as "
-                  "service %s\n", o2_debug_prefix, o2n_msg->payload,
-                  o2n_msg->length, key));
+    O2_DBO(dbprintf("send_osc sending OSC message %s length %d as "
+                    "service %s\n", o2n_msg->payload, o2n_msg->length, key));
     // Now we have an OSC length and message at msg->data. Send it.
     if (fds_info == NULL) { // must be UDP
         o2_postpone_delivery();  // gives us ownership of msg and o2n_msg alias
