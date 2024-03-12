@@ -266,10 +266,12 @@ void o2_processes_initialize()
         char ipdot[O2N_IP_LEN];
         o2_hex_to_dot(o2n_internal_ip, ipdot);
         printf("\n===================================================="
-               "===================\n");
-        dbprintf("Local Process Name is %s (%s:%d)\n======================="
-                 "================================================\n\n",
-                 o2_ctx->proc->key, ipdot, port));
+               "==============================\n");
+        dbprintf("Local Process Name is %s (%s:%d)\n            "
+                 "Receive Port %d (0x%x)\n============================="
+                 "=====================================================\n\n",
+                 o2_ctx->proc->key, ipdot, port,
+                 o2_udp_server->port, o2_udp_server->port));
     // finally, connect o2_udp_server to local proc to begin processing
     // incoming UDP messages:
     o2_udp_server->owner = o2_ctx->proc;

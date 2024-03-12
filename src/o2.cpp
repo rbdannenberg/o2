@@ -1086,7 +1086,7 @@ void o2_init_phase2()
 #ifndef O2_NO_ZEROCONF
     // O2_DBF_FLAG "F" disables all networking except MQTT to facilitate
     // debugging MQTT using local processes
-    if (o2_debug & O2_DBF_FLAG == 0) {
+    if ((o2_debug & O2_DBF_FLAG) == 0) {
         o2_zcdisc_initialize();
     }
 #endif
@@ -1526,7 +1526,7 @@ O2err o2_finish()
                                 info->net_tag, Fds_info::tag_to_string(  \
                                 info->net_tag), info->port);  \
                    else \
-                       dbprintf("%s o2_finish calls o2n_close_socket at index" \
+                       dbprintf("o2_finish calls o2n_close_socket at index" \
                                 " %d net_tag %x (%s) port %d no application\n",\
                                 i, info->net_tag, Fds_info::tag_to_string(  \
                                 info->net_tag), info->port));

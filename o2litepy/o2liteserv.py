@@ -59,7 +59,7 @@ def server_test(msg, address, types, info):
 
 if __name__ == "__main__":
     o2l = O2lite()
-    o2l.initialize("test")
+    o2l.initialize("test", debug_flags="a")
     o2l.set_services("sift")
     o2l.method_new("/sift", "sift", True, sift_han, 111)
     while o2l.bridge_id < 0:

@@ -21,11 +21,12 @@
 #
 # DEBUGGING:
 # debug flags is a string used to set some debugging options:
+#   b -- print actual bytes of messages
 #   s -- print O2 messages when sent
 #   r -- print O2 messages when received
 #   d -- print info about discovery
 #   g -- general debugging info
-#   a -- all debugging messages
+#   a -- all debugging messages except b
 # Setting any flag automatically enables "g"
 #
 # DISCOVERY:
@@ -145,6 +146,7 @@ class O2lite:
         # message
         self.udpinbuf = None  # gets bytearray from udp recv
         self.outbuf = bytearray(256)
+        self.out_msg_address = ""
         self.parse_msg = None  # incoming message to parse
         self.parse_address = None  # extracted address from parse_msg
         self.parse_cnt = 0  # how many bytes retrieved
@@ -183,6 +185,8 @@ class O2lite:
         # if any flag is present, set 'g' flag for 'g'eneral messages
         if not 'g' in debug_flags and debug_flags != "":
             debug_flags += 'g'
+        if 'b' in debug_flags:   # if we are printing message bytes,
+            debug_flags += "sr"  # make sure send/receive are in there too
         self.debug_flags = debug_flags
 
         self.discovery = O2lite_discovery(ensemble_name, debug_flags)
@@ -204,7 +208,7 @@ class O2lite:
                                            socket.IPPROTO_UDP)
         # I think this cannot fail, or perhaps raises an error:
         # if self.udp_recv_sock == socket.error:
-        #     print("o2lite: udp socket creation error")
+        #     print("O2lite: udp socket creation error")
         #     return O2L_FAIL
 
         if self.get_recv_udp_port(self.udp_recv_sock) != 0:
@@ -248,17 +252,25 @@ class O2lite:
 
         misc = struct.unpack('I', self.outbuf[4:8])[0]
 
+        # prepare for debug printing (may not be used):
+        start = 0
+        via = "TCP"
+
         if misc & o2lswap32(O2_TCP_FLAG):
             bytes_sent = self.tcp_socket.send(self.outbuf[:self.out_msg_cnt])
-            if "s" in self.debug_flags:
-                print("O2lite: sending", bytes_sent, "bytes (",
-                      self.outbuf[:self.out_msg_cnt], ") via TCP.")
         else:
             bytes_sent = self.udp_send_sock.sendto(
                     self.outbuf[4:self.out_msg_cnt], self.udp_send_address)
-            if "s" in self.debug_flags:
-                print("O2lite: sending", bytes_sent, "bytes (",
-                      self.outbuf[4 : self.out_msg_cnt], ") via UDP.")
+            start = 4
+            via = "UDP"
+
+        # debug printing requested?
+        if 's' in self.debug_flags:
+            print("O2lite: sending", bytes_sent, "bytes via", via, end="")
+            if 'b' in self.debug_flags:  # print actual bytes
+                print("(", self.outbuf[start : self.out_msg_cnt], ")", end="")
+            print(" to", self.out_msg_address)
+
 
         self.num_msg += 1
 
@@ -277,6 +289,7 @@ class O2lite:
         self.outbuf[self.out_msg_cnt] = ord(',')
         self.out_msg_cnt += 1
         self.add_string(types)
+        self.out_msg_address = address  # save for possible debug output
 
 
     def poll(self):
@@ -457,8 +470,13 @@ class O2lite:
             self.time_for_clock_ping += 9.5
 
 
-    def sleep(self, n):
-        time.sleep(n / 1000)
+    def sleep(self, delay):
+        """wait for delay sec, always polls at least once"""
+        self.poll()
+        wakeup = self.local_now + delay
+        while self.local_now < wakeup:
+            time.sleep(0.001)
+            self.poll()
 
 
     def time_get(self):
@@ -507,7 +525,7 @@ class O2lite:
                 s = s[comma_index + 1:]
 
             if len(service_name) > 31:  # Check if the service name is too long
-                print("O2lite error, service name too long:", service_name)
+                print("o2lite error, service name too long:", service_name)
                 return
 
             # print("send_services: sending", service_name, "to go:", s)
@@ -535,6 +553,13 @@ class O2lite:
         # O2lite_handler.address is a string starting after the leading
         # "/" or "!", so make address compatible:
         address = msg[address_start + 1 : address_end].decode('utf-8')
+
+        # debugging output requested?
+        if 'r' in self.debug_flags:
+            print(f"O2lite: received {len(msg)} bytes for /{address} ", end="")
+            if 'b' in self.debug_flags:  # print actual bytes
+                print("(", msg, ")", end="")
+            print()
 
         # get the typespec
         typespec_start = msg.find(b',', address_end)
@@ -607,7 +632,7 @@ class O2lite:
             if not data:  # i.e. an error occurred
                 return None  # Error or connection closed
             tcpinbuf += data
-        if "r" in self.debug_flags:
+        if 'b' in self.debug_flags:
             print("O2lite: got", len(tcpinbuf), "bytes (", tcpinbuf,
                   ") via TCP.")
         self.msg_dispatch(tcpinbuf)
@@ -619,7 +644,7 @@ class O2lite:
             if data:
                 # Since UDP does not guarantee delivery, no further
                 # action on error or no data:
-                if "r" in self.debug_flags:
+                if 'b' in self.debug_flags:
                     print("O2lite: got", len(data), "bytes (", data,
                           ") via UDP.")
                 self.msg_dispatch(data)
@@ -629,7 +654,7 @@ class O2lite:
                 return "O2L_FAIL"
         except Exception as e:
             # Handle exceptions, such as a socket error
-            print("O2lite recvfrom_udp error:", e)
+            print("o2lite recvfrom_udp error:", e)
             return "O2L_FAIL"
 
 
@@ -670,15 +695,18 @@ class O2lite:
         readable, _, _ = select.select(self.socket_list, [], [], 0)
 
         if self.tcp_socket in readable:
-            # print("o2lite: network_poll got TCP msg")
+            # print("O2lite: network_poll got TCP msg")
             self.read_from_tcp()
 
         if self.udp_recv_sock in readable:
-            # print("o2lite: network_poll got UDP msg")
+            # print("O2lite: network_poll got UDP msg")
             self.read_from_udp()
 
 
     def network_connect(self, ip, port):
+        if 'g' in self.debug_flags:
+            print("O2lite: connecting to host, ip", ip, "port", port)
+
         # Initialize server address for TCP
         server_addr = o2l_address_init(ip, port, True)
 
@@ -689,22 +717,18 @@ class O2lite:
         try:
             self.tcp_socket.connect(server_addr)
             # set TCP_NODELAY flag. If TCP_NODELAY is defined we use
-            # it. But MicroPython does not define TCP_NODELAY. I know
-            # it exists, at least in the Arduino ESP32 environment, so
-            # if undefined (e.g. on MicroPython) we'll just call
-            # setsockopt with the constant 1 (the actual value of
-            # TCP_NODELAY in Linux) and hope for the best.
-            tcp_nodelay = \
-                    socket.TCP_NODELAY if hasattr(socket, 'TCP_NODELAY') else 1
-            self.tcp_socket.setsockopt(socket.IPPROTO_TCP, tcp_nodelay, 1)
+            # it. But MicroPython does not define TCP_NODELAY.
+            if hasattr(socket, 'TCP_NODELAY'):
+                self.tcp_socket.setsockopt(socket.IPPROTO_TCP, tcp_nodelay,
+                                           socket.TCP_NODELAY)
             if "g" in self.debug_flags:
-                print(f"O2lite connected to {ip} on port {port}.")
+                print(f"O2lite: connected to {ip} on port {port}.")
         except OSError as e:
-            print(f"O2lite connection failed: {e}.")
+            print(f"O2lite: connection failed: {e}.")
             self.tcp_close()
 
         self.send_start("!_o2/o2lite/con", 0, "si", True)
-        # print(f"o2lite: sending !_o2/o2lite/con si {self.internal_ip}",
+        # print(f"O2lite: sending !_o2/o2lite/con si {self.internal_ip}",
         #       self.udp_recv_port)
         self.add_string(self.internal_ip)
         self.add_int(self.udp_recv_port)

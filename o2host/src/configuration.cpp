@@ -47,6 +47,8 @@ Configuration::Configuration() {
     ensemble[0] = 0;
     polling_rate = 0;
     debug_flags[0] = 0;
+    reference_clock[0] = 'N';
+    reference_clock[1] = 0;
     networking = 0;
     websockets = false;
     mqtt_enable = false;
@@ -75,6 +77,7 @@ void Configuration::save_to_pref(FILE *outf) {
     fprintf(outf, "Ensemble_name: \"%s\"\n", ensemble);
     fprintf(outf, "Polling_rate: \"%d\"\n", polling_rate);
     fprintf(outf, "Debug_flags: \"%s\"\n", debug_flags);
+    fprintf(outf, "Reference_clock: \"%s\"\n", reference_clock);
     fprintf(outf, "Networking: \"%s\"\n", net_options[networking]);
     fprintf(outf, "WebSockets: \"%s\"\n", websockets ? "Enable" : "Disable");
     fprintf(outf, "MQTT_enable: \"%s\"\n", mqtt_enable ? "Enable" : "Disable");
@@ -82,11 +85,11 @@ void Configuration::save_to_pref(FILE *outf) {
     fprintf(outf, "MQTT_port: \"%s\"\n", port_as_string(mqtt_port));
     Service_config *sc = services;
     while (sc) {
-        if (sc->marker == O2TOOSC_MARKER) {
+        if (sc->marker == O2TOOSC_SERV_MARKER) {
             fprintf(outf, "O2_to_OSC: \"%s\" \"%s\" \"%s\" \"%s\"\n",
                     sc->service_name, sc->ip, port_as_string(sc->port),
                     sc->tcp_flag ? "TCP" : "UDP");
-        } else if (sc->marker == OSCTOO2_MARKER) {
+        } else if (sc->marker == OSCTOO2_UDP_MARKER) {
             fprintf(outf, "OSC_to_O2: \"%s\" \"%s\" \"%s\"\n",
                     sc->tcp_flag ? "TCP" : "UDP", port_as_string(sc->port),
                     sc->service_name);
@@ -148,6 +151,7 @@ void do_configuration_load()
     strcpy(ensemble_name.content, conf->ensemble);
     polling_rate.set_number(conf->polling_rate, "");
     strcpy(debug_flags.content, conf->debug_flags);
+    strcpy(reference_clock.content, conf->reference_clock);
     strcpy(networking.content, net_options[conf->networking]);
     strcpy(websockets.content, conf->websockets ? "Enable" : "Disable");
     strcpy(mqtt_enable.content, conf->mqtt_enable ? "Enable" : "Disable");
@@ -269,6 +273,7 @@ void do_configuration_save()
     strcpy(conf->ensemble, ensemble_name.content);
     conf->polling_rate = atoi(polling_rate.content);
     strcpy(conf->debug_flags, debug_flags.content);
+    strcpy(conf->reference_clock, reference_clock.content);
     conf->networking = networking.current_option(0);
     conf->websockets = websockets.current_option(0);
     conf->mqtt_enable = mqtt_enable.current_option(0);

@@ -14,7 +14,7 @@
 //     Rename to: ____________________ Save_
 // 
 // Ensemble name:     _______________________________   Polling rate: ____
-// Debug flags:       _______________________________
+// Debug flags:       _______________________________   Reference Clock: Y
 // Networking (up/down to select): ___________________  WebSockets: Enable
 // MQTT Enable  MQTT Host: ________________________________ MQTT Port: _____
 // Fwd Service ____________________ to OSC IP ___.___.___.___ Port _____ UDP (X_)
@@ -22,7 +22,7 @@
 // MIDI In _____________________________ to Service ____________________ (X_)
 // MIDI Out Service ____________________ to ____________________________ (X_)
 // ...
-// New forward O2 to OSC: _        New receive OSC as O2: _
+// New forward O2 to OSC: _        New forward OSC to O2: _
 // New MIDI In to O2: _    New MIDI Out from O2: _    MIDI Refresh: _
 //
 // Type ESC to start.
@@ -37,6 +37,7 @@
 // Ensemble_name: <name>
 // Polling_rate: <string>
 // Debug_flags: <flags>
+// Reference_clock: Y/N
 // Networking: <string>
 // WebSockets: <string>
 // MQTT_enable: <string>
@@ -50,6 +51,7 @@
 // ---- <next configuration name>
 // ...
 
+#include <stdlib.h>
 #include "assert.h"
 #include "o2.h"
 
@@ -105,6 +107,9 @@ int ypos = 0;
 #define POLL_Y 5
 #define DBG_X 19
 #define DBG_Y 6
+#define REFCLK_LABELX 53
+#define REFCLK_X 70
+#define RFCLK_Y 6
 #define NET_X 32
 #define NET_Y 7
 #define WEB_LABELX 53
@@ -133,6 +138,7 @@ int ypos = 0;
 #define MIDIREF_Y 12
 
 
+const char *y_or_n_options[] = {"Y", "N", NULL};
 const char *net_options[] = {"localhost only", "local network", "internet",
                              "wide-area discovery", NULL};
 const char *enable_options[] = {"Disable", "Enable", NULL};
@@ -178,6 +184,8 @@ Field_entry ensemble_name(0, ENS_X, ENS_Y, "Ensemble name:",
 Field_entry polling_rate(POLL_LABELX, POLL_X, POLL_Y, "Polling rate:",
                          POLL_W, NULL);
 Field_entry debug_flags(0, DBG_X, DBG_Y, "Debug flags:", MAX_NAME_LEN, NULL);
+Field_entry reference_clock(REFCLK_LABELX, REFCLK_X, RFCLK_Y,
+                            "Reference Clock:", 1, NULL);
 Field_entry networking(0, NET_X, NET_Y, "Networking (up/down to select):",
                        NET_W, NULL);
 Field_entry websockets(WEB_LABELX, WEB_X, WEB_Y, "WebSockets:",
@@ -190,7 +198,7 @@ Field_entry mqtt_port(MQTTPORT_LABELX, MQTTPORT_X, MQTT_Y, "MQTT Port:",
 Field_entry new_o2_to_osc(0, O2TOOSC_X, O2TOOSC_Y, "New forward O2 to OSC:",
                           1, NULL);
 Field_entry new_osc_to_o2(OSCTOO2_LABELX, OSCTOO2_X, OSCTOO2_Y,
-                          "New receive OSC as O2:", 1, NULL);
+                          "New forward OSC to O2:", 1, NULL);
 Field_entry new_midi_to_o2(0, MIDITOO2_X, MIDITOO2_Y, "New MIDI In to O2:",
                            1, NULL);
 Field_entry new_o2_to_midi(O2TOMIDI_LABELX, O2TOMIDI_X, O2TOMIDI_Y,
@@ -221,6 +229,7 @@ void print_help()
     addstr("    and type \"x\" in the \"Load_\" or \"Delete_\" field.\n");
     addstr("Ensemble name: - you must specify the O2 ensemble to join.\n");
     addstr("Debug flags: - enable debug output, see O2 documentation.\n");
+    addstr("Reference Clock: - become the O2 clock reference? (Y or N)\n");
     addstr("Networking: - limits range of discovery to this local host,\n");
     addstr("    local area (e.g. Wi-Fi hub only), or whole internet.\n");
     addstr("    Probably you need \"wide-area discovery\" instead of "
@@ -443,8 +452,39 @@ void do_command(Field_entry *field)
 }
 
 
+// convert text input, which has the form ___.___.___.___ and may contain
+// blanks, to a compact form like "127.0.0.1". If any field is ALL blanks,
+// return false. If the ip looks valid, return true.
+//
+// To check for all fields having at least one digit, use need_digit to
+// signal when we're expecting a digit and error to signal that we encountered
+// a '.' while needing a digit.
+bool ip_compact(char *ip)
+{
+    bool need_digit = true;
+    bool error = false;
+    char *tail = ip;
+    for (char *head = ip; *head; head++) {  // scan entire string
+        if (need_digit && isdigit(*head)) {
+            need_digit = false;
+        } else if (need_digit && *head == '.') {
+            error = true;
+        }
+        if (*head != ' ') {
+            *tail++ = *head;
+        }
+    }
+    *tail = 0;  // write EOS
+    return (!need_digit && !error);
+}
+
+
 int main(int argc, char **argv)
 {
+    // this allows us to print to the terminal with a buffer flush at the end
+    // of each line after we exit from the ncurses setup interface:
+    setenv("NCURSES_NO_SETBUF", "1", true);
+
     int rslt = read_config();
     if (rslt == 0) {
         printf("WARNING: preference file not found\n");
@@ -467,6 +507,8 @@ int main(int argc, char **argv)
     configuration_load.is_button = true;
     configuration_delete.is_button = true;
     configuration_save.is_button = true;
+    reference_clock.set_menu_options(y_or_n_options);
+    strcpy(reference_clock.content, "N");  // initially No
     polling_rate.is_integer = true;
     networking.set_menu_options(net_options);
     websockets.set_menu_options(enable_options);
@@ -487,10 +529,12 @@ int main(int argc, char **argv)
     endwin();  // restore terminal settings
     // terminal becomes output only
 
+    printf("------------------------------------------------\n");
     printf("You have defined %d of 20 maximum configurations\n", n_conf_list);
-    printf("Starting O2 process for ensemble %s\n", ensemble_name.content);
+    printf("Initializing O2 process for ensemble %s\n", ensemble_name.content);
     printf("Polling rate %d\n", atoi(polling_rate.content));
     printf("Debug flags: %s\n", debug_flags.content);
+    printf("Reference clock: %s\n", reference_clock.content);
     printf("Network option: %s\n", networking.content);
     printf("WebSockets: %s\n", websockets.content);
     printf("MQTT: %s\n", mqtt_enable.content);
@@ -512,20 +556,33 @@ int main(int argc, char **argv)
     }
 
     o2_debug_flags(debug_flags.content);
-    printf("Type Ctrl-C to exit.\nInitialize: ");
 
     O2err err = o2_initialize(ensemble_name.content);
     if (err) {
         printf("%s, exiting now.\n", o2_error_to_string(err));
         return 1;
-    } else {
-        printf("success.\n");
     }
 
+    if (reference_clock.content[0] == 'Y') {
+        err = o2_clock_set(NULL, NULL);
+        if (err) {
+            printf("%s, exiting now.\n", o2_error_to_string(err));
+            return 1;
+        }
+    }
+    
+    err = o2lite_initialize();
+    if (err) {
+        printf("%s, exiting now.\n", o2_error_to_string(err));
+        return 1;
+    }
+
+    // configure services
     for (Field_entry *field = fields; field; field = field->next) {
         if (field->marker == O2TOOSC_SERV_MARKER) {
             const char *service = field->content;
-            const char *ip = field->next->content;
+            char ip[MAX_NAME_LEN + 1];
+            strncpy(ip, field->next->content, MAX_NAME_LEN);
             int port = atoi(field->next->next->content);
             field = field->next->next->next;
             bool tcp_flag = (strcmp(field->content, "TCP") == 0);
@@ -534,7 +591,7 @@ int main(int argc, char **argv)
             if (!service[0]) {
                 printf("WARNING: Service name is missing;"
                        " ignoring this option\n");
-            } else if (ip[0] == ' ' && ip[1] == ' ' && ip[2] == ' ') {
+            } else if (!ip_compact(ip)) {
                 printf("WARNING: IP address is incomplete;"
                        " ignoring this option\n");
             } else if (port == 0) {
@@ -543,7 +600,7 @@ int main(int argc, char **argv)
             } else {
                 O2err err = o2_osc_delegate(service, ip, port, tcp_flag);
                 if (err) {
-                    printf("WARNING: O2 error %s\n", o2_error_to_string(err));
+                    printf("WARNING: %s\n", o2_error_to_string(err));
                 }
             }
         } else if (field->marker == OSCTOO2_UDP_MARKER) {
@@ -571,36 +628,9 @@ int main(int argc, char **argv)
         }
     }
 
-    // configure services
-    for (Field_entry *field = fields; field; field = field->next) {
-        if (field->marker == O2TOOSC_SERV_MARKER) {
-            O2err err = o2_osc_delegate(field->content, field->next->content,
-                                atoi(field->next->next->content),
-                                field->next->next->next->content[0] == 'T');
-            if (err) {
-                printf("Error: failed to delegate service %s to OSC, code %d\n",
-                       field->content, err);
-            }
-        } else if (field->marker == OSCTOO2_UDP_MARKER) {
-            O2err err = o2_osc_port_new(field->next->next->content,
-                    atoi(field->next->content), field->content[0] = 'T');
-            if (err) {
-                printf("Error: failed to open OSC port %s, code %d\n",
-                       field->next->content, err);
-            }
-        } else if (field->marker == MIDIIN_NAME_MARKER) {
-            if (midi_input_initialize(field)) {
-                continue;
-            }
-        } else if (field->marker == MIDIOUT_SERV_MARKER) {
-            if (midi_output_initialize(field)) {
-                continue;
-            }
-        }
-    }
-
-    fflush(stdout);
-
+    printf("Configuration complete, running o2host now ... ^C to quit.\n");
+    printf("------------------------------------------------\n");
+    
     // run
     if (host_rate <= 0) host_rate = 1000;
     int sleep_ms = 1000 / host_rate;
@@ -608,5 +638,7 @@ int main(int argc, char **argv)
     while (true) {
         o2_poll();
         midi_poll();
+        // There is probably a better way to restore the terminal so that printf()
+        // works, but curses normally turns off 
     }
 }

@@ -25,9 +25,10 @@ MicroPython:
 
 You also need the package globals, but this is just an empty file,
 so do this from your development computer to create module globals:
-    ampy --port YOUR_SERIAL_PORT src/globals.py lib/globals.py
+    ampy --port YOUR_SERIAL_PORT put src/globals.py lib/globals.py
 In other words, you just need globals.py on your MicroPython library
-path (/lib/).
+path (/lib/). (If you do not want to clone the repo to get sources,
+just make any empty file and "ampy put" it into src/globals.py).
 
 Finally, before using o2litepy.O2lite, you need to initialize your
 MicroPython Wi-Fi connection. The only requirement is to connect and

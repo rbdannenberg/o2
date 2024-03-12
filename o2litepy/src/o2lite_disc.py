@@ -37,13 +37,6 @@ class O2lite_disc:
             return None
         return self.pop_a_service()
 
-        with self.dslock:
-            service = self.discovered_services.pop(0)
-            if "d" in self.debug_flags:
-                print("O2lite_disc: get_host returns (and pops)", service)
-
-        return service
-
     def restart(self):
         """restart discovery"""
         if "d" in self.debug_flags:

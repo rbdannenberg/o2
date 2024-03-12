@@ -71,6 +71,7 @@
 #define MIDIOUT_NAME_MARKER 9
 
 
+extern const char *y_or_n_options[];
 extern const char *net_options[];
 extern const char *enable_options[];
 extern const char *udp_tcp_options[];
@@ -91,6 +92,7 @@ extern Field_entry new_o2_to_osc;
 extern Field_entry ensemble_name;
 extern Field_entry polling_rate;
 extern Field_entry debug_flags;
+extern Field_entry reference_clock;
 extern Field_entry networking;
 extern Field_entry websockets;
 extern Field_entry mqtt_enable;

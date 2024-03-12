@@ -13,6 +13,7 @@
 // Ensemble_name: <name>
 // Polling_rate: <string>
 // Debug_flags: <flags>
+// Reference_clock: Y/N
 // Networking: <string>
 // WebSockets: <string>
 // MQTT_enable: <string>
@@ -231,6 +232,10 @@ int read_config()
 
         if (read_field(inf, "Debug_flags:", MAX_NAME_LEN,
                        conf->debug_flags, true)) {
+            goto bad_file;
+        }
+        if (read_field(inf, "Reference_clock:", MAX_NAME_LEN,
+                       conf->reference_clock, true)) {
             goto bad_file;
         }
         if (read_field(inf, "Networking:", MAX_NAME_LEN, temp, true)) {

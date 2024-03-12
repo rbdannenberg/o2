@@ -94,10 +94,10 @@ O2_EXPORT void o2_print_bytes(const char* prefix, const char* bytes, int len);
 #define O2_DBG_FLAGS (0xFFFFFF - (O2_DBF_FLAG))
 // All flags but m (malloc/free) and l (o2_msg_deliver) and
 // F (force-MQTT) enabled by "A":
-#define O2_DBA_FLAGS (O2_DBG_FLAGS - O2_DBm_FLAG - O2_DBl_FLAG - O2_DBF_FLAG)
+#define O2_DBA_FLAGS (O2_DBG_FLAGS - O2_DBm_FLAG - O2_DBl_FLAG)
 // "a" is like "A" but also omits t and T (scheduled messages) and Q:
 #define O2_DBa_FLAGS (O2_DBG_FLAGS - O2_DBm_FLAG - O2_DBl_FLAG - \
-                      O2_DBt_FLAG - O2_DBT_FLAG - O2_DBF_FLAG - O2_DBQ_FLAG)
+                      O2_DBt_FLAG - O2_DBT_FLAG - O2_DBQ_FLAG)
 // All message sends and receives enabled by "n"
 #define O2_DBn_FLAGS (O2_DBr_FLAG | O2_DBR_FLAG | O2_DBs_FLAG | O2_DBS_FLAG)
 

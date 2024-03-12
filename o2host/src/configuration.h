@@ -32,6 +32,7 @@ class Configuration {
     char ensemble[MAX_NAME_LEN + 1];   // the O2 ensembl name
     int polling_rate;
     char debug_flags[MAX_NAME_LEN + 1];  // the O2 debug flags string
+    char reference_clock[4];  // "Y" or "N"
     int networking;   // the networking option index
     bool websockets;
     bool mqtt_enable;

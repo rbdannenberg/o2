@@ -121,7 +121,7 @@ O2err Net_address::init(const char *ip, int port_num, bool tcp_flag)
 {
     O2err rslt = O2_SUCCESS;
     char port[24]; // can't overrun even with 64-bit int
-    sprintf(port, "%d", port_num);
+    snprintf(port, 24, "%d", port_num);
     if (streql(ip, "")) ip = "localhost";
     struct addrinfo hints;
     memset(&hints, 0, sizeof(struct addrinfo));

@@ -23,7 +23,7 @@ class Upydiscovery (O2lite_disc):
     async def discover_once(self):
         responses = await self.discovery.query_once("_o2proc", "_tcp")
         for resp in responses:
-            if 'name' in resp.txt_records:
+            if resp.txt_records and 'name' in resp.txt_records:
                 name = resp.txt_records['name']
                 if isinstance(name, list):
                     name = name[0]
@@ -41,7 +41,7 @@ class Upydiscovery (O2lite_disc):
                                           "tcp_port": resp.port,
                                           "udp_port": udp_port}
                     if "d" in self.debug_flags:
-                        print("Upydiscovery: service_discovered",
+                        print("O2lite: (Upydiscovery) service_discovered",
                               service_discovered)
                     self.discovered_services.append(service_discovered)
 

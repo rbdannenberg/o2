@@ -45,7 +45,7 @@ build:
 	cd py3pkg; python -m build
 
 help:
-	@echo "make SERIAL=/dev/tty.usbserial-D306EBLS -- upload files to ESP32"
+	@echo "make upload SERIAL=/dev/tty.usbserial-D306EBLS -- upload files to ESP32"
 	@echo "make clean -- remove timestamps to force uploading everything"
 	@echo "make build -- build a Python3 package in py3pkg"
 
