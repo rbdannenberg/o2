@@ -148,14 +148,14 @@ void do_configuration_load()
     insert_after = &mqtt_port;  // fix dangling pointer
 
     // transfer conf data to fields
-    strcpy(ensemble_name.content, conf->ensemble);
+    ensemble_name.set_content(conf->ensemble);
     polling_rate.set_number(conf->polling_rate, "");
-    strcpy(debug_flags.content, conf->debug_flags);
-    strcpy(reference_clock.content, conf->reference_clock);
-    strcpy(networking.content, net_options[conf->networking]);
-    strcpy(websockets.content, conf->websockets ? "Enable" : "Disable");
-    strcpy(mqtt_enable.content, conf->mqtt_enable ? "Enable" : "Disable");
-    strcpy(mqtt_host.content, conf->mqtt_host ? conf->mqtt_host : "");
+    debug_flags.set_content(conf->debug_flags);
+    reference_clock.set_content(conf->reference_clock);
+    networking.set_content(net_options[conf->networking]);
+    websockets.set_content(conf->websockets ? "Enable" : "Disable");
+    mqtt_enable.set_content(conf->mqtt_enable ? "Enable" : "Disable");
+    mqtt_host.set_content(conf->mqtt_host ? conf->mqtt_host : "");
     mqtt_port.set_number(conf->mqtt_port, "");
     // create fields for added service descriptors
     for (Service_config *sc = conf->services; sc; sc = sc->next) {
@@ -163,22 +163,23 @@ void do_configuration_load()
             Field_entry *fe = insert_after;  // remember link to new fields
             insert_o2_to_osc();
             fe = fe->next;  // service name
-            strcpy(fe->content, sc->service_name);
+            fe->set_content(sc->service_name);
             fe = fe->next;  // ip
-            strcpy(fe->content, sc->ip);
+            fe->set_content(sc->ip);
             fe = fe->next;  // port
             if (sc->port == 0) {
                 fe->content[0] = 0;
+                fe->width = 0;
             } else {
-                snprintf(fe->content, MAX_NAME_LEN, "%d", sc->port);
+                fe->set_number(sc->port, "");
             }
             fe = fe->next;  // udp/tcp
-            strcpy(fe->content, sc->tcp_flag ? "TCP" : "UDP");
+            fe->set_content(sc->tcp_flag ? "TCP" : "UDP");
         } else if (sc->marker == OSCTOO2_MARKER) {
             Field_entry *fe = insert_after;  // remember link to new fields
             insert_osc_to_o2();
             fe = fe->next;  // udp/tcp
-            strcpy(fe->content, sc->tcp_flag ? "TCP" : "UDP");
+            fe->set_content(sc->tcp_flag ? "TCP" : "UDP");
             fe = fe->next;  // port
             if (sc->port == 0) {
                 fe->content[0] = 0;
@@ -186,21 +187,21 @@ void do_configuration_load()
                 snprintf(fe->content, MAX_NAME_LEN, "%d", sc->port);
             }
             fe = fe->next;  // service name
-            strcpy(fe->content, sc->service_name);
+            fe->set_content(sc->service_name);
         } else if (sc->marker == MIDIOUT_MARKER) {
             Field_entry *fe = insert_after;  // remember link to new fields
             insert_o2_to_midi();
             fe = fe->next;  // service name
-            strcpy(fe->content, sc->service_name);
+            fe->set_content(sc->service_name);
             fe = fe->next;  // device name
-            strcpy(fe->content, sc->midi_device);
+            fe->set_content(sc->midi_device);
         } else if (sc->marker == MIDIIN_MARKER) {
             Field_entry *fe = insert_after;  // remember link to new fields
             insert_o2_to_midi();
             fe = fe->next;  // device name
-            strcpy(fe->content, sc->midi_device);
+            fe->set_content(sc->midi_device);
             fe = fe->next;  // service name
-            strcpy(fe->content, sc->service_name);
+            fe->set_content(sc->service_name);
         }
     }
     draw_screen();

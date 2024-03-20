@@ -36,7 +36,8 @@
 #include "o2host.h"
 #include "configuration.h"
 
-// reads chars between quotes ("). Stores up to n characters
+// after skipping whitespace (but not newline), reads chars
+// between quotes ("). Stores up to n characters
 // in str and zero terminates. Returns true on error, which
 // occurs when EOF or newline is encountered before the 2nd quote.
 bool read_quoted(FILE *inf, int n, char *str)
@@ -55,9 +56,7 @@ bool read_quoted(FILE *inf, int n, char *str)
             str[i] = 0;
         }
         if (c == '"') {
-            if (i < n) {
-                str[i] = 0;
-            } // otherwise EOS written at str[n]
+            str[i] = 0;
             return false;
         }
         i++;
@@ -68,6 +67,8 @@ bool read_quoted(FILE *inf, int n, char *str)
 
 
 // read a quoted field value appearing after optional whitespace,
+// if newline is true, then after the field, read through whitespace
+// up to and including a newline (or else return true)
 // return true on error
 bool read_field(FILE *inf, const char *prefix, int max_width, char *field,
                 bool newline)
@@ -84,7 +85,7 @@ bool read_field(FILE *inf, const char *prefix, int max_width, char *field,
     if (read_quoted(inf, max_width, field)) {
         return true;
     }
-
+    
     // optionally get newline; allow whitespace before newline
     if (newline) {
         while ((c = fgetc(inf)) != EOF) {

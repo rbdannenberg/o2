@@ -22,7 +22,7 @@ void insert_o2_to_osc() {
     Field_entry *ip = new Field_entry(O2TOOSC_IPLABEL_X, O2TOOSC_IP_X, y,
                                       "to OSC IP", IP_LEN, service);
     ip->set_ip();
-    strcpy(ip->content, "127.000.000.001");
+    ip->set_content("127.000.000.001");
     ip->show_content();
     
     Field_entry *port = new Field_entry(O2TOOSC_PORTLABEL_X, O2TOOSC_PORT_X, y,

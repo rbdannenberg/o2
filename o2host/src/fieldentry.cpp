@@ -211,6 +211,13 @@ int Field_entry::current_option(int dflt)
 }
 
 
+void Field_entry::set_content(const char *s)
+{
+    strncpy(content, s, max_width);
+    width = (int) strlen(content);
+}
+
+
 // used to transfer configuration data to the display when
 // the stored data is an int rather than a string. Zero
 // value is a special case that is displayed as if_zero,
@@ -224,6 +231,7 @@ void Field_entry::set_number(int i, const char *if_zero)
     } else {
         snprintf(content, max_width, "%d", i);
     }
+    width = (int) strlen(content);
 }
 
 

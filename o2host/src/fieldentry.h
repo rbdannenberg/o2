@@ -62,6 +62,9 @@ class Field_entry {
     // get the index of the currently selected option
     int current_option(int dflt);
     
+    // set content to a string value
+    void set_content(const char *s);
+    
     // set a numerical field to an integer
     void set_number(int i, const char *if_zero);
 

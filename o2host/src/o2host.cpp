@@ -508,7 +508,7 @@ int main(int argc, char **argv)
     configuration_delete.is_button = true;
     configuration_save.is_button = true;
     reference_clock.set_menu_options(y_or_n_options);
-    strcpy(reference_clock.content, "N");  // initially No
+    reference_clock.set_content("N");  // initially No
     polling_rate.is_integer = true;
     networking.set_menu_options(net_options);
     websockets.set_menu_options(enable_options);
