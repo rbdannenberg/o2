@@ -185,6 +185,7 @@ O2err o2_mqtt_disconnect()
     O2_DBq(dbprintf("sending /bye to close MQTT connection\n"));
     mqtt_comm.publish("disc", (const uint8_t *) o2_ctx->proc->key,
                       (int) strlen(o2_ctx->proc->key), "/bye", 0, true);
+    return O2_SUCCESS;
 }
 
 
@@ -431,7 +432,7 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
                 ((MQTT_info *) proc)->timeout = 0;
                 mqtt_check_timeouts(NULL, NULL, NULL, 0, (void *) 1);
             }
-            return O2_SUCCESS;
+            return;
         }
 
     }
