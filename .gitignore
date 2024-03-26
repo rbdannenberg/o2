@@ -111,3 +111,7 @@ bugs/osctest.eml
 /o2litepy/py3pkg/src/
 
 /o2litepy/timestamps/
+
+/o2host/.vs/
+
+/o2host/o2host.sln

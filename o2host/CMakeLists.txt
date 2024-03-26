@@ -39,9 +39,9 @@ set(PM_DBG_LIB
     CACHE FILEPATH "PortMidi library - debug version")
 
 
+set(O2_LIB o2_static)
 if(APPLE) 
   set(CURSES_LIB curses)
-  set(O2_LIB o2_static)
   set(CMAKE_CXX_FLAGS "-std=c++11")
   find_library(COREAUDIO CoreAudio)
   set(EXTRA_LIBS "${COREAUDIO}")
@@ -78,7 +78,17 @@ if(APPLE)
     WORKING_DIRECTORY $<TARGET_FILE_DIR:o2host>
     COMMENT "Adding o2host.sh to o2host.app")
 else()
-  set(CURSES_LIB ncurses)
+  set(CURSES_BASE ncurses CACHE PATH
+      "Where to find lib and include files for ncurses")
+  set(CURSES_LIB "${CURSES_BASE}/lib/pdcurses.lib")
+  set(BONJOUR_LIB_DIR "C:/Program Files/Bonjour SDK/Lib/x64" Cache
+      PATH "where to find dnssd.lib")
+  target_link_directories(o2host PRIVATE ${BONJOUR_LIB_DIR})
+  target_include_directories(o2host PRIVATE "${CURSES_BASE}/include")
+  target_link_libraries(o2host PRIVATE 
+      winmm.lib ws2_32.lib Iphlpapi.lib dnssd.lib)
+  set_property(TARGET o2host PROPERTY MSVC_RUNTIME_LIBRARY
+               "MultiThreaded$<$<CONFIG:Debug>:Debug>${MSVCRT_DLL}")
 endif() 
 
 
@@ -86,16 +96,17 @@ target_include_directories(o2host PRIVATE ../src ${BONJOUR_INCLUDE_PATH})
 target_link_directories(o2host PRIVATE ..)
 
 if(USE_MIDI)
-  find_library(COREFOUNDATION_LIBRARY CoreFoundation REQUIRED) 
-  find_library(COREMIDI_LIBRARY CoreMIDI REQUIRED) 
-  find_library(CORESERVICES_LIBRARY CoreServices REQUIRED) 
-  LIST(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${COREAUDIO_LIBRARY}
-         ${COREFOUNDATION_LIBRARY} ${COREMIDI_LIBRARY} ${CORESERVICES_LIBRARY})
   target_include_directories(o2host PRIVATE ${PM_INCL})
   target_link_libraries(o2host PRIVATE debug ${PM_DBG_LIB}
                                        optimized ${PM_OPT_LIB})
-  if(UNIX AND NOT APPLE)
-    target_link_libraries(srplib PUBLIC -lasound ${PTHREAD_LIB})
+  if(APPLE) 
+    find_library(COREFOUNDATION_LIBRARY CoreFoundation REQUIRED) 
+    find_library(COREMIDI_LIBRARY CoreMIDI REQUIRED) 
+    find_library(CORESERVICES_LIBRARY CoreServices REQUIRED) 
+    LIST(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${COREAUDIO_LIBRARY}
+         ${COREFOUNDATION_LIBRARY} ${COREMIDI_LIBRARY} ${CORESERVICES_LIBRARY})
+  elseif(UNIX)
+    target_link_libraries(o2host PUBLIC -lasound ${PTHREAD_LIB})
   endif()
 else()
   add_definitions("-DUSE_MIDI=0")

@@ -11,6 +11,7 @@
 #include "string.h"
 //#include "sys/stat.h"
 //#include <unistd.h>
+#include <stdlib.h>
 #include "fieldentry.h"
 #include "o2host.h"
 #include "configuration.h"

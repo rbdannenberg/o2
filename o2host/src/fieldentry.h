@@ -108,7 +108,7 @@ void set_current_field(Field_entry *field);
 
 // delete (inc = -1) or insert (inc = +1) a line, moving all fields
 // appropriately
-bool delete_or_insert(int y, int inc);
+void delete_or_insert(int y, int inc);
 
 // advance to a field on the next (+1) or previous (-1) line
 void move_to_line(int direction);

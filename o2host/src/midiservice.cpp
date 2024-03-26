@@ -35,10 +35,8 @@ void get_midi_device_options()
         num_in += (info->input != 0);
         num_out += (info->output != 0);
     }
-    midi_in_devices = (const char **)
-            malloc(sizeof(const char *) * (num_in + 1));
-    midi_out_devices = (const char **)
-            malloc(sizeof(const char *) * (num_out + 1));
+    midi_in_devices = new const char*[num_in + 1];
+    midi_out_devices = new const char* [num_in + 1];
 
     num_in = 0;
     num_out = 0;
@@ -59,11 +57,11 @@ void get_midi_device_options()
 void free_midi_device_names()
 {
     if (midi_in_devices) {
-        free(midi_in_devices);
+        delete midi_in_devices;
         midi_in_devices = NULL;
     }
     if (midi_out_devices) {
-        free(midi_out_devices);
+        delete midi_out_devices;
         midi_out_devices = NULL;
     }
 }

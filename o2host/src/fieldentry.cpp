@@ -37,6 +37,7 @@ class Service_config {
         service_name[0] = 0;
         ip[0] = 0;
         midi_device[0] = 0;
+        port = tcp_flag = next = 0;  // to make compiler happy
     }
 
     ~Service_config() {
@@ -70,6 +71,7 @@ Field_entry::Field_entry(int label_x_, int x_, int y_, const char *label_,
 {
     label_x = label_x_;
     label = label_;
+    after_field = NULL;
     x = x_;
     y = y_;
     max_width = max_width_;
@@ -79,6 +81,8 @@ Field_entry::Field_entry(int label_x_, int x_, int y_, const char *label_,
     options = NULL;
     is_integer = false;
     is_button = false;
+    is_ip = false;
+    allow_spaces = false;
     marker = 0;
     next = NULL;
     // insert this into list of fields
@@ -323,7 +327,7 @@ void set_current_field(Field_entry *field)
 }
 
 
-bool delete_or_insert(int y, int inc)
+void delete_or_insert(int y, int inc)
 {
     move(y, 0);
     if (inc == 1) {

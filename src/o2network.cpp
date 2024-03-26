@@ -26,7 +26,8 @@ void print_socket_error(int err, const char *source)
     if (!errbuf[0]) {
         sprintf(errbuf, "%d", err);  // error as number if no string 
     }
-    O2_DBo(fprintf(stderr, "%s SOCKET_ERROR in %s: %s\n", source, errbuf);)
+    O2_DBo(fprintf(stderr, "%s SOCKET_ERROR in %s: %s\n", 
+                   o2_debug_prefix, source, errbuf);)
 }
 #else
 #include <sys/socket.h>

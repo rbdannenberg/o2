@@ -367,7 +367,7 @@ static o2l_msg_ptr udp_in_msg = (o2l_msg_ptr) udpinbuf;
 static o2l_msg_ptr tcp_in_msg = (o2l_msg_ptr) tcpinbuf;
 o2l_msg_ptr out_msg = (o2l_msg_ptr) outbuf;
 static o2l_msg_ptr parse_msg; // incoming message to parse
-static char *parse_type;      // next type to retrieve from parse_msg
+static const char *parse_type;      // next type to retrieve from parse_msg
 static int parse_cnt;         // how many bytes retrieved
 static int max_parse_cnt;     // how many bytes can be retrieved
 static bool parse_error;      // was there an error parsing message?

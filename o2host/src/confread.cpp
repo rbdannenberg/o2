@@ -31,7 +31,17 @@
 //#include "ctype.h"
 //#include "string.h"
 #include "sys/stat.h"
+#ifdef WIN32
+// from davekb.com:
+#ifndef _S_ISTYPE
+#define _S_ISTYPE(mode, mask) (((mode) & _S_IFMT) == (mask))
+#define S_ISDIR(mode) _S_ISTYPE((mode), _S_IFDIR)
+#endif
+#include <direct.h>
+#include <stdlib.h>
+#else
 #include <unistd.h>
+#endif
 #include "fieldentry.h"
 #include "o2host.h"
 #include "configuration.h"
@@ -143,20 +153,22 @@ int read_config()
     // Try /usr/$USER, /home/$USER, /Users/$USER:
     char *user = getenv("USER");  // warning: this could corrupt home_dirs[0]
     // but chances of env changing so quickly is low, so I'll ignore it
-    strcpy(user_path, "/usr/");
-    strcat(user_path, user);
-    n_home_dirs = append_if_directory(user_path, home_dirs, n_home_dirs);
+    if (user) {
+        strcpy(user_path, "/usr/");
+        strcat(user_path, user);
+        n_home_dirs = append_if_directory(user_path, home_dirs, n_home_dirs);
 
-    strcpy(home_path, "/home/");
-    strcat(home_path, user);
-    n_home_dirs = append_if_directory(home_path, home_dirs, n_home_dirs);
+        strcpy(home_path, "/home/");
+        strcat(home_path, user);
+        n_home_dirs = append_if_directory(home_path, home_dirs, n_home_dirs);
 
-    strcpy(users_path, "/Users/");
-    strcat(users_path, user);
-    n_home_dirs = append_if_directory(users_path, home_dirs, n_home_dirs);
-     
+        strcpy(users_path, "/Users/");
+        strcat(users_path, user);
+        n_home_dirs = append_if_directory(users_path, home_dirs, n_home_dirs);
+    }
+
     // Wild shot/last resort: Get /*/* from current working directory
-    cwd = getcwd(NULL, 128);  // 128 is ignored says the man page
+    cwd = _getcwd(NULL, 128);  // 128 is ignored says the man page
     if (cwd && strlen(cwd) > 2) {
         char *slash = strchr(cwd + 1, '/');  // second slash
         slash = (slash ? strchr(slash + 1, '/') : NULL);  // third slash
@@ -167,6 +179,7 @@ int read_config()
     }
     if (cwd) free(cwd);
 #endif
+    FILE* inf;
 #ifdef __MACH__
     // try to make valid path to preference file o2host.config by trying all possible
     // path in home_dirs looking for Library/Application Support/
@@ -184,13 +197,22 @@ int read_config()
             }
         }
     }
+    inf = fopen(pref_path, "r");
     // now pref_path is path to preference file
+#else
+    // LINUX and Windows -- try reading from all candidate home dirs
+    for (int i = 0; i < n_home_dirs; i++) {
+        int len = (int)strlen(home_dirs[i]) + 50;
+        if (len < 128) {
+            strcpy(pref_path, home_dirs[i]);
+            strcat(pref_path, ".o2host.config");
+            inf = fopen(pref_path, "r");
+            if (inf) {
+                break;
+            }
+        }
+    }
 #endif
-#ifdef LINUX
-#endif
-#ifdef _WIN32
-#endif
-    FILE *inf = fopen(pref_path, "r");
     if (!inf) {
         return 0;
     }

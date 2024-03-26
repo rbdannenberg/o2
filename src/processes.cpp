@@ -156,18 +156,18 @@ O2err Proc_info::send(bool block) {
 #ifndef O2_NO_DEBUG
 void o2_show_sockets()
 {
-    printf("----- sockets -----\n");
+    printf("%s ----- sockets -----\n", o2_debug_prefix);
     for (int i = 0; i < o2n_fds_info.size(); i++) {
         Fds_info *info = o2n_fds_info[i];
         Proxy_info *proc = (Proxy_info *) info->owner;
         if (proc) {
-            printf("    %s (%d) net_tag %x (%s) socket %ld info %p "
+            printf("    %d net_tag %x (%s) socket %ld info %p "
                    "owner %p (%s%s)\n", i, info->net_tag,
                    o2_tag_to_string(info->net_tag), (long) info->get_socket(),
                    info, proc, o2_tag_to_string(proc->tag),
                    (proc == o2_ctx->proc ? ", local proc" : ""));
         } else {
-            printf("    %s (%d) net_tag %x (%s) socket %ld info %p owner "
+            printf("    %d net_tag %x (%s) socket %ld info %p owner "
                    "NULL\n", i, info->net_tag, o2_tag_to_string(info->net_tag),
                    (long) info->get_socket(), info);
         }

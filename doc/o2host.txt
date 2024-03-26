@@ -1,0 +1,38 @@
+about o2host
+
+o2host is a generic O2 application that serves as a host to
+applications that implement the o2lite protocol. o2lite
+implements a subset of O2 and gains access to an O2 network
+by connecting to a host, which is basically any process running
+O2.  o2host is one such process that can be configured to
+relay messages or convert o2lite to OSC or MIDI. o2host can
+also relay OSC or MIDI or messages from a remote O2 process to
+an o2lite process on the local network or same computer (i.e.
+localhost).
+
+See http://www.cs.cmu.edu/~rbd/blog/o2host/o2host-blog12mar2024.html
+for info about o2host.
+
+Other blogs are planned.
+
+Installation
+
+On windows, you need pdcurses. I installed it using vcpkg. I'm
+not sure how to use vcpkg, and my installation ended up in
+my home directory. So I have 
+C:/Users/Roger/research/vcpkg/installed/x64-windows/lib/pdcurses.lib
+C:/Users/Roger/research/vcpkg/installed/x64-windows/include/curses.h
+C:/Users/Roger/research/vcpkg/installed/x64-windows/bin/pdcurses.dll
+among others.
+
+Wherever your pdcurses package ends up, you will need to point cmake
+to the directory o2/o2host and set CURSES_BASE to the location, e.g.
+C:/Users/Roger/research/vcpkg/installed/x64-windows
+in my installation.
+
+In addition, when you get o2host to compile, you will need to make
+pdcurses.dll accessible. One way to do this is copy it to a directory
+that is already on your DLL search path, e.g. I copied it to
+C:\WINDOWS\system32
+
+

@@ -59,7 +59,12 @@
 #include "curses.h"
 #include "string.h"
 #include "sys/stat.h"
+#ifdef WIN32
+#undef MOUSE_MOVED
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 #include "fieldentry.h"
 #include "o2host.h"
 #include "configuration.h"
@@ -483,7 +488,11 @@ int main(int argc, char **argv)
 {
     // this allows us to print to the terminal with a buffer flush at the end
     // of each line after we exit from the ncurses setup interface:
+#ifdef WIN32
+    SetEnvironmentVariable("NCURSES_NO_SETBUF", "1");
+#else
     setenv("NCURSES_NO_SETBUF", "1", true);
+#endif
 
     int rslt = read_config();
     if (rslt == 0) {

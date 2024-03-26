@@ -10,8 +10,8 @@ void free_midi_device_names();
 // reconstruct menus
 void midi_devices_refresh();
 
-int midi_input_initialize(Field_entry *field);
+void midi_input_initialize(Field_entry *field);
 
-int midi_output_initialize(Field_entry *field);
+void midi_output_initialize(Field_entry *field);
 
 void midi_poll();
