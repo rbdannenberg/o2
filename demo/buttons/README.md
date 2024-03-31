@@ -32,8 +32,19 @@ something like "soft-thru Bus").
 There is an experimental O2 debugger/monitor named `o2spy`. After
 starting the "Basic Button Demo," you can spy on messages:
 - Create O2 Spy:
-  - cd to this directory (www is a subdirectory)
-  - start websockhost (it gets compiled with O2 tests, and source is in `../../test/websockhost.cpp`, and runtime location depends on the system.)
+  - cd to this directory (o2/demo/buttons) (important because it will
+    use the subdirectory www so serve the o2spy.html page)
+  - start websockhost:
+    - websockhost gets compiled as part of O2 provided you retained
+      the default CMake option `TESTS_BUILD` enabled. The location of
+      the executable depends on your configuration, e.g. if you build
+      the debug version of O2 on MacOS with Xcode, it will be in
+      `o2/Debug/websockhost`.
+    - You *must* tell websockhost to connect to the `bdemo` ensemble
+      with a command like this: `../../Debug/websockhost -
+      bdemo`. Note the `-` means "no flags" (but you can specify
+      debugging flags if you wish) and the *second* argument is the
+      ensemble name.
   - open `http://localhost:8080/o2spy.html
 - To spy on the `synth` service:
   - enter `bdemo` as the ensemble

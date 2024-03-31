@@ -19,6 +19,7 @@
 
 
 Service_config::Service_config(int marker_) {
+    assert(marker_ != OSCTOO2_MARKER);
     marker = marker_;
     service_name[0] = 0;
     ip[0] = 0;
@@ -52,7 +53,6 @@ Configuration::Configuration() {
     reference_clock[1] = 0;
     networking = 0;
     websockets = false;
-    mqtt_enable = false;
     mqtt_host[0] = 0;
     mqtt_port = 0;
     services = NULL;
@@ -81,7 +81,6 @@ void Configuration::save_to_pref(FILE *outf) {
     fprintf(outf, "Reference_clock: \"%s\"\n", reference_clock);
     fprintf(outf, "Networking: \"%s\"\n", net_options[networking]);
     fprintf(outf, "WebSockets: \"%s\"\n", websockets ? "Enable" : "Disable");
-    fprintf(outf, "MQTT_enable: \"%s\"\n", mqtt_enable ? "Enable" : "Disable");
     fprintf(outf, "MQTT_host: \"%s\"\n", mqtt_host);
     fprintf(outf, "MQTT_port: \"%s\"\n", port_as_string(mqtt_port));
     Service_config *sc = services;
@@ -132,6 +131,7 @@ void do_configuration_load()
     // find the configuration
     int i = find_configuration(configuration.content);
     if (i < 0) {
+        print_error("Configuration does not exist.");
         return;  // configuration does not exist!
     }
     Configuration *conf = conf_list[i];
@@ -147,6 +147,10 @@ void do_configuration_load()
         delete next;
     }
     insert_after = &mqtt_port;  // fix dangling pointer
+    // if we had used delete_or_insert, then lines would be adjusted,
+    // but since we wanted to delete all service fields, it seems simpler
+    // to just set all the fields to fixed initial positions:
+    reset_lower_field_positions();
 
     // transfer conf data to fields
     ensemble_name.set_content(conf->ensemble);
@@ -155,7 +159,6 @@ void do_configuration_load()
     reference_clock.set_content(conf->reference_clock);
     networking.set_content(net_options[conf->networking]);
     websockets.set_content(conf->websockets ? "Enable" : "Disable");
-    mqtt_enable.set_content(conf->mqtt_enable ? "Enable" : "Disable");
     mqtt_host.set_content(conf->mqtt_host ? conf->mqtt_host : "");
     mqtt_port.set_number(conf->mqtt_port, "");
     // create fields for added service descriptors
@@ -168,25 +171,16 @@ void do_configuration_load()
             fe = fe->next;  // ip
             fe->set_content(sc->ip);
             fe = fe->next;  // port
-            if (sc->port == 0) {
-                fe->content[0] = 0;
-                fe->width = 0;
-            } else {
-                fe->set_number(sc->port, "");
-            }
+            fe->set_number(sc->port, "");
             fe = fe->next;  // udp/tcp
             fe->set_content(sc->tcp_flag ? "TCP" : "UDP");
-        } else if (sc->marker == OSCTOO2_MARKER) {
+        } else if (sc->marker == OSCTOO2_UDP_MARKER) {
             Field_entry *fe = insert_after;  // remember link to new fields
             insert_osc_to_o2();
             fe = fe->next;  // udp/tcp
             fe->set_content(sc->tcp_flag ? "TCP" : "UDP");
             fe = fe->next;  // port
-            if (sc->port == 0) {
-                fe->content[0] = 0;
-            } else {
-                snprintf(fe->content, MAX_NAME_LEN, "%d", sc->port);
-            }
+            fe->set_number(sc->port, "");
             fe = fe->next;  // service name
             fe->set_content(sc->service_name);
         } else if (sc->marker == MIDIOUT_MARKER) {
@@ -220,6 +214,7 @@ void do_configuration_delete()
     // find the configuration
     int i = find_configuration(configuration.content);
     if (i < 0) {
+        print_error("Configuration does not exist.");
         return;  // configuration does not exist!
     }
     delete conf_list[i];
@@ -251,6 +246,7 @@ void do_configuration_save()
     // are we saving to a new name?
     if (configuration_rename.content[0]) {  // yes
         if (n_conf_list >= CONF_LIST_MAX) {
+            print_error("No more space for configurations.");
             return;  // no more space for configurations
         }
         strcpy(conf_name, configuration_rename.content);
@@ -278,7 +274,6 @@ void do_configuration_save()
     strcpy(conf->reference_clock, reference_clock.content);
     conf->networking = networking.current_option(0);
     conf->websockets = websockets.current_option(0);
-    conf->mqtt_enable = mqtt_enable.current_option(0);
     strcpy(conf->mqtt_host, mqtt_host.content);
     conf->mqtt_port = (mqtt_port.content[0] ? atoi(mqtt_port.content) : 0);
 
@@ -315,12 +310,13 @@ void do_configuration_save()
 
     // conf_name is what we saved, so we are now selecting conf_name
     strcpy(configuration.content, conf_name);
-    configuration_rename.content[0] = 0;
+    configuration_rename.set_content("");
     draw_screen();
 
     // write all configurations to the preference file
     FILE *outf = fopen(pref_path, "w");
     if (!outf) {
+        print_error("Could not open preference file to save configurations.");
         return;
     }
     configuration.save(outf, "o2host v1.0\nConfiguration:", true);
@@ -328,6 +324,29 @@ void do_configuration_save()
         conf_list[i]->save_to_pref(outf);
     }
     fclose(outf);
+}
+
+
+// transfer from fields to Configuration object
+// write Configuration objects to preference file
+void do_configuration_new()
+{
+    char conf_name[MAX_NAME_LEN + 1];
+    // are we saving to a new name?
+    if (n_conf_list >= CONF_LIST_MAX) {
+        print_error("No more space for configurations.");
+        return;  // no more space for configurations
+    }
+    configuration.set_content(configuration_rename.content);
+    ensemble_name.set_content("");
+    polling_rate.set_content("");
+    debug_flags.set_content("");
+    reference_clock.set_content("");
+    networking.set_option(0);
+    websockets.set_option(0);
+    mqtt_host.set_content("");
+    mqtt_port.set_content("");
+    draw_screen();
 }
 
 

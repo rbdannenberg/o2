@@ -16,7 +16,6 @@
 // Reference_clock: Y/N
 // Networking: <string>
 // WebSockets: <string>
-// MQTT_enable: <string>
 // MQTT_host: <string>
 // MQTT_port: <string>
 // O2_to_OSC: <servicename> <IP> <port> UDP
@@ -271,11 +270,6 @@ int read_config()
         }
         conf->websockets = string_list_index(enable_options, temp, 0);
 
-        if (read_field(inf, "MQTT_enable:", MQTTENAB_W, temp, true)) {
-            goto bad_file;
-        }
-        conf->mqtt_enable = string_list_index(enable_options, temp, 0);
-
         if (read_field(inf, "MQTT_host:", MAX_NAME_LEN,
                        conf->mqtt_host, true)) {
             goto bad_file;
@@ -305,7 +299,7 @@ int read_config()
                 sc->port = atoi(temp);
                 sc->tcp_flag = (strcmp(tcp_udp, "TCP") == 0);
             } else if (strcmp(temp, "OSC_to_O2:") == 0) {
-                sc = new Service_config(OSCTOO2_MARKER);
+                sc = new Service_config(OSCTOO2_UDP_MARKER);
                 if (read_field(inf, "", 3, tcp_udp, false) ||
                     read_field(inf, "", PORT_LEN, temp, false) ||
                     read_field(inf, "", OSCTOO2_SERV_W,

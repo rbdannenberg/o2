@@ -45,50 +45,53 @@ if(APPLE)
   set(CMAKE_CXX_FLAGS "-std=c++11")
   find_library(COREAUDIO CoreAudio)
   set(EXTRA_LIBS "${COREAUDIO}")
-  set(MACOSX_BUNDLE_ICON_FILE "o2host.icns")
-  if(EXISTS "${CMAKE_SOURCE_DIR}/${MACOSX_BUNDLE_ICON_FILE}")
-    set(ICON_FULL_PATH "${CMAKE_SOURCE_DIR}/${MACOSX_BUNDLE_ICON_FILE}")
-  else()
-    set(ICON_FULL_PATH 
-        "${CMAKE_CURRENT_SOURCE_DIR}/${MACOSX_BUNDLE_ICON_FILE}")
-  endif()
-  message(STATUS "after icon ${ICON_FULL_PATH}")
-  # could not CMake builds to work unless I turn off code signing:
-  set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO")
-
-  set(MACOSX_BUNDLE_INFO_STRING "o2host - Version 1.0")
-  set(MACOSX_BUNDLE_BUNDLE_VERSION 1.0)
-  set(MACOSX_BUNDLE_BUNDLE_NAME o2host) 
-  # if you call this MAXOSX_BUNDLE_EXECUTABLE_NAME, it will not work!:
-  set(BUNDLE_EXECUTABLE_NAME o2host.sh)
-  target_sources(o2host PUBLIC ${ICON_FULL_PATH})
-  set_target_properties(o2host PROPERTIES
-    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/Info.plist.in
-    MACOSX_BUNDLE TRUE
+  option(BUILD_APPLICATION "Build application or debug command line executable?"
+         TRUE)
+  if(BUILD_APPLICATION)
+    set(MACOSX_BUNDLE_ICON_FILE "o2host.icns")
+    if(EXISTS "${CMAKE_SOURCE_DIR}/${MACOSX_BUNDLE_ICON_FILE}")
+      set(ICON_FULL_PATH "${CMAKE_SOURCE_DIR}/${MACOSX_BUNDLE_ICON_FILE}")
+    else()
+      set(ICON_FULL_PATH 
+          "${CMAKE_CURRENT_SOURCE_DIR}/${MACOSX_BUNDLE_ICON_FILE}")
+    endif() 
+    message(STATUS "after icon ${ICON_FULL_PATH}") 
+    set(MACOSX_BUNDLE_INFO_STRING "o2host - Version 1.0") 
+    set(MACOSX_BUNDLE_BUNDLE_VERSION 1.0) 
+    set(MACOSX_BUNDLE_BUNDLE_NAME o2host) 
+    # if you call this MAXOSX_BUNDLE_EXECUTABLE_NAME, it will not work!: 
+    set(BUNDLE_EXECUTABLE_NAME o2host.sh) 
+    target_sources(o2host PUBLIC ${ICON_FULL_PATH}) 
+    set_target_properties(o2host PROPERTIES 
+    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/Info.plist.in 
+    MACOSX_BUNDLE TRUE 
     MACOSX_BUNDLE_ICON_FILE ${MACOSX_BUNDLE_ICON_FILE}
-    RESOURCE ${ICON_FULL_PATH})
-
-  # after building o2host.app, CMake will install only
-  # Contents/MacOS/o2host, but we want to run o2host in Terminal, so
-  # we created Info.plist to run o2host.sh. Now that CMake's "normal"
-  # build is complete, we to fix o2host.app by installing o2host.sh:
-  add_custom_command(TARGET o2host POST_BUILD 
-    COMMAND echo "running fix_o2host_app from target file dir $<TARGET_FILE_DIR:o2host>"
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/fix_o2host_app.sh 
-    WORKING_DIRECTORY $<TARGET_FILE_DIR:o2host>
-    COMMENT "Adding o2host.sh to o2host.app")
-else()
-  set(CURSES_BASE ncurses CACHE PATH
-      "Where to find lib and include files for ncurses")
-  set(CURSES_LIB "${CURSES_BASE}/lib/pdcurses.lib")
-  set(BONJOUR_LIB_DIR "C:/Program Files/Bonjour SDK/Lib/x64" Cache
-      PATH "where to find dnssd.lib")
-  target_link_directories(o2host PRIVATE ${BONJOUR_LIB_DIR})
-  target_include_directories(o2host PRIVATE "${CURSES_BASE}/include")
+    RESOURCE ${ICON_FULL_PATH}) 
+    # after building o2host.app, CMake will install only 
+    # Contents/MacOS/o2host, but we want to run o2host in Terminal, so 
+    # we created Info.plist to run o2host.sh. Now that CMake's "normal"
+    # build is complete, we to fix o2host.app by installing o2host.sh: 
+    add_custom_command(TARGET o2host POST_BUILD 
+      COMMAND echo "running fix_o2host_app from target file dir $<TARGET_FILE_DIR:o2host>"
+      COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/fix_o2host_app.sh 
+      WORKING_DIRECTORY $<TARGET_FILE_DIR:o2host>
+      COMMENT "Adding o2host.sh to o2host.app") 
+  endif() 
+  # could not get CMake builds to work unless I turn off code signing: 
+  set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO")  
+else() 
+  set(CURSES_BASE ncurses CACHE PATH 
+      "Where to find lib and include files for ncurses") 
+  set(CURSES_LIB "${CURSES_BASE}/lib/pdcurses.lib") 
+  set(BONJOUR_LIB_DIR "C:/Program Files/Bonjour SDK/Lib/x64" Cache 
+      PATH "where to find dnssd.lib") 
+  target_link_directories(o2host PRIVATE ${BONJOUR_LIB_DIR}) 
+  target_include_directories(o2host PRIVATE "${CURSES_BASE}/include") 
   target_link_libraries(o2host PRIVATE 
-      winmm.lib ws2_32.lib Iphlpapi.lib dnssd.lib)
-  set_property(TARGET o2host PROPERTY MSVC_RUNTIME_LIBRARY
-               "MultiThreaded$<$<CONFIG:Debug>:Debug>${MSVCRT_DLL}")
+      winmm.lib ws2_32.lib Iphlpapi.lib dnssd.lib) 
+  set_property(TARGET o2host PROPERTY MSVC_RUNTIME_LIBRARY 
+               "MultiThreaded$<$<CONFIG:Debug>:Debug>${MSVCRT_DLL}")  
+  set(CURSES_LIB ncurses) 
 endif() 
 
 

@@ -92,7 +92,8 @@ void midi_devices_refresh()
 void insert_o2_to_midi() {
     get_midi_device_options();
 
-    if (!midi_out_devices[0]) {  // not a single input device
+    if (!midi_out_devices[0]) {  // not a single output device
+        print_error("There are no MIDI output devices.");
         return;
     }
 
@@ -131,6 +132,7 @@ void insert_midi_to_o2() {
     get_midi_device_options();
 
     if (!midi_in_devices[0]) {  // not a single input device
+        print_error("There are no MIDI input devices.");
         return;
     }
 
@@ -245,8 +247,11 @@ void midi_output_initialize(Field_entry *field)
         PmError pmerr = Pm_OpenOutput(&midi_input_streams[num_midi_in],
                                       dev_id, NULL, 100, NULL, NULL, 0);
         if (pmerr) {
-            printf("WARNING: Could not open %s: ", device);
+            char msg[128];
+            snprintf(msg, 128, "WARNING: Could not open %s: ", device);
+            printf("%s", msg);
             print_pmerror(pmerr);
+            print_error(msg);
             return;
         }
     }
@@ -258,7 +263,9 @@ void midi_output_initialize(Field_entry *field)
     O2err o2err = o2_method_new(address, NULL, midi_message_handler,
                                 (void *) (intptr_t) num_midi_out, false, false);
     if (o2err) {
-        printf("Error: could not create handler for %s\n", address);
+        char msg[128];
+        snprintf(msg, 128, "Error: could not create handler for %s\n", address);
+        print_error(msg);
         return;
     }
 }

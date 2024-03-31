@@ -51,6 +51,7 @@
 #define MIDIOUT_DELLABEL_X 70
 #define MIDIOUT_DEL_X 72
 
+
 // marks the delete_me field of O2_to_OSC line:
 #define O2TOOSC_MARKER 1
 // marks the delete_me field of OSC_to_O2 line:
@@ -83,6 +84,7 @@ extern char pref_path[128];
 extern int xpos;
 extern int ypos;
 
+void reset_lower_field_positions();
 void insert_o2_to_midi();
 void insert_midi_to_o2();
 
@@ -95,7 +97,6 @@ extern Field_entry debug_flags;
 extern Field_entry reference_clock;
 extern Field_entry networking;
 extern Field_entry websockets;
-extern Field_entry mqtt_enable;
 extern Field_entry mqtt_host;
 extern Field_entry mqtt_port;
 
@@ -104,5 +105,6 @@ extern int required_height;  // initial value
 //extern bool need_bigger_screen = false;
 //extern bool help_mode = false;
 
+void print_error(const char *msg);
 void draw_screen();
 const char *heapify(const char *s);

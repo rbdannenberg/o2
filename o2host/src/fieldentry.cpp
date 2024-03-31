@@ -24,10 +24,10 @@ static int host_rate = 500;
 class Service_config {
   public:
     int marker;  // the type of service:  MIDIOUT_MARKER,
-                 // MIDIIN_MARKER, O2TOOSC_MARKER, OSCTOO2_MARKER
+                 // MIDIIN_MARKER, O2TOOSC_MARKER, OSCTOO2_UDP_MARKER
     char service_name[MAX_NAME_LEN + 1];  // the associated service name
     char ip[IP_LEN + 1];            // IP for O2TOOSC_MARKER
-    int port;            // port for O2TOOSC_MARKER, OSCTOO2_MARKER
+    int port;            // port for O2TOOSC_MARKER, OSCTOO2_UDP_MARKER
     bool tcp_flag;       // TCP or UDP for O2TOOSC and OSCTOO2
     char midi_device[MAX_NAME_LEN + 1];  // MIDI device name
     Service_config *next;  // link to next Service_config
@@ -140,7 +140,8 @@ void Field_entry::show_content()
         addstr(" ");
     }
     move(y, x);
-    attron(A_UNDERLINE);
+    wrefresh(stdscr);   // debugging
+            attron(A_UNDERLINE);
     addstr(content);
     for (int i = x + width; i < x + max_width; i++) {
         addstr(" ");  // pad with blanks to erase previous text

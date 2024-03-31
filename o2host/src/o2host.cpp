@@ -10,8 +10,8 @@
 // Screen layout:
 // 
 // O2 Host / O2 Server for O2lite
-// Configuration: ____________________ Load_
-//     Rename to: ____________________ Save_
+// Configuration: ____________________ Load_  Delete_
+//     Rename to: ____________________ Save_  New_
 // 
 // Ensemble name:     _______________________________   Polling rate: ____
 // Debug flags:       _______________________________   Reference Clock: Y
@@ -40,7 +40,6 @@
 // Reference_clock: Y/N
 // Networking: <string>
 // WebSockets: <string>
-// MQTT_enable: <string>
 // MQTT_host: <string>
 // MQTT_port: <string>
 // O2_to_OSC: <servicename> <IP> <port> UDP
@@ -92,6 +91,7 @@ int ypos = 0;
 #define BRIGHT_WHITE BRIGHT(COLOR_WHITE)
 
 #define REQUIRED_WIDTH 78
+#define REQUIRED_HEIGHT 15
 #define CONF_X 15
 #define CONF_Y 2
 #define CONFLOAD_LABELX 37
@@ -104,6 +104,8 @@ int ypos = 0;
 #define CONFRENAME_W 20
 #define CONFSAVE_LABELX 37
 #define CONFSAVE_X 41
+#define CONFNEW_LABELX 44
+#define CONFNEW_X 47
 
 #define ENS_X 19
 #define ENS_Y 5
@@ -120,12 +122,11 @@ int ypos = 0;
 #define WEB_LABELX 53
 #define WEB_X 65
 #define WEB_Y 7
-#define MQTTENAB_X 5
-#define MQTT_LABELX 13
-#define MQTT_X 24
+#define MQTT_LABELX 0
+#define MQTT_X 11
 #define MQTT_Y 8
-#define MQTTPORT_LABELX 57
-#define MQTTPORT_X 68
+#define MQTTPORT_LABELX 44
+#define MQTTPORT_X 55
 
 #define O2TOOSC_X 23
 #define O2TOOSC_Y 11
@@ -153,7 +154,7 @@ const char *configuration_list[] = {NULL};
 // configurations are stored here:
 char pref_path[128];
 
-int required_height = 14;  // initial value
+int required_height = REQUIRED_HEIGHT;  // initial value
 // if this is set, we just wait for a bigger screen
 bool need_bigger_screen = false;
 bool help_mode = false;
@@ -184,6 +185,8 @@ Field_entry configuration_rename(CONFRENAME_LABELX, CONFRENAME_X,
                     CONFRENAME_Y, "Rename to:", CONFRENAME_W, NULL);
 Field_entry configuration_save(CONFSAVE_LABELX, CONFSAVE_X, CONFRENAME_Y,
                                "Save", 1, NULL);
+Field_entry configuration_new(CONFNEW_LABELX, CONFNEW_X, CONFRENAME_Y,
+                              "New", 1, NULL);
 Field_entry ensemble_name(0, ENS_X, ENS_Y, "Ensemble name:",
                           MAX_NAME_LEN, NULL);
 Field_entry polling_rate(POLL_LABELX, POLL_X, POLL_Y, "Polling rate:",
@@ -195,7 +198,6 @@ Field_entry networking(0, NET_X, NET_Y, "Networking (up/down to select):",
                        NET_W, NULL);
 Field_entry websockets(WEB_LABELX, WEB_X, WEB_Y, "WebSockets:",
                        WEB_W, NULL);
-Field_entry mqtt_enable(0, MQTTENAB_X, MQTT_Y, "MQTT", MQTTENAB_W, NULL);
 Field_entry mqtt_host(MQTT_LABELX, MQTT_X, MQTT_Y, "MQTT Host:",
                       MAX_NAME_LEN, NULL);
 Field_entry mqtt_port(MQTTPORT_LABELX, MQTTPORT_X, MQTT_Y, "MQTT Port:",
@@ -254,6 +256,29 @@ void print_help()
 }   
 
 
+void print_error(const char *msg)
+{
+    move(required_height - 1, 0);
+    attron(COLOR_PAIR(CRED));
+    addstr(msg);
+    clrtoeol();
+    move(ypos, xpos);
+    attron(COLOR_PAIR(CNORMAL));
+}
+
+
+// restore moveable fields to original positions
+void reset_lower_field_positions()
+{
+    required_height = REQUIRED_HEIGHT;
+    new_o2_to_osc.y = O2TOOSC_Y;
+    new_osc_to_o2.y = OSCTOO2_Y;
+    new_midi_to_o2.y = MIDITOO2_Y;
+    new_o2_to_midi.y = O2TOMIDI_Y;
+    midi_refresh.y = MIDIREF_Y;
+}
+
+
 void draw_screen()
 {
     wbkgd(stdscr, help_mode ? COLOR_PAIR(CHELP) : COLOR_PAIR(CNORMAL));
@@ -297,12 +322,12 @@ void draw_screen()
         return;
     }
 
-    move(required_height - 4, 0);
+    move(required_height - 5, 0);
     attron(COLOR_PAIR(CSEP));
     hline(ACS_BULLET, COLS);
     attron(COLOR_PAIR(CNORMAL));
 
-    move(required_height - 1, 0);
+    move(required_height - 2, 0);
     addstr("Type ESC to start, Control-H for Help.");
     draw_all_fields();
     set_current_field(fields);
@@ -313,7 +338,7 @@ void message(char *msg)
 {
     move(7, 0);
     addstr(msg);
-    move(xpos, ypos);
+    move(ypos, xpos);
 }
 
 
@@ -435,6 +460,8 @@ void do_command(Field_entry *field)
         do_configuration_delete();
     } else if (field == &configuration_save) {
         do_configuration_save();
+    } else if (field == &configuration_new) {
+        do_configuration_new();
     } else if (field == &new_o2_to_osc) {
         insert_o2_to_osc();
     } else if (field == &new_osc_to_o2) {
@@ -516,12 +543,12 @@ int main(int argc, char **argv)
     configuration_load.is_button = true;
     configuration_delete.is_button = true;
     configuration_save.is_button = true;
+    configuration_new.is_button = true;
     reference_clock.set_menu_options(y_or_n_options);
     reference_clock.set_content("N");  // initially No
     polling_rate.is_integer = true;
     networking.set_menu_options(net_options);
     websockets.set_menu_options(enable_options);
-    mqtt_enable.set_menu_options(enable_options);
     mqtt_port.is_integer = true;
     insert_after = &mqtt_port;
     new_o2_to_osc.is_button = true;
@@ -546,16 +573,14 @@ int main(int argc, char **argv)
     printf("Reference clock: %s\n", reference_clock.content);
     printf("Network option: %s\n", networking.content);
     printf("WebSockets: %s\n", websockets.content);
-    printf("MQTT: %s\n", mqtt_enable.content);
-    if (strcmp(mqtt_enable.content, "Enable") == 0) {
-        printf("MQTT Host %s Port %s\n", mqtt_host.content, mqtt_port.content);
-    }
+    printf("MQTT Host %s Port %s\n", mqtt_host.content, mqtt_port.content);
 
     int networking_option = networking.current_option(0);
     o2_network_enable(networking_option != 0);
     o2_internet_enable(networking_option > 1);
     if (networking_option == 2) {
-        o2_mqtt_enable(NULL, 0);
+        o2_mqtt_enable(mqtt_host.content[0] ? mqtt_host.content : NULL,
+                       atoi(mqtt_port.content));
     }
 
     if (!ensemble_name.content[0]) {
