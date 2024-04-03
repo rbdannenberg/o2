@@ -35,6 +35,7 @@
 #ifndef _S_ISTYPE
 #define _S_ISTYPE(mode, mask) (((mode) & _S_IFMT) == (mask))
 #define S_ISDIR(mode) _S_ISTYPE((mode), _S_IFDIR)
+#define getcwd _getcwd
 #endif
 #include <direct.h>
 #include <stdlib.h>
@@ -167,7 +168,7 @@ int read_config()
     }
 
     // Wild shot/last resort: Get /*/* from current working directory
-    cwd = _getcwd(NULL, 128);  // 128 is ignored says the man page
+    cwd = getcwd(NULL, 128);  // 128 is ignored says the man page
     if (cwd && strlen(cwd) > 2) {
         char *slash = strchr(cwd + 1, '/');  // second slash
         slash = (slash ? strchr(slash + 1, '/') : NULL);  // third slash
