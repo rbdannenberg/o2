@@ -21,9 +21,10 @@
 // these are safe o2 function calls, but we'll define alternate o2sm_ names
 #define o2sm_send_start o2_send_start
 #define o2sm_add_float o2_add_float
+// this may not be usable because we don't have O2type defined:
 #define o2sm_add_string_or_symbol o2_add_string_or_symbol
-#define o2sm_add_symbol o2_add_symbol
-#define o2sm_add_string o2_add_string
+#define o2sm_add_symbol(s) o2_add_symbol(s)
+#define o2sm_add_string(s) o2_add_string(s)
 #define o2sm_add_blob o2_add_blob
 #define o2sm_add_blob_data o2_add_blob_data
 #define o2sm_add_int64 o2_add_int64

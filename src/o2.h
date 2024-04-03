@@ -1518,7 +1518,7 @@ O2_EXPORT O2err o2_method_new(const char *path, const char *typespec,
  *
  *  @return If success, return O2_SUCCESS. If not, return O2_FAIL.
  */
-O2err o2_method_free(const char *path);
+O2_EXPORT O2err o2_method_free(const char *path);
 
 
 /**
