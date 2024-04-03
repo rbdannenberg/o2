@@ -74,6 +74,7 @@
 
 #define ESC_CHAR 0x1b
 #define DEL_CHAR 0x7f
+#define BACKSPACE_CHAR 0x08
 
 static int host_rate = 500;
 
@@ -406,18 +407,20 @@ bool configure()
         ;  // wait for bigger screen before processing
     } else if (ch == '\t' || ch == '\n') {
         tab_to_field();
-    } else if (isgraph(ch) || ch == ' ') {
-        handle_typing(ch);
     } else if (ch == KEY_LEFT || ch == KEY_RIGHT ||
                ch == KEY_UP || ch == KEY_DOWN) {
         handle_move(ch);
-    } else if (ch == DEL_CHAR) {
-        handle_typing(ch);
+    } else if (ch == DEL_CHAR || ch == BACKSPACE_CHAR || ch == KEY_DC) {
+        handle_typing(DEL_CHAR);
     } else if (ch == ESC_CHAR) {
         return false; // done
     } else if (ch == KEY_BACKSPACE) {
         help_mode = true;
         draw_screen();
+    } else if (ch <= 0 || ch >= 128) {
+        return true;  // ignore other "special" characters
+    } else if (isgraph(ch) || ch == ' ') {
+        handle_typing(ch);
     }
     return true;
 }

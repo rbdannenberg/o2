@@ -204,6 +204,9 @@ int read_config()
         int len = (int)strlen(home_dirs[i]) + 50;
         if (len < 128) {
             strcpy(pref_path, home_dirs[i]);
+            if (pref_path[strlen(pref_path) - 1] != '/') {
+                strcat(pref_path, "/");
+            }
             strcat(pref_path, ".o2host.config");
             inf = fopen(pref_path, "r");
             if (inf) {

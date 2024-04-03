@@ -91,7 +91,6 @@ else()
       winmm.lib ws2_32.lib Iphlpapi.lib dnssd.lib) 
   set_property(TARGET o2host PROPERTY MSVC_RUNTIME_LIBRARY 
                "MultiThreaded$<$<CONFIG:Debug>:Debug>${MSVCRT_DLL}")  
-  set(CURSES_LIB ncurses) 
 endif() 
 
 

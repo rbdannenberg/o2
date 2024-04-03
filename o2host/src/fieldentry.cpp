@@ -140,8 +140,7 @@ void Field_entry::show_content()
         addstr(" ");
     }
     move(y, x);
-    wrefresh(stdscr);   // debugging
-            attron(A_UNDERLINE);
+    attron(A_UNDERLINE);
     addstr(content);
     for (int i = x + width; i < x + max_width; i++) {
         addstr(" ");  // pad with blanks to erase previous text
@@ -196,6 +195,7 @@ void Field_entry::handle_typing(int ch)
         } else if ((xpos - x <= max_width) &&
                    (allow_spaces || ch != ' ')) {
             content[xpos - x] = ch;
+            content[xpos + 1 - x] = 0;  // EOS
             xpos++;
             if (width < xpos - x) {
                 width = xpos - x;
@@ -371,7 +371,7 @@ void move_to_line(int direction)
 
 
 void tab_to_field()
-{
+ {
     // find field after this one (wraps around at end)
     if (current_field) {
         set_current_field(current_field->next);  // handles wrapping

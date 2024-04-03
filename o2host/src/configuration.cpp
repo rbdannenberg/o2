@@ -23,7 +23,10 @@ Service_config::Service_config(int marker_) {
     marker = marker_;
     service_name[0] = 0;
     ip[0] = 0;
+    port = 0;
+    tcp_flag = false;
     midi_device[0] = 0;
+    next = NULL;
 }
 
 Service_config::~Service_config() {
