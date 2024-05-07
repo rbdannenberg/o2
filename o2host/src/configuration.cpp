@@ -96,10 +96,10 @@ void Configuration::save_to_pref(FILE *outf) {
             fprintf(outf, "OSC_to_O2: \"%s\" \"%s\" \"%s\"\n",
                     sc->tcp_flag ? "TCP" : "UDP", port_as_string(sc->port),
                     sc->service_name);
-        } else if (sc->marker == MIDIOUT_MARKER) {
+        } else if (sc->marker == MIDIOUT_SERV_MARKER) {
             fprintf(outf, "MIDI_out: \"%s\" \"%s\"\n",
                     sc->service_name, sc->midi_device);
-        } else if (sc->marker == MIDIIN_MARKER) {
+        } else if (sc->marker == MIDIIN_NAME_MARKER) {
             fprintf(outf, "MIDI_in: \"%s\" \"%s\"\n", sc->midi_device,
                     sc->service_name);
         } else {
@@ -129,16 +129,8 @@ int find_configuration(const char *name)
 }
 
 
-void do_configuration_load()
+void remove_service_descriptors()
 {
-    // find the configuration
-    int i = find_configuration(configuration.content);
-    if (i < 0) {
-        print_error("Configuration does not exist.");
-        return;  // configuration does not exist!
-    }
-    Configuration *conf = conf_list[i];
-
     // remove all service descriptors from list of fields
     // list starts after mqtt_port and ends at insert_after
     Field_entry *stop_at = insert_after->next;
@@ -154,6 +146,20 @@ void do_configuration_load()
     // but since we wanted to delete all service fields, it seems simpler
     // to just set all the fields to fixed initial positions:
     reset_lower_field_positions();
+}
+
+
+void do_configuration_load()
+{
+    // find the configuration
+    int i = find_configuration(configuration.content);
+    if (i < 0) {
+        print_error("Configuration does not exist.");
+        return;  // configuration does not exist!
+    }
+    Configuration *conf = conf_list[i];
+
+    remove_service_descriptors();
 
     // transfer conf data to fields
     ensemble_name.set_content(conf->ensemble);
@@ -292,18 +298,22 @@ void do_configuration_save()
             strcpy(sc->ip, (fe = fe->next)->content);
             fe = fe->next;  // port
             sc->port = (fe->content[0] ? atoi(fe->content) : 0);
-            sc->tcp_flag = (strcmp((fe = fe->next)->content, "TCP") == 0);
+            fe = fe->next;  // TCP flag
+            sc->tcp_flag = (strcmp(fe->content, "TCP") == 0);
         } else if (sc->marker == OSCTOO2_UDP_MARKER) {
             sc->tcp_flag = (strcmp(fe->content, "TCP") == 0);
             fe = fe->next;  // port
             sc->port = (fe->content[0] ? atoi(fe->content) : 0);
-            strcpy(sc->service_name, (fe = fe->next)->content);
+            fe = fe->next;  // service name
+            strcpy(sc->service_name, fe->content);
         } else if (sc->marker == MIDIOUT_SERV_MARKER) {
             strcpy(sc->service_name, fe->content);
-            strcpy(sc->midi_device, (fe = fe->next)->content);
+            fe = fe->next;
+            strcpy(sc->midi_device, fe->content);
         } else if (sc->marker == MIDIIN_NAME_MARKER) {
             strcpy(sc->midi_device, fe->content);
-            strcpy(sc->service_name, (fe->next)->content);
+            fe = fe->next; // to service name
+            strcpy(sc->service_name, fe->content);
         } else {
             assert(false);
         }
@@ -317,7 +327,10 @@ void do_configuration_save()
     draw_screen();
 
     // write all configurations to the preference file
-    FILE *outf = fopen(pref_path, "w");
+    char temp_path[128];
+    strcpy(temp_path, pref_path);
+    strcat(temp_path, ".tmp");  // in case of failure
+    FILE *outf = fopen(temp_path, "w");
     if (!outf) {
         print_error("Could not open preference file to save configurations.");
         return;
@@ -327,6 +340,9 @@ void do_configuration_save()
         conf_list[i]->save_to_pref(outf);
     }
     fclose(outf);
+    if (rename(temp_path, pref_path)) {
+        print_error("Could not rename temp file to preference file.");
+    };
 }
 
 
@@ -335,11 +351,17 @@ void do_configuration_save()
 void do_configuration_new()
 {
     char conf_name[MAX_NAME_LEN + 1];
-    // are we saving to a new name?
     if (n_conf_list >= CONF_LIST_MAX) {
         print_error("No more space for configurations.");
         return;  // no more space for configurations
     }
+    if (configuration_rename.width == 0) {
+        print_error("Must have a name for the new configuration.");
+        return;
+    }
+    // remove extra fields from list to restore initial emptiness:
+    remove_service_descriptors();
+
     configuration.set_content(configuration_rename.content);
     ensemble_name.set_content("");
     polling_rate.set_content("");

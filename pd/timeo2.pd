@@ -1,0 +1,6 @@
+#N canvas 831 179 450 300 12;
+#X obj 21 105 o2send delsynth time -t f;
+#X floatatom 22 58 5 0 0 0 - - - 0;
+#X obj 25 20 hsl 162 19 0 500 0 0 empty empty empty -2 -10 0 12 #fcfcfc #000000 #000000 0 1;
+#X connect 2 0 1 0;
+#X connect 2 0 0 0;

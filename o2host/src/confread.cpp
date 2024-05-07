@@ -314,7 +314,7 @@ int read_config()
                 sc->port = atoi(temp);
                 sc->tcp_flag = (strcmp(tcp_udp, "TCP") == 0);
             } else if (strcmp(temp, "MIDI_in:") == 0) {
-                sc = new Service_config(MIDIIN_MARKER);
+                sc = new Service_config(MIDIIN_NAME_MARKER);
                 if (read_field(inf, "", MIDIIN_W, sc->midi_device, false) ||
                     read_field(inf, "", MIDIIN_SERV_W,
                                sc->service_name, true)) {
@@ -322,7 +322,7 @@ int read_config()
                     goto bad_file;
                 }
             } else if (strcmp(temp, "MIDI_out:") == 0) {
-                sc = new Service_config(MIDIOUT_MARKER);
+                sc = new Service_config(MIDIOUT_SERV_MARKER);
                 if (read_field(inf, "", MIDIOUT_SERV_W,
                                sc->service_name, false) ||
                     read_field(inf, "", MIDIOUT_W, sc->midi_device, true)) {

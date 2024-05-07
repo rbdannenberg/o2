@@ -197,9 +197,7 @@ void Field_entry::handle_typing(int ch)
             content[xpos - x] = ch;
             content[xpos + 1 - x] = 0;  // EOS
             xpos++;
-            if (width < xpos - x) {
-                width = xpos - x;
-            }
+            width = (int) strlen(content);
             int loc = xpos - x;
             if (is_ip && (loc == 3 || loc == 7 || loc == 11)) {
                 moveyx(ypos, xpos + 1);    // skip over '.'s

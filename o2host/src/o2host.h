@@ -38,7 +38,7 @@
 #define MIDIIN_X 8
 #define MIDIIN_W 29
 #define MIDIIN_SERVLABEL_X 38
-#define MIDIIN_SERV_X 48
+#define MIDIIN_SERV_X 49
 #define MIDIIN_SERV_W 20
 #define MIDIIN_DELLABEL_X 70
 #define MIDIIN_DEL_X 72
@@ -65,8 +65,9 @@
 #define O2TOOSC_SERV_MARKER 7
 // marks the first field of an OSC_to_O2 line:
 #define OSCTOO2_UDP_MARKER 8
+// marks the service name for MIDI_out line; also marks a Service_config:
 #define MIDIOUT_SERV_MARKER 5
-// marks the first field of a MIDI_in line:
+// marks the first field of a MIDI_in line; also marks a Service_config:
 #define MIDIIN_NAME_MARKER 6
 // marks the device name field for MIDI_out:
 #define MIDIOUT_NAME_MARKER 9

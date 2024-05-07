@@ -445,7 +445,7 @@ void remove_info_line(int n_fields)
     }
     for (int i = 0; i < n_fields; i++) {
         delete remove[i];
-    }
+            }
 
     if (!new_current_field) {
         new_current_field = fields;
