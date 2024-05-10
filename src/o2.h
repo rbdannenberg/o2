@@ -1385,7 +1385,9 @@ typedef enum {TAP_KEEP, TAP_RELIABLE, TAP_BEST_EFFORT} O2tap_send_mode;
  *    message  with TAP_KEEP, by reliable (TCP) method with TAP_RELIABLE, or by
  *    best effort (UDP) method with TAP_BEST_EFFORT.
  *
- * @return #O2_SUCCESS if success, #O2_FAIL if a tap is not installed.
+ * @return #O2_SUCCESS if success, #O2_BAD_NAME if the tapper or tappee is
+ *    invalid, e.g. begins with / or !, and #O2_FAIL if a tap is not
+ *    installed for another reason.
  *
  * Have messages delivered to #tappee copied to #tapper. After
  * this call, messages to #tappee are first delivered. Then, if

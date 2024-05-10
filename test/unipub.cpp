@@ -57,6 +57,63 @@
 #include <string.h>
 #include <assert.h>
 
+// Visual Studio 2019 does not seem to handle literal utf-8 (or maybe it does
+// with the right configuration and invisible BOM characters, but I wasted too
+// much time already, so here I'm expressing all the Unicode strings in hex):
+
+// Iñtërnâtiônà£ißætiøn☃😎
+#define INTERNATIONALIZATIONXX "\x49\xc3\xb1\x74\xc3\xab\x72\x6e\xc3\xa2" \
+    "\x74\x69\xc3\xb4\x6e\xc3\xa0\xc2\xa3\x69\xc3\x9f\xc3\xa6\x74\x69\xc3" \
+    "\xb8\x6e\xe2\x98\x83\xf0\x9f\x98\x8e"
+
+// subIñtërnâtiônà£ißætiøn☃😎%d
+#define SUBINTERNATIONALIZATIONXXN "\x73\x75\x62\x49\xc3\xb1\x74\xc3\xab" \
+    "\x72\x6e\xc3\xa2\x74\x69\xc3\xb4\x6e\xc3\xa0\xc2\xa3\x69\xc3\x9f\xc3" \
+    "\xa6\x74\x69\xc3\xb8\x6e\xe2\x98\x83\xf0\x9f\x98\x8e\x25\x64"
+
+// Iñtërnâtiônà£ißætiøn☃😎0
+#define INTERNATIONALIZATIONXX0 "\x49\xc3\xb1\x74\xc3\xab\x72\x6e\xc3\xa2" \
+    "\x74\x69\xc3\xb4\x6e\xc3\xa0\xc2\xa3\x69\xc3\x9f\xc3\xa6\x74\x69\xc3" \
+    "\xb8\x6e\xe2\x98\x83\xf0\x9f\x98\x8e\x30"
+
+// /äta
+#define SLASHATA "\x2f\xc3\xa4\x74\x61"
+
+// attr_Iñtërnâtiônà£ißætiøn☃😎
+#define ATTRINTERNATIONALIZATIONXX "\x61\x74\x74\x72\x5f\x49\xc3\xb1\x74" \
+    "\xc3\xab\x72\x6e\xc3\xa2\x74\x69\xc3\xb4\x6e\xc3\xa0\xc2\xa3\x69\xc3" \
+    "\x9f\xc3\xa6\x74\x69\xc3\xb8\x6e\xe2\x98\x83\xf0\x9f\x98\x8e"
+
+// value_Iñtërnâtiônà£ißætiøn☃😎
+#define VALUEINTERNATIONALIZATIONXX "\x76\x61\x6c\x75\x65\x5f\x49\xc3\xb1" \
+    "\x74\xc3\xab\x72\x6e\xc3\xa2\x74\x69\xc3\xb4\x6e\xc3\xa0\xc2\xa3\x69" \
+    "\xc3\x9f\xc3\xa6\x74\x69\xc3\xb8\x6e\xe2\x98\x83\xf0\x9f\x98\x8e"
+
+// Blåbærsyltetøy
+#define NORWEGIANPROP "\x42\x6c\xc3\xa5\x62\xc3\xa6\x72\x73\x79\x6c\x74" \
+    "\x65\x74\xc3\xb8\x79"
+
+// subIñtërnâtiônà£ißætiøn☃😎0
+#define SUBINTERNATIONALIZATIONXX0 "\x73\x75\x62\x49\xc3\xb1\x74\xc3\xab" \
+    "\x72\x6e\xc3\xa2\x74\x69\xc3\xb4\x6e\xc3\xa0\xc2\xa3\x69\xc3\x9f\xc3" \
+    "\xa6\x74\x69\xc3\xb8\x6e\xe2\x98\x83\xf0\x9f\x98\x8e\x30"
+
+// /subIñtërnâtiônà£ißætiøn☃😎0/äta
+#define SUBINTERNATIONALIZATIONXX0ATA "\x2f\x73\x75\x62\x49\xc3\xb1\x74\xc3" \
+    "\xab\x72\x6e\xc3\xa2\x74\x69\xc3\xb4\x6e\xc3\xa0\xc2\xa3\x69\xc3\x9f" \
+    "\xc3\xa6\x74\x69\xc3\xb8\x6e\xe2\x98\x83\xf0\x9f\x98\x8e\x30\x2f\xc3" \
+    "\xa4\x74\x61"
+
+// pubIñtërnâtiônà£ißætiøn☃😎0
+#define PUBINTERNATIONALIZATIONXX0 "\x70\x75\x62\x49\xc3\xb1\x74\xc3\xab" \
+    "\x72\x6e\xc3\xa2\x74\x69\xc3\xb4\x6e\xc3\xa0\xc2\xa3\x69\xc3\x9f\xc3" \
+    "\xa6\x74\x69\xc3\xb8\x6e\xe2\x98\x83\xf0\x9f\x98\x8e\x30"
+
+// /pubIñtërnâtiônà£ißætiøn☃😎%d
+#define PUBINTERNATIONALIZATIONXXN "\x2f\x70\x75\x62\x49\xc3\xb1\x74\xc3\xab" \
+    "\x72\x6e\xc3\xa2\x74\x69\xc3\xb4\x6e\xc3\xa0\xc2\xa3\x69\xc3\x9f\xc3" \
+    "\xa6\x74\x69\xc3\xb8\x6e\xe2\x98\x83\xf0\x9f\x98\x8e\x25\x64"
+
 // To put some weight on fast address lookup, we create n_addrs
 // different addresses to use.
 //
@@ -109,8 +166,8 @@ void run_for_awhile(double dur)
 int check_args(O2arg_ptr *argv, int argc)
 {
     assert(argc == 3);
-    assert(streql(argv[0]->s, u8"Iñtërnâtiônà£ißætiøn☃😎"));
-    assert(streql(argv[1]->S, u8"Iñtërnâtiônà£ißætiøn☃😎"));
+    assert(streql(argv[0]->s, INTERNATIONALIZATIONXX));
+    assert(streql(argv[1]->S, INTERNATIONALIZATIONXX));
     return argv[2]->i;
 }
 
@@ -144,8 +201,8 @@ void copy_sSi(O2msg_data_ptr msg, const char *types,
 {
     int i = check_args(argv, argc);
     if (copy_count < 5 * n_addrs) { // print the first 5 messages
-        printf("copy_sSi got %s s=%s S=%s i=%d\n", msg->address, 
-               argv[0]->s, argv[1]->S, i);
+        printf("copy_sSi got %s s=%s S=%s i=%d (copy_count %d)\n",
+               msg->address, argv[0]->s, argv[1]->S, i, copy_count);
     }
     if (i != -1) {
         assert(i == copy_count);
@@ -173,30 +230,33 @@ int main(int argc, const char *argv[])
         printf("WARNING: tappub ignoring extra command line argments\n");
     }
 
-    o2_initialize(u8"Iñtërnâtiônà£ißætiøn☃😎");
+    o2_initialize(INTERNATIONALIZATIONXX);
     
     // add our handler for incoming messages to each server address
     for (int i = 0; i < n_addrs; i++) {
         char path[128];
-        sprintf(path, u8"/pubIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(path, PUBINTERNATIONALIZATIONXXN, i);
         o2_service_new(path + 1);
-        strcat(path, u8"/äta");
-        o2_method_new(path, "sSi", &server_test, NULL, false, true);
+        strcat(path, SLASHATA);
+        assert(o2_method_new(path, "sSi", &server_test, NULL, false, true) ==
+               O2_SUCCESS);
+        printf("Added method for %s\n", path);
+        
     }
 
-    o2_service_set_property(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
-                            u8"attr_Iñtërnâtiônà£ißætiøn☃😎",
-                            u8"value_Iñtërnâtiônà£ißætiøn☃😎");
-    o2_service_set_property(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
+    o2_service_set_property(PUBINTERNATIONALIZATIONXX0,
+                            ATTRINTERNATIONALIZATIONXX,
+                            VALUEINTERNATIONALIZATIONXX);
+    o2_service_set_property(PUBINTERNATIONALIZATIONXX0,
                             "attr1", "value1");
-    o2_service_set_property(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
-                            "norwegian", u8"Blåbærsyltetøy");
+    o2_service_set_property(PUBINTERNATIONALIZATIONXX0,
+                            "norwegian", NORWEGIANPROP);
 
-    assert(o2_tap(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
-                  u8"subIñtërnâtiônà£ißætiøn☃😎0",
+    assert(o2_tap(PUBINTERNATIONALIZATIONXX0,
+                  SUBINTERNATIONALIZATIONXX0,
                   TAP_RELIABLE) == O2_SUCCESS);
-    assert(o2_service_new(u8"subIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
-    assert(o2_method_new(u8"/subIñtërnâtiônà£ißætiøn☃😎0/äta", "sSi", &copy_sSi,
+    assert(o2_service_new(SUBINTERNATIONALIZATIONXX0) == O2_SUCCESS);
+    assert(o2_method_new(SUBINTERNATIONALIZATIONXX0ATA, "sSi", &copy_sSi,
                          NULL, false, true) == O2_SUCCESS);
     
     // we are the master clock
@@ -207,13 +267,13 @@ int main(int argc, const char *argv[])
         o2_sleep(2); // 2ms
     }
     // remove our tap
-    assert(o2_untap(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
-                    u8"subIñtërnâtiônà£ißætiøn☃😎0") == O2_SUCCESS);
+    assert(o2_untap(PUBINTERNATIONALIZATIONXX0,
+                    SUBINTERNATIONALIZATIONXX0) == O2_SUCCESS);
     // remove properties
-    o2_service_property_free(u8"pubIñtërnâtiônà£ißætiøn☃😎0",
-                             u8"attr_Iñtërnâtiônà£ißætiøn☃😎");
-    o2_service_property_free(u8"pubIñtërnâtiônà£ißætiøn☃😎0", "attr1");
-    o2_service_property_free(u8"pubIñtërnâtiônà£ißætiøn☃😎0", "norwegian");
+    o2_service_property_free(PUBINTERNATIONALIZATIONXX0,
+                            ATTRINTERNATIONALIZATIONXX);
+    o2_service_property_free(PUBINTERNATIONALIZATIONXX0, "attr1");
+    o2_service_property_free(PUBINTERNATIONALIZATIONXX0, "norwegian");
 
     // unisub will wait one second and then check for properties and taps
     // to be gone
@@ -225,8 +285,8 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < n_addrs; i++) {
         char tappee[128];
         char tapper[128];
-        sprintf(tappee, u8"pubIñtërnâtiônà£ißætiøn☃😎%d", i);
-        sprintf(tapper, u8"subIñtërnâtiônà£ißætiøn☃😎%d", i);
+        sprintf(tappee, PUBINTERNATIONALIZATIONXXN + 1, i);
+        sprintf(tapper, SUBINTERNATIONALIZATIONXXN, i);
         search_for_non_tapper(tapper, true);
         search_for_non_tapper(tappee, true); // might as well check
     }

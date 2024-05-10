@@ -1194,6 +1194,11 @@ void o2_notify_others(const char *service_name, bool added, const char *tappee,
 O2err o2_tap_new(const char *tapper, Proxy_info *proxy, O2string tappee,
                  O2tap_send_mode send_mode)
 {
+    // quick check for invalid service name, e.g. leading / or !:
+    if (!tapper || !tapper[0] || tapper[0] == '/' || tapper[0] == '!' ||
+        !tappee || !tappee[0] || tappee[0] == '/' || tappee[0] == '!') {
+        return O2_BAD_NAME;
+    }
     // proxy is the process providing the tapper service
     O2_DBd(dbprintf("o2_tap_new adding tapper %s in %s to %s\n",
                     tapper, proxy->key, tappee));
@@ -1241,6 +1246,8 @@ O2err o2_service_new(const char *service_name)
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
+//    int len = strlen(service_name);
+//    for (int i = 0; i < len; i++) printf("%d %x ", i, service_name[i]); printf("\n");
     if (!service_name || !isalpha(service_name[0]) ||
         strchr(service_name, '/') || strlen(service_name) > O2_MAX_NAME_LEN) {
         return O2_BAD_NAME;
@@ -1291,6 +1298,9 @@ O2err o2_tap(const char *tappee, const char *tapper, O2tap_send_mode send_mode)
         return O2_NOT_INITIALIZED;
     }
     char padded_tappee[NAME_BUF_LEN];
+    if (!tappee || strlen(tappee) > MAX_SERVICE_LEN) {
+        return O2_BAD_NAME;
+    }
     o2_string_pad(padded_tappee, tappee);
     O2err err = o2_tap_new(tapper, o2_ctx->proc, padded_tappee, send_mode);
     return err;
