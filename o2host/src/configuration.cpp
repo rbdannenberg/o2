@@ -192,20 +192,22 @@ void do_configuration_load()
             fe->set_number(sc->port, "");
             fe = fe->next;  // service name
             fe->set_content(sc->service_name);
-        } else if (sc->marker == MIDIOUT_MARKER) {
+        } else if (sc->marker == MIDIOUT_SERV_MARKER) {
             Field_entry *fe = insert_after;  // remember link to new fields
             insert_o2_to_midi();
             fe = fe->next;  // service name
             fe->set_content(sc->service_name);
             fe = fe->next;  // device name
             fe->set_content(sc->midi_device);
-        } else if (sc->marker == MIDIIN_MARKER) {
-            Field_entry *fe = insert_after;  // remember link to new fields
-            insert_o2_to_midi();
+        } else if (sc->marker == MIDIIN_NAME_MARKER) {
+                    Field_entry *fe = insert_after;  // remember link to new fields
+            insert_midi_to_o2();
             fe = fe->next;  // device name
             fe->set_content(sc->midi_device);
             fe = fe->next;  // service name
             fe->set_content(sc->service_name);
+        } else {
+            print_error("Unexpected Service_config tag.");
         }
     }
     draw_screen();
