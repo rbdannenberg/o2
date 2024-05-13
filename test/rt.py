@@ -28,7 +28,10 @@ print_all_output = False
 
 IS_OSX = False
 TIMEOUT_SEC = 60  # appfollow/applead take about 40s (is 60s long enough?)
+                  # need even longer for nonblocksend/recv tests in Win32
+                  # see below for "Windows" case
 LOCALDOMAIN = "local"  # but on linux, it's "localhost"
+PATHSEP = '/'  # modified below for Windows to '\'
 
 # I saw a failure of oscbndlsend+oscbndlrecv because port 8100 could
 # not be bound, but I could then run by hand, so I am guessing that
@@ -45,6 +48,9 @@ if platform.system() == "Darwin":
     # This no longer applies:
     # input("macOS tip: turn Firewall OFF to avoid orphaned ports ")
     HTMLOPEN = "open "
+elif platform.system() == "Windows":
+    STALL_SEC = 10
+    TIMEOUT_SEC = 120
 
 allOK = True
 
@@ -53,16 +59,17 @@ EXE = ""
 if os.name == 'nt':
     EXE = ".exe"
     HTMLOPEN = "start firefox "
+    PATHSEP = '\\'
 
 # Find the binaries
-if os.path.isdir(os.path.join(os.getcwd(), '../Debug')):
-   BIN="../Debug"
+if os.path.isdir(os.path.join(os.getcwd(), ".." + PATHSEP + "Debug")):
+   BIN = ".." + PATHSEP + "Debug" + PATHSEP
 else:
-   BIN=".."
+   BIN = ".." + PATHSEP
 # In linux, there is likely to be a debug version of the
 # library copied to ../Debug, but tests are built in ..
 if platform.system() == 'Linux':
-    BIN=".."
+    BIN = ".." + PATHSEP
     HTMLOPEN = "xdg-open "
     LOCALDOMAIN = "localhost"
 
@@ -71,7 +78,7 @@ for arg in sys.argv[1:]:
         print_all_output = ('a' in arg)
         print("Printing all output")
     else:
-        BIN = arg
+        BIN = arg + PATHSEP
     print("Directory for test binaries:", BIN)
 
 def findLineInString(line, aString):
@@ -93,7 +100,7 @@ class runInBackground(threading.Thread):
 
     def run(self):
         args = shlex.split(self.command)
-        args[0] = BIN + '/' + args[0] + EXE
+        args[0] = BIN + args[0] + EXE
         output = " 1> stdout" + self.id + ".txt 2> stderr" + self.id + ".txt"
         process = subprocess.Popen(" ".join(args) + output, shell=True)
         timer = Timer(TIMEOUT_SEC, kill_process,
@@ -115,7 +122,7 @@ def runTest(command, stall=False, quit_on_port_loss=False):
     # time.sleep(1)  # see runDouble for extensive comment on this
     print(command.rjust(30) + ": ", end='', flush=True)
     args = shlex.split(command)
-    args[0] = BIN + '/' + args[0] + EXE
+    args[0] = BIN + args[0] + EXE
     output = " 1> stdout.txt 2> stderr.txt"
     process = subprocess.Popen(" ".join(args) + output, shell=True)
     timer = Timer(TIMEOUT_SEC, process.kill)
@@ -282,8 +289,8 @@ def runAllTests():
     extensions = "y" in extensions.lower()
     websocketsTests = input("Run websocket tests? [y,n]: ")
     websocketsTests = "y" in websocketsTests.lower()
-    have_hub_tests = os.path.exists(BIN + "/hubclient/" + EXE) and \
-                     os.path.exists(BIN + "/hubserver/" + EXE)
+    have_hub_tests = os.path.exists(BIN + "hubclient" + PATHSEP + EXE) and \
+                     os.path.exists(BIN + "hubserver" + PATHSEP + EXE)
     print("Running regression tests for O2 ...")
 
     if not runTest("memtest"): return
@@ -380,25 +387,25 @@ def runAllTests():
 # tests for compatibility with liblo are run only if the binaries were built
 # In CMake, set BUILD_TESTS_WITH_LIBLO to create the binaries
 
-    if os.path.isfile(BIN + '/' + "lo_oscrecv" + EXE):
+    if os.path.isfile(BIN + "lo_oscrecv" + EXE):
         if not runDouble("oscsendtest @u", "OSCSEND DONE",
                          "lo_oscrecv u", "OSCRECV DONE"): return
         if not runDouble("oscsendtest @", "OSCSEND DONE",
                          "lo_oscrecv", "OSCRECV DONE"): return
 
-    if os.path.isfile(BIN + '/' + "lo_oscsend" + EXE):
+    if os.path.isfile(BIN + "lo_oscsend" + EXE):
         if not runDouble("lo_oscsend u", "OSCSEND DONE",
                          "oscrecvtest u", "OSCRECV DONE"): return
         if not runDouble("lo_oscsend", "OSCSEND DONE",
                          "oscrecvtest", "OSCRECV DONE"): return
 
-    if os.path.isfile(BIN + '/' + "lo_bndlsend" + EXE):
+    if os.path.isfile(BIN + "lo_bndlsend" + EXE):
         if not runDouble("lo_bndlsend u", "OSCSEND DONE",
                          "oscbndlrecv u", "OSCRECV DONE"): return
         if not runDouble("lo_bndlsend", "OSCSEND DONE",
                          "oscbndlrecv", "OSCRECV DONE"): return
 
-    if os.path.isfile(BIN + '/' + "lo_bndlrecv" + EXE):
+    if os.path.isfile(BIN + "lo_bndlrecv" + EXE):
         if not runDouble("oscbndlsend Mu", "OSCSEND DONE",
                          "lo_bndlrecv u", "OSCRECV DONE"): return
         if not runDouble("oscbndlsend M", "OSCSEND DONE",

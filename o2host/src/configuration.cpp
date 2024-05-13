@@ -327,6 +327,7 @@ void do_configuration_save()
     draw_screen();
 
     // write all configurations to the preference file
+
     char temp_path[128];
     strcpy(temp_path, pref_path);
     strcat(temp_path, ".tmp");  // in case of failure
@@ -340,6 +341,9 @@ void do_configuration_save()
         conf_list[i]->save_to_pref(outf);
     }
     fclose(outf);
+#ifdef WIN32
+    _unlink(pref_path);  // this will fail if file does not exist, but that's ok
+#endif
     if (rename(temp_path, pref_path)) {
         print_error("Could not rename temp file to preference file.");
     };

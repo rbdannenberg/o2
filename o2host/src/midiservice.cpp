@@ -208,7 +208,7 @@ void midi_input_initialize(Field_entry *field)
 
 void midi_message_handler(O2_HANDLER_ARGS)
 {
-    intptr_t output_index = *((intptr_t *) user_data);
+    intptr_t output_index = (intptr_t) user_data;
     if ((types[0] == 'i' || types[0] == 'm') && types[1] == 0) {
         int midi_msg = *((int32_t *)o2_msg_data_params(types));
         printf("got midi message from o2, address %s: %x\n",
@@ -244,7 +244,7 @@ void midi_output_initialize(Field_entry *field)
         printf("WARNING: MIDI output %s is not (no longer) available\n",
                device);
     } else {
-        PmError pmerr = Pm_OpenOutput(&midi_input_streams[num_midi_in],
+        PmError pmerr = Pm_OpenOutput(&midi_output_streams[num_midi_in],
                                       dev_id, NULL, 100, NULL, NULL, 0);
         if (pmerr) {
             char msg[128];

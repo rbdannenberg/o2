@@ -126,6 +126,9 @@ if(UNIX)
 #                     avahi-0.7/avahi-utils/.libs
 #                     avahi-0.7/avahi-client/.libs)
   endif(APPLE)
+else(UNIX)
+  add_compile_options("/utf-8")
+  message(STATUS "Windows /utf-8 option set.")
 endif(UNIX)
 
 # o2
