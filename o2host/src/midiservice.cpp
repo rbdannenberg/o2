@@ -97,7 +97,8 @@ void insert_o2_to_midi() {
         return;
     }
 
-    // open up a new line of the console - last line is the line of new_osc_to_o2
+    // open up a new line of the console - last line is the line of
+    // new_osc_to_o2
     int y = new_o2_to_osc.y - 2;
     // insert a line on the interface at y
     delete_or_insert(y, 1);
@@ -136,7 +137,8 @@ void insert_midi_to_o2() {
         return;
     }
 
-    // open up a new line of the console - last line is the line of new_osc_to_o2
+    // open up a new line of the console - last line is the line of
+    // new_osc_to_o2
     int y = new_o2_to_osc.y - 2;
     // insert a line on the interface at y
     delete_or_insert(y, 1);
