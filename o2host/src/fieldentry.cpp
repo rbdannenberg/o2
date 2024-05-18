@@ -12,6 +12,7 @@
 //#include "sys/stat.h"
 //#include <unistd.h>
 #include "fieldentry.h"
+#include "configuration.h"
 #include "o2host.h"
 
 static int host_period = 2;
@@ -20,31 +21,6 @@ static int host_rate = 500;
 // configure -- handle keyboard input to set O2 configuration
 
 #define DEL_CHAR 0x7f
-
-class Service_config {
-  public:
-    int marker;  // the type of service:  MIDIOUT_MARKER,
-                 // MIDIIN_MARKER, O2TOOSC_MARKER, OSCTOO2_UDP_MARKER
-    char service_name[MAX_NAME_LEN + 1];  // the associated service name
-    char ip[IP_LEN + 1];            // IP for O2TOOSC_MARKER
-    int port;            // port for O2TOOSC_MARKER, OSCTOO2_UDP_MARKER
-    bool tcp_flag;       // TCP or UDP for O2TOOSC and OSCTOO2
-    char midi_device[MAX_NAME_LEN + 1];  // MIDI device name
-    Service_config *next;  // link to next Service_config
-
-    Service_config(int marker_) {
-        marker = marker_;
-        service_name[0] = 0;
-        ip[0] = 0;
-        midi_device[0] = 0;
-        port = tcp_flag = next = 0;  // to make compiler happy
-    }
-
-    ~Service_config() {
-        ;
-    }
-};
-
 
 // find index of content in array of strings (options), return dflt if none
 // are found
@@ -83,7 +59,7 @@ Field_entry::Field_entry(int label_x_, int x_, int y_, const char *label_,
     is_button = false;
     is_ip = false;
     allow_spaces = false;
-    marker = 0;
+    marker = UNMARKED_FIELD;
     next = NULL;
     // insert this into list of fields
     if (after) {
@@ -363,7 +339,7 @@ void move_to_line(int direction)
                 return;
             }
         }
-        y = (y + direction) % LINES;
+        y = (y + direction + LINES) % LINES;
     }
 }
 

@@ -15,8 +15,9 @@
 // 
 // Ensemble name:     _______________________________   Polling rate: ____
 // Debug flags:       _______________________________   Reference Clock: Y
-// Networking (up/down to select): ___________________  WebSockets: Enable
-// MQTT Enable  MQTT Host: ________________________________ MQTT Port: _____
+// Networking (up/down to select): ___________________
+// HTTP Port: _____ Root: _______________________________________________________
+// MQTT Host: ________________________________ MQTT Port: _____
 // Fwd Service ____________________ to OSC IP ___.___.___.___ Port _____ UDP (X_)
 // Fwd OSC from UDP Port _____ to Service ____________________ (X_)
 // MIDI In _____________________________ to Service ____________________ (X_)
@@ -39,7 +40,7 @@
 // Debug_flags: <flags>
 // Reference_clock: Y/N
 // Networking: <string>
-// WebSockets: <string>
+// HTTP_port: <string>
 // MQTT_host: <string>
 // MQTT_port: <string>
 // O2_to_OSC: <servicename> <IP> <port> UDP
@@ -92,7 +93,7 @@ int ypos = 0;
 #define BRIGHT_WHITE BRIGHT(COLOR_WHITE)
 
 #define REQUIRED_WIDTH 78
-#define REQUIRED_HEIGHT 15
+#define REQUIRED_HEIGHT 16
 #define CONF_X 15
 #define CONF_Y 2
 #define CONFLOAD_LABELX 37
@@ -120,29 +121,32 @@ int ypos = 0;
 #define RFCLK_Y 6
 #define NET_X 32
 #define NET_Y 7
-#define WEB_LABELX 53
-#define WEB_X 65
-#define WEB_Y 7
+#define HTTP_LABELX 0
+#define HTTP_X 11
+#define HTTP_Y 8
+#define HTTPROOT_LABELX 17
+#define HTTPROOT_X 23
+#define HTTPROOT_Y 8
 #define MQTT_LABELX 0
 #define MQTT_X 11
-#define MQTT_Y 8
+#define MQTT_Y 9
 #define MQTTPORT_LABELX 44
 #define MQTTPORT_X 55
 
 #define O2TOOSC_X 23
-#define O2TOOSC_Y 11
+#define O2TOOSC_Y 12
 #define OSCTOO2_LABELX 32
 #define OSCTOO2_X 55
-#define OSCTOO2_Y 11
+#define OSCTOO2_Y 12
 
 #define MIDITOO2_X 19
-#define MIDITOO2_Y 12
+#define MIDITOO2_Y 13
 #define O2TOMIDI_LABELX 24
 #define O2TOMIDI_X 46
-#define O2TOMIDI_Y 12
+#define O2TOMIDI_Y 13
 #define MIDIREF_LABELX 51
 #define MIDIREF_X 65
-#define MIDIREF_Y 12
+#define MIDIREF_Y 13
 
 
 const char *y_or_n_options[] = {"Y", "N", NULL};
@@ -197,8 +201,10 @@ Field_entry reference_clock(REFCLK_LABELX, REFCLK_X, RFCLK_Y,
                             "Reference Clock:", 1, NULL);
 Field_entry networking(0, NET_X, NET_Y, "Networking (up/down to select):",
                        NET_W, NULL);
-Field_entry websockets(WEB_LABELX, WEB_X, WEB_Y, "WebSockets:",
-                       WEB_W, NULL);
+Field_entry http_port(HTTP_LABELX, HTTP_X, HTTP_Y, "HTTP Port:",
+                      PORT_LEN, NULL);
+Field_entry http_root(HTTPROOT_LABELX, HTTPROOT_X, HTTPROOT_Y, "Root:",
+                      MAX_NAME_LEN, NULL);
 Field_entry mqtt_host(MQTT_LABELX, MQTT_X, MQTT_Y, "MQTT Host:",
                       MAX_NAME_LEN, NULL);
 Field_entry mqtt_port(MQTTPORT_LABELX, MQTTPORT_X, MQTT_Y, "MQTT Port:",
@@ -242,6 +248,9 @@ void print_help()
     addstr("    local area (e.g. Wi-Fi hub only), or whole internet.\n");
     addstr("    Probably you need \"wide-area discovery\" instead of "
            "\"whole internet.\"\n");
+    addstr("HTTP Port: - if non-empty, o2host will offer HTTP service and\n");
+    addstr("    o2lite over WebSockets using this port number.\n");
+    addstr("Root: - optional root directory for web pages, default is ./www\n");
     addstr("MQTT Host/Port: - fill in to use custom MQTT broker instead "
            "of default.\n");
     addstr("With actions near the bottom of the screen, you can:\n");
@@ -332,6 +341,7 @@ void draw_screen()
     addstr("Type ESC to start, Control-H for Help.");
     draw_all_fields();
     set_current_field(fields);
+    wrefresh(stdscr);
 }
 
 
@@ -445,7 +455,7 @@ void remove_info_line(int n_fields)
     }
     for (int i = 0; i < n_fields; i++) {
         delete remove[i];
-            }
+    }
 
     if (!new_current_field) {
         new_current_field = fields;
@@ -473,13 +483,13 @@ void do_command(Field_entry *field)
         insert_o2_to_midi();
     } else if (field == &new_midi_to_o2) {
         insert_midi_to_o2();
-    } else if (field->marker == O2TOOSC_MARKER) {
+    } else if (field->marker == O2TOOSC_DEL_FIELD) {
         remove_info_line(5);
-    } else if (field->marker == OSCTOO2_MARKER) {
+    } else if (field->marker == OSCTOO2_DEL_FIELD) {
         remove_info_line(4);
-    } else if (field->marker == MIDIOUT_MARKER) {
+    } else if (field->marker == MIDIOUT_DEL_FIELD) {
         remove_info_line(3);
-    } else if (field->marker == MIDIIN_MARKER) {
+    } else if (field->marker == MIDIIN_DEL_FIELD) {
         remove_info_line(3);
     } else if (field == &midi_refresh) {
         midi_devices_refresh();
@@ -551,7 +561,7 @@ int main(int argc, char **argv)
     reference_clock.set_content("N");  // initially No
     polling_rate.is_integer = true;
     networking.set_menu_options(net_options);
-    websockets.set_menu_options(enable_options);
+    http_port.is_integer = true;
     mqtt_port.is_integer = true;
     insert_after = &mqtt_port;
     new_o2_to_osc.is_button = true;
@@ -564,7 +574,9 @@ int main(int argc, char **argv)
         do_configuration_load();
     }
     draw_screen();
-    while (configure()) ;
+    while (configure()) {
+        usleep(10000);  // sleep 10 msec to avoid busy-wait loop
+    };
     endwin();  // restore terminal settings
     // terminal becomes output only
 
@@ -575,7 +587,7 @@ int main(int argc, char **argv)
     printf("Debug flags: %s\n", debug_flags.content);
     printf("Reference clock: %s\n", reference_clock.content);
     printf("Network option: %s\n", networking.content);
-    printf("WebSockets: %s\n", websockets.content);
+    printf("HTTP port: %s\n", http_port.content);
     printf("MQTT Host %s Port %s\n", mqtt_host.content, mqtt_port.content);
 
     int networking_option = networking.current_option(0);
@@ -584,6 +596,10 @@ int main(int argc, char **argv)
     if (networking_option == 2) {
         o2_mqtt_enable(mqtt_host.content[0] ? mqtt_host.content : NULL,
                        atoi(mqtt_port.content));
+        // since o2_initialized is not called yet, this call will always
+        // return O2_SUCCESS, but later, MQTT connections might fail.
+        // Maybe O2 should have an MQTT connection test, and maybe we
+        // should check it after awhile and report when not connected.
     }
 
     if (!ensemble_name.content[0]) {
@@ -614,9 +630,36 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (http_port.content[0]) {
+        if (!http_root.content[0]) {
+            strcpy(http_root.content, "www");  // default is ./www/
+        }
+        err = o2_http_initialize(atoi(http_port.content), http_root.content);
+        if (err) {
+            printf("%s, exiting now.\n", o2_error_to_string(err));
+            return 1;
+        }
+        char cwd[128];
+        cwd[0] = 0;
+        // if path is not of the form /.. or C:..., then prefix the root
+        // with the current working directory.
+        char *root = http_root.content;
+        if (root[0] != '/' && root[1] != ':') {
+            if (root[0] == '.' && root[1] == '/') {  // skip over "./"
+                root += 2;
+            } else if (root[0] == '.' && root[1] == 0) {  // ignore "."
+                root++;
+            }
+            getcwd(cwd, sizeof(cwd) - 1);
+            strcat(cwd, "/");  // need separator before root
+        }
+        printf("Serving %s%s on HTTP port %s\n",
+               cwd, root, http_port.content);
+    }
+
     // configure services
     for (Field_entry *field = fields; field; field = field->next) {
-        if (field->marker == O2TOOSC_SERV_MARKER) {
+        if (field->marker == O2TOOSC_SERV_FIELD) {
             const char *service = field->content;
             char ip[MAX_NAME_LEN + 1];
             strncpy(ip, field->next->content, MAX_NAME_LEN);
@@ -640,7 +683,7 @@ int main(int argc, char **argv)
                     printf("WARNING: %s\n", o2_error_to_string(err));
                 }
             }
-        } else if (field->marker == OSCTOO2_UDP_MARKER) {
+        } else if (field->marker == OSCTOO2_UDP_FIELD) {
             bool tcp_flag = (strcmp(field->content, "TCP") == 0);
             int port = atoi(field->next->content);
             const char *service = field->next->next->content;
@@ -658,9 +701,9 @@ int main(int argc, char **argv)
                     printf("WARNING: O2 error %s\n", o2_error_to_string(err));
                 }
             }
-        } else if (field->marker == MIDIIN_NAME_MARKER) {
+        } else if (field->marker == MIDIIN_NAME_FIELD) {
             midi_input_initialize(field);
-        } else if (field->marker == MIDIOUT_SERV_MARKER) {
+        } else if (field->marker == MIDIOUT_SERV_FIELD) {
             midi_output_initialize(field);
         }
     }

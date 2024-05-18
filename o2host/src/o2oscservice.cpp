@@ -15,7 +15,7 @@ void insert_o2_to_osc() {
     // add five fields
     Field_entry *service = new Field_entry(0, O2TOOSC_SERV_X, y,
                     "Fwd Service", O2TOOSC_SERV_W, insert_after);
-    service->marker = O2TOOSC_SERV_MARKER;
+    service->marker = O2TOOSC_SERV_FIELD;
     service->show_content();
     set_current_field(service);
 
@@ -38,7 +38,7 @@ void insert_o2_to_osc() {
     Field_entry *delete_me = new Field_entry(O2TOOSC_DELLABEL_X, O2TOOSC_DEL_X,
                                              y, "(X", 1, udp);
     delete_me->is_button = true;
-    delete_me->marker = O2TOOSC_MARKER;
+    delete_me->marker = O2TOOSC_DEL_FIELD;
     delete_me->after_field = ")";
     delete_me->show_content();
     insert_after = delete_me;
@@ -58,7 +58,7 @@ void insert_osc_to_o2() {
     Field_entry *udp = new Field_entry(0, OSCTOO2_UDP_X, y, "Fwd OSC from",
                                        OSCTOO2_UDP_W, insert_after);
     udp->set_menu_options(udp_tcp_options);
-    udp->marker = OSCTOO2_UDP_MARKER;
+    udp->marker = OSCTOO2_UDP_FIELD;
     udp->show_content();
     set_current_field(udp);
 
@@ -74,7 +74,7 @@ void insert_osc_to_o2() {
     Field_entry *delete_me = new Field_entry(OSCTOO2_DELLABEL_X, OSCTOO2_DEL_X,
                                              y, "(X", 1, service);
     delete_me->is_button = true;
-    delete_me->marker = OSCTOO2_MARKER;
+    delete_me->marker = OSCTOO2_DEL_FIELD;
     delete_me->after_field = ")";
     delete_me->show_content();
     insert_after = delete_me;

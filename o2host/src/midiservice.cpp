@@ -78,14 +78,27 @@ void midi_devices_refresh()
 
     // restore all fields with valid midi device names
     for (Field_entry *field = fields; field; field = field->next) {
-        if (field->marker == MIDIOUT_NAME_MARKER) {
+        if (field->marker == MIDIOUT_NAME_FIELD) {
             field->set_menu_options(midi_out_devices);
             field->show_content();
-        } else if (field->marker == MIDIIN_NAME_MARKER) {
+        } else if (field->marker == MIDIIN_NAME_FIELD) {
             field->set_menu_options(midi_in_devices);
             field->show_content();
         }
     }
+}
+
+// get midi device ID for name. input is 1 for input, 0 for output
+int midi_name_to_id(const char *name, int input)
+{
+    for (int i = 0; i < Pm_CountDevices(); i++) {
+        const PmDeviceInfo *info = Pm_GetDeviceInfo(i);
+        if ((info->input != 0) == (input != 0) &&
+            strcmp(info->name, name) == 0) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 
@@ -105,7 +118,7 @@ void insert_o2_to_midi() {
 
     Field_entry *service = new Field_entry(0, MIDIOUT_SERV_X, y,
                "MIDI Out Service", MIDIOUT_SERV_W, insert_after);
-    service->marker = MIDIOUT_SERV_MARKER;
+    service->marker = MIDIOUT_SERV_FIELD;
     service->show_content();
     set_current_field(service);
 
@@ -113,13 +126,13 @@ void insert_o2_to_midi() {
     Field_entry *name = new Field_entry(MIDIOUT_LABEL_X, MIDIOUT_X, y,
                                         "to", MIDIOUT_W, service);
     name->set_menu_options(midi_out_devices);
-    name->marker = MIDIOUT_NAME_MARKER;
+    name->marker = MIDIOUT_NAME_FIELD;
     name->show_content();
 
     Field_entry *delete_me = new Field_entry(MIDIOUT_DELLABEL_X, MIDIOUT_DEL_X,
                                              y, "(X", 1, name);
     delete_me->is_button = true;
-    delete_me->marker = MIDIOUT_MARKER;
+    delete_me->marker = MIDIOUT_DEL_FIELD;
     delete_me->after_field = ")";
     delete_me->show_content();
     insert_after = delete_me;
@@ -147,7 +160,7 @@ void insert_midi_to_o2() {
     Field_entry *name = new Field_entry(0, MIDIIN_X, y,
                                         "MIDI In", MIDIIN_W, insert_after);
     name->set_menu_options(midi_in_devices);
-    name->marker = MIDIIN_NAME_MARKER;
+    name->marker = MIDIIN_NAME_FIELD;
     name->show_content();
     set_current_field(name);
 
@@ -158,7 +171,7 @@ void insert_midi_to_o2() {
     Field_entry *delete_me = new Field_entry(MIDIIN_DELLABEL_X, MIDIIN_DEL_X,
                                              y, "(X", 1, service);
     delete_me->is_button = true;
-    delete_me->marker = MIDIIN_MARKER;
+    delete_me->marker = MIDIIN_DEL_FIELD;
     delete_me->after_field = ")";
     delete_me->show_content();
     insert_after = delete_me;
@@ -187,7 +200,7 @@ void midi_input_initialize(Field_entry *field)
     const char *device = field->content;
     const char *service = field->next->content;
     printf("MIDI input %s to O2 service %s\n", device, service);
-    int dev_id = string_list_index(midi_in_devices, device, -1);
+    int dev_id = midi_name_to_id(device, 1);
     if (dev_id < 0) {
         printf("WARNING: MIDI input %s is not (no longer) available\n",
                device);
@@ -195,7 +208,7 @@ void midi_input_initialize(Field_entry *field)
         PmError pmerr = Pm_OpenInput(&midi_input_streams[num_midi_in],
                                      dev_id, NULL, 100, NULL, NULL);
         if (pmerr) {
-            printf("WARNING: Could not open %s: ", device);
+            printf("WARNING: Could not open %s because ", device);
             print_pmerror(pmerr);
         } else {
             char address[MAX_NAME_LEN * 2];
@@ -241,12 +254,12 @@ void midi_output_initialize(Field_entry *field)
     const char *service = field->content;
     const char *device = field->next->content;
     printf("MIDI Output from O2 service %s to %s\n", service, device);
-    int dev_id = string_list_index(midi_out_devices, device, -1);
+    int dev_id = midi_name_to_id(device, 0);
     if (dev_id < 0) {
         printf("WARNING: MIDI output %s is not (no longer) available\n",
                device);
     } else {
-        PmError pmerr = Pm_OpenOutput(&midi_output_streams[num_midi_in],
+        PmError pmerr = Pm_OpenOutput(&midi_output_streams[num_midi_out],
                                       dev_id, NULL, 100, NULL, NULL, 0);
         if (pmerr) {
             char msg[128];

@@ -15,7 +15,7 @@
 // Debug_flags: <flags>
 // Reference_clock: Y/N
 // Networking: <string>
-// WebSockets: <string>
+// HTTP_port: <string>
 // MQTT_host: <string>
 // MQTT_port: <string>
 // O2_to_OSC: <servicename> <IP> <port> UDP
@@ -269,11 +269,15 @@ int read_config()
         }
         conf->networking = string_list_index(net_options, temp, 0);
 
-        if (read_field(inf, "WebSockets:", WEB_W, temp, true)) {
+        if (read_field(inf, "HTTP_port:", PORT_LEN, temp, true)) {
             goto bad_file;
         }
-        conf->websockets = string_list_index(enable_options, temp, 0);
+        conf->http_port = atoi(temp);
 
+        if (read_field(inf, "HTTP_root:", MAX_NAME_LEN,
+                       conf->http_root, true)) {
+            goto bad_file;
+        }
         if (read_field(inf, "MQTT_host:", MAX_NAME_LEN,
                        conf->mqtt_host, true)) {
             goto bad_file;
@@ -291,7 +295,7 @@ int read_config()
                 break;  // done with extra services
             }
             if (strcmp(temp, "O2_to_OSC:") == 0) {
-                sc = new Service_config(O2TOOSC_MARKER);
+                sc = new Service_config(O2TOOSC_CONFIG);
                 if (read_field(inf, "", O2TOOSC_SERV_W, sc->service_name,
                                false) ||
                     read_field(inf, "", IP_LEN, sc->ip, false) ||
@@ -303,7 +307,7 @@ int read_config()
                 sc->port = atoi(temp);
                 sc->tcp_flag = (strcmp(tcp_udp, "TCP") == 0);
             } else if (strcmp(temp, "OSC_to_O2:") == 0) {
-                sc = new Service_config(OSCTOO2_UDP_MARKER);
+                sc = new Service_config(OSCTOO2_CONFIG);
                 if (read_field(inf, "", 3, tcp_udp, false) ||
                     read_field(inf, "", PORT_LEN, temp, false) ||
                     read_field(inf, "", OSCTOO2_SERV_W,
@@ -314,7 +318,7 @@ int read_config()
                 sc->port = atoi(temp);
                 sc->tcp_flag = (strcmp(tcp_udp, "TCP") == 0);
             } else if (strcmp(temp, "MIDI_in:") == 0) {
-                sc = new Service_config(MIDIIN_MARKER);
+                sc = new Service_config(MIDIIN_CONFIG);
                 if (read_field(inf, "", MIDIIN_W, sc->midi_device, false) ||
                     read_field(inf, "", MIDIIN_SERV_W,
                                sc->service_name, true)) {
@@ -322,7 +326,7 @@ int read_config()
                     goto bad_file;
                 }
             } else if (strcmp(temp, "MIDI_out:") == 0) {
-                sc = new Service_config(MIDIOUT_MARKER);
+                sc = new Service_config(MIDIOUT_CONFIG);
                 if (read_field(inf, "", MIDIOUT_SERV_W,
                                sc->service_name, false) ||
                     read_field(inf, "", MIDIOUT_W, sc->midi_device, true)) {

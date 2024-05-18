@@ -13,13 +13,12 @@
 //#include <unistd.h>
 #include <stdlib.h>
 #include "fieldentry.h"
-#include "o2host.h"
 #include "configuration.h"
+#include "o2host.h"
 #include "o2oscservice.h"
 
 
-Service_config::Service_config(int marker_) {
-    assert(marker_ != OSCTOO2_MARKER);
+Service_config::Service_config(Service_config_marker marker_) {
     marker = marker_;
     service_name[0] = 0;
     ip[0] = 0;
@@ -55,7 +54,8 @@ Configuration::Configuration() {
     reference_clock[0] = 'N';
     reference_clock[1] = 0;
     networking = 0;
-    websockets = false;
+    http_port = 0;
+    http_root[0] = 0;
     mqtt_host[0] = 0;
     mqtt_port = 0;
     services = NULL;
@@ -83,23 +83,24 @@ void Configuration::save_to_pref(FILE *outf) {
     fprintf(outf, "Debug_flags: \"%s\"\n", debug_flags);
     fprintf(outf, "Reference_clock: \"%s\"\n", reference_clock);
     fprintf(outf, "Networking: \"%s\"\n", net_options[networking]);
-    fprintf(outf, "WebSockets: \"%s\"\n", websockets ? "Enable" : "Disable");
+    fprintf(outf, "HTTP_port: \"%s\"\n", port_as_string(http_port));
+    fprintf(outf, "HTTP_root: \"%s\"\n", http_root);
     fprintf(outf, "MQTT_host: \"%s\"\n", mqtt_host);
     fprintf(outf, "MQTT_port: \"%s\"\n", port_as_string(mqtt_port));
     Service_config *sc = services;
     while (sc) {
-        if (sc->marker == O2TOOSC_SERV_MARKER) {
+        if (sc->marker == O2TOOSC_CONFIG) {
             fprintf(outf, "O2_to_OSC: \"%s\" \"%s\" \"%s\" \"%s\"\n",
                     sc->service_name, sc->ip, port_as_string(sc->port),
                     sc->tcp_flag ? "TCP" : "UDP");
-        } else if (sc->marker == OSCTOO2_UDP_MARKER) {
+        } else if (sc->marker == OSCTOO2_CONFIG) {
             fprintf(outf, "OSC_to_O2: \"%s\" \"%s\" \"%s\"\n",
                     sc->tcp_flag ? "TCP" : "UDP", port_as_string(sc->port),
                     sc->service_name);
-        } else if (sc->marker == MIDIOUT_SERV_MARKER) {
+        } else if (sc->marker == MIDIOUT_CONFIG) {
             fprintf(outf, "MIDI_out: \"%s\" \"%s\"\n",
                     sc->service_name, sc->midi_device);
-        } else if (sc->marker == MIDIIN_NAME_MARKER) {
+        } else if (sc->marker == MIDIIN_CONFIG) {
             fprintf(outf, "MIDI_in: \"%s\" \"%s\"\n", sc->midi_device,
                     sc->service_name);
         } else {
@@ -167,12 +168,13 @@ void do_configuration_load()
     debug_flags.set_content(conf->debug_flags);
     reference_clock.set_content(conf->reference_clock);
     networking.set_content(net_options[conf->networking]);
-    websockets.set_content(conf->websockets ? "Enable" : "Disable");
+    http_port.set_number(conf->http_port, "");
+    http_root.set_content(conf->http_root ? conf->http_root : "");
     mqtt_host.set_content(conf->mqtt_host ? conf->mqtt_host : "");
     mqtt_port.set_number(conf->mqtt_port, "");
     // create fields for added service descriptors
     for (Service_config *sc = conf->services; sc; sc = sc->next) {
-        if (sc->marker == O2TOOSC_MARKER) {
+        if (sc->marker == O2TOOSC_CONFIG) {
             Field_entry *fe = insert_after;  // remember link to new fields
             insert_o2_to_osc();
             fe = fe->next;  // service name
@@ -183,7 +185,7 @@ void do_configuration_load()
             fe->set_number(sc->port, "");
             fe = fe->next;  // udp/tcp
             fe->set_content(sc->tcp_flag ? "TCP" : "UDP");
-        } else if (sc->marker == OSCTOO2_UDP_MARKER) {
+        } else if (sc->marker == OSCTOO2_CONFIG) {
             Field_entry *fe = insert_after;  // remember link to new fields
             insert_osc_to_o2();
             fe = fe->next;  // udp/tcp
@@ -192,14 +194,14 @@ void do_configuration_load()
             fe->set_number(sc->port, "");
             fe = fe->next;  // service name
             fe->set_content(sc->service_name);
-        } else if (sc->marker == MIDIOUT_SERV_MARKER) {
+        } else if (sc->marker == MIDIOUT_CONFIG) {
             Field_entry *fe = insert_after;  // remember link to new fields
             insert_o2_to_midi();
             fe = fe->next;  // service name
             fe->set_content(sc->service_name);
             fe = fe->next;  // device name
             fe->set_content(sc->midi_device);
-        } else if (sc->marker == MIDIIN_NAME_MARKER) {
+        } else if (sc->marker == MIDIIN_CONFIG) {
                     Field_entry *fe = insert_after;  // remember link to new fields
             insert_midi_to_o2();
             fe = fe->next;  // device name
@@ -284,7 +286,8 @@ void do_configuration_save()
     strcpy(conf->debug_flags, debug_flags.content);
     strcpy(conf->reference_clock, reference_clock.content);
     conf->networking = networking.current_option(0);
-    conf->websockets = websockets.current_option(0);
+    conf->http_port = (http_port.content[0] ? atoi(http_port.content) : 0);
+    strcpy(conf->http_root, http_root.content);
     strcpy(conf->mqtt_host, mqtt_host.content);
     conf->mqtt_port = (mqtt_port.content[0] ? atoi(mqtt_port.content) : 0);
 
@@ -292,27 +295,30 @@ void do_configuration_save()
     // Service_config and append it to the services list.
     Service_config **sc_ptr = &conf->services;
     Field_entry *fe = mqtt_port.next;
-    while (fe != &new_o2_to_osc) {
-        Service_config *sc = new Service_config(fe->marker);
+    while (fe != &new_o2_to_osc) {  // new_o2_to_osc is first field after
+                                    // the added services
+        Service_config_marker m = (Service_config_marker)
+                ((int) fe->marker + 100);
+        Service_config *sc = new Service_config(m);
         *sc_ptr = sc;
-        if (sc->marker == O2TOOSC_SERV_MARKER) {
+        if (m == O2TOOSC_CONFIG) {
             strcpy(sc->service_name, fe->content);
             strcpy(sc->ip, (fe = fe->next)->content);
             fe = fe->next;  // port
             sc->port = (fe->content[0] ? atoi(fe->content) : 0);
             fe = fe->next;  // TCP flag
             sc->tcp_flag = (strcmp(fe->content, "TCP") == 0);
-        } else if (sc->marker == OSCTOO2_UDP_MARKER) {
+        } else if (m == OSCTOO2_CONFIG) {
             sc->tcp_flag = (strcmp(fe->content, "TCP") == 0);
             fe = fe->next;  // port
             sc->port = (fe->content[0] ? atoi(fe->content) : 0);
             fe = fe->next;  // service name
             strcpy(sc->service_name, fe->content);
-        } else if (sc->marker == MIDIOUT_SERV_MARKER) {
+        } else if (m == MIDIOUT_CONFIG) {
             strcpy(sc->service_name, fe->content);
             fe = fe->next;
             strcpy(sc->midi_device, fe->content);
-        } else if (sc->marker == MIDIIN_NAME_MARKER) {
+        } else if (m == MIDIIN_CONFIG) {
             strcpy(sc->midi_device, fe->content);
             fe = fe->next; // to service name
             strcpy(sc->service_name, fe->content);
@@ -374,7 +380,8 @@ void do_configuration_new()
     debug_flags.set_content("");
     reference_clock.set_content("");
     networking.set_option(0);
-    websockets.set_option(0);
+    http_port.set_content("");
+    http_root.set_content("");
     mqtt_host.set_content("");
     mqtt_port.set_content("");
     draw_screen();
