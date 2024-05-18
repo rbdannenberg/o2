@@ -7,7 +7,7 @@ To run this demo, you need
 [wxSerpent](https://www.cs.cmu.edu/~music/serpent/doc/serpent.htm)
 with O2 functions enabled.
 
-# Basic Button Demo
+## Basic Button Demo
 The basic demo is a (software) panel of 4 buttons. Pressing a button
 sends an O2 command to a server that sends MIDI to play a note. In
 this directory:
@@ -28,7 +28,26 @@ something like "soft-thru Bus").
 
 **Click on a number** in `buttons` and you should hear a sound!
 
-# O2 Spy Demo
+## O2Lite over WebSockets Demo
+Browsers can communicate over O2 using the O2Lite protocol. This
+protocol runs over various lower-level protocols including WebSockets.
+
+For a simple example/demonstration, the buttons interface has been
+reproduced using Javascript and HTML. To demonstrate a browser
+interface communicating over O2, follow these steps, starting in
+this directory:
+- Create the server: `wxserpent64 synthctrl` (exactly as in the Basic
+  Button Demo described above).
+- Create an O2 host with the web server and web sockets feature
+  enabled: `../../Debug/websockhost - bdemo` (just as described below
+  under "start websockhost").
+- Open `http://localhost:8080/buttons.htm` in a browser.
+- You should get a page with 4 buttons. They will send messages over
+  a websocket to `websockhost` which forwards the messages to
+  `synthctrl.srp` which will send MIDI and play notes.
+  
+
+## O2 Spy Demo
 There is an experimental O2 debugger/monitor named `o2spy`. After
 starting the "Basic Button Demo," you can spy on messages:
 - Create O2 Spy:

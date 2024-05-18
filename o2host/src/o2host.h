@@ -10,6 +10,7 @@ extern const char *udp_tcp_options[];
 extern const char *configuration_list[];
 extern void moveyx(int y, int x);
 extern char pref_path[128];
+extern bool redraw_requested;
 
 // cursor position:
 extern int xpos;

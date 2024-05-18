@@ -302,16 +302,15 @@ void set_current_field(Field_entry *field)
 }
 
 
+// delete_or_insert - remove or add an optional service to/from midi/osc
+//     connection.
+// y - the line to be removed or the location of the new line
+// inc - +1 if insert, -1 if deleting an option.
+// The effect is to shift the lines below y up or down according to inc.
+//
 void delete_or_insert(int y, int inc)
 {
-    move(y, 0);
-    if (inc == 1) {
-        required_height++;
-        insertln();
-    } else {
-        required_height--;
-        deleteln();
-    }
+    required_height += inc;
     // adjust all fields that changed lines
     for (Field_entry *field = fields; field; field = field->next) {
         if (inc == -1 && field->y > y) {
@@ -320,7 +319,9 @@ void delete_or_insert(int y, int inc)
             field->y++;
         }
     }
+    redraw_requested = true;
 }
+
 
 void move_to_line(int direction)
 {

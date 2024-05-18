@@ -67,6 +67,7 @@ extern Configuration *conf_list[CONF_LIST_MAX];
 extern const char *configuration_menu_options[CONF_LIST_MAX + 1];
 extern int n_conf_list;
 
+int find_configuration(const char *name);
 void do_configuration_load();
 void do_configuration_delete();
 void do_configuration_save();

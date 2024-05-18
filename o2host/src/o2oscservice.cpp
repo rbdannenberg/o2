@@ -16,35 +16,28 @@ void insert_o2_to_osc() {
     Field_entry *service = new Field_entry(0, O2TOOSC_SERV_X, y,
                     "Fwd Service", O2TOOSC_SERV_W, insert_after);
     service->marker = O2TOOSC_SERV_FIELD;
-    service->show_content();
     set_current_field(service);
 
     Field_entry *ip = new Field_entry(O2TOOSC_IPLABEL_X, O2TOOSC_IP_X, y,
                                       "to OSC IP", IP_LEN, service);
     ip->set_ip();
     ip->set_content("127.000.000.001");
-    ip->show_content();
     
     Field_entry *port = new Field_entry(O2TOOSC_PORTLABEL_X, O2TOOSC_PORT_X, y,
                                         "Port", PORT_LEN, ip);
     port->is_integer = true;
-    port->show_content();
 
     Field_entry *udp = new Field_entry(O2TOOSC_UDP_X, O2TOOSC_UDP_X, y, "",
                                        O2TOOSC_UDP_W, port);
     udp->set_menu_options(udp_tcp_options);
-    udp->show_content();
 
     Field_entry *delete_me = new Field_entry(O2TOOSC_DELLABEL_X, O2TOOSC_DEL_X,
                                              y, "(X", 1, udp);
     delete_me->is_button = true;
     delete_me->marker = O2TOOSC_DEL_FIELD;
     delete_me->after_field = ")";
-    delete_me->show_content();
     insert_after = delete_me;
-    if (required_height > LINES) {
-        draw_screen();
-    }
+    redraw_requested = true;
 }
 
 
@@ -59,27 +52,21 @@ void insert_osc_to_o2() {
                                        OSCTOO2_UDP_W, insert_after);
     udp->set_menu_options(udp_tcp_options);
     udp->marker = OSCTOO2_UDP_FIELD;
-    udp->show_content();
     set_current_field(udp);
 
     Field_entry *port = new Field_entry(OSCTOO2_PORTLABEL_X, OSCTOO2_PORT_X, y,
                                         "Port", PORT_LEN, udp);
     port->is_integer = true;
-    port->show_content();
 
     Field_entry *service = new Field_entry(OSCTOO2_SERVLABEL_X,
             OSCTOO2_SERV_X, y, "to Service", OSCTOO2_SERV_W, port);
-    service->show_content();
 
     Field_entry *delete_me = new Field_entry(OSCTOO2_DELLABEL_X, OSCTOO2_DEL_X,
                                              y, "(X", 1, service);
     delete_me->is_button = true;
     delete_me->marker = OSCTOO2_DEL_FIELD;
     delete_me->after_field = ")";
-    delete_me->show_content();
     insert_after = delete_me;
-    if (required_height > LINES) {
-        draw_screen();
-    }
+    redraw_requested = true;
 }
 

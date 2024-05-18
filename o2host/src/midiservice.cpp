@@ -119,7 +119,6 @@ void insert_o2_to_midi() {
     Field_entry *service = new Field_entry(0, MIDIOUT_SERV_X, y,
                "MIDI Out Service", MIDIOUT_SERV_W, insert_after);
     service->marker = MIDIOUT_SERV_FIELD;
-    service->show_content();
     set_current_field(service);
 
     // add three fields
@@ -127,18 +126,14 @@ void insert_o2_to_midi() {
                                         "to", MIDIOUT_W, service);
     name->set_menu_options(midi_out_devices);
     name->marker = MIDIOUT_NAME_FIELD;
-    name->show_content();
 
     Field_entry *delete_me = new Field_entry(MIDIOUT_DELLABEL_X, MIDIOUT_DEL_X,
                                              y, "(X", 1, name);
     delete_me->is_button = true;
     delete_me->marker = MIDIOUT_DEL_FIELD;
     delete_me->after_field = ")";
-    delete_me->show_content();
     insert_after = delete_me;
-    if (required_height > LINES) {
-        draw_screen();
-    }
+    redraw_requested = true;
 }
 
 
@@ -161,23 +156,18 @@ void insert_midi_to_o2() {
                                         "MIDI In", MIDIIN_W, insert_after);
     name->set_menu_options(midi_in_devices);
     name->marker = MIDIIN_NAME_FIELD;
-    name->show_content();
     set_current_field(name);
 
     Field_entry *service = new Field_entry(MIDIIN_SERVLABEL_X,
                 MIDIIN_SERV_X, y, "to Service", MIDIIN_SERV_W, name);
-    service->show_content();
 
     Field_entry *delete_me = new Field_entry(MIDIIN_DELLABEL_X, MIDIIN_DEL_X,
                                              y, "(X", 1, service);
     delete_me->is_button = true;
     delete_me->marker = MIDIIN_DEL_FIELD;
     delete_me->after_field = ")";
-    delete_me->show_content();
     insert_after = delete_me;
-    if (required_height > LINES) {
-        draw_screen();
-    }
+    redraw_requested = true;
 }
 
 
@@ -199,7 +189,7 @@ void midi_input_initialize(Field_entry *field)
 {
     const char *device = field->content;
     const char *service = field->next->content;
-    printf("MIDI input %s to O2 service %s\n", device, service);
+    printf("MIDI input %s to O2 address /%s/midi\n", device, service);
     int dev_id = midi_name_to_id(device, 1);
     if (dev_id < 0) {
         printf("WARNING: MIDI input %s is not (no longer) available\n",
@@ -253,7 +243,7 @@ void midi_output_initialize(Field_entry *field)
 {
     const char *service = field->content;
     const char *device = field->next->content;
-    printf("MIDI Output from O2 service %s to %s\n", service, device);
+    printf("MIDI Output from O2 address /%s/midi to %s\n", service, device);
     int dev_id = midi_name_to_id(device, 0);
     if (dev_id < 0) {
         printf("WARNING: MIDI output %s is not (no longer) available\n",

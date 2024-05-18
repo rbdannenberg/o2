@@ -202,7 +202,7 @@ void do_configuration_load()
             fe = fe->next;  // device name
             fe->set_content(sc->midi_device);
         } else if (sc->marker == MIDIIN_CONFIG) {
-                    Field_entry *fe = insert_after;  // remember link to new fields
+            Field_entry *fe = insert_after;  // remember link to new fields
             insert_midi_to_o2();
             fe = fe->next;  // device name
             fe->set_content(sc->midi_device);
@@ -212,7 +212,7 @@ void do_configuration_load()
             print_error("Unexpected Service_config tag.");
         }
     }
-    draw_screen();
+    redraw_requested = true;
     // after a load, we'll set the current field to Ensemble name: since
     // positioning at the top (done by draw_screen) just puts us in the
     // Configuration: menu that we just used to choose what to Load. It
@@ -332,7 +332,7 @@ void do_configuration_save()
     // conf_name is what we saved, so we are now selecting conf_name
     strcpy(configuration.content, conf_name);
     configuration_rename.set_content("");
-    draw_screen();
+    redraw_requested = true;
 
     // write all configurations to the preference file
 
@@ -384,7 +384,7 @@ void do_configuration_new()
     http_root.set_content("");
     mqtt_host.set_content("");
     mqtt_port.set_content("");
-    draw_screen();
+    redraw_requested = true;
 }
 
 

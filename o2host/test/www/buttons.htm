@@ -1,0 +1,118 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Buttons Demo</title>
+<script src="o2ws.js"></script>
+<script>
+
+function app_init() {
+    wsResult = document.getElementById("wsResult"); 
+    wsStatus = document.getElementById("wsStatus"); 
+    wsOutput = document.getElementById("wsOutput"); 
+    o2ws_status_msgs_enable = true;
+    o2ws_status_msg("Initializing O2ws with " + WSURI);
+    o2ws_initialize("bdemo");
+    synth_found = false;
+    // create handler for server status messages 
+    o2ws_method_new("/_o2/st", "si", true, status_handler, null); 
+    poll_for_synth();
+}
+
+
+function status_handler(timestamp, address, typespec, info) {
+    var service_name = o2ws_get_string();  
+    var service_status = o2ws_get_int32();  
+    if (service_name == "midiout" && service_status >= O2_LOCAL) {
+        synth_found = true;  
+    }
+}
+ 
+
+function poll_for_synth() {
+    if (synth_found && o2ws_clock_synchronized) {
+        // I'm not sure why o2client.cpp waits, but maybe it is safer
+        // to give some time to the synth process to recognize the
+        // client service (us) exists before sending and expecting a
+        // reply.
+        o2ws_status_msg("We discovered the synth.\ntime is " +
+                        o2ws_time_get()); 
+        setTimeout(here_we_go, 1000);
+    } else {
+        if (!synth_found) {
+            o2ws_send_cmd("/_o2/ws/st", 0, "s", "midiout");
+        }
+        setTimeout(poll_for_synth, 250);
+    }
+}
+
+
+function here_we_go() {
+    o2ws_status_msg("Here we go! ...\ntime is " + o2ws_time_get()); 
+    // o2ws_send_cmd("!server/benchmark/0", 0, "i", 1); 
+}
+
+function make_paragraph(content) {
+    var par = document.createElement("p"); 
+    par.style.wordWrap = "break-word"; 
+    par.innerHTML = content;
+    return par;
+}
+
+
+function display_result(msg) {
+    wsResult.innerHTML = msg;
+}
+
+function o2ws_status_msg(message) {
+    wsStatus.innerHTML = "<p>" + message + "</p>";
+    console.log("Status: " + message);
+}
+
+function o2ws_error(message) {
+    wsOutput.appendChild(make_paragraph(
+            '<span style="color: red;">ERROR:</span> ' + message));
+}
+
+function midi_encode(cmd, data1, data2) {
+    return (data2 << 16) + (data1 << 8) + cmd;
+}
+
+function send_noteoff(pitch) {
+    o2ws_send_cmd("/midiout/midi", 0, "i", midi_encode(0x90, pitch, 0));
+}
+
+function button_press(n) {
+    var pitch = 60 + 5 * n;
+    o2ws_send_cmd("/midiout/midi", 0, "i", midi_encode(0x90, pitch, 100));
+    setTimeout(send_noteoff, 1000, pitch);
+}
+
+var msg_count = 0;
+var running = true;
+
+window.addEventListener("load", app_init, false);
+console.log("Finished loading index.htm scripts");
+</script>
+<style>
+.button { padding: 15px 32px; text-align: center; font-size: 16px;
+          background-color: #4CAF50; color: white; }
+</style>
+</head>
+
+<body>
+<h1>Buttons Demo</h1>
+Make sure o2host is running, providing reference clock, and forwarding
+service midiout to a MIDI synthesizer.
+<p>
+<button class="button" onclick="button_press(1);">1</button>
+<button class="button" onclick="button_press(2);">2</button>
+<p>
+<button class="button" onclick="button_press(3);">3</button>
+<button class="button" onclick="button_press(4);">4</button>
+<p>
+  <h3 id="wsResult"></h3>
+  <div id="wsStatus"></div>
+  <div id="wsOutput"></div>
+</body>
+</html>

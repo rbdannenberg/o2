@@ -158,6 +158,7 @@ const char *configuration_list[] = {NULL};
 
 // configurations are stored here:
 char pref_path[128];
+bool redraw_requested = true;
 
 int required_height = REQUIRED_HEIGHT;  // initial value
 // if this is set, we just wait for a bigger screen
@@ -293,6 +294,7 @@ void draw_screen()
 {
     wbkgd(stdscr, help_mode ? COLOR_PAIR(CHELP) : COLOR_PAIR(CNORMAL));
     erase();
+    wrefresh(stdscr);  // strange: without this wrefresh, erase() does not work
     move(0, 0);
     attron(A_BOLD);
     attron(COLOR_PAIR(CTITLE));
@@ -323,9 +325,13 @@ void draw_screen()
         printw("Window must be wider (min %d cols)\n", REQUIRED_WIDTH);
         need_bigger_screen = true;
     }
-    if (LINES < required_height) {
+    int min_height = required_height;
+    if (min_height < 28) {  // 28 is the number of lines in the help screen.
+        min_height = 28;
+    }
+    if (LINES < min_height) {
         attron(COLOR_PAIR(CRED));
-        printw("Window must be taller (min %d cols)\n", required_height);
+        printw("Window must be taller (min %d cols)\n", min_height);
         need_bigger_screen = true;
     }
     if (need_bigger_screen) {
@@ -342,6 +348,7 @@ void draw_screen()
     draw_all_fields();
     set_current_field(fields);
     wrefresh(stdscr);
+    redraw_requested = false;
 }
 
 
@@ -402,6 +409,10 @@ void handle_move(int ch)
 
 bool configure()
 {
+    // last opportunity to redraw the screen before blocking read
+    if (redraw_requested) {
+        draw_screen();
+    }
     int ch = getch();
 /*
 //  get key codes and print them for debugging/development:
@@ -409,10 +420,10 @@ bool configure()
     return true;
  */
     if (ch == KEY_RESIZE) {
-        draw_screen();
+        redraw_requested = true;
     } else if (help_mode && ch == ESC_CHAR) {
         help_mode = false;
-        draw_screen();
+        redraw_requested = true;
     } else if (need_bigger_screen) {
         ;  // wait for bigger screen before processing
     } else if (ch == '\t' || ch == '\n') {
@@ -426,7 +437,7 @@ bool configure()
         return false; // done
     } else if (ch == KEY_BACKSPACE) {
         help_mode = true;
-        draw_screen();
+        redraw_requested = true;
     } else if (ch <= 0 || ch >= 128) {
         return true;  // ignore other "special" characters
     } else if (isgraph(ch) || ch == ' ') {
@@ -461,6 +472,7 @@ void remove_info_line(int n_fields)
         new_current_field = fields;
     }
     set_current_field(new_current_field);
+    redraw_requested = true;
 }
 
 
@@ -524,6 +536,14 @@ bool ip_compact(char *ip)
 }
 
 
+void usage()
+{
+    printf("usage: o2host -h or o2host --help or o2host config\n"
+           "    where config is a configuration name defined previously\n"
+           "    and saved in the preference file\n");
+}    
+
+
 int main(int argc, char **argv)
 {
     // this allows us to print to the terminal with a buffer flush at the end
@@ -533,13 +553,23 @@ int main(int argc, char **argv)
 #else
     setenv("NCURSES_NO_SETBUF", "1", true);
 #endif
+    
+    char *initial_config = NULL;
+
+    // if there is one 
+    if (argc > 2) {
+        usage();
+        return 1;
+    } else if (argc == 2) {
+        if (argv[1][0] == '-') {  // anything starting with "-" gets you help:
+            usage();
+            printf("After starting o2host, type Control-H for help.\n");
+            return 1;
+        }
+        initial_config = argv[1];
+    }
 
     int rslt = read_config();
-    if (rslt == 0) {
-        printf("WARNING: preference file not found\n");
-    } else if (rslt == -1) {
-        printf("ERROR: preference file could not be parsed\n");
-    }
     // start up curses
     initscr();
     start_color();
@@ -570,12 +600,20 @@ int main(int argc, char **argv)
     new_o2_to_midi.is_button = true;
     midi_refresh.is_button = true;
     // now we have the fields in place to load the last-current configuration:
-    if (rslt == 1) {
+    if (rslt == 0) {
+        print_error("WARNING: preference file not found\n");
+    } else if (rslt == -1) {
+        print_error("ERROR: preference file could not be parsed\n");
+    } else {  // we have configurations from preference file
+        // if command line requested a valid configuration, use it:
+        if (initial_config && find_configuration(initial_config) != -1) {
+            strncpy(configuration.content, initial_config, MAX_NAME_LEN);
+            configuration.content[MAX_NAME_LEN] = 0;
+        }            
         do_configuration_load();
     }
-    draw_screen();
     while (configure()) {
-        usleep(10000);  // sleep 10 msec to avoid busy-wait loop
+        usleep(10000);  // sleep 10 msec in case wgetch() is non-blocking
     };
     endwin();  // restore terminal settings
     // terminal becomes output only
