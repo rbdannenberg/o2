@@ -62,6 +62,10 @@
 #ifdef WIN32
 #undef MOUSE_MOVED
 #include <windows.h>
+#include <synchapi.h>
+#define usleep(x) Sleep((x) / 1000)
+#include <direct.h>
+#define getcwd(x, y) _getcwd(x, y)
 #else
 #include <unistd.h>
 #endif

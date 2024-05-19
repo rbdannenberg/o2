@@ -13,8 +13,6 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING
               "Semicolon-separated list of supported configuration types"
               FORCE)
 
-option(USE_STATIC_LIBS "Build with static libs?" TRUE)
-
 add_definitions("-DO2_NO_O2DISCOVERY")
 
 set(O2HOST_SRC src/o2host.cpp src/o2host.h
@@ -63,10 +61,10 @@ if(APPLE)
     set(BUNDLE_EXECUTABLE_NAME o2host.sh) 
     target_sources(o2host PUBLIC ${ICON_FULL_PATH}) 
     set_target_properties(o2host PROPERTIES 
-    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/Info.plist.in 
-    MACOSX_BUNDLE TRUE 
-    MACOSX_BUNDLE_ICON_FILE ${MACOSX_BUNDLE_ICON_FILE}
-    RESOURCE ${ICON_FULL_PATH}) 
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/Info.plist.in 
+        MACOSX_BUNDLE TRUE 
+        MACOSX_BUNDLE_ICON_FILE ${MACOSX_BUNDLE_ICON_FILE}
+        RESOURCE ${ICON_FULL_PATH}) 
     # after building o2host.app, CMake will install only 
     # Contents/MacOS/o2host, but we want to run o2host in Terminal, so 
     # we created Info.plist to run o2host.sh. Now that CMake's "normal"
@@ -89,8 +87,8 @@ else()
   target_include_directories(o2host PRIVATE "${CURSES_BASE}/include") 
   target_link_libraries(o2host PRIVATE 
       winmm.lib ws2_32.lib Iphlpapi.lib dnssd.lib) 
-  set_property(TARGET o2host PROPERTY MSVC_RUNTIME_LIBRARY 
-               "MultiThreaded$<$<CONFIG:Debug>:Debug>${MSVCRT_DLL}")  
+  # always static
+  set_property(TARGET o2host PROPERTY MSVC_RUNTIME_LIBRARY MultiThreaded)
 endif() 
 
 

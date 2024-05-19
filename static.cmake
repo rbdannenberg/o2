@@ -1,5 +1,7 @@
 # static.cmake -- change flags to link with static runtime libraries
 
+is this used by anyone?
+
 if(MSVC)
   foreach(flag_var
     CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
