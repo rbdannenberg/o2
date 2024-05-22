@@ -96,7 +96,7 @@ int ypos = 0;
 #define BRIGHT(c) ((c) + (COLORS > 15) * 8)
 #define BRIGHT_WHITE BRIGHT(COLOR_WHITE)
 
-#define REQUIRED_WIDTH 78
+#define REQUIRED_WIDTH 80
 #define REQUIRED_HEIGHT 16
 #define CONF_X 15
 #define CONF_Y 2
@@ -166,7 +166,8 @@ bool redraw_requested = true;
 
 int required_height = REQUIRED_HEIGHT;  // initial value
 // if this is set, we just wait for a bigger screen
-bool need_bigger_screen = false;
+bool need_wider_screen = false;
+bool need_taller_screen = false;
 bool help_mode = false;
 
 
@@ -323,22 +324,34 @@ void draw_screen()
         attron(COLOR_PAIR(CNORMAL));
     }
 
-    need_bigger_screen = false;
+    need_wider_screen = false;
     if (COLS < REQUIRED_WIDTH) {
         attron(COLOR_PAIR(CRED));
         printw("Window must be wider (min %d cols)\n", REQUIRED_WIDTH);
-        need_bigger_screen = true;
+        need_wider_screen = true;
     }
     int min_height = required_height;
     if (min_height < 28) {  // 28 is the number of lines in the help screen.
         min_height = 28;
     }
+
+    need_taller_screen = false;
     if (LINES < min_height) {
         attron(COLOR_PAIR(CRED));
-        printw("Window must be taller (min %d cols)\n", min_height);
-        need_bigger_screen = true;
+        printw("Window must be taller (min %d lines)\n", min_height);
+        need_taller_screen = true;
     }
-    if (need_bigger_screen) {
+    if (need_wider_screen | need_taller_screen) {
+#ifdef WIN32
+        endwin(); // back to terminal so we can leave a message
+        if (need_wider_screen) {
+            printf("Window must be wider (min %d cols)\n", REQUIRED_WIDTH);
+        }
+        if (need_taller_screen) {
+            printf("Window must be taller (min %d lines)\n", min_height);
+        }
+        exit(1);
+#endif
         return;
     }
 
@@ -350,7 +363,7 @@ void draw_screen()
     move(required_height - 2, 0);
     addstr("Type ESC to start, Control-H for Help.");
     draw_all_fields();
-    set_current_field(fields);
+    // set_current_field(fields);
     wrefresh(stdscr);
     redraw_requested = false;
 }
@@ -428,7 +441,7 @@ bool configure()
     } else if (help_mode && ch == ESC_CHAR) {
         help_mode = false;
         redraw_requested = true;
-    } else if (need_bigger_screen) {
+    } else if (need_wider_screen | need_taller_screen) {
         ;  // wait for bigger screen before processing
     } else if (ch == '\t' || ch == '\n') {
         tab_to_field();
@@ -446,6 +459,8 @@ bool configure()
         return true;  // ignore other "special" characters
     } else if (isgraph(ch) || ch == ' ') {
         handle_typing(ch);
+    } else if (ch == 0x03) {  // Control-C (windows)
+        exit(1);
     }
     return true;
 }
@@ -519,24 +534,28 @@ void do_command(Field_entry *field)
 //
 // To check for all fields having at least one digit, use need_digit to
 // signal when we're expecting a digit and error to signal that we encountered
-// a '.' while needing a digit.
+// a '.' while needing a digit. (all blank converted to 0)
+//
+// For windows, we need to filter out leading zeros.
+//
 bool ip_compact(char *ip)
 {
     bool need_digit = true;
-    bool error = false;
     char *tail = ip;
     for (char *head = ip; *head; head++) {  // scan entire string
-        if (need_digit && isdigit(*head)) {
+        if (isdigit(*head) && *head != '0') {
             need_digit = false;
-        } else if (need_digit && *head == '.') {
-            error = true;
-        }
-        if (*head != ' ') {
             *tail++ = *head;
+        } else if (*head == '.') {
+            if (need_digit) {
+                *tail++ = '0';
+            }
+            *tail++ = '.';
+            need_digit = true;
         }
     }
     *tail = 0;  // write EOS
-    return (!need_digit && !error);
+    return (!need_digit);
 }
 
 
@@ -626,24 +645,18 @@ int main(int argc, char **argv)
     printf("You have defined %d of 20 maximum configurations\n", n_conf_list);
     printf("Initializing O2 process for ensemble %s\n", ensemble_name.content);
     printf("Polling rate %d\n", atoi(polling_rate.content));
-    printf("Debug flags: %s\n", debug_flags.content);
+    printf("Debug flags: %s\n",
+           debug_flags.content[0] ? debug_flags.content : "(none)");
     printf("Reference clock: %s\n", reference_clock.content);
     printf("Network option: %s\n", networking.content);
-    printf("HTTP port: %s\n", http_port.content);
-    printf("MQTT Host %s Port %s\n", mqtt_host.content, mqtt_port.content);
+    printf("HTTP port: %s\n",
+           http_port.content[0] ? http_port.content : "8080");
 
     int networking_option = networking.current_option(0);
+    printf("MQTT %s enabled\n", networking_option == 3 ? "is" : "not");
+    
     o2_network_enable(networking_option != 0);
     o2_internet_enable(networking_option > 1);
-    if (networking_option == 2) {
-        o2_mqtt_enable(mqtt_host.content[0] ? mqtt_host.content : NULL,
-                       atoi(mqtt_port.content));
-        // since o2_initialized is not called yet, this call will always
-        // return O2_SUCCESS, but later, MQTT connections might fail.
-        // Maybe O2 should have an MQTT connection test, and maybe we
-        // should check it after awhile and report when not connected.
-    }
-
     if (!ensemble_name.content[0]) {
         printf("Configuration error: O2 cannot start without "
                "an ensemble name\n");
@@ -699,12 +712,49 @@ int main(int argc, char **argv)
                cwd, root, http_port.content);
     }
 
+    if (networking_option == 3) {
+        printf("MQTT Host %s Port %s\n",
+               mqtt_host.content[0] ? mqtt_host.content : "(default)",
+               mqtt_port.content[0] ? mqtt_port.content : "(default)");
+        o2_mqtt_enable(mqtt_host.content[0] ? mqtt_host.content : NULL,
+                       atoi(mqtt_port.content));
+        // since o2_initialized is not called yet, this call will always
+        // return O2_SUCCESS, but later, MQTT connections might fail.
+        // Maybe O2 should have an MQTT connection test, and maybe we
+        // should check it after awhile and report when not connected.
+    }
+
     // configure services
     for (Field_entry *field = fields; field; field = field->next) {
         if (field->marker == O2TOOSC_SERV_FIELD) {
             const char *service = field->content;
             char ip[MAX_NAME_LEN + 1];
             strncpy(ip, field->next->content, MAX_NAME_LEN);
+            /*
+            // remove extra zeros, e.g. 127.000.000.001 -> 127.0.0.1
+            char ip[20];
+            int ip_end = ip;
+            for (int i = 0; i < 16; i += 4) {
+                char ip_field[4];
+                strncpy(ip_field, field->next->content, 4);
+                ip_field[3] = 0;
+                after_space = ip_field;  // skip initial spaces
+                while (after_space[0] == ' ') {
+                    after_space++;
+                }
+                int field = 0;  // convert to int
+                if (after_space[0]) {
+                    atoi(after_space);
+                }
+                if (field > 255) {
+                    field = 255;
+                }
+                snprintf(ip_end, 4, "%d.", field); // append field
+                ip_end += (int) strlen(ip_end);
+            }
+            ip_end[-1] = 0;  // remove final extra '.'
+            // ip now has the form "127.0.0.1"
+            */
             int port = atoi(field->next->next->content);
             field = field->next->next->next;
             bool tcp_flag = (strcmp(field->content, "TCP") == 0);

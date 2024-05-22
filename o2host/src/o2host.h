@@ -34,9 +34,6 @@ extern Field_entry mqtt_host;
 extern Field_entry mqtt_port;
 
 extern int required_height;  // initial value
-// if this is set, we just wait for a bigger screen
-//extern bool need_bigger_screen = false;
-//extern bool help_mode = false;
 
 void print_error(const char *msg);
 void draw_screen();
