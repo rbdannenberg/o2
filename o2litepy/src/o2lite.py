@@ -3,33 +3,141 @@
 # Zekai Shen and Roger B. Dannenberg
 # Feb 2024
 
+# O2lite functions are all methods within the class O2lite.
+# In this documentation, we assume you have a single instance
+# of O2lite named o2lite. Thus, we write o2lite.time_get() to
+# indicate a call to the time_get() method of O2lite. Of course,
+# you can use a name other than o2lite.
+
+# EXAMPLES
+# Receiving a string from ensemble "test":
+"""
+from o2litepy import O2lite
+o2lite = O2lite()
+o2lite.initialize("test", debug_flags="a")
+o2lite.set_services("example")
+o2lite.method_new("/example/str", "s", True, str_handler, None)
+def str_handler(address, types, info):
+    print("got a string:", o2lite.get_string())
+o2lite.sleep(30)  # polls for 30 seconds
+"""
+# Sending a float to service "sensor", ensemble "test":
+"""
+from o2litepy import O2lite
+o2lite = O2lite()
+o2lite.initialize("test", debug_flags="a")
+# wait for connect and clock sync with host:
+while o2lite.time_get() < 0:
+    o2lite.sleep(1)
+
+# send (reliably) now that we are connected:
+o2lite.send_cmd("/test/sensor", "f", 3.14)
+
+# poll for another second (exiting immediately or not polling
+# may close the connection before message delivery completes):
+o2lite.sleep(1) 
+# Normally, a "main loop" will call o2lite.poll() frequently
+# so you do not need to explicitly call o2lite.sleep() after
+# sending.
+"""
+#
 # TIME:
-# O2lite.local_now is the current local time, updated every
+# o2lite.local_now is the current local time, updated every
 #     O2lite.poll(), which starts from 0
-# O2lite.time_get() retrieves the global time in seconds, but -1
+# o2lite.time_get() retrieves the global time in seconds, but -1
 #     until clock synchronization completes.
-# O2lite.local_time() retrieves the local time (local_now is identical
+# o2lite.local_time() retrieves the local time (local_now is identical
 #     within the polling period and should be faster).
-# o2l_sys_time() is a system-dependent function that returns time
-#     in seconds (for internal use to implement O2lite.local_time())
-# o2l_start_time (for internal use) is the start time of the
-#     reference clock (may or may not be 0)
-# O2lite.global_minus_local is (for internal use) the skew between
-#     global and local time as estimated by clock synchronization.
-# Caution: O2lite.get_time() and O2lite.add_time() are for message
-#     reading and constructing; they do not tell time
 #
 # DEBUGGING:
-# debug flags is a string used to set some debugging options:
+# debug_flags is a string used to set some debugging options:
 #   b -- print actual bytes of messages
 #   s -- print O2 messages when sent
 #   r -- print O2 messages when received
 #   d -- print info about discovery
 #   g -- general debugging info
 #   a -- all debugging messages except b
-# Setting any flag automatically enables "g"
+# Setting any flag automatically enables "g". debug_flags can be
+# set directly, or debug flags can be passed as a parameter to
+# initialize().
 #
-# DISCOVERY:
+# INITIALIZATION
+# You should create *one* instance of the O2lite class, e.g.
+#     o2lite = O2lite().
+# o2lite.initialize(ensemble_name, debug_flags="") must be called
+#     before using any other O2lite methods.
+#
+# O2 TYPES
+# This library supports the following data type codes and types in
+# messages:
+#     'i' 32-bit signed integer (Python int)
+#     'f' 32-bit IEEE float (Python float)
+#     's' string (Python str)
+#     't' 64-bit double time-stamp (Python float)
+# This limited set is intentional to minimize the size of o2lite
+# implementations, but it is likely to expand with more types.
+#
+# SENDING MESSAGES
+# Messages are sent with either send(), to send via UDP, or
+# send_cmd(), to send via TCP:
+# o2lite.send(address, time, type_string, data1, data2, data3, ...)
+#     address is the destination address
+#     time is the delivery time (double in seconds).  All messages are
+#         delivered immediately and dispatched at the given timestamp.
+#         Use zero for "as soon as possible."
+#     type_string is a string of type codes (see above).
+#     data parameters are actual values for the message.
+#     The message is sent via UDP. For example,
+#         o2lite.send("/host/info", "isf", 57, "hello", 3.14) will
+#     send a messages to O2 address "/host/info" with integer, string
+#     and float values as shown.
+# o2lite.send_cmd(address, time, type_string, data1, data2, data3, ...)
+#     is similar to o2lite.send() except the message is sent via TCP.
+#
+# RECEIVING MESSAGES
+# Messages are directed to services. To receive a message you
+# first state the services you offer in this process using
+# o2lite.set_services(services) where services is a string of
+#     *all* your service names separated by commas, e.g.
+#         o2lite.set_services("self,services")
+#     This call can be made even before calling initialize, and
+#     it can be made again if the set of services changes.
+# Next, you need to register a handler for each address or
+# address prefix to be handled using:
+# o2lite.method_new(path, type_string, full, handler, info) where
+#     path is the complete O2 address including the service name,
+#     type_string is the type string expected for the message (""
+#         means no parameters and None means parameter types are
+#         not checked: the handler decides what to accept),
+#     full is true if the address is the full address, or false
+#         to accept any message to an address that begins with
+#         path (addresses are checked node-by-node, so /serv1/foo
+#         is a prefix of /serv1/foo/bar, but /serv1/foo is *not*
+#         a prefix of /serv1/foobar),
+#     handler is a function to be called. The signature of the
+#         function is handler(address, type_string, info),
+#     info is additional data to pass on to the handler, e.g.
+#         you can attach the same handler to addresses /serv/1,
+#         /serv/2, /serv/3 and quickly distinguish them by passing
+#         in info values of 1, 2, and 3, respectively, or info
+#         could be an object for object-oriented handlers, e.g.
+#             def handler(a, tm, ty, info): info.handler(a, tm, ty)
+# Finally, you need to declare a handler. The handler will typically
+# begin by extracting parameters from the message using the
+# following functions:
+#
+# o2lite.get_int32() check for and return a 32-bit integer
+# o2lite.get_float() check for and return a 32-bit float
+# o2lite.get_time() check for and return a time (double with type 't')
+# o2lite.get_string() check for and return a string
+#
+# Values are returned sequentially from the message and the sequence
+# of requests must match the sequence of types in the message
+# (available in the type_string parameter, but you can assume the
+# strings match the type_string specified in method_new()).
+#
+#
+# IMPLEMENTATION DETAILS ON DISCOVERY:
 # discovery will find services representing O2 hosts as quickly
 # as possible. We could initiate connections with all possible
 # hosts, but since O2lite only connects to one host, it is better
@@ -37,12 +145,9 @@
 # Normally, we will connect to the first host and not bother with
 # the rest.
 #
-# To conduct orderly, sequential connection attempts, we will
+# To conduct orderly, sequential connection attempts, we
 # call discovery.get_host() if no host is connected and no
-# connection is in progress. This is done in our polling loop
-# and is fast because the real work of discovery is happening
-# in another thread (or in the case of MicroPython, checks take
-# about 10-15 msec on ESP32).
+# connection is in progress. This is done in our polling loop.
 #
 # Once we get a candidate host, we attempt to synchronously make
 # a TCP connection. The connection may eventually fail, e.g. the
@@ -62,6 +167,16 @@
 # there are no hosts to try and no tcp_socket representing a
 # connection attempt or successful connection. After 20 sec, we
 # restart discovery.
+#
+# ADDITIONAL INTERNAL METHODS OF INTEREST
+# o2l_sys_time() is a system-dependent function that returns time
+#     in seconds (for internal use to implement O2lite.local_time())
+# o2l_start_time (for internal use) is the start time of the
+#     reference clock (may or may not be 0)
+# O2lite.global_minus_local is (for internal use) the skew between
+#     global and local time as estimated by clock synchronization.
+# Caution: O2lite.get_time() and O2lite.add_time() are for message
+#     reading and constructing; they do not tell time
 
 
 import ctypes
@@ -147,6 +262,7 @@ class O2lite:
         self.udpinbuf = None  # gets bytearray from udp recv
         self.outbuf = bytearray(256)
         self.out_msg_address = ""
+        self.msg_timestamp = 0
         self.parse_msg = None  # incoming message to parse
         self.parse_address = None  # extracted address from parse_msg
         self.parse_cnt = 0  # how many bytes retrieved
@@ -357,7 +473,7 @@ class O2lite:
         self.out_msg_cnt += 4
 
 
-    def ping_reply_handler(self, msg, types, data, info):
+    def ping_reply_handler(self, address, types, info):
         id_in_data = self.get_int32()
 
         if id_in_data != self.clock_sync_id:
@@ -425,7 +541,7 @@ class O2lite:
                 self.socket_list.append(s)
 
 
-    def id_handler(self, msg, types, data, info):
+    def id_handler(self, address, types, info):
         self.bridge_id = self.get_int32()
         if "d" in self.debug_flags:
             print("O2lite: got id =", self.bridge_id)
@@ -547,6 +663,9 @@ class O2lite:
 
 
     def msg_dispatch(self, msg):
+        # get the timestamp
+        self.msg_timestamp = struct.unpack('>d', msg[4 : 12])
+        
         # get the address
         address_start = 12
         address_end = msg.find(b'\x00', address_start)
@@ -591,7 +710,7 @@ class O2lite:
             self.parse_types_index = 0
 
 
-            h.handler(msg, address, self.parse_types, h.info)
+            h.handler(address, self.parse_types, h.info)
             return
 
         print(f"O2lite: no match, dropping msg to {address}.")
@@ -719,8 +838,8 @@ class O2lite:
             # set TCP_NODELAY flag. If TCP_NODELAY is defined we use
             # it. But MicroPython does not define TCP_NODELAY.
             if hasattr(socket, 'TCP_NODELAY'):
-                self.tcp_socket.setsockopt(socket.IPPROTO_TCP, tcp_nodelay,
-                                           socket.TCP_NODELAY)
+                self.tcp_socket.setsockopt(socket.IPPROTO_TCP,
+                                           socket.TCP_NODELAY, 1)
             if "g" in self.debug_flags:
                 print(f"O2lite: connected to {ip} on port {port}.")
         except OSError as e:
@@ -763,8 +882,7 @@ class O2lite:
         #       "offset", self.parse_cnt, "into", self.parse_msg)
         self._check_error(byte_count, typecode)
         value = struct.unpack(format_string,
-                    self.parse_msg[self.parse_cnt :
-                                   self.parse_cnt + byte_count])
+                    self.parse_msg[self.parse_cnt : self.parse_cnt + byte_count])
         self.parse_cnt += byte_count
         # print("_read_data", format_string, value[0])
         return value[0]
