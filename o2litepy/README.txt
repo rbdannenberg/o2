@@ -6,7 +6,7 @@ Mar 2024
 FOR PYTHON
 
 To build the Python package:
-% make help
+% make build
 (package is built in py3pkg/dist)
 
 For documentation, see py3pkg/README.md 

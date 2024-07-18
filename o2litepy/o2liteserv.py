@@ -3,7 +3,9 @@
 # Zekai Shen and Roger B. Dannenberg
 # Feb 2024
  
-# This test:
+# This test should be run with o2/test/o2litehost.c (e.g. after
+#     compiling the .c file, execute o2/Debug/o2litehost). This
+#     test does the following:
 # - initialize o2lite
 # - wait for discovery
 # - wait for clock sync
@@ -23,7 +25,7 @@ def about_equal(val1, val2, tolerance=1e-6):
     return abs(val1 - val2) < tolerance
 
 
-def sift_han(msg, address, types, info):
+def sift_han(address, types, info):
     global sift_called
 
     # print("sift_han called")
@@ -35,7 +37,7 @@ def sift_han(msg, address, types, info):
     sift_called = True
 
 
-def server_test(msg, address, types, info):
+def server_test(address, types, info):
     global msg_count, running, use_tcp
 
     got_i = o2l.get_int32()

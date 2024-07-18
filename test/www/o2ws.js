@@ -95,9 +95,9 @@
 //     o2ws_get_string() - in a handler, get a string parameter.
 // APPLICATION RESPONSIBILITIES:
 //     o2ws_on_error(msg) (externally defined) - error messages
-//         (strings) are passed to this function in addition to being
-//         written to the console. This function is not defined here,
-//         but rather intended for the application to define.
+//         (strings) are passed to this function. This function
+//         is not defined here, but rather intended for the
+//         application to define.
 //     o2ws_status_msg(msg) (externally defined) - status messages
 //         (strings) are passed to this function if it is defined.
 //     /_o2/ls is an address that may be handled by the application.
