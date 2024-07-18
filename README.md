@@ -35,14 +35,14 @@ simply type `make`).
 The default for O2 discovery is Bonjour/Avahi, so on Linux you need the
 `avahi-client-dev` package to be installed.
 
-## Building o2host
+## Using o2host
 
 **o2host** is a simple command-line application that can serve as a host 
 to o2lite processes (including browser-based applications using o2lite
 over websockets through `o2ws.js` (in `o2/test/www/o2ws.js`), and can
 also serve as a bridge between MIDI, OSC, and O2.
 
-See `o2host/README.txt` for more details on building and running **o2host**.
+See `doc/o2host.txt` for more details on building and running **o2host**.
 
 ## Documentation
 
