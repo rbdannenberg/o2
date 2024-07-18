@@ -25,9 +25,23 @@
 // - one pre-allocated UDP send socket, sends are synchronous
 
 #ifdef WIN32
-#include <winsock2.h> // define SOCKET, INVALID_SOCKET
+#ifdef AF_IPX
+#ifndef _WINSOCK2API_
+#ifdef _WINDOWS_
+#error AF_IPX is defined, probably by windows.h, but WS2tcpip.h and \
+winsock2api.h have not been included yet. This will at least create \
+compiler warnings and redefinitions. You should define WIN32_LEAN_AND_MEAN \
+before including windows.h.
+#else
+#error AF_IPX is defined, but WS2tcpip.h and winsock2api.h have not been \
+included yet. You should figure out why AF_IPX is defined.
+#endif
+#endif
+#endif
+
+// includes winsock2.h, defines SOCKET, INVALID_SOCKET
+// and also defines InetNtopW:
 #include <WS2tcpip.h>
-#define inet_ntop InetNtop
 typedef SSIZE_T ssize_t;
 #else
 #include "arpa/inet.h"  // Headers for all inet functions
@@ -113,7 +127,26 @@ public:
     struct sockaddr *get_sockaddr() { return (struct sockaddr *) &sa; }
     struct in_addr *get_in_addr() { return &sa.sin_addr; }
     const char *to_dot(char *ip) {  // returns ip (or NULL on error)
-        return inet_ntop(AF_INET, get_in_addr(), ip, O2N_IP_LEN); }
+#ifdef WIN32
+        // InetNtop works lik inet_ntop, but only if not UNICODE, so to
+        // work with UNICODE on, we'll have to use InetNtopW, which is
+        // always the same function, but produces a PWSTR
+        WCHAR wide_ip[20];
+        if (!InetNtopW(AF_INET, get_in_addr(), wide_ip, 20)) {
+            return NULL;
+        }
+        for (int i = 0; i < lstrlenW(wide_ip); i++) {
+            if (!iswascii(wide_ip[i])) {
+                ip[i] = 0;
+                return NULL;
+            }
+            ip[i] = wide_ip[i];
+        }
+        return ip;
+#else
+        return inet_ntop(AF_INET, get_in_addr(), ip, O2N_IP_LEN);
+#endif
+    }
 };
 
 class Fds_info;  // forward declaration
