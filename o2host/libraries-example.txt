@@ -21,4 +21,8 @@ set(PM_DBG_LIB
     "${CMAKE_CURRENT_SOURCE_DIR}/../../portmidi/Debug/libportmidi_static.a"
     CACHE FILEPATH "PortMidi library - debug version")
 
+# Where to find curses library (Window only):
+# This can be omitted when building for MacOS or Linux:
+set(CURSES_BASE "C:/Users/Roger/research/vcpkg/installed/x64-windows"
+    CACHE FILEPATH "Curses library directory")
 
