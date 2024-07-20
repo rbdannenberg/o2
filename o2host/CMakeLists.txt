@@ -27,15 +27,12 @@ add_executable(o2host ${O2HOST_SRC})
  
 # Where to find portmidi
 option(USE_MIDI "Enable midi message I/O" TRUE)
-set(PM_INCL "../../portmidi/pm_common" CACHE PATH
-            "Main PortMidi include directory") 
-set(PM_OPT_LIB
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../portmidi/Release/libportmidi_static.a"
-    CACHE FILEPATH "PortMidi library - optimized version") 
-set(PM_DBG_LIB
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../portmidi/Debug/libportmidi_static.a"
-    CACHE FILEPATH "PortMidi library - debug version")
-
+if(EXISTS libraries.txt)
+  message(ERROR
+    "You MUST create libraries.txt. See libraries-example.txt for details.")
+else()
+  include(libraries.txt)
+endif()
 
 set(O2_LIB o2_static)
 if(APPLE) 

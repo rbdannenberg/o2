@@ -1,0 +1,28 @@
+# libraries-example.txt - example for creating libraries.txt
+#
+# Roger B. Dannenberg
+# July 2024
+
+# You MUST have libraries.txt to compile o2host
+# This file is an EXAMPLE that you MUST copy to libraries.txt and 
+# EDIT THIS FILE to contain correct paths to libraries
+
+# o2host only depends on O2, which is in the parent directory
+# and PortMidi. So we only need paths for PortMidi
+
+# Where to find portmidi. Paths can be relative to this directory
+# using CMAKE_CURRENT_SOURCE_DIR, or absolute.
+set(PM_INCL "${CMAKE_CURRENT_SOURCE_DIR}/../../portmidi/pm_common" CACHE PATH
+            "Main PortMidi include directory") 
+set(PM_OPT_LIB
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../portmidi/Release/libportmidi_static.a"
+    CACHE FILEPATH "PortMidi library - optimized version") 
+set(PM_DBG_LIB
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../portmidi/Debug/libportmidi_static.a"
+    CACHE FILEPATH "PortMidi library - debug version")
+
+# Where to find curses library (Window only):
+# This can be omitted when building for MacOS or Linux:
+set(CURSES_BASE "C:/Users/Roger/research/vcpkg/installed/x64-windows"
+    CACHE FILEPATH "Curses library directory")
+

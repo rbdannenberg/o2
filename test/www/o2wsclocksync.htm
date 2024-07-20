@@ -1,0 +1,98 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>o2wsclocksync - synchronize clock and display O2 time</title>
+<script src="o2ws.js"></script>
+<style>
+span.big { font-size: 30px; }
+span.bigger { font-size: 40px; }
+</style>
+<script>
+//
+// This program is a simple O2lite-over-websockets test to track when
+// clock synchronization is obtained. After that, it displays the
+// O2 time every second. This test was especially created to test
+// multiple clients at once. It should work with any O2 host, e.g.
+// run o2host in o2/test to serve this program from o2/test/www.
+//
+// The O2 ensemble name is "test"
+//
+var N_ADDRS = 20;
+var MAX_MSG_COUNT = 1000;
+var start = Date.now();
+
+function app_init() {
+    wsResult = document.getElementById("wsResult"); 
+    wsStatus = document.getElementById("wsStatus"); 
+    wsOutput = document.getElementById("wsOutput"); 
+    o2ws_status_msgs_enable = true;
+    o2ws_status_msg("Initializing O2ws with " + WSURI);
+    o2ws_initialize("test");
+    poll_for_clock_sync();
+}
+
+
+function poll_for_clock_sync() {
+    let delay = 1000;
+    console.log("o2ws_clock_synchronized", o2ws_clock_synchronized,
+                "Date.now()", (Date.now() - start) * 0.001);
+    let now = o2ws_time_get();
+    let now_whole = Math.trunc(now);
+    let now_frac = now - now_whole;
+    display_result("<p>o2ws_clock_synchronized: " + o2ws_clock_synchronized +
+                   "<p><span class=big>time:</span><span class=bigger> " +
+                   now_whole +
+                   "</span>." + ("" + now_frac).substring(2) + "</p>");
+    // try to print time on even seconds:
+    if (o2ws_clock_synchronized) {
+        let frac = o2ws_time_get();
+        frac -= Math.trunc(frac);  // fractional seconds
+        frac = 1 - frac;  // time to next whole second
+        if (frac < 0.1) {
+            frac += 1;  // wait at least 100 msec
+        }
+        delay = frac * 1000;       
+    }
+    console.log("wake at", (Date.now() - start + delay) * 0.001);
+    setTimeout(poll_for_clock_sync, delay);
+}
+
+function make_paragraph(content) {
+    var par = document.createElement("p"); 
+    par.style.wordWrap = "break-word"; 
+    par.innerHTML = content;
+    return par;
+}
+
+
+function display_result(msg) {
+    wsResult.innerHTML = msg;
+}
+
+function o2ws_status_msg(message) {
+    wsStatus.innerHTML = "<p>" + message + "</p>";
+    console.log("Status: " + message);
+}
+
+function o2ws_error(message) {
+    wsOutput.appendChild(make_paragraph(
+            '<span style="color: red;">ERROR:</span> ' + message));
+}
+
+var running = true;
+
+
+window.addEventListener("load", app_init, false);
+console.log("Finished loading index.htm scripts");
+</script>
+</head>
+
+<body>
+<h1>o2wsclocksync - synchronize clock and display O2 time</h1>
+Be sure that websockhost is running with the current directory o2/test.
+  <div id="wsResult"></div>
+  <div id="wsStatus"></div>
+  <div id="wsOutput"></div>
+</body>
+</html>

@@ -1,4 +1,5 @@
 about o2host
+============
 
 o2host is a generic O2 application that serves as a host to
 applications that implement the o2lite protocol. o2lite
@@ -15,24 +16,54 @@ for info about o2host.
 
 Other blogs are planned.
 
-Installation
+Compiling o2host
+----------------
 
-On windows, you need pdcurses. I installed it using vcpkg. I'm
-not sure how to use vcpkg, and my installation ended up in
-my home directory. So I have 
-C:/Users/Roger/research/vcpkg/installed/x64-windows/lib/pdcurses.lib
-C:/Users/Roger/research/vcpkg/installed/x64-windows/include/curses.h
-C:/Users/Roger/research/vcpkg/installed/x64-windows/bin/pdcurses.dll
-among others.
+On windows:
+- you need pdcurses. I installed it using vcpkg. I'm
+    not sure how to use vcpkg, and my installation ended up in
+    my home directory. So I have 
+    C:/Users/Roger/research/vcpkg/installed/x64-windows/lib/pdcurses.lib
+    C:/Users/Roger/research/vcpkg/installed/x64-windows/include/curses.h
+    C:/Users/Roger/research/vcpkg/installed/x64-windows/bin/pdcurses.dll
+    among others.
+- In addition, when you get o2host to compile, you will need to make
+    pdcurses.dll accessible. One way to do this is copy it to a directory
+    that is already on your DLL search path, e.g. I copied it to
+    C:\WINDOWS\system32
 
-Wherever your pdcurses package ends up, you will need to point cmake
-to the directory o2/o2host and set CURSES_BASE to the location, e.g.
-C:/Users/Roger/research/vcpkg/installed/x64-windows
-in my installation.
+For all platforms:
+- install PortMidi from github portmidi/portmidi.
+- copy o2host/libraries-example.txt to o2host/libraries.txt and edit 
+    libaries.txt to contain paths to PortMidi. 
+- note that for Windows, your o2host/libraries.txt will set CURSES_BASE
+    to the location where you installed pdcurses, e.g. it is
+      C:/Users/Roger/research/vcpkg/installed/x64-windows
+    in my installation.
+- use CMake in o2/o2host to generate a Makefile linux or project for 
+    Xcode (MacOS) or Visual Studio (Windows).
+- build o2host with make (Linux) or your IDE (MacOs or Windows).
 
-In addition, when you get o2host to compile, you will need to make
-pdcurses.dll accessible. One way to do this is copy it to a directory
-that is already on your DLL search path, e.g. I copied it to
-C:\WINDOWS\system32
 
+Running o2host
+--------------
+o2host must be run in a terminal or Command Prompt. It is NOT a GUI
+application (although there is an option to make an app for MacOS that
+runs o2host in a Terminal).
 
+For general documentation, run o2host, use the tab key to navigate
+to the help field and type X.
+
+MIDI messages are converted to O2 messages which are sent to
+/<service>/midi with type string "i" (int32) and with the
+status byte in the low-order byte, the first data byte in
+the next byte (i.e. shifted left 8 bits) and the second
+data byte (if any) in the next byte (shifted left 16 bits).
+
+O2 messages targeted to MIDI can use either type "i" or "m"
+and are sent to /<service>/midi.
+
+OSC messages are appended to the service name, e.g. to send
+an OSC message to address /xyz/abc, send an O2 message to
+/<service>/xyz/abc, and configure O2 host to forward
+<service> messages to OSC.
