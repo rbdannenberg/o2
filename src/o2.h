@@ -1589,21 +1589,23 @@ O2_EXPORT void o2_message_warnings(
 /**
  *  \brief Process current O2 messages.
  *
- *  Since O2 does not create a thread and O2 requires active processing
- *  to establish and maintain connections, the O2 programmer (user)
- *  should call #o2_poll periodically, even if not offering a service.
- *  #o2_poll runs a discovery protocol to find and connect to other
- *  processes, runs a clock synchronization protocol to establish valid
- *  time stamps, and handles incoming messages to all services. #o2_poll
- *  should be called at least 10 times per second. Messages can only be
- *  delivered during a call to #o2_poll so more frequent calls will
- *  generally lower the message latency as well as the accuracy of the
- *  clock synchronization (at the cost of greater CPU utilization).
- *  Human perception of timing jitter is on the order of 10ms, so
- *  polling rates of 200 to 1000 are advised in situations where
- *  rhythmic accuracy is expected.
+ *  Since O2 does not create a thread and O2 requires active
+ *  processing to establish and maintain connections, the O2
+ *  programmer (user) should call #o2_poll periodically, even if not
+ *  offering a service.  #o2_poll runs a discovery protocol to find
+ *  and connect to other processes, runs a clock synchronization
+ *  protocol to establish valid time stamps, and handles incoming
+ *  messages to all services. #o2_poll should be called at least 10
+ *  times per second. Messages can only be delivered during a call to
+ *  #o2_poll so more frequent calls will generally lower the message
+ *  latency as well as improve the accuracy of the clock
+ *  synchronization (at the cost of greater CPU utilization).  Human
+ *  perception of timing jitter is on the order of 10ms, so polling
+ *  rates of 200 to 1000 are advised in situations where rhythmic
+ *  accuracy is expected.
  *
- *  @return 0 (O2_SUCCESS) if succeed, -1 (O2_FAIL) if not.
+ *  @return 0 (O2_SUCCESS) if succeed, -1 (O2_FAIL) if not, -5
+ *      (O2_ALREADY_RUNNING) if #o2_poll is called recursively.
  */
 O2_EXPORT O2err o2_poll(void);
 

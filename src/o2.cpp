@@ -1330,12 +1330,23 @@ static void check_messages()
 
 O2err o2_poll()
 {
+    static bool o2_poll_in_progress = false;
 #ifndef O2_NO_DEBUG
     o2_poll_count++;
 #endif
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
+    // this guard can work if o2_poll() is called recursively
+    // from the same thread, such as entering a new event loop
+    // for a modal dialog or error in application logic, but
+    // it does not guarantee o2_poll() is not called concurrently
+    // on two different threads. A lock would be even safer, but
+    // o2 is lock-free, so it would be an error to add a lock here.
+    if (o2_poll_in_progress) {
+        return O2_ALREADY_RUNNING;
+    }
+    o2_poll_in_progress = true;
     // DEBUGGING: check_messages();
     o2_local_now = o2_local_time();
     if (o2_gtsched_started) {
@@ -1357,6 +1368,7 @@ O2err o2_poll()
 #endif
 #endif
     o2_deliver_pending();
+    o2_poll_in_progress = false;
     return O2_SUCCESS;
 }
 

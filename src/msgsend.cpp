@@ -275,6 +275,7 @@ void o2_send_local(O2node *service, Services_entry *ss)
 void o2_deliver_pending()
 {
     while (!o2_pending_anywhere.empty()) {
+        assert(!o2_do_not_reenter);
         o2_message_send(o2_pending_anywhere.dequeue());
     }
     while (!o2_pending_local.empty()) {
