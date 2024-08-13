@@ -27,11 +27,12 @@ add_executable(o2host ${O2HOST_SRC})
  
 # Where to find portmidi
 option(USE_MIDI "Enable midi message I/O" TRUE)
-if(EXISTS libraries.txt)
-  message(ERROR
-    "You MUST create libraries.txt. See libraries-example.txt for details.")
+if(EXISTS ${CMAKE_SOURCE_DIR}/libraries.txt)
+  message(STATUS "Loading libraries.txt")
+  include(libraries.txt) 
 else()
-  include(libraries.txt)
+  message(ERROR
+    " You MUST create libraries.txt. See libraries-example.txt for details.")  
 endif()
 
 set(O2_LIB o2_static)

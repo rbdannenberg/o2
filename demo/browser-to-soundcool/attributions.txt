@@ -1,0 +1,26 @@
+Attributions
+Actual sounds used are all edited versions of the following sources.
+
+drumloop.wav:
+ by looplicator ( https://freesound.org/people/looplicator/ )
+    * url: https://freesound.org/s/749612/
+    * license: Attribution 4.0
+
+bassnote.wav:
+    Razor Bass.wav by breo2012 -- https://freesound.org/s/268615/ -- License: Creative Commons 0
+
+stringtone.wav:
+    Strings _ MS Tense Strings _ D.wav by colourofeternity -- https://freesound.org/s/517204/ -- License: Attribution 3.0
+
+violine5.wav:
+    E5.wav by jeudyx -- https://freesound.org/s/332599/ -- License: Creative Commons 0
+
+stringa.wav:
+    Hit_MS20 Analog String_A.wav by colourofeternity -- https://freesound.org/s/517534/ -- License: Creative Commons 0
+
+stringpad.wav:
+    String Pad.wav by johnnypanic -- https://freesound.org/s/361843/ -- License: Attribution 4.0
+
+slide.wav:
+    sliding finger string guitar 190629_0045.wav by klankbeeld -- https://freesound.org/s/493573/ -- License: Attribution 4.0
+

@@ -1,0 +1,52 @@
+<!doctype html>
+    
+<head>
+  <style>
+  #video {
+      border: 1px solid black;
+      width: 320px;
+      height: 240px;
+  }
+
+  #canvas {
+      display: inline;
+  }
+
+  .camera {
+      width: 340px;
+      display: inline-block;
+  }
+
+  .contentarea {
+      font-size: 16px;
+      font-family: Arial;
+      text-align: center;
+  }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/handtrackjs@latest/dist/handtrack.min.js"></script>
+  <!--The title of the HTML document.-->
+  <title>HandTrack to O2</title>
+</head>
+    
+
+<body>
+<h2>HandTrack Video Analysis</h2>
+<table>
+  <tr>
+    <td><button id="start-camera">Start Camera</button></td>
+    <td><button onclick="toggleVideo()" id="trackbutton" type="button">
+          Toggle Video
+        </button></td>
+    <td style="padding-top:7px;">
+      <video id="video" style="width: 30px; height: 20px;"
+                 autoplay>
+      </video></td>
+  </tr>
+</table>
+
+<div id="updatenote" class="updatenote mt10"> loading model ..</div>
+<canvas id="canvas" width="160" height="120"></canvas>
+<script src="hto2.js"></script>
+<script src="o2ws.js"></script>
+<script>hto2_initialize("rbdhttest");</script>
+</body>

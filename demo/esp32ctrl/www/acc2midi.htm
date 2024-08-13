@@ -1,0 +1,215 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Buttons Demo</title>
+<script src="o2ws.js"></script>
+<script>
+
+function app_init() {
+    wsResult = document.getElementById("wsResult"); 
+    wsStatus = document.getElementById("wsStatus"); 
+    wsOutput = document.getElementById("wsOutput"); 
+    o2ws_status_msgs_enable = true;
+    o2ws_status_msg("Initializing O2ws with " + WSURI);
+    o2ws_initialize("rbdapp");
+    midiapp_found = false;
+    // create handler for server status messages 
+    o2ws_method_new("/_o2/st", "si", true, status_handler, null); 
+    poll_for_midiapp();
+}
+
+
+function status_handler(timestamp, address, typespec, info) {
+    var service_name = o2ws_get_string();  
+    var service_status = o2ws_get_int32();  
+    if (service_name == "midiapp" && service_status >= O2_LOCAL) {
+        midiapp_found = true;  
+    }
+}
+ 
+
+function poll_for_midiapp() {
+    if (midiapp_found && o2ws_clock_synchronized) {
+        // I'm not sure why o2client.cpp waits, but maybe it is safer
+        // to give some time to the synth process to recognize the
+        // client service (us) exists before sending and expecting a
+        // reply.
+        o2ws_status_msg("We discovered the midiapp.\ntime is " +
+                        o2ws_time_get()); 
+        setTimeout(here_we_go, 1000);
+    } else {
+        if (!midiapp_found) {
+            o2ws_send_cmd("/_o2/ws/st", 0, "s", "midiapp");
+        }
+        setTimeout(poll_for_midiapp, 250);
+    }
+}
+
+
+function here_we_go() {
+    o2ws_status_msg("Here we go! ...\ntime is " + o2ws_time_get()); 
+    // o2ws_send_cmd("!server/benchmark/0", 0, "i", 1); 
+}
+
+function make_paragraph(content) {
+    var par = document.createElement("p"); 
+    par.style.wordWrap = "break-word"; 
+    par.innerHTML = content;
+    return par;
+}
+
+
+function display_result(msg) {
+    wsResult.innerHTML = msg;
+}
+
+function o2ws_status_msg(message) {
+    wsStatus.innerHTML = "<p>" + message + "</p>";
+    console.log("Status: " + message);
+}
+
+function o2ws_error(message) {
+    wsOutput.appendChild(make_paragraph(
+            '<span style="color: red;">ERROR:</span> ' + message));
+}
+
+<!-- Handler for Input Widgets ---------------------- -->
+
+var minpitch = 48;
+var maxpitch = 72;
+
+function rollrange_input(value) {
+    var rollrange_dec = document.getElementById("rollrange_dec");
+    value = value / 10.0;
+    rollrange_dec.innerHTML = "" + value;
+    o2ws_send_cmd("/midiapp/limit", 0, "f", value); 
+}
+ 
+function minpitch_input(value) {
+    var minpitch_dec = document.getElementById("minpitch_dec");
+    minpitch_dec.innerHTML = "" + value;
+    minpitch = value; 
+    o2ws_send_cmd("/midiapp/prange", 0, "ii", minpitch, maxpitch); 
+}
+ 
+function maxpitch_input(value) {
+    var maxpitch_dec = document.getElementById("maxpitch_dec");
+    maxpitch_dec.innerHTML = "" + value;
+    maxpitch = value; 
+    o2ws_send_cmd("/midiapp/prange", 0, "ii", minpitch, maxpitch); 
+}
+ 
+function thresh_input(value) {
+    var thresh_dec = document.getElementById("thresh_dec");
+    value = value / 10.0;
+    thresh_dec.innerHTML = "" + value;
+    o2ws_send_cmd("/midiapp/thresh", 0, "f", value); 
+}
+ 
+function dur_input(value) {
+    var dur_dec = document.getElementById("dur_dec");
+    value = value / 10.0;
+    dur_dec.innerHTML = "" + value;
+    o2ws_send_cmd("/midiapp/dur", 0, "f", value); 
+}
+ 
+function button_press(n) {
+    o2ws_send_cmd("/midiapp/scale", 0, "i", n); 
+}
+
+function blink_press() {
+    o2ws_send_cmd("/midiapp/blink", 0, ""); 
+}
+
+
+var msg_count = 0;
+var running = true;
+
+window.addEventListener("load", app_init, false);
+console.log("Finished loading index.htm scripts");
+</script>
+<style>
+.button { padding: 15px 32px; text-align: center; font-size: 16px;
+          background-color: #4CAF50; color: white; }
+
+.blinkbutton { padding: 5px 25px; text-align: center;
+               font-size: 16px; background-color: #006064;
+               color: white; }
+
+.slider {
+  -webkit-appearance: none;
+  height: 25px;
+  background: #d3d3d3;
+  outline: none;
+  opacity: 0.7;
+  -webkit-transition: .2s;
+  transition: opacity .2s;
+}
+
+.slider:hover {
+  opacity: 1;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 25px;
+  height: 25px;
+  background: #04AA6D;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 25px;
+  height: 25px;
+  background: #04AA6D;
+  cursor: pointer;
+}
+
+</style>
+</head>
+
+<body>
+<h1>Microcontroller Graphical User Interface Demo</h1>
+Be sure that <b>o2host</b> and is running and the ESP32 controller
+is running and on the same network.
+<p>
+<table>
+<tr><td><b>Roll Input Range</b></td>
+    <td><input type="range" min="0" max="20" value="10" class="slider"
+      id="rollrange" oninput="rollrange_input(this.value)"></td>
+    <td><big id=rollrange_dec>1.0</big></td></tr>
+<dd><td><b>Minimum Pitch</b></td>
+    <td><input type="range" min="24" max="72" value="48"
+      class="slider" id="minpitch" oninput="minpitch_input(this.value)"></td>
+    <td><big id=minpitch_dec>48</big></td></tr>
+<dd><td><b>Maximum Pitch</b></td>
+    <td><input type="range" min="36" max="84" value="72"
+      class="slider" id="maxpitch" oninput="maxpitch_input(this.value)"></td>
+    <td><big id=maxpitch_dec>72</big></td></tr>
+<dd><td><b>Threshold</b></td>
+    <td><input type="range" min="-10" max="10" value="0"
+      class="slider" id="thresh" oninput="thresh_input(this.value)"></td>
+    <td><big id=thresh_dec>0.0</big></td></tr>
+<dd><td><b>Duration</b></td>
+    <td><input type="range" min="1" max="20" value="5" class="slider"
+      id="dur" oninput="dur_input(this.value)"></td>
+    <td><big id=dur_dec>0.5</big></td></tr>
+</table>
+
+<h2>Scale Selection:</h2>
+<button class="button" onclick="button_press(1);">Major</button>
+<button class="button" onclick="button_press(2);">Minor</button>
+<p>
+<button class="button" onclick="button_press(3);">Blues</button>
+<button class="button" onclick="button_press(4);">Chromatic</button>
+<br><br>
+<p>
+<button class="blinkbutton" onclick="blink_press();">Blink</button>
+<p>
+  <h3 id="wsResult"></h3>
+  <div id="wsStatus"></div>
+  <div id="wsOutput"></div>
+</body>
+</html>
