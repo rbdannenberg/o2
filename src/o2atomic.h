@@ -5,7 +5,6 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include "o2base.h"
 
 // O2list_elem is a generic linked list element. Although we could use
 // templates to make a generic atomic list, the "C++" way would 

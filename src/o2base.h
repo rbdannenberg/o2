@@ -5,34 +5,55 @@
  * @{
  */
 
-
-#if !defined(O2_EXPORT) && defined(WIN32) && defined(BUILD_SHARED_LIBS)
-// note: hidden feature of CMake is it defines {libraryname}_EXPORTS
-//     when building a shared library:
-#  if defined(o2_EXPORTS) || defined(o2lite_EXPORTS)
- /* We are building this library */
-#   if defined(__GNUC__)
-#    define O2_EXPORT __attribute__((visibility("default"))) extern
-#   elif defined _MSC_VER
-#    define O2_EXPORT __declspec(dllexport) extern
-#    define O2_CLASS_EXPORT __declspec(dllexport)
-#   endif
-#  else
- /* We are using this library */
-#   if defined(__GNUC__)
-#    define O2_EXPORT __attribute__((visibility("default"))) extern
-#   elif defined _MSC_VER
-#    define O2_EXPORT __declspec(dllimport) extern
-#    define O2_CLASS_EXPORT __declspec(dllimport)
-#   endif
-#  endif
-# else
-#  ifndef O2_EXPORT
-#   define O2_EXPORT extern
-#   define O2_CLASS_EXPORT 
-#  endif
+#ifdef O2_EXPORT
+#    error O2_EXPORT defined somewhere before o2base.h
+#else
+#    if (defined WIN32 || defined __CYGWIN__ || defined _WIN32) && \
+        defined BUILD_SHARED_LIBS
+         // note: hidden feature of CMake is it defines {libraryname}_EXPORTS
+         //     when building a shared library:
+#        if defined o2_EXPORTS || defined o2lite_EXPORTS
+             // We are building this library
+#            ifdef __GNUC__
+#                define O2_EXPORT __attribute__ ((dllexport)) extern
+#            elif defined _MSC_VER
+#                define O2_EXPORT __declspec(dllexport) extern
+#                define O2_CLASS_EXPORT __declspec(dllexport)
+#            else
+#                error no rule to set O2_EXPORT for this configuration
+#            endif
+#        else
+             // We are using this library */
+#            ifdef __GNUC__
+#                define O2_EXPORT __attribute__ ((dllimport)) extern
+#            elif defined _MSC_VER
+#                define O2_EXPORT __declspec(dllimport) extern
+#                define O2_CLASS_EXPORT __declspec(dllimport)
+#            else
+#                error no rule to set O2_EXPORT for this configuration
+#            endif
+#        endif
+#    else
+#        if __GNUC__ >= 4
+#            define O2_EXPORT __attribute__ ((visibility("default")))
+#        else
+#            define O2_EXPORT extern
+#            define O2_CLASS_EXPORT 
+#        endif
+#    endif
 #endif
 
+// do we really need to export any classes? O2 nominally has a C API,
+// so unless someone needs to "peek" into the implementation, we should
+// hide classes. Nevertheless, some classes are declared O2_CLASS_EXPORT,
+// so rather than assume that's wrong, I'm going to disable it and see
+// what happens. We can undo this and extend the O2_EXPORT/O2_CLASS_EXPORT
+// definitions above if we really want to export any classes.
+#ifdef O2_CLASS_EXPORT
+#undef O2_CLASS_EXPORT
+#endif
+// disable O2_CLASS_EXPORT for everyone:
+#define O2_CLASS_EXPORT
 
 #ifdef __cplusplus
 #include <cstddef>

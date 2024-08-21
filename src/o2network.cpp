@@ -44,7 +44,7 @@ void print_socket_error(int err, const char *source)
 
 void print_socket_error(int err, const char *source)
 {
-    O2_DBo(fprintf(stderr, "%s in %s:\n", source);
+    O2_DBo(fprintf(stderr, "%s in %s:\n", o2_debug_prefix, source);
            perror("SOCKET_ERROR");)
 }
 #endif

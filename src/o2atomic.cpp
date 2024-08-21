@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include "o2atomic.h"
+#include "o2base.h"
 
 #ifdef WIN32
 /********************** WINDOWS ATOMIC LISTS *****************/

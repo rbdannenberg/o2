@@ -16,7 +16,7 @@
 #include "properties.h"
 
 static bool bridges_initialized;
-int o2_bridge_next_id = 1;
+O2_EXPORT int o2_bridge_next_id = 1;
 
 static Vec<Bridge_protocol *> bridges;
 

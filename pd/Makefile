@@ -98,6 +98,6 @@ libo2pd.dylib: o2pd.o
 	cc -dynamiclib -undefined suppress -flat_namespace \
             -install_name libo2pd.dylib \
             -arch x86_64 -o libo2pd.dylib o2pd.o \
-            -all_load /Users/rbd/o2/Debug/libo2_static.a \
+            -all_load ../Release/libo2_static.a \
             -framework CoreAudio -lstdc++
 	install_name_tool -id @loader_path/libo2pd.dylib libo2pd.dylib
