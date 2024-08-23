@@ -71,7 +71,7 @@ import sys
 import os
 
 typecodes = {"string": "s", "int32": "i", "int64": "h", "float": "f",
-             "double": "d", "bool": "B"}
+             "double": "d", "bool": "B", "blob": "b"}
 
 
 def pprint(outf, fn, strings):
@@ -156,6 +156,8 @@ def unpack_args(outf, o2id_type, description, handler, methods):
             ctype = "int32_t "
         elif typ == "int64":
             ctype = "int64_t "
+        elif typ == "blob":
+            ctype = "O2blob_ptr "
         else:
             ctype = (typ + " ")
         typecode = typecodes.get(typ)
