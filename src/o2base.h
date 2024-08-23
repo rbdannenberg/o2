@@ -35,7 +35,7 @@
 #        endif
 #    else
 #        if __GNUC__ >= 4
-#            define O2_EXPORT __attribute__ ((visibility("default")))
+#            define O2_EXPORT extern __attribute__ ((visibility("default")))
 #        else
 #            define O2_EXPORT extern
 #            define O2_CLASS_EXPORT 

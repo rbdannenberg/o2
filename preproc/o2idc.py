@@ -150,6 +150,7 @@ def unpack_args(outf, o2id_type, description, handler, methods):
         typ = fields[0]
         pname = fields[1]
         print("    ", file=outf, end='')
+        take_address = ''  # special case for blob access that needs &argv[i]->b
         if typ == "string":
             ctype = "char *"
         elif typ == "int32":
@@ -158,6 +159,7 @@ def unpack_args(outf, o2id_type, description, handler, methods):
             ctype = "int64_t "
         elif typ == "blob":
             ctype = "O2blob_ptr "
+            take_address = '&'
         else:
             ctype = (typ + " ")
         typecode = typecodes.get(typ)
@@ -171,8 +173,8 @@ def unpack_args(outf, o2id_type, description, handler, methods):
             print(ctype, pname, " = GET_", typ.upper(), "();",
                       sep='', file=hfile)
         else:
-            print(ctype, pname, " = argv[", i, "]->", typecodes[typ], ";",
-                  sep='', file=outf)
+            print(ctype, pname, " = ", take_address, "argv[", i, "]->",
+                  typecodes[typ], ";", sep='', file=outf)
     methods.append((address, handler, typestring))
     print("    // end unpack message", file=outf)
     print("", file=outf)  # blank line to separate machine generated unpack

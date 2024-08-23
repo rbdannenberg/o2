@@ -788,7 +788,7 @@ typedef union {
     int        c;    ///< Standard C, 8 bit, char, stored as int.
     uint32_t   m;    ///< A 4 byte MIDI packet. MSB to LSB are port id,
                      ///< status, data1, data2
-    O2time    t;    ///< TimeTag value.
+    O2time     t;    ///< TimeTag value.
     O2blob     b;    ///< a blob (unstructured bytes)
     int32_t    B;    ///< a boolean value, either 0 or 1
     struct {
