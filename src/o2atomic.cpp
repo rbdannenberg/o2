@@ -10,8 +10,8 @@
 #endif
 #include <stdint.h>
 #include <assert.h>
-#include "o2atomic.h"
 #include "o2base.h"
+#include "o2atomic.h"
 
 #ifdef WIN32
 /********************** WINDOWS ATOMIC LISTS *****************/

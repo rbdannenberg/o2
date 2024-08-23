@@ -811,8 +811,8 @@ typedef union {
 } O2arg, *O2arg_ptr;
 
 
-extern O2_EXPORT O2arg_ptr o2_got_start_array;
-extern O2_EXPORT O2arg_ptr o2_got_end_array;
+O2_EXPORT O2arg_ptr o2_got_start_array;
+O2_EXPORT O2arg_ptr o2_got_end_array;
 
 
 /** \brief set this flag to stop #o2_run
@@ -821,7 +821,7 @@ extern O2_EXPORT O2arg_ptr o2_got_end_array;
  * simple loop that calls #o2_poll. To exit the loop, set
  * #o2_stop_flag to #true
  */
-extern O2_EXPORT bool o2_stop_flag;
+O2_EXPORT bool o2_stop_flag;
 
 /*
  * A collection of cooperating O2 processes forms an
@@ -835,7 +835,7 @@ extern O2_EXPORT bool o2_stop_flag;
  * Do not set, modify or free this variable! Consider it to be
  * read-only. It is managed by O2 using #o2_initialize and #o2_finish.
  */
-extern O2_EXPORT const char *o2_ensemble_name; // also used to detect initialization
+O2_EXPORT const char *o2_ensemble_name; // also used to detect initialization
 
 
 /** \brief print an O2 message to stdout
@@ -1757,7 +1757,7 @@ O2_EXPORT O2err o2_can_send(const char *service);
  * \brief A variable indicating that the clock is the reference or is
  *        synchronized to the reference.
  */
-extern O2_EXPORT bool o2_clock_is_synchronized;
+O2_EXPORT bool o2_clock_is_synchronized;
 
 /**
  *  \brief Get network round-trip information.
@@ -2655,7 +2655,7 @@ typedef struct O2sched {
  * timed message sends will fail and attempts to #o2_schedule_msg will
  * fail.
  */
-extern O2_EXPORT O2sched o2_gtsched;
+O2_EXPORT O2sched o2_gtsched;
 
 /**
  * \brief Scheduler that schedules according to local clock time
@@ -2670,7 +2670,7 @@ extern O2_EXPORT O2sched o2_gtsched;
  *
  * In these cases, you should schedule messages using #o2_ltsched.
  */
-extern O2_EXPORT O2sched o2_ltsched;
+O2_EXPORT O2sched o2_ltsched;
 
 /**
  * \brief Current scheduler.
@@ -2680,7 +2680,7 @@ extern O2_EXPORT O2sched o2_ltsched;
  * schedules a message can use this pointer to continue using the same
  * scheduler.
  */
-extern O2_EXPORT O2sched_ptr o2_active_sched; // the scheduler that should be used
+O2_EXPORT O2sched_ptr o2_active_sched; // the scheduler that should be used
 
 
 /**

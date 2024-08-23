@@ -26,7 +26,6 @@
 #endif
 #include <assert.h>
 #include <stdio.h>
-#include "o2base.h"
 #include "hostip.h"
 
 #if (defined(PLATFORM_WIN32) || defined(PLATFORM_UNIX))

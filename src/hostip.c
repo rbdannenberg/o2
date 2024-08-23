@@ -13,4 +13,5 @@
 // DO NOT LINK o2lite APPLICATIONS WITH hostip.c! In o2lite, get the 
 // interface declared by hostip.h from o2lite.c.
 //
+#include "o2base.h"
 #include "hostipimpl.h"

@@ -286,7 +286,7 @@ extern Vec<Fds_info *> o2n_fds_info;
 // O2_EXPORT bool o2n_network_found;    // local area network exists, declared
                                         // in hostip.h
 // if !o2n_network_found, o2n_internal_ip will be "7f000001" (localhost)
-extern O2_EXPORT char o2n_public_ip[O2N_IP_LEN];     // in 8 hex characters
+O2_EXPORT char o2n_public_ip[O2N_IP_LEN];     // in 8 hex characters
 // O2_EXPORT char o2n_internal_ip[O2N_IP_LEN];   // in 8 hex characters
                                                  // declared in hostip.h
 

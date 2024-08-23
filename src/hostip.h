@@ -12,10 +12,10 @@ extern "C" {
 #error "O2_EXPORT undefined -- probably need to include o2lite.h or o2.h first"
 #endif
 
-extern O2_EXPORT bool o2n_internet_enabled;
-extern O2_EXPORT bool o2n_network_enabled;
-extern O2_EXPORT bool o2n_network_found;
-extern O2_EXPORT char o2n_internal_ip[O2N_IP_LEN];
+O2_EXPORT bool o2n_internet_enabled;
+O2_EXPORT bool o2n_network_enabled;
+O2_EXPORT bool o2n_network_found;
+O2_EXPORT char o2n_internal_ip[O2N_IP_LEN];
 
 O2_EXPORT void o2n_get_internal_ip(char *internal_ip);
 O2_EXPORT void o2_hex_to_dot(const char *hex, char *dot);

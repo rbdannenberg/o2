@@ -53,8 +53,8 @@ void dbprintf(const char *format, ...);
 
 const char *o2_tag_to_string(int tag);
 
-extern O2_EXPORT int o2_debug;
-extern O2_EXPORT const char *o2_debug_prefix;
+O2_EXPORT int o2_debug;
+O2_EXPORT const char *o2_debug_prefix;
 O2_EXPORT void o2_dbg_msg(const char *src, O2message_ptr msg,
         O2msg_data_ptr data, const char *extra_label, const char *extra_data);
 O2_EXPORT void o2_print_path_tree(void);

@@ -110,7 +110,7 @@
 
 class Bridge_info;
 
-extern O2_EXPORT int o2_bridge_next_id;
+O2_EXPORT int o2_bridge_next_id;
 
 class O2_CLASS_EXPORT Bridge_protocol : public O2obj {
 public:
