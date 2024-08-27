@@ -10,9 +10,6 @@
 // You can enable lots of printing here:
 #define DBG if (1) 
 
-
-O2err o2ens_error_report(t_object *x, const char *context, O2err err);
-
 typedef struct o2rcv
 {
     t_object x_obj;
@@ -51,11 +48,3 @@ typedef struct _servicenode {
     struct _servicenode *next;
 } servicenode;
 
-extern servicenode *o2ens_services;
-
-void o2rcv_handler(O2_HANDLER_ARGS);
-void service_delete(t_object *x, servicenode **snode, int free_it, char *src);
-void install_handlers(t_object *x, addressnode *anode);
-void receiver_delete(servicenode *snode, addressnode *anode,
-                     t_o2rcv *receiver, const char *src);
-void show_receivers(const char *info);

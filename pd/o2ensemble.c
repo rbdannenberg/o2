@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "o2ensemble.h"
+#include "o2pd.h"
 
 typedef struct o2ens
 {
@@ -592,7 +593,7 @@ void o2ens_free(t_o2ens *x)
 
 
 /* this is called once at setup time, when this code is loaded into Pd. */
-void o2ensemble_setup(void)
+PDLIBS_EXPORT void o2ensemble_setup(void)
 {
     post("o2ens_setup");
     o2ens_class = class_new(gensym("o2ensemble"), (t_newmethod)o2ens_new,

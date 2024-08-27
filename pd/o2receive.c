@@ -8,6 +8,7 @@
 #include "o2ensemble.h"  // includes o2 and some helper functions for pd o2
 #include "x_vexp.h"
 #include "z_libpd.h"
+#include "o2pd.h"
 #ifdef _WIN32
 # include <malloc.h> /* MSVC or mingw on windows */
 #elif defined(__linux__) || defined(__APPLE__) || defined(HAVE_ALLOCA_H)
@@ -339,7 +340,7 @@ void o2rcv_free(t_o2rcv *x)
 
 
 /* this is called once at setup time, when this code is loaded into Pd. */
-void o2receive_setup(void)
+PDLIBS_EXPORT void o2receive_setup(void)
 {
     post("o2rcv_setup");
     o2rcv_class = class_new(gensym("o2receive"), (t_newmethod)o2rcv_new,

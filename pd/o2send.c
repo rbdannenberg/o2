@@ -8,6 +8,7 @@
 #include "o2ensemble.h"  // includes o2 and some helper functions for pd o2
 #include "x_vexp.h"
 #include "z_libpd.h"
+#include "o2pd.h"
 #ifdef _WIN32
 # include <malloc.h> /* MSVC or mingw on windows */
 #elif defined(__linux__) || defined(__APPLE__) || defined(HAVE_ALLOCA_H)
@@ -293,7 +294,7 @@ void o2snd_free(t_o2snd *x)
 
 
 /* this is called once at setup time, when this code is loaded into Pd. */
-void o2send_setup(void)
+PDLIBS_EXPORT void o2send_setup(void)
 {
     post("o2snd_setup");
     o2snd_class = class_new(gensym("o2send"), (t_newmethod)o2snd_new,

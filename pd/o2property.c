@@ -9,6 +9,7 @@
 #include "o2ensemble.h"  // includes o2 and some helper functions for pd o2
 #include "x_vexp.h"
 #include "z_libpd.h"
+#include "o2pd.h"
 #ifdef _WIN32
 # include <malloc.h> /* MSVC or mingw on windows */
 #elif defined(__linux__) || defined(__APPLE__) || defined(HAVE_ALLOCA_H)
@@ -176,7 +177,7 @@ void o2prop_free(t_o2prop *x)
 
 
 /* this is called once at setup time, when this code is loaded into Pd. */
-void o2property_setup(void)
+PDLIBS_EXPORT void o2property_setup(void)
 {
     post("o2prop_setup");
     o2prop_class = class_new(gensym("o2property"), (t_newmethod)o2prop_new,

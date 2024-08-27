@@ -23,6 +23,7 @@
 #include <float.h>
 #include "o2ensemble.h"
 #include "m_pd.h"
+#include "o2pd.h"
 // TODO: remove this:
 #include "debug.h"
 
@@ -34,6 +35,10 @@
 
 #define ATOMS_ALLOCA(x, n) ((x) = (t_atom *)((n) <= MAX_O2_ARGS ? \
                                    alloca((n) * sizeof(t_atom)) : NULL));
+
+#ifdef WIN32
+#define alloca(x) _alloca(x)
+#endif
 
 servicenode *o2ens_services = NULL;
 
