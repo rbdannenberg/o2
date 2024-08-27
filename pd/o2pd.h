@@ -23,7 +23,7 @@
 
 // The following definitions need to be exported to O2pd library and imported in o2receive, o2ensemble etc...
 O2PD_EXPORT O2err o2ens_error_report(t_object* x, const char* context, O2err err);
-servicenode* o2ens_services;
+O2PD_EXPORT servicenode* o2ens_services;
 O2PD_EXPORT void o2rcv_handler(O2_HANDLER_ARGS);
 O2PD_EXPORT void service_delete(t_object* x, servicenode** snode, int free_it, char* src);
 O2PD_EXPORT void install_handlers(t_object* x, addressnode* anode);
