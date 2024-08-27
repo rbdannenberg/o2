@@ -194,12 +194,12 @@ if sys.implementation.name == "micropython":
     # micropython cannot allocate a port number and tell you what it is
     initial_udp_recv_port = 55967  # chosen randomly from unassigned range
 else:
-    from .py3fns import o2l_sys_time, find_my_ip_address
-    from .py3discovery import Py3discovery as O2lite_discovery
+    from py3fns import o2l_sys_time, find_my_ip_address
+    from py3discovery import Py3discovery as O2lite_discovery
     # python can bind to port 0, allocate a free port, and tell you what it is:
     initial_udp_recv_port = 0  # chosen randomly from unassigned range
-from .o2lite_handler import O2lite_handler
-from .byte_swap import o2lswap32
+from o2lite_handler import O2lite_handler
+from byte_swap import o2lswap32
 
 # constants and flags
 O2L_VERSION = 0x020000
@@ -210,7 +210,7 @@ O2L_ALREADY_RUNNING = -5
 O2_UDP_FLAG = 0
 O2_TCP_FLAG = 1
 
-MAX_MSG_LEN = 256
+MAX_MSG_LEN = 1024
 PORT_MAX = 16
 
 O2L_CLOCKSYNC = True
@@ -244,6 +244,12 @@ def o2l_address_init(ip, port_num, use_tcp):
     return addr_info[0][4]
 
 
+class O2blob:
+    def __init__(self, size=0, data=bytearray(0)):
+        self.size = size
+        self.data = data
+
+
 class O2lite:
     def __init__(self):
         # basic info
@@ -260,7 +266,7 @@ class O2lite:
         self.error = False
         # message
         self.udpinbuf = None  # gets bytearray from udp recv
-        self.outbuf = bytearray(256)
+        self.outbuf = bytearray(MAX_MSG_LEN)
         self.out_msg_address = ""
         self.msg_timestamp = 0
         self.parse_msg = None  # incoming message to parse
@@ -357,8 +363,15 @@ class O2lite:
                     self.add_float(args[i])
                 elif type_char == 's':
                     self.add_string(args[i])
-                elif type_char == 't':
+                elif type_char == 't' or type_char == 'd':
                     self.add_time(args[i])
+                elif type_char == 'h':
+                    self.add_int64(args[i])
+                elif type_char == 'b':
+                    self.add_blob(args[i])
+                else:
+                    raise Exception("O2 type character " + type_char + \
+                                    " not recognized")
                 i += 1
             # now we fall through to the send() code
         if self.error or self.tcp_socket is None:
@@ -373,10 +386,10 @@ class O2lite:
         via = "TCP"
 
         if misc & o2lswap32(O2_TCP_FLAG):
-            bytes_sent = self.tcp_socket.send(self.outbuf[:self.out_msg_cnt])
+            bytes_sent = self.tcp_socket.send(self.outbuf[ : self.out_msg_cnt])
         else:
             bytes_sent = self.udp_send_sock.sendto(
-                    self.outbuf[4:self.out_msg_cnt], self.udp_send_address)
+                    self.outbuf[4 : self.out_msg_cnt], self.udp_send_address)
             start = 4
             via = "UDP"
 
@@ -440,27 +453,45 @@ class O2lite:
                 break
 
 
+    def add_int32(self, i):
+        return self.add_int(i)
+
+
     def add_int(self, i):
         if self.out_msg_cnt + 4 > MAX_MSG_LEN:  # sizeof(int32_t) is 4 bytes
             return
 
         # Pack the integer with the endian swap and add it to the buffer
-        self.outbuf[self.out_msg_cnt:self.out_msg_cnt + 4] = \
-                struct.pack("<I", o2lswap32(i))
+        self.outbuf[self.out_msg_cnt : self.out_msg_cnt + 4] = \
+              struct.pack(">I", i)
         self.out_msg_cnt += 4
+
+
+    def add_int64(self, i):
+        if self.out_msg_cnt + 8 > MAX_MSG_LEN:  # sizeof(int32_t) is 4 bytes
+            return
+
+        # Pack the integer with the endian swap and add it to the buffer
+        self.outbuf[self.out_msg_cnt : self.out_msg_cnt + 8] = \
+              struct.pack(">q", i)
+        self.out_msg_cnt += 8
 
 
     def add_length(self):
         msg_length_excluding_length_field = 4
-        self.outbuf[0:4] = struct.pack("<I", o2lswap32(self.out_msg_cnt -
-                                   msg_length_excluding_length_field))
+        self.outbuf[0 : 4] = struct.pack(">I",
+               self.out_msg_cnt - msg_length_excluding_length_field)
+
+
+    def add_double(self, d):
+        self.add_time(d)
 
 
     def add_time(self, time):
         if self.out_msg_cnt + 8 > MAX_MSG_LEN:
             return
         packed_time = struct.pack(">d", time)  # Pack as big-endian double
-        self.outbuf[self.out_msg_cnt:self.out_msg_cnt + 8] = packed_time
+        self.outbuf[self.out_msg_cnt : self.out_msg_cnt + 8] = packed_time
         self.out_msg_cnt += 8
 
 
@@ -469,9 +500,18 @@ class O2lite:
             return
         packed_float = struct.pack(">f", x)  # Pack as big-endian float
 
-        self.outbuf[self.out_msg_cnt:self.out_msg_cnt + 4] = packed_float
+        self.outbuf[self.out_msg_cnt : self.out_msg_cnt + 4] = packed_float
         self.out_msg_cnt += 4
 
+
+    def add_blob(self, x):
+        n = x.size
+        if self.out_msg_cnt + n + 4 > MAX_MSG_LEN:
+            return
+        self.add_int(n)
+        self.outbuf[self.out_msg_cnt : self.out_msg_cnt + n] = x.bytes
+        self.out_msg_cnt += n
+        
 
     def ping_reply_handler(self, address, types, info):
         id_in_data = self.get_int32()
@@ -736,7 +776,10 @@ class O2lite:
             # Discard the message if it's too long
             while tcp_msg_got < tcp_in_msg_length:
                 togo = min(tcp_in_msg_length - tcp_msg_got, capacity)
-                data = self.tcp_socket.recv(togo)
+                try:
+                    data = self.tcp_socket.recv(togo)
+                except ConnectionResetError:
+                    data = None
                 if not data:
                     if "d" in self.debug_flags:
                         print("O2lite: read_from_tcp no data, closing tcp.")
@@ -889,10 +932,19 @@ class O2lite:
 
     
     def get_int32(self):
+        return self.get_int32()
+
+    def get_int(self):
         return self._read_data(4, '>i', 'i')  # Read 4 bytes as big-endian int32
+
+    def get_int64(self):
+        return self._read_data(8, '>q', 'h')  # Read 8 bytes as big-endian int64
 
     def get_time(self):
         return self._read_data(8, '>d', 't')  # Read 8 as big-endian double
+
+    def get_double(self):
+        return self._read_data(8, '>d', 'd')  # Read 8 as big-endian double
 
     def get_float(self):
         return self._read_data(4, '>f', 'f')  # Read 4 bytes as big-endian float
@@ -912,11 +964,11 @@ class O2lite:
             self._check_error(4, 's')  # force type error reporting
         self.parse_types_index += 1
         start = self.parse_cnt
-        end = self.parse_cnt + 1
+        end = start
         while end < len(self.parse_msg) and self.parse_msg[end] != 0:
             end += 1
-        if end >= len(self.parse_msg):
-            self._check_error(end - start, 's')  # force length error reporting
+        if end >= len(self.parse_msg):  # force length error reporting
+            self._check_error(end + 1 - start, 's') 
         try:
             extracted_string = self.parse_msg[start : end].decode('utf-8')
         except UnicodeDecodeError:
@@ -926,3 +978,21 @@ class O2lite:
         self.parse_cnt = (end + 4) & ~3
 
         return extracted_string
+
+
+    def get_blob(self):
+        """Get an O2blob from a message."""
+        if self.parse_types[self.parse_types_index] != 'b':
+            self._check_error(4, 'b')  # force type error reporting
+        value = struct.unpack('>i', self.parse_msg[self.parse_cnt :
+                                                   self.parse_cnt + 4])
+        size = value[0]
+        self.parse_cnt += 4
+        self.parse_types_index += 1
+        start = self.parse_cnt
+        end = self.parse_cnt + size
+        if end > len(self.parse_msg):
+            self.check_error(end - start, 'b')
+        blob = O2blob(size, self.parse_msg[start : end])
+        self.parse_cnt = (end + 4) & 3
+        return blob

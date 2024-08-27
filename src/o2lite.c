@@ -448,6 +448,7 @@ double o2l_get_time()
     return *(double *)&t;
 }
 
+
 float o2l_get_float()
 {
     CURDATA(x, int32_t, 'f');
@@ -455,11 +456,13 @@ float o2l_get_float()
     return *(float *)&x;
 }
 
+
 int32_t o2l_get_int32()
 {
     CURDATA(i, int32_t, 'i');
     return o2lswap32(i);
 }
+
 
 char *o2l_get_string()
 {
@@ -469,6 +472,17 @@ char *o2l_get_string()
     parse_cnt += (len + 4) & ~3;
     return s;
 }
+
+
+o2l_blob_ptr o2l_get_blob()
+{
+    CHECKERROR(int32_t, 'b')
+    o2l_blob_ptr blob = CURDATAADDR(o2l_blob_ptr);
+    blob->size = o2lswap32(blob->size);
+    parse_cnt += (blob->size + sizeof(int32_t) + 4) & ~3;
+    return blob;
+}
+
 
 void o2l_add_string(const char *s)
 {
@@ -519,6 +533,31 @@ void o2l_add_int32(int32_t i)
     }
     *(int32_t *)(outbuf + out_msg_cnt) = o2lswap32(i);
     out_msg_cnt += sizeof(int32_t);
+}
+
+
+void o2l_add_int64(int64_t i)
+{
+    if (out_msg_cnt + sizeof(int64_t) > MAX_MSG_LEN) {
+        parse_error = true;
+        return;
+    }
+    *(int64_t *)(outbuf + out_msg_cnt) = o2lswap64(i);
+    out_msg_cnt += sizeof(int64_t);
+}
+
+
+void o2l_add_blob(o2l_blob_ptr blob)
+{
+    int size = blob->size;
+    if (out_msg_cnt + sizeof(int32_t) + size > MAX_MSG_LEN) {
+        parse_error = true;
+        return;
+    }
+    *(int32_t *)(outbuf + out_msg_cnt) = o2lswap32(size);
+    out_msg_cnt += sizeof(int32_t);
+    memcpy(outbuf + out_msg_cnt, blob->data, size);
+    out_msg_cnt += (size + 4) & ~3;
 }
 
 

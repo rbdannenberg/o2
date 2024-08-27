@@ -711,10 +711,15 @@ typedef struct O2message {
 
 
 /**
- *  \brief The structure for binary large object.
+ * \brief The structure for binary large object.
  *
- *  A blob can be passed in an O2 message using the 'b' type. Created
- *  by calls to #o2_blob_new.
+ * A blob can be passed in an O2 message using the 'b' type. Created
+ * by calls to #o2_blob_new. Application is responsible for byte order.
+ * In principle, blob should be created in network byte order by the
+ * sender and converted to host byte order by the receiver. The size
+ * field is managed by O2 and always presented to the application in
+ * host byte order. The data portion is never byte-swapped by O2 since
+ * there is no typing information. Consider vectors as an alternative.
  */
 typedef struct O2blob {
   uint32_t size;  ///< size of data

@@ -6,7 +6,7 @@
 import socket
 import time
 
-from .ip_util import is_hex, hex_to_byte
+from ip_util import is_hex, hex_to_byte
 
 
 def validate_and_extract_udp_port(name):

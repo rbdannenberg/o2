@@ -444,8 +444,7 @@ void o2_msg_deliver(O2node *service, Services_entry *ss)
     // STEP 2: Isolate the type string, which is after the address
     types = o2_msg_types(msg);
 
-    O2_DBl(dbprintf("o2_msg_deliver msg %p addr %s\n", o2_debug_prefix,
-                    msg, address));
+    O2_DBl(dbprintf("o2_msg_deliver msg %p addr %s\n", msg, address));
 
     // STEP 3: If service is a Handler, call the handler directly
     if (ISA_HANDLER(service)) {

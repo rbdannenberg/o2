@@ -502,7 +502,9 @@ void o2_message_list_free(O2message_ptr *msgptr)
 }
 
 
-// o2_blob_new - allocate a blob
+// o2_blob_new - allocate a blob. size is the size of the data portion
+//     of the blob. The allocation size will be greater than size to
+//     at least provide room for the blob size field.
 //
 O2blob_ptr o2_blob_new(uint32_t size)
 {
@@ -513,7 +515,7 @@ O2blob_ptr o2_blob_new(uint32_t size)
     }
     // int64_t could be bigger than size_t. Avoid compiler warning by coercing:
     O2blob_ptr blob = (O2blob_ptr) O2_MALLOC((size_t) needed);
-    blob->size = (int) needed;
+    blob->size = size;
     return blob;
 }
 
@@ -1146,7 +1148,8 @@ O2arg_ptr o2_get_next(O2type to_type)
             o2_ctx->mx_vector_to_array = false;
             return NULL; // badly formatted message
         }
-    } else if (o2_ctx->mx_array_to_vector_pending) { // to_type is desired vector type
+    } else if (o2_ctx->mx_array_to_vector_pending) {
+        // to_type is desired vector type
         // array types are in o2_ctx->mx_type_next
         // already allocated vector header:
         rslt = ((O2arg_ptr) o2_ctx->arg_data.append_space(0)) - 1;

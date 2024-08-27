@@ -51,6 +51,8 @@
  *        - double
  *        - float
  *        - int32
+ *        - int64
+ *        - blob (represented by o2l_blob and o2l_blob_ptr)
  *    - message handlers are expected to call `o2l_get_float()`,
  *        `o2l_get_int()`, etc. in order to extract data from messages.
  *        O2lite does not construct an argument vector.
@@ -148,6 +150,13 @@ typedef struct o2l_msg {
     double timestamp; // regardless of o2l_time, this is O2time = double
     char address[4];
 } o2l_msg, *o2l_msg_ptr;
+
+
+typedef struct o2l_blob {
+    int32_t size;  // size of data
+    char data[4];  // the data, actually of variable length
+} o2l_blob, *o2l_blob_ptr;
+
 
 /// \brief incoming message handler type
 typedef void (*o2l_handler)(o2l_msg_ptr msg, const char *types,
@@ -289,6 +298,14 @@ O2_EXPORT void o2l_add_float(float x);
 /// \brief call between #o2l_send_start and #o2l_send to add an int32.
 O2_EXPORT void o2l_add_int32(int32_t i);
 
+/// \brief call between #o2l_send_start and #o2l_send to add an int64.
+O2_EXPORT void o2l_add_int64(int64_t i);
+
+/// \brief call between #o2l_send_start and #o2l_send to add a blob.
+O2_EXPORT void o2l_add_blob(o2l_blob_ptr blob);
+
+
+
 /**
  * \brief call between #o2l_send_start and #o2l_send to check for overflow.
  *
@@ -317,14 +334,24 @@ O2_EXPORT float o2l_get_float();
 /// \brief call in a message handler to get the next parameter as int32.
 O2_EXPORT int32_t o2l_get_int32();
 
+/// \brief call in a message handler to get the next parameter as int64.
+O2_EXPORT int64_t o2l_get_int64();
+
 /// \brief call in a message handler to get the next parameter as int32.
 #define o2l_get_int(i) o2l_get_int32(i)
 
 /// \brief call in a message handler to get the next parameter as string.
 ///
 /// The string is not copied to the heap, so the data will be invalid
-/// when the handler returns.
+/// when the handler returns. Do not free the returned string.
 O2_EXPORT char *o2l_get_string();
+
+/// \brief call in a message handler to get the next parameter as a blob.
+///
+/// The blob is not copied to the heap, so the data will be invalid
+/// when the handler returns. Do not free the return value.
+O2_EXPORT o2l_blob_ptr o2l_get_blob();
+
 
 /**
  * \brief Announce services offered to O2 by this bridged process

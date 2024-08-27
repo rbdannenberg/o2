@@ -28,6 +28,7 @@ void dbprintf(const char *format, ...)
     va_end(args);
 }
 
+
 // WARNING: this string is in the exact bit order of debug flags, e.g.
 // O2_DBB_FLAG is 1, O2_DBb_FLAG is 2, O2_DBc_FLAG is 4, etc., hence
 // this string starts with "Bbc...":

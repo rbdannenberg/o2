@@ -3,7 +3,7 @@
 # Zekai Shen and Roger B. Dannenberg
 # March 2024
 
-from .o2lite_disc import O2lite_disc, validate_and_extract_udp_port
+from o2lite_disc import O2lite_disc, validate_and_extract_udp_port
 from zeroconf import ServiceBrowser, Zeroconf, ServiceInfo
 import socket
 import time
