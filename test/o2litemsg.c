@@ -89,14 +89,22 @@ void xyzrs_han(o2l_msg_ptr msg, const char *types, void *data, void *info)
 
 
 bool any_called = false;
-// handles types "sift"
+// handles types "siftdhBb"
 void any_han(o2l_msg_ptr msg, const char *types, void *data, void *info)
 {
-    assert(streql(types, "sift"));
+    assert(streql(types, "siftdhBb"));
     assert(streql(o2l_get_string(), "this is another string"));
     assert(o2l_get_int32() == 5678);
     assert(about_equal(o2l_get_float(), 9.012));
     assert(about_equal(o2l_get_time(), 34567.89));
+    assert(about_equal(o2l_get_double(), 45678.90123));
+    assert(o2l_get_int64() == 12345678900);
+    assert(o2l_get_bool());
+    o2l_blob_ptr blob = o2l_get_blob();
+    assert(blob->size == 99);
+    for (int i = 0; i < 99; i++) {
+        assert(blob->data[i] == i + 1);
+    }
     any_called = true;
 }
 
@@ -190,12 +198,25 @@ int main(int argc, const char * argv[])
     deliver(true);
     assert(noargs_called);
 
+    char space[128];  // allocate some space for blob
+        // do not simply declare o2l_blob myblob; because it
+        // will not allocate space for the data part.
+    o2l_blob_ptr myblob = (o2l_blob_ptr) space;
+    for (int i = 0; i < 99; i++) {  // intentionally not multiple of 4
+        myblob->data[i] = i + 1;
+    }
+    myblob->size = 99;
+
     // test for NULL types
-    o2l_send_start("/any", 0, "sift", true);
+    o2l_send_start("/any", 0, "siftdhBb", true);
     o2l_add_string("this is another string");
     o2l_add_int32(5678);
     o2l_add_float(9.012F);
     o2l_add_time(34567.89);
+    o2l_add_double(45678.90123);
+    o2l_add_int64(12345678900);
+    o2l_add_bool(true);
+    o2l_add_blob(myblob);
     deliver(true);
     assert(any_called);
 

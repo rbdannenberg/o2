@@ -146,9 +146,9 @@
 // - is_service (int32) -- 1 for service, 0 for tap (should always be 1)
 // - properties (string) -- service properties (currently always empty)
 //
-// A small library is used to construct messages, supporting int32,
-// float, time, and string types. (Other types might be supported in 
-// the future or with library options.)
+// A small library is used to construct messages, supporting bool, blob,
+// double, float, int32, int64, string and time types. (Other types
+// might be supported in the future or with library options.)
 //
 // To receive messages, the receiver handler uses a table mapping
 // addresses to handler functions, and linear search is used, based on
@@ -389,15 +389,6 @@ void o2l_hex_to_dot(const char *hex, char *dot)
 
 // get data from current message, which is in network order
 
-// return timestamp from message
-double o2l_get_timestamp()
-{
-    int64_t t = (int64_t) (parse_msg->timestamp);
-    t = o2lswap64(t);
-    return *(double *)&t;
-}
-
-
 // was there an error in parsing?
 bool o2l_get_error()
 {
@@ -441,11 +432,28 @@ static void report_type_error(char typecode)
     typ var = *CURDATAADDR(typ *); parse_cnt += sizeof(typ);
 
 
-double o2l_get_time()
+o2l_blob_ptr o2l_get_blob()
 {
-    CURDATA(t, int64_t, 't');
-    t = o2lswap64(t);
-    return *(double *)&t;
+    CHECKERROR(int32_t, 'b')
+    o2l_blob_ptr blob = CURDATAADDR(o2l_blob_ptr);
+    blob->size = o2lswap32(blob->size);
+    parse_cnt += (blob->size + sizeof(int32_t) + 4) & ~3;
+    return blob;
+}
+
+
+bool o2l_get_bool()
+{
+    CURDATA(i, int32_t, 'B');
+    return (bool) o2lswap32(i);
+}
+
+
+double o2l_get_double()
+{
+    CURDATA(x, int64_t, 'd');
+    x = o2lswap64(x);
+    return *(double *)&x;
 }
 
 
@@ -464,6 +472,13 @@ int32_t o2l_get_int32()
 }
 
 
+int64_t o2l_get_int64()
+{
+    CURDATA(i, int64_t, 'h');
+    return o2lswap64(i);
+}
+
+
 char *o2l_get_string()
 {
     CHECKERROR(char *, 's')
@@ -474,13 +489,104 @@ char *o2l_get_string()
 }
 
 
-o2l_blob_ptr o2l_get_blob()
+double o2l_get_time()
 {
-    CHECKERROR(int32_t, 'b')
-    o2l_blob_ptr blob = CURDATAADDR(o2l_blob_ptr);
-    blob->size = o2lswap32(blob->size);
-    parse_cnt += (blob->size + sizeof(int32_t) + 4) & ~3;
-    return blob;
+    CURDATA(t, int64_t, 't');
+    t = o2lswap64(t);
+    return *(double *)&t;
+}
+
+
+// return timestamp from message
+double o2l_get_timestamp()
+{
+    int64_t t = (int64_t) (parse_msg->timestamp);
+    t = o2lswap64(t);
+    return *(double *)&t;
+}
+
+
+void o2l_send_start(const char *address, o2l_time time,
+		    const char *types, bool tcp)
+{
+    parse_error = false;
+    out_msg_cnt = sizeof out_msg->length;
+    o2l_add_int32(tcp ? O2_TCP_FLAG : O2_UDP_FLAG);
+    o2l_add_time(time);
+    o2l_add_string(address);
+    outbuf[out_msg_cnt++] = ','; // type strings have a leading ','
+    o2l_add_string(types);
+}
+
+
+void o2l_add_blob(o2l_blob_ptr blob)
+{
+    int size = blob->size;
+    if (out_msg_cnt + sizeof(int32_t) + size > MAX_MSG_LEN) {
+        parse_error = true;
+        return;
+    }
+    *(int32_t *)(outbuf + out_msg_cnt) = o2lswap32(size);
+    out_msg_cnt += sizeof(int32_t);
+    memcpy(outbuf + out_msg_cnt, blob->data, size);
+    out_msg_cnt += (size + 4) & ~3;
+}
+
+
+void o2l_add_int32(int32_t i)
+{
+    if (out_msg_cnt + sizeof(int32_t) > MAX_MSG_LEN) {
+        parse_error = true;
+        return;
+    }
+    *(int32_t *)(outbuf + out_msg_cnt) = o2lswap32(i);
+    out_msg_cnt += sizeof(int32_t);
+}
+
+
+void o2l_add_bool(bool b)
+{
+    if (out_msg_cnt + sizeof(int32_t) > MAX_MSG_LEN) {
+        parse_error = true;
+        return;
+    }
+    *(int32_t *)(outbuf + out_msg_cnt) = o2lswap32((int32_t) b);
+    out_msg_cnt += sizeof(int32_t);
+}
+
+
+void o2l_add_double(double d)
+{
+    if (out_msg_cnt + sizeof(double) > MAX_MSG_LEN) {
+        parse_error = true;
+        return;
+    }
+    int64_t i = o2lswap64(*(int64_t *) &d);
+    *(int64_t *)(outbuf + out_msg_cnt) = i;
+    out_msg_cnt += sizeof(double);
+}
+
+
+void o2l_add_float(float x)
+{
+    if (out_msg_cnt + sizeof(float) > MAX_MSG_LEN) {
+        parse_error = true;
+        return;
+    }
+    int32_t xi = o2lswap32(*(int32_t *)&x);
+    *(int32_t *)(outbuf + out_msg_cnt) = xi;
+    out_msg_cnt += sizeof(float);
+}
+
+
+void o2l_add_int64(int64_t i)
+{
+    if (out_msg_cnt + sizeof(int64_t) > MAX_MSG_LEN) {
+        parse_error = true;
+        return;
+    }
+    *(int64_t *)(outbuf + out_msg_cnt) = o2lswap64(i);
+    out_msg_cnt += sizeof(int64_t);
 }
 
 
@@ -500,78 +606,6 @@ void o2l_add_string(const char *s)
     while (out_msg_cnt & 0x3) outbuf[out_msg_cnt++] = 0;
 }
 
-
-void o2l_add_time(double time)
-{
-    if (out_msg_cnt + sizeof(double) > MAX_MSG_LEN) {
-        parse_error = true;
-        return;
-    }
-    int64_t t = o2lswap64(*(int64_t *)&time);
-    *(int64_t *)(outbuf + out_msg_cnt) = t;
-    out_msg_cnt += sizeof(double);
-}
-
-
-void o2l_add_float(float x)
-{
-    if (out_msg_cnt + sizeof(float) > MAX_MSG_LEN) {
-        parse_error = true;
-        return;
-    }
-    int32_t xi = o2lswap32(*(int32_t *)&x);
-    *(int32_t *)(outbuf + out_msg_cnt) = xi;
-    out_msg_cnt += sizeof(float);
-}
-
-
-void o2l_add_int32(int32_t i)
-{
-    if (out_msg_cnt + sizeof(int32_t) > MAX_MSG_LEN) {
-        parse_error = true;
-        return;
-    }
-    *(int32_t *)(outbuf + out_msg_cnt) = o2lswap32(i);
-    out_msg_cnt += sizeof(int32_t);
-}
-
-
-void o2l_add_int64(int64_t i)
-{
-    if (out_msg_cnt + sizeof(int64_t) > MAX_MSG_LEN) {
-        parse_error = true;
-        return;
-    }
-    *(int64_t *)(outbuf + out_msg_cnt) = o2lswap64(i);
-    out_msg_cnt += sizeof(int64_t);
-}
-
-
-void o2l_add_blob(o2l_blob_ptr blob)
-{
-    int size = blob->size;
-    if (out_msg_cnt + sizeof(int32_t) + size > MAX_MSG_LEN) {
-        parse_error = true;
-        return;
-    }
-    *(int32_t *)(outbuf + out_msg_cnt) = o2lswap32(size);
-    out_msg_cnt += sizeof(int32_t);
-    memcpy(outbuf + out_msg_cnt, blob->data, size);
-    out_msg_cnt += (size + 4) & ~3;
-}
-
-
-void o2l_send_start(const char *address, o2l_time time, 
-		    const char *types, bool tcp)
-{
-    parse_error = false;
-    out_msg_cnt = sizeof out_msg->length;
-    o2l_add_int32(tcp ? O2_TCP_FLAG : O2_UDP_FLAG);
-    o2l_add_time(time);
-    o2l_add_string(address);
-    outbuf[out_msg_cnt++] = ','; // type strings have a leading ','
-    o2l_add_string(types);
-}
 
 
 /******* NETWORKING *******/

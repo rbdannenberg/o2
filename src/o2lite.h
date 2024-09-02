@@ -126,7 +126,14 @@ extern "C" {
 #include "o2base.h"
 #include "hostip.h"
 
-#define MAX_MSG_LEN 256
+// MAX_MSG_LEN is pre-allocated for UDP input, TCP input, and output,
+// so the default is 12kb of message buffers. If this is overkill for
+// a small microcontroller application, you can pass MAX_MSG_LEN in
+// the compile command -- for every compilation unit! -- according to
+// your application requirements:
+#ifndef MAX_MSG_LEN
+#define MAX_MSG_LEN 4096
+#endif
 #define PORT_MAX 16
 
 /// \brief success return code
@@ -280,29 +287,31 @@ O2_EXPORT int o2l_initialize(const char *ensemble);
 /// \brief shut down o2lite resources (not fully implemented)
 O2_EXPORT int o2l_finish();
 
-/// \brief call between #o2l_send_start and #o2l_send to add a string.
-O2_EXPORT void o2l_add_string(const char *s);
+/// \brief call between #o2l_send_start and #o2l_send to add a blob.
+O2_EXPORT void o2l_add_blob(o2l_blob_ptr blob);
 
-/// \brief call between #o2l_send_start and #o2l_send to add a time.
-O2_EXPORT void o2l_add_time(double time);
+/// \brief call between #o2l_send_start and #o2l_send to add a double..
+O2_EXPORT void o2l_add_double(double d);
 
-/// \brief call between #o2l_send_start and #o2l_send to add a double.
-#define o2l_add_double(x) o2l_add_time(x)
+/// \brief call between #o2l_send_start and #o2l_send to add a time (double)..
+#define o2l_add_time(x) o2l_add_double(x)
 
 /// \brief call between #o2l_send_start and #o2l_send to add a float.
 O2_EXPORT void o2l_add_float(float x);
 
 /// \brief call between #o2l_send_start and #o2l_send to add an int32.
 #define o2l_add_int(i) o2l_add_int32(i)
-
-/// \brief call between #o2l_send_start and #o2l_send to add an int32.
 O2_EXPORT void o2l_add_int32(int32_t i);
 
 /// \brief call between #o2l_send_start and #o2l_send to add an int64.
 O2_EXPORT void o2l_add_int64(int64_t i);
 
-/// \brief call between #o2l_send_start and #o2l_send to add a blob.
-O2_EXPORT void o2l_add_blob(o2l_blob_ptr blob);
+/// \brief call between #o2l_send_start and #o2l_send to add a string.
+O2_EXPORT void o2l_add_string(const char *s);
+
+/// \brief call between #o2l_send_start and #o2l_send to add a bool.
+O2_EXPORT void o2l_add_bool(bool b);
+
 
 
 
@@ -319,26 +328,27 @@ O2_EXPORT void o2l_add_blob(o2l_blob_ptr blob);
  */
 O2_EXPORT bool o2l_get_error();
 
-/// \brief call in a message handler to get the message timestamp.
-O2_EXPORT double o2l_get_timestamp();
+/// \brief call in a message handler to get the next parameter as a blob.
+///
+/// The blob is not copied to the heap, so the data will be invalid
+/// when the handler returns. Do not free the return value.
+O2_EXPORT o2l_blob_ptr o2l_get_blob();
 
-/// \brief call in a message handler to get the next parameter as time.
-O2_EXPORT double o2l_get_time();
+/// \brief call in a message handler to get the next parameter as int32.
+O2_EXPORT bool o2l_get_bool();
 
 /// \brief call in a message handler to get the next parameter as double.
-#define o2l_get_double() o2l_get_time()
+O2_EXPORT double o2l_get_double();
 
 /// \brief call in a message handler to get the next parameter as float.
 O2_EXPORT float o2l_get_float();
 
 /// \brief call in a message handler to get the next parameter as int32.
+#define o2l_get_int() o2l_get_int32()
 O2_EXPORT int32_t o2l_get_int32();
 
 /// \brief call in a message handler to get the next parameter as int64.
 O2_EXPORT int64_t o2l_get_int64();
-
-/// \brief call in a message handler to get the next parameter as int32.
-#define o2l_get_int(i) o2l_get_int32(i)
 
 /// \brief call in a message handler to get the next parameter as string.
 ///
@@ -346,11 +356,11 @@ O2_EXPORT int64_t o2l_get_int64();
 /// when the handler returns. Do not free the returned string.
 O2_EXPORT char *o2l_get_string();
 
-/// \brief call in a message handler to get the next parameter as a blob.
-///
-/// The blob is not copied to the heap, so the data will be invalid
-/// when the handler returns. Do not free the return value.
-O2_EXPORT o2l_blob_ptr o2l_get_blob();
+/// \brief call in a message handler to get the next parameter as time.
+O2_EXPORT double o2l_get_time();
+
+/// \brief call in a message handler to get the message timestamp.
+O2_EXPORT double o2l_get_timestamp();
 
 
 /**

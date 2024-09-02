@@ -236,7 +236,7 @@ def finishDouble(prog1, p1, out1, prog2, p2, out2, stall):
         print("**** Failing output from " + prog1)
         print(p1output)
         print("**** Failing error output from " + prog1)
-        with open("stderr2.txt", "r") as errf:
+        with open("stderr1.txt", "r") as errf:
             print(errf.read())
 
         print("**** Failing output from " + prog2)

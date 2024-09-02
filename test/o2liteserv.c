@@ -8,7 +8,7 @@ This test:
 - initialize o2lite
 - wait for discovery
 - wait for clock sync
-- send a message to self over O2 with sift types
+- send a message to self over O2 with all (siftdhBb) types
 - respond to messages from o2litehost's client services
 */
 
@@ -64,18 +64,27 @@ void server_test(o2l_msg_ptr msg, const char *types, void *data, void *info)
 }
 
 
-bool sift_called = false;
+bool alltypes_called = false;
 
-// handles types "ist"
-void sift_han(o2l_msg_ptr msg, const char *types, void *data, void *info)
+// handles types "siftdhBBb"
+void alltypes_han(o2l_msg_ptr msg, const char *types, void *data, void *info)
 {
-    printf("sift_han called\n");
+    printf("alltypes_han called\n");
     assert(info = (void *) 111);
     assert(streql(o2l_get_string(), "this is a test"));
     assert(o2l_get_int32() == 1234);
     assert(about_equal(o2l_get_float(), 123.4));
     assert(about_equal(o2l_get_time(), 567.89));
-    sift_called = true;
+    assert(about_equal(o2l_get_double(), 2.0123456789));
+    assert(o2l_get_int64() == 98765432100);
+    assert(o2l_get_bool());
+    assert(!o2l_get_bool());
+    o2l_blob_ptr blob = o2l_get_blob();
+    assert(blob->size == 99);
+    for (int i = 0; i < 99; i++) {
+        assert(blob->data[i] == i + 1);
+    }        
+    alltypes_called = true;
 }
 
 
@@ -106,9 +115,9 @@ int main(int argc, const char * argv[])
         printf("o2liteserv\nFAILURE\n");
         exit(1);
     }
-    o2l_set_services("sift");
+    o2l_set_services("alltypes");
 
-    o2l_method_new("/sift", "sift", true, &sift_han, (void *) 111);
+    o2l_method_new("/alltypes", "siftdhBBb", true, &alltypes_han, (void *) 111);
 
     while (o2l_bridge_id < 0) { // not connected
         time_check();
@@ -117,11 +126,25 @@ int main(int argc, const char * argv[])
     }
     printf("main detected o2lite connected\n");
 
-    o2l_send_start("/sift", 0, "sift", true);
+    char space[128];  // allocate some space for blob
+        // do not simply declare o2l_blob myblob; because it
+        // will not allocate space for the data part.
+    o2l_blob_ptr myblob = (o2l_blob_ptr) space;
+    for (int i = 0; i < 99; i++) {  // intentionally not multiple of 4
+        myblob->data[i] = i + 1;
+    }
+    myblob->size = 99;
+    
+    o2l_send_start("/alltypes", 0, "siftdhBBb", true);
     o2l_add_string("this is a test");
     o2l_add_int32(1234);
     o2l_add_float(123.4F);
     o2l_add_time(567.89);
+    o2l_add_double(2.0123456789);
+    o2l_add_int64(98765432100);
+    o2l_add_bool(true);
+    o2l_add_bool(false);
+    o2l_add_blob(myblob);
     o2l_send();
 
     while (o2l_time_get() < 0) { // not synchronized
@@ -132,7 +155,7 @@ int main(int argc, const char * argv[])
     printf("main detected o2lite clock sync\n");
 
     o2l_time start_wait = o2l_time_get();
-    while (start_wait + 1 > o2l_time_get() && !sift_called) {
+    while (start_wait + 1 > o2l_time_get() && !alltypes_called) {
         time_check();
         o2l_poll();
         o2_sleep(2);
@@ -155,7 +178,7 @@ int main(int argc, const char * argv[])
         o2l_method_new(server_addresses[i], "i", true, &server_test, NULL);
     }
     // we are ready for the client, so announce the server services
-    o2l_set_services("sift,server");
+    o2l_set_services("alltypes,server");
 
     while (running) {
         time_check();
@@ -163,6 +186,6 @@ int main(int argc, const char * argv[])
         o2_sleep(2);
     }
 
-    assert(sift_called);
+    assert(alltypes_called);
     printf("o2liteserv\nSERVER DONE\n");
 }
