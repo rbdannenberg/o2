@@ -3,6 +3,13 @@
 # Roger B. Dannenberg
 # Dec 2021
 
+# Usage: python3 o2idc.py [-h][--help][-n][--nobackup] file1 file2 ...
+# Options are:
+#   -h or --help -- print these usage instructions
+#   -n or --nobackup -- do not create a backup file
+# Parameters:
+#   one or more paths to files (normally .cpp files) to be processed
+#
 # This preprocessor for C++ helps to build handlers for O2 messages
 # with a fixed number of parameters with known types. The
 # preprocessing automates the unpacking of message parameters, which
@@ -16,16 +23,17 @@
 # where "O2 INTERFACE" can also be "O2SM INTERFACE" or 
 # "O2LITE INTERFACE" -- pick the one that applies. In this example, we
 # write "service", "node1", "node2", "node3" as generic names, but
-# typically they would be specific names like "xysensor" and "x".
+# typically they would be for a specific address, something like:
+# /* O2 INTERFACE: /xysensor/x ...
 #
 # This is followed by parameter declarations of the form 
 #     int32 id, float period, ...; an optional multi-line comment */
-# where types are int32, float, int64, double, string, or bool
+# where types are int32, float, int64, double, string, blob, or bool
 # (no other types are currently supported, but probably easy to add).
 # 
 # Note that the declaration ends with semicolon (;) and everything
-# from there to the end-of-comment (*/) is ignored. The line after
-# end-of-comment is ignored by this pre-processor.
+# from there to the end-of-comment (*/) is ignored. The remainder of
+# the line after end-of-comment is ignored by this pre-processor.
 #
 # On the next line, begin the handler, which should look like:
 #    void service_node1_node2_node3(O2_HANDLER_ARGS)
@@ -34,8 +42,12 @@
 #        // end unpack message
 #        ...  message parameters id and period can be used here ...
 #    }
+# The // begin ... and // end .. lines must be exactly as shown,
+# including "(machine generated):" to be recognized by this program.
+#
 # You should use O2SM_HANDLER_ARGS or O2LITE_HANDLER_ARGS in place
 # of O2_HANDLER_ARGS if it applies.
+#
 # When this preprocessor is run, lines are inserted between the
 # "// begin" and "// end" lines to extract parameters, which will
 # be named according to the interface description, e.g. "id" and 
@@ -62,13 +74,30 @@
 # applicable.
 # 
 # You must call this _init() function once after O2 is initialized to 
-# install the handlers.
+# install the handlers. In the Arco project, the class Initializer is
+# defined and uses C++ initialization to run the _init() function
+# automatically.
+#
+# An aside (but possibly useful technique):
+#     Arco programs can write:
+#         Initializer sine_init_obj(sine_init);
+#     to run sine_init() automatically when the program starts. (In
+#     the Arco case, this only happens if the compilation unit
+#     sine.cpp is linked to the program, but there are no dependencies
+#     visible to the linker (because sine_init and all the exported
+#     arco_sine_* functions are invoked only via O2 messages) so
+#     normally, the linker would not load anything from the sine.o
+#     object. The solution is to instruct the linker to load
+#     everything from sine.o (in fact, load everything from arco.lib,
+#     which contains sine.o and many others), even though nothing
+#     there is needed to resolve any references.
 #
 # The preprocessor overwrites the .cpp file and is idempotent, meaning
 # you can run the preprocessor again without damage.
 
 import sys
 import os
+import argparse
 
 typecodes = {"string": "s", "int32": "i", "int64": "h", "float": "f",
              "double": "d", "bool": "B", "blob": "b"}
@@ -305,34 +334,58 @@ def process(filename, output_filename):
     return True
 
 
-def process_and_cleanup(filename):
+def process_and_cleanup(filename, make_backup=True):
     """generate to filename.output. If error, just report error and
-    delete filename.output. If no error, rename the original to
-    filename.bak<N> for N in 1, 2, 3, ..., and rename filename.output
-    to filename."""
+    delete filename.output. If no error, rename the original (if 
+    make_backup) to filename.bak<N> for N in 1, 2, 3, ..., and
+    rename filename.output to filename.
+    """
     output_filename = filename + ".output"
     if process(filename, output_filename):
-        # search for unused backup name
-        in_use = True
-        backup_number = 1
-        while in_use:
-            backupname = filename + ".bak" + str(backup_number)
-            if not os.path.exists(backupname):
-                in_use = False
-            else:
-                backup_number += 1
-        os.rename(filename, backupname)
+        if make_backup:
+            # search for unused backup name
+            in_use = True
+            backup_number = 1
+            while in_use:
+                backupname = filename + ".bak" + str(backup_number)
+                if not os.path.exists(backupname):
+                    in_use = False
+                else:
+                    backup_number += 1
+            os.rename(filename, backupname)
+        else:
+            os.unlink(filename)
         os.rename(output_filename, filename)
-        print("        o2idc: rewrote", filename, "and left backup in", \
-              backupname)
+        if make_backup:
+            print("        o2idc: rewrote", filename, "and left backup in",
+                  backupname)
     else:
         os.unlink(output_filename)
-        print("        o2idc: removed", output_filename, \
+        print("        o2idc: removed", output_filename,
               "after error encountered.")
 
 
-def run():
-    for filename in sys.argv[1:]:
-        process_and_cleanup(filename)
+DESCRIPTION = """This preprocessor for C++ helps to build handlers for
+O2 messages with a fixed number of parameters with known types. The
+preprocessing automates the unpacking of message parameters, which are
+assigned to local variables as if the handler was called with a
+conventional parameter list instead of a message holding the
+parameters. See the source code for details."""
 
-run()
+def run():
+    """process the command line"""
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument('filenames', metavar='F', type=str,
+                        nargs='+', help='files to be processed')
+    parser.add_argument('-n', '--nobackup', action='store_true',
+                        help='do not create backup files')
+    
+    args = parser.parse_args()
+    
+    for filename in args.filenames:
+        process_and_cleanup(filename, not args.nobackup)
+
+
+if __name__ == "__main__":
+    run()
+
