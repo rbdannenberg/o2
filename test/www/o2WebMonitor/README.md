@@ -1,28 +1,22 @@
-Work in Progress.
+# O2 Web Monitor
 
+The O2 Web monitor is designed to enable testing of most of the O2 functionality within a browser.
 
-In the o2host folder, find the o2host application in the Debug folder and launch it. 
+## Setup and Pre-requisites
+- **Start O2 Host**: To run O2 Web monitor, start O2 Host first.
+- **Clone O2 Web Monitor Files**: You can either serve O2 web monitor files from the O2 host web server or another web server. If you want to use the O2 host web server, make sure to setup the www directory appropriately.
+- **Connect web monitor to O2 host**: If you are serving the O2 web monitor files from a separate host, use the host name parameter to connect to the O2 host. Ensemble is also required to connect to O2 host.
 
-Create a configuration and run o2host. For the configuration, choose an ensemble name and a port. 
-- what do all the parts of configuration mean
+## Functionality supported
+O2 web monitor supports majority of the O2 capabilities. The functions supported include:
 
-Create a directory named www for your files, and store any project files there, including index.html, index.js, and o2ws.js.
+- Creating a service
+- Discovering services
+- Sending message to a service
+- Receiving messages
+- Tapping a service
 
-In your Javascript code, to initialize the o2host, you must call o2ws_initialize(param) with the ensemble name you chose earlier as the parameter. 
-Assuming you have chosen an area in your configuration wide enough, this will initialize the o2host with that name for actions on the browser side. 
-
-
-
-This application is an O2lite websocket monitor. 
-The user connects to an O2host and then can create services and send messages to other services.
-To see a list of all services connected to the o2host, the user can simply click Discover Services, and all running services will be displayed along with their status. 
-
-Each remote service connected to the o2host can be tapped, meaning all future messages sent to that service will be forwarded to the local service that tapped it. 
-No messages sent before tap was enabled will be shown.
-The user can send messages from one service to another, local or remote. 
-For sending messages, the user has the option to specify an address for the service. The user must specify the typespec for the message to be sent. 
-Then, the message must be inputted with commas between each input.
-
+You can find the detailed demo for the tool here (https://youtu.be/l-ctByqbn5M)
 
 
 
