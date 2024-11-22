@@ -153,6 +153,7 @@ class O2_CLASS_EXPORT O2node : public O2obj {
         // if object is NULL, but will often work at least in debug mode.
         if (!(tag & O2TAG_DELETE_IN_PROGRESS)) {\
             tag |= O2TAG_DELETE_IN_PROGRESS;
+
             delete this;
         }
     }

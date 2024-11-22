@@ -220,9 +220,8 @@ void DNSSD_API zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                 } else {  // we got the info we need, so remove this name
                     // from the pending list.
                     O2_DBz(dbprintf("zc_resolve_callback resolve_pending name"
-                               "%s@%p freed seqno %d\n", o2_debug_prefix,
-                               resolve_pending[i].name, resolve_pending[i].name,
-                               resolve_pending[i].seqno));
+                            "%s@%p freed seqno %d\n", resolve_pending[i].name,
+                            resolve_pending[i].name, resolve_pending[i].seqno));
                     O2_FREE((void *) resolve_pending[i].name);
                     resolve_pending.erase(i);
                 }
@@ -246,7 +245,7 @@ void DNSSD_API zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         const char *vers_num = (const char *) TXTRecordGetValuePtr(txt_len,
                                          txt_record, "vers", &vers_num_len);
         O2_DBz(if (vers_num) {
-                   printf("%s got a TXT field: vers=", o2_debug_prefix);
+                   dbprintf("got a TXT field: vers=");
                    for (int i = 0; i < vers_num_len; i++) {
                        printf("%c", vers_num[i]); }
                    printf("\n"); });
@@ -565,7 +564,7 @@ static O2err zc_create_services(AvahiClient *c);
 
 void o2_zcdisc_finish()
 {
-    O2_DBz(dbprintf("o2_zcdisc_finish\n", o2_debug_prefix));
+    O2_DBz(dbprintf("o2_zcdisc_finish\n"));
     // (I think) these are freed by avahi_client_free later, so
     // we remove the dangling pointers:
     zc_group = NULL;
@@ -619,7 +618,7 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
                     O2_DBz(dbprintf("got a TXT field name=%s\n", name));
                 }
                 if (strncmp((char *) asl->text, "vers=", 5) == 0) {
-                    O2_DBz(dbprintf("got a TXT field: ", o2_debug_prefix);
+                    O2_DBz(dbprintf("got a TXT field: ");
                            for (int i = 0; i < asl->size; i++) {
                                 printf("%c", asl->text[i]); }
                            printf("\n"));
@@ -677,7 +676,7 @@ static void zc_browse_callback(AvahiServiceBrowser *b,
             break;
         case AVAHI_BROWSER_ALL_FOR_NOW:
         case AVAHI_BROWSER_CACHE_EXHAUSTED:
-            O2_DBz(dbprintf("(Avahi Browser) %s\n", o2_debug_prefix,
+            O2_DBz(dbprintf("(Avahi Browser) %s\n",
                             event == AVAHI_BROWSER_CACHE_EXHAUSTED ?
                             "CACHE_EXHAUSTED" : "ALL_FOR_NOW"));
             break;
@@ -854,7 +853,7 @@ O2err o2_zcdisc_initialize()
     if (zc_running) {
         return O2_ALREADY_RUNNING;
     }
-    O2_DBz(dbprintf("o2_zcdisc_initialize\n", o2_debug_prefix));
+    O2_DBz(dbprintf("o2_zcdisc_initialize\n"));
     zc_running = true;
     // need a copy because if there is a collision, zc_name is freed
     zc_name = avahi_strdup(o2_ensemble_name);

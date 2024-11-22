@@ -267,7 +267,7 @@ Http_server::Http_server(int port, const char *root_) :
 
 Http_server::~Http_server()
 {
-    O2_DBw(dbprintf("delete Http_server %p socket %lld\n", o2_debug_prefix,
+    O2_DBw(dbprintf("delete Http_server %p socket %lld\n",
                this, (long long) (fds_info ? fds_info->get_socket() : -1)));
     // close all the client connections
     int n = o2n_fds_info.size();
@@ -569,7 +569,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
             memcpy(reply->payload + 2, payload, payload_len);
             reply->length = payload_len + 2;
             fds_info->send_tcp(false, reply);
-            O2_DBw(dbprintf("Sent %s back to client\n", o2_debug_prefix,
+            O2_DBw(dbprintf("Sent %s back to client\n",
                             (opcode == WSOP_PING ? "PONG" : "CLOSE")));
             inbuf.drop_front((int) (payload + payload_len - msg));
             ws_msg_len = -1;
@@ -653,7 +653,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
     o2_message_send(to_send);  // this may return an error such as O2_NO_SERVICE
     return O2_SUCCESS;  // but we still report success to avoid closing websocket
   bad_message:
-    O2_DBw(dbprintf("websocket bridge bad_message\n", o2_debug_prefix));
+    O2_DBw(dbprintf("websocket bridge bad_message\n"));
     // now we need to remove the message from inbuf
     inbuf.drop_front((int) (payload + payload_len - msg));
     ws_msg_len = -1;
@@ -877,7 +877,6 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
         // terminate the string:
         *((char *) end) = 0;  // (modifies the request header!)
         O2_DBw(dbprintf("upgrading socket %lld to websocket\n",
-                        o2_debug_prefix,
                         (long long) fds_info->get_socket()));
         return websocket_upgrade(sec_web_key, msg_len);
     } else if (strncmp(&inbuf[0], "GET /", 5) == 0) {
@@ -933,8 +932,7 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     assert(payload_len <= content_len + 150);  // confirm we allocated enough
     msg->length = payload_len;
     fds_info->send_tcp(false, msg);
-    O2_DBw(dbprintf("closing web socket: %s%s\n", o2_debug_prefix,
-                    text, text2));
+    O2_DBw(dbprintf("closing web socket: %s%s\n", text, text2));
     fds_info->close_socket(false);
     return O2_SUCCESS;
 }

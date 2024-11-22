@@ -104,10 +104,9 @@ O2err Services_entry::service_provider_new(O2string service_name,
             const char *properties, O2node *service, Proxy_info *proc)
 {
     bool active = false;
-    O2_DBd(printf("%s%s service_provider_new adding %s to %s\n",
-                  o2_debug_prefix,
+    O2_DBd(dbprintf("%sservice_provider_new adding %s to %s\n",
                   // highlight when proc->key is our IP:Port info:
-                  (streql(service_name, "_o2") ? " ****" : ""),
+                  (streql(service_name, "_o2") ? "**** " : ""),
                   service_name, proc->key));
     Services_entry *ss = must_get_services(service_name);
     // services exists, is this service already offered by proc?
@@ -389,8 +388,7 @@ void Services_entry::remove_if_empty()
 O2err Services_entry::remove_service(const char *srv_name,
                                      int index, Proxy_info *proc)
 {
-    O2_DBd(dbprintf("remove_service %s in %s\n", o2_debug_prefix,
-                    srv_name, proc->key));
+    O2_DBd(dbprintf("remove_service %s in %s\n", srv_name, proc->key));
     Service_provider *spp = NULL;
     if (index < 0) {
         index = proc_service_index(proc);
@@ -695,7 +693,7 @@ void Services_entry::show(int indent)
 bool Services_entry::add_service(O2string our_ip_port,
                                  O2node *service, char *properties)
 {
-    O2_DBd(dbprintf("add_service %s props %s in %s\n", o2_debug_prefix,
+    O2_DBd(dbprintf("add_service %s props %s in %s\n",
                     service->key, properties, our_ip_port));
     // find insert location: either at front or at back of services->services
     int index = services.size();

@@ -402,13 +402,13 @@ static void cs_ping_reply_handler(O2msg_data_ptr msg, const char *types,
             start = ping_reply_count % CLOCK_SYNC_HISTORY_LEN;
             count = CLOCK_SYNC_HISTORY_LEN;
         }
-        printf("%s reference minus local:", o2_debug_prefix);
+        dbprintf("reference minus local:");
         int k = start;
         for (int j = 0; j < count; j++) {
             printf(" %g", ref_minus_local[k]);
             k = (k + 1) % CLOCK_SYNC_HISTORY_LEN;
         }
-        printf("\n%s round trip:", o2_debug_prefix);
+        printf("\n"); dbprintf("round trip:");
         for (int j = 0; j < count; j++) {
             printf(" %g", round_trip_time[start]);
             start = (start + 1) % CLOCK_SYNC_HISTORY_LEN;
@@ -430,7 +430,7 @@ static void cs_ping_reply_handler(O2msg_data_ptr msg, const char *types,
         }
         mean_rtt /= CLOCK_SYNC_HISTORY_LEN;
         // best estimate of ref_minus_local is stored at i
-        //printf("*    %s time adjust %g\n", o2_debug_prefix,
+        //dbprintf("*    time adjust %g\n",
         //       now + ref_minus_local[best_i] - o2_time_get());
         O2time new_ref = now + ref_minus_local[best_i];
         if (!o2_clock_is_synchronized) {
@@ -621,7 +621,7 @@ O2err o2_clock_set(o2_time_callback callback, void *data)
 {
     if (!o2_ensemble_name) {
         O2_DBk(dbprintf("o2_clock_set cannot be called before "
-                        "o2_initialize.\n", o2_debug_prefix));
+                        "o2_initialize.\n"));
         return O2_NOT_INITIALIZED;
     }
 

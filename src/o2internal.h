@@ -205,7 +205,7 @@ public:
 
 #ifndef O2_NO_DEBUG
     void show_tree() {
-        printf("%s -------- PATH TREE --------\n", o2_debug_prefix);
+        dbprintf("-------- PATH TREE --------\n");
         path_tree.show(2);
     }
 #endif

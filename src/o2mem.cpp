@@ -321,8 +321,7 @@ void *o2_calloc(size_t n, size_t s)
 #else
 void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line)
 {
-    O2_DBm(dbprintf("O2_CALLOC %zu of %zu in %s:%d", o2_debug_prefix,
-                    n, s, file, line));
+    O2_DBm(dbprintf("O2_CALLOC %zu of %zu in %s:%d", n, s, file, line));
     fflush(stdout);
     void *obj = (*o2_malloc_ptr)(n * s);
     O2_DBm(printf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj));

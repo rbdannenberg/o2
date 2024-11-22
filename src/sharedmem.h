@@ -13,8 +13,7 @@ class O2sm_protocol : public Bridge_protocol {
 public:
     O2sm_protocol() : Bridge_protocol("O2sm") { }
     virtual ~O2sm_protocol() {
-        O2_DBb(dbprintf("deleting O2sm_protocol@%p\n", o2_debug_prefix,
-                        this));
+        O2_DBb(dbprintf("deleting O2sm_protocol@%p\n", this));
         o2_method_free("/_o2/o2sm");  // remove all o2sm support handlers
 
         // free all messages arriving from shared memory instances:
@@ -45,8 +44,7 @@ public:
                 Bridge_info *bridge = (Bridge_info *) (spp->service);
                 if (ISA_BRIDGE(bridge) && bridge->proto == o2sm_protocol) {
                     O2_DBb(dbprintf("removing service %s delegating to "
-                                    "O2sm_protocol@%p\n", o2_debug_prefix,
-                                    services->key, this));
+                                    "O2sm_protocol@%p\n", services->key, this));
                     services->proc_service_remove(services->key, bridge,
                                                   services, j);
                     break; // can only be one of services offered by bridge,

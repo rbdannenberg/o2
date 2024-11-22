@@ -448,7 +448,7 @@ O2err o2_discovered_a_remote_process_name(const char *name, int version,
              //    or O2_DY_REPLY or O2_DY_HUB
         if (!o2_message_source || !ISA_PROC(o2_message_source)) {
             O2_DBG(dbprintf("** o2_discovered_a_remote_process_name dy %d "
-                            "o2_message_source %p tag %s\n", o2_debug_prefix,
+                            "o2_message_source %p tag %s\n",
                             dy, o2_message_source, (o2_message_source ?
                              o2_tag_to_string(o2_message_source->tag) :
                                                                "null")));

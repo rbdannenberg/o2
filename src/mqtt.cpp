@@ -350,7 +350,7 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
     bool proc_discovered = true;  // is the remote process known to us?
     int version;
     O2_DB(O2_DBq_FLAG | O2_DBd_FLAG,
-          printf("%s entered o2_mqtt_disc_handler\n", o2_debug_prefix));
+          dbprintf("entered o2_mqtt_disc_handler\n"));
     // need 3 strings: public IP, intern IP, port, clock status
     char *end = payload + payload_len;
     char *public_ip = payload + 1;
@@ -415,7 +415,7 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
     int tcp_port = o2_hex_to_int(tcp_port_num);
     // and this works even if udp_port_num is "":
     int udp_port = udp_port_num ? o2_hex_to_int(udp_port_num) : 0;
-    O2_DBq(dbprintf("o2_mqtt_disc_handler got %s %s %x %x\n", o2_debug_prefix,
+    O2_DBq(dbprintf("o2_mqtt_disc_handler got %s %s %x %x\n",
                     public_ip, internal_ip, tcp_port, udp_port));
     
     // we need the name for the remote process with zero padding for lookup
@@ -467,20 +467,20 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
         // CASE 1A: we are the client
         if (cmp < 0) {
             O2_DBq(dbprintf("o2_mqtt_disc_handler public_ip = internal_ip, "
-                            "we are the 'client'\n", o2_debug_prefix));
+                            "we are the 'client'\n"));
             o2_discovered_a_remote_process_name(name, version, internal_ip,
                                   tcp_port, udp_port, O2_DY_INFO);
         } else { // (cmp > 0) -- CASE 1B: we are the server
             // CASE 1B1: we can receive a connection request
             if (streql(o2n_public_ip, o2n_internal_ip)) {
                 O2_DBq(dbprintf("o2_mqtt_disc_handler public_ip = internal_"
-                                "ip, we are the server\n", o2_debug_prefix));
+                                "ip, we are the server\n"));
                 o2_discovered_a_remote_process_name(name, version, internal_ip,
                                       tcp_port, udp_port, O2_DY_INFO);
                 proc_discovered = false;  // waiting for them to connect
             } else {  // CASE 1B2: must create an MQTT connection
                 O2_DBq(dbprintf("o2_mqtt_disc_handler public_ip = internal_ip,"
-                           " must create MQTT connection\n", o2_debug_prefix));
+                           " must create MQTT connection\n"));
                 create_mqtt_connection(name, true);
             }
         }
@@ -491,12 +491,12 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
     if (streql(o2n_public_ip, public_ip)) {
         if (cmp > 0) {  // CASE 2A1: we are the server
             O2_DBq(dbprintf("o2_mqtt_disc_handler same public_ip, we are the "
-                            "server\n", o2_debug_prefix));
+                            "server\n"));
             send_callback_via_mqtt(name);
             proc_discovered = false;  // waiting for them to connect
         } else {  // (cmp < 0) -- CASE 2A2: we are the client
             O2_DBq(dbprintf("o2_mqtt_disc_handler same public_ip, we are the "
-                            "client\n", o2_debug_prefix));
+                            "client\n"));
             o2_discovered_a_remote_process_name(name, version, internal_ip,
                                   tcp_port, udp_port, O2_DY_INFO);
         }

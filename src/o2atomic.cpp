@@ -1,4 +1,4 @@
-// atomic.c -- cross-platform lock-free atomic operations
+// o2atomic.cpp -- cross-platform lock-free atomic operations
 //
 // based on https://nullprogram.com/blog/2014/09/02
 //

@@ -311,8 +311,7 @@ static int bind_recv_socket(SOCKET sock, int *port, bool tcp_recv_flag,
         }
         *port = ntohs(o2_serv_addr.sin_port);  // set actual port used
     }
-    O2_DBo(printf("*   %s bind socket %ld port %d\n", o2_debug_prefix,
-                  (long) sock, *port));
+    O2_DBo(dbprintf("*   bind socket %ld port %d\n", (long) sock, *port));
     assert(*port != 0);
     return O2_SUCCESS;
 }
@@ -346,7 +345,7 @@ Fds_info::Fds_info(SOCKET sock, int net_tag_, int port_, Net_interface *own)
     assert(sock != INVALID_SOCKET);
     pfd->events = POLLIN;
     pfd->revents = 0;
-    O2_DBo(dbprintf("new Fds_info %p socket %ld index %d\n", o2_debug_prefix,
+    O2_DBo(dbprintf("new Fds_info %p socket %ld index %d\n",
                     this, (long) sock, fds_index));
 #if CLOSE_SOCKET_DEBUG
     printf("**Fds_info constructor:\n");
@@ -571,8 +570,8 @@ Fds_info::~Fds_info()
                    Proxy_info * proxy = (Proxy_info *) replace->owner;
                    proxy->co_info(replace, "moved to new index");
                } else {
-                   printf("%s net_tag %s port %d moved socket %ld "
-                          "to index %d\n", o2_debug_prefix,
+                   printf("net_tag %s port %d moved socket %ld "
+                          "to index %d\n",
                           Fds_info::tag_to_string(replace->net_tag),
                           replace->port, (long) pfd->fd, fds_index);
                });
@@ -908,8 +907,7 @@ static void report_error(const char *msg, SOCKET socket)
     int err;
     int errlen = sizeof(err);
     getsockopt(socket, SOL_SOCKET, SO_ERROR, (char *) &err, &errlen);
-    O2_DBo(dbprintf("Socket %ld error %s: %d", o2_debug_prefix,
-                    (long) socket, msg, err));
+    O2_DBo(dbprintf("Socket %ld error %s: %d", (long) socket, msg, err));
 }
   
 
@@ -1024,9 +1022,8 @@ O2err o2n_recv()
             fi = o2n_fds_info[i];
             if ((o2_debug & O2_DBo_FLAG) ||
                 TRACE_SOCKET(fi)) {
-                printf("%s removing remote process after POLLHUP to "
-                       "socket %ld index %d\n", o2_debug_prefix,
-                       (long) (pfd->fd), i);
+                dbprintf("removing remote process after POLLHUP to "
+                       "socket %ld index %d\n", (long) (pfd->fd), i);
             }
             fi->close_socket(true);
         // do this first so we can change PROCESS_CONNECTING to
@@ -1258,8 +1255,7 @@ int Fds_info::read_event_handler()
         // note that this handler does not call read_whole_message()
         SOCKET connection = o2_accept(sock, NULL, NULL, "read_event_handler");
         if (connection == INVALID_SOCKET) {
-            O2_DBG(dbprintf("tcp_accept_handler failed to accept\n",
-                            o2_debug_prefix));
+            O2_DBG(dbprintf("tcp_accept_handler failed to accept\n"));
             return O2_FAIL;
         }
         int set = 1;

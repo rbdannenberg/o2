@@ -552,8 +552,7 @@ O2err o2_send_marker(const char *path, double time, bool tcp_flag,
 
     O2_DB((msg->data.address[1] == '_' || msg->data.address[1] == '@') ?
           O2_DBS_FLAG : O2_DBs_FLAG,  // either non-system (s) or system (S)
-          printf("%s sending%s (%p) ", o2_debug_prefix,
-                 (tcp_flag ? " cmd" : ""), msg);
+          dbprintf("sending%s (%p) ", (tcp_flag ? " cmd" : ""), msg);
           o2_msg_data_print(&msg->data);
           printf("\n"));
     return o2_message_send(msg);

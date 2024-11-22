@@ -14,8 +14,7 @@ void ((*o2_free_ptr)(void *)) = NULL;
 #ifndef O2_NO_DEBUG
 void *o2_dbg_malloc(size_t size, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_MALLOC %lld in %s:%d", o2_debug_prefix, 
-                  (long long) size, file, line));
+    O2_DBm(dbprintf("O2_MALLOC %lld in %s:%d", (long long) size, file, line));
     fflush(stdout);
     void *obj = o2_malloc(size, file, line);
     O2_DBm(printf(" -> %p\n", obj));
@@ -26,8 +25,7 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
 
 void o2_dbg_free(const void *obj, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_FREE in %s:%d <- %p\n", 
-                  o2_debug_prefix, file, line, obj));
+    O2_DBm(dbprintf("O2_FREE in %s:%d <- %p\n", file, line, obj));
     // bug in C. free should take a const void * but it doesn't
     o2_free((void *) obj, file, line);
 }
@@ -51,8 +49,7 @@ void *o2_calloc(size_t n, size_t s)
 #else
 void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line)
 {
-    O2_DBm(printf("%s O2_CALLOC %lu of %lu in %s:%d", o2_debug_prefix,
-                  n, s, file, line));
+    O2_DBm(dbprintf("O2_CALLOC %lu of %lu in %s:%d", n, s, file, line));
     fflush(stdout);
     void *obj = o2_malloc(s, file, line);
     O2_DBm(printf(" -> %p\n", obj));

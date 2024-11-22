@@ -1,4 +1,4 @@
-# regression_tests.py -- a rewrite of regression_tests.sh for Windows
+# rt.py -- a rewrite of regression_tests.sh for Windows
 #    using Python 3
 #
 # Roger Dannenberg   revised Oct 2022 to avoid pipes,
