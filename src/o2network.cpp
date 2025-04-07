@@ -335,6 +335,7 @@ Fds_info::Fds_info(SOCKET sock, int net_tag_, int port_, Net_interface *own)
     out_msg_sent = 0;
     port = port_;
     owner = own;
+    description = NULL;  // used only in debug builds, describes the socket
 #ifndef O2_NO_DEBUG
     trace_socket_flag = false;  // option to report when this closes
 #endif
@@ -588,6 +589,14 @@ Fds_info::~Fds_info()
     if (owner) {
         owner->remove();
     }
+#ifndef O2_NO_DEBUG
+    if (description) {
+        O2_DBo(dbprintf("freeing Fds_info %p: %s\n", this, description));
+        O2_FREE((void *) description);
+    } else {
+        printf("Fds_info destructor %p\n", this);
+    }
+#endif
 }
 
 
@@ -1264,10 +1273,10 @@ int Fds_info::read_event_handler()
                    (void *) &set, sizeof set);
 #endif
         Fds_info *conn = new Fds_info(connection, NET_TCP_CONNECTION, 0, NULL);
+        assert(conn);
         O2_DBdo(dbprintf("O2 server socket %ld accepts client as socket "
                          "%ld index %d\n", (long) sock, (long) connection,
                          conn->fds_index));
-        assert(conn);
         if (owner) owner->accepted(conn);
         else conn->close_socket(true);  // not sure if this could happen
         return O2_SUCCESS;
@@ -1299,6 +1308,15 @@ int Fds_info::read_event_handler()
 }
 
 #ifndef O2_NO_DEBUG
+
+void Fds_info::set_description(const char *desc)
+{
+    if (description) {
+        O2_FREE((void *) description);
+    }
+    description = desc;
+}
+
 
 const char *Fds_info::tag_to_string(int tag)
 {

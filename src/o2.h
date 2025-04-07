@@ -1909,7 +1909,9 @@ O2_EXPORT O2err o2_clock_jump(double local_time, double global_time,
  *  indicates one data item. Allowed type characters are those in 
  *  "ifsbhtdScmTFNIB". Threee O2 type codes: "[]v" are not supported.
  *  (if needed, create a message and use the appropriate o2_add_...
- *  function.)
+ *  function.) Note that `typestring` is *required* even if it is the
+ *  empty string. Otherwise, you will probably get a cryptic compiler
+ *  error: Expected expression.
  *  @param ...  the data of the message. There is one parameter for each
  *  character in the typestring.
  *

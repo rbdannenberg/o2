@@ -89,25 +89,25 @@ typedef struct O2netmsg {
         ((O2netmsg_ptr) O2_MALLOC(O2N_MESSAGE_SIZE_FROM_DATA_SIZE(len)))
 
 // net_tag values
-// server socket to receive UDP messages: (0x200000)
+// server socket to receive UDP messages: (0x800000)
 #define NET_UDP_SERVER (O2TAG_HIGH << 1)
 
-// server port for accepting TCP connections: (0x400000)
+// server port for accepting TCP connections: (0x1000000)
 #define NET_TCP_SERVER (O2TAG_HIGH << 2)
 
-// client side socket during async connection: (0x800000)
+// client side socket during async connection: (0x2000000)
 #define NET_TCP_CONNECTING (O2TAG_HIGH << 3)
 
-// client side of a TCP connection: (0x1000000)
+// client side of a TCP connection: (0x4000000)
 #define NET_TCP_CLIENT (O2TAG_HIGH << 4)
 
-// server side accepted TCP connection: (0x2000000)
+// server side accepted TCP connection: (0x8000000)
 #define NET_TCP_CONNECTION (O2TAG_HIGH << 5)
 
-// o2n_close_socket() has been called on this socket: (0x4000000)
+// o2n_close_socket() has been called on this socket: (0x10000000)
 #define NET_INFO_CLOSED (O2TAG_HIGH << 6)
 
-// an input file for asynchronous reads -- treated as a socket (0x8000000)
+// an input file for asynchronous reads -- treated as a socket (0x20000000)
 #define NET_INFILE (O2TAG_HIGH << 7)
 
 // Any open, sendable TCP socket (NET_TCP_SERVER is not actually sendable
@@ -154,6 +154,7 @@ class Fds_info;  // forward declaration
 class Net_interface {
 public:
     Fds_info *fds_info;
+
     virtual O2err accepted(Fds_info *conn) = 0;
     virtual O2err connected() {
             printf("ERROR: connected called by mistake\n"); return O2_FAIL; }
@@ -220,6 +221,7 @@ class Fds_info : public O2obj {
     int port;       // used to save port number if this is a UDP receive socket,
                     // or the server port if this is a process
     Net_interface *owner;
+    const char *description;  // used only in debug builds, describes the socket
 
     Fds_info(SOCKET sock, int net_tag, int port, Net_interface *own);
     ~Fds_info();
@@ -267,6 +269,8 @@ class Fds_info : public O2obj {
     void close_socket(bool now);
 
 #ifndef O2_NO_DEBUG
+    void set_description(const char *desc);
+
 // trace_socket_flag and TRACE_SOCKET allow us to trace sockets
 // individually or according to type or function. Tracing all socket
 // actions can be overwhelming.

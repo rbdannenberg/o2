@@ -43,26 +43,27 @@ are all the possible tag values:
 
 #define O2TAG_STUN        0x20000
 #define O2TAG_ZC          0x40000 // zeroconf interface (Zc_info)
-#define O2TAG_TYPE_BITS ((O2TAG_ZC << 1) - 1)  // mask to get just the type
+#define O2TAG_MQTT_CON    0x80000 // MQTT broker connection
+#define O2TAG_TYPE_BITS ((O2TAG_MQTT_CON << 1) - 1)  // mask to get just the type
 
 // The following (2) bits are used for properties. We could have implemented
 // virtual methods to get each property or even stored the SYNCED property
 // as a boolean, but this seems easier.
-#define O2TAG_SYNCED 0x80000  // sync state of PROC, MQTT, BRIDGE, websocket
+#define O2TAG_SYNCED 0x100000  // sync state of PROC, MQTT, BRIDGE, websocket
 // Some objects are owned by the path_tree and must be deleted when removed
 // from the tree. Other objects can be shared by multiple entries in the
 // path_tree and are owned by an Fds_info object. Set the initial tag with or
 // without this bit accordingly:
-#define O2TAG_OWNED_BY_TREE 0x100000
+#define O2TAG_OWNED_BY_TREE 0x200000
 // Before we start to delete an O2_node, we check this flag, which is set
 // as the first thing when deletion begins. This is particularly for
 // Osc_info, which has a recursion problem: deleting an Osc_info deletes
 // its Service_entry, but deleting its Service_entry deletes the Osc_info.
 // There are other ways to solve this, but it seems more robust to allow
 // either one to be deleted:
-#define O2TAG_DELETE_IN_PROGRESS 0x200000
+#define O2TAG_DELETE_IN_PROGRESS 0x400000
 
-#define O2TAG_HIGH O2TAG_OWNED_BY_TREE
+#define O2TAG_HIGH O2TAG_DELETE_IN_PROGRESS
 
 
 #define ISA_HANDLER(x)  ((x)->tag & O2TAG_HANDLER)
@@ -72,6 +73,7 @@ are all the possible tag values:
 #define ISA_PROC_TEMP(x)           ((x)->tag & O2TAG_PROC_TEMP)
 #define ISA_PROC_TCP_SERVER(x)     ((x)->tag & O2TAG_PROC_TCP_SERVER)
 #define ISA_MQTT(x)     ((x)->tag & O2TAG_MQTT)
+#define ISA_MQTT_CON(x) ((x)->tag & O2_TAG_MQTT_CON)
 #define ISA_OSC_UDP_CLIENT(x)      ((x)->tag & O2TAG_OSC_UDP_CLIENT)
 #define ISA_OSC_TCP_CLIENT(x)      ((x)->tag & O2TAG_OSC_TCP_CLIENT)
 #define ISA_BRIDGE(x)   ((x)->tag & O2TAG_BRIDGE)

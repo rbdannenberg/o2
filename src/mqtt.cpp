@@ -159,8 +159,11 @@ O2err o2_mqtt_initialize()
     RETURN_IF_ERROR(o2_method_new_internal("/_o2/mqtt/ct", "",
                             &mqtt_check_timeouts, NULL, false, false));
     // make MQTT broker connection
-    mqtt_info = new MQTT_info(NULL, O2TAG_MQTT);
+    mqtt_info = new MQTT_info(NULL, O2TAG_MQTT_CON);
     mqtt_info->fds_info = Fds_info::create_tcp_client(&mqtt_address, mqtt_info);
+#ifndef O2_NO_DEBUG
+    mqtt_info->fds_info->set_description(o2_heapify("MQTTclient"));
+#endif
     mqtt_info->fds_info->read_type = READ_RAW;
     O2_DBc(mqtt_info->co_info(mqtt_info->fds_info,
                               "created TCP CLIENT for MQTT broker"));

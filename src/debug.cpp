@@ -83,7 +83,8 @@ const char *o2_tag_to_string(int tag)
         case O2TAG_PROC_TCP_SERVER:    return "PROC_TCP_SERVER";
         case O2TAG_PROC:               return "PROC";
         case O2TAG_PROC_TEMP:          return "PROC_TEMP";
-        case O2TAG_MQTT:               return "MQTT_CLIENT";
+        case O2TAG_MQTT:               return "PROC_VIA_MQTT";
+        case O2TAG_MQTT_CON:           return "MQTT_CLIENT";
         case O2TAG_OSC_UDP_SERVER:     return "OSC_UDP_SERVER";
         case O2TAG_OSC_TCP_SERVER:     return "OSC_TCP_SERVER";
         case O2TAG_OSC_UDP_CLIENT:     return "OSC_UDP_CLIENT";

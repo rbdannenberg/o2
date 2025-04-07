@@ -46,7 +46,7 @@ static void o2prop_bang(t_o2prop *x)
         o2_services_list();
         for (i = 0; (sname = o2_service_name(i)) != NULL; i++) {
             DBG printf("o2prop_bang service %s\n", sname); DBG fflush(stdout);
-            if (strcmp(sname, x->service) == 0) {
+            if (streql(sname, x->service)) {
                 break;
             }
         }
@@ -66,7 +66,7 @@ static void o2prop_bang(t_o2prop *x)
 
 static void o2prop_get(t_o2prop *x, t_symbol *service, t_symbol *attribute)
 {
-    post("o2prop: get");
+    o2pd_post("o2prop: get");
     if (o2_ensemble_name == NULL) {
         pd_error(x, "o2property: O2 is not initialized");
     } else {
@@ -84,7 +84,7 @@ static void o2prop_get(t_o2prop *x, t_symbol *service, t_symbol *attribute)
 
 static void o2prop_put(t_o2prop *x,  t_symbol *s, int argc, t_atom *argv)
 {
-    post("o2prop: put");
+    o2pd_post("o2prop: put");
     if (o2_ensemble_name == NULL) {
         pd_error(x, "o2property: O2 is not initialized");
         return;
@@ -96,11 +96,11 @@ static void o2prop_put(t_o2prop *x,  t_symbol *s, int argc, t_atom *argv)
     x->service = argv[0].a_w.w_symbol->s_name;
     x->attribute = argv[1].a_w.w_symbol->s_name;
     if (argc == 2) {
-        o2ens_error_report(&x->x_obj, "o2_service_property_free",
+        o2pd_error_report(&x->x_obj, "o2_service_property_free",
                            o2_service_property_free(x->service, x->attribute));
     } else if (argc == 3) {
         const char *value = argv[2].a_w.w_symbol->s_name;
-        o2ens_error_report(&x->x_obj, "o2_service_set_property",
+        o2pd_error_report(&x->x_obj, "o2_service_set_property",
                            o2_service_set_property(x->service, x->attribute,
                                                    value));
     } else {
@@ -112,7 +112,7 @@ static void o2prop_put(t_o2prop *x,  t_symbol *s, int argc, t_atom *argv)
 static void o2prop_search(t_o2prop *x,  t_symbol *s,
                           t_symbol *attr, t_symbol *val)
 {
-    post("o2prop: search");
+    o2pd_post("o2prop: search");
     if (o2_ensemble_name == NULL) {
         pd_error(x, "o2property: O2 is not initialized");
         return;
@@ -165,7 +165,7 @@ void *o2prop_new(t_symbol *s, int argc, t_atom *argv)
     }
     x->x_outlet1 = outlet_new(&x->x_obj, &s_list);
     x->x_outlet2 = outlet_new(&x->x_obj, &s_bang);
-    post("o2prop_new");
+    o2pd_post("o2prop_new");
     return (void *)x;
 }
 
@@ -179,7 +179,7 @@ void o2prop_free(t_o2prop *x)
 /* this is called once at setup time, when this code is loaded into Pd. */
 PDLIBS_EXPORT void o2property_setup(void)
 {
-    post("o2prop_setup");
+    o2pd_post("o2prop_setup");
     o2prop_class = class_new(gensym("o2property"), (t_newmethod)o2prop_new,
                              (t_method)o2prop_free, sizeof(t_o2prop), 0,
                              A_GIMME, 0);

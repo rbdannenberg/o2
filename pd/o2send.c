@@ -35,15 +35,15 @@ void o2snd_check_flags(t_o2snd *x, int *argc, t_atom **argv)
     const char *opt;
     while (*argc > 0 && (*argv)->a_type == A_SYMBOL &&
            (opt = (*argv)[0].a_w.w_symbol->s_name)[0] == '-') {
-        if (!strcmp(opt, "-t") && *argc > 1 && (*argv)[1].a_type == A_SYMBOL) {
+        if (streql(opt, "-t") && *argc > 1 && (*argv)[1].a_type == A_SYMBOL) {
             /* to assign, types must not be const **, so we have to
                cast away const from s_name: */
             x->types = (char *) ((*argv)[1].a_w.w_symbol->s_name);
             (*argc)--;
             (*argv)++;
-        } else if (!strcmp(opt, "-r")) {
+        } else if (streql(opt, "-r")) {
             x->tcp_flag = true;
-        } else if (!strcmp(opt, "-b")) {
+        } else if (streql(opt, "-b")) {
             x->tcp_flag = false;
         } else {
             pd_error(x, "o2send expected option %s", opt);
@@ -65,7 +65,7 @@ static void get_address(t_o2snd *x,  t_symbol *s, int argc, t_atom *argv)
     // check for -t <types> before or after path nodes
     while (argc > 0 && argv->a_type == A_SYMBOL) {  /* get next node */
         const char *nodename = argv->a_w.w_symbol->s_name;
-        int nodelen = strlen(nodename);
+        int nodelen = (int) strlen(nodename);
         if (!x->servicename) {  // keep first node as service name
             x->servicename = nodename;
         }
@@ -81,7 +81,7 @@ static void get_address(t_o2snd *x,  t_symbol *s, int argc, t_atom *argv)
     }
     
     if (path[0]) {
-        int len = strlen(path);
+        int len = (int) strlen(path);
         if (x->address) {
             freebytes((void *)(x->address), strlen(x->address) + 1);
         }
@@ -97,21 +97,21 @@ static void get_address(t_o2snd *x,  t_symbol *s, int argc, t_atom *argv)
 
 void o2snd_address(t_o2snd *x,  t_symbol *s, int argc, t_atom *argv)
 {
-    post("o2snd: address");
+    o2pd_post("o2snd: address");
     get_address(x, s, argc, argv);
 }
 
 
 void o2snd_time(t_o2snd *x, float time)
 {
-    post("o2snd: time %g", time);
+    o2pd_post("o2snd: time %g", time);
     x->timestamp = time;
 }
 
 
 void o2snd_delay(t_o2snd *x, float delay)
 {
-    post("o2snd: delay %g", delay);
+    o2pd_post("o2snd: delay %g", delay);
     O2time now = o2_time_get();
     if (now >= 0) {
         x->timestamp = now * 1000 + delay;
@@ -123,7 +123,7 @@ void o2snd_delay(t_o2snd *x, float delay)
 
 void o2snd_types(t_o2snd *x, t_symbol *types)
 {
-    post("o2snd: types %s", types->s_name);
+    o2pd_post("o2snd: types %s", types->s_name);
     x->types = types->s_name;
     if (x->types[0] == 0) x->types = NULL;
     for (int i = 0; x->types[i]; i++) {
@@ -138,10 +138,10 @@ void o2snd_types(t_o2snd *x, t_symbol *types)
 
 void o2snd_status(t_o2snd *x)
 {
-    post("o2snd: status (for %s)", x->servicename);
+    o2pd_post("o2snd: status (for %s)", x->servicename);
     int status = o2_status(x->servicename);
     // careful: any result >=0 indicates "no error":
-    if (o2ens_error_report(&x->x_obj, "status", status) >= 0) {
+    if (o2pd_error_report(&x->x_obj, "status", status) >= 0) {
         t_atom outv[2];
         SETSYMBOL(outv, gensym(x->servicename));
         SETFLOAT(outv + 1, status);
@@ -155,7 +155,7 @@ void o2snd_status(t_o2snd *x)
 void o2snd_list(t_o2snd *x,  t_symbol *s, int argc, t_atom *argv)
 {
     bool error_flag = false;
-    post("o2snd: list");
+    o2pd_post("o2snd: list");
     DBG printf("o2snd: list\n"); DBG fflush(stdout);
     if (!o2_ensemble_name) {
         pd_error(x, "o2send: o2 not initialized");
@@ -259,7 +259,7 @@ void o2snd_list(t_o2snd *x,  t_symbol *s, int argc, t_atom *argv)
     DBG printf("o2snd: finish %g %s %d\n",
                x->timestamp * 0.001, x->address, x->tcp_flag);
     DBG fflush(stdout);
-    o2ens_error_report(&x->x_obj, "o2send",
+    o2pd_error_report(&x->x_obj, "o2send",
                        o2_send_finish(x->timestamp * 0.001, x->address, x->tcp_flag));
     x->timestamp = 0;
 }
@@ -279,7 +279,7 @@ void *o2snd_new(t_symbol *s, int argc, t_atom *argv)
     x->types = NULL;
     get_address(x, s, argc, argv);
     outlet_new(&x->x_obj, &s_list);
-    post("o2snd_new");
+    o2pd_post("o2snd_new");
     return (void *)x;
 }
 
@@ -296,7 +296,7 @@ void o2snd_free(t_o2snd *x)
 /* this is called once at setup time, when this code is loaded into Pd. */
 PDLIBS_EXPORT void o2send_setup(void)
 {
-    post("o2snd_setup");
+    o2pd_post("o2snd_setup");
     o2snd_class = class_new(gensym("o2send"), (t_newmethod)o2snd_new,
                             (t_method)o2snd_free, sizeof(t_o2snd), 0,
                             A_GIMME, 0);

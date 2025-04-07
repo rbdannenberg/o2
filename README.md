@@ -33,7 +33,9 @@ for Xcode or Visual Studio, or a Makefile for Linux (then on Linux,
 simply type `make`). 
 
 The default for O2 discovery is Bonjour/Avahi, so on Linux you need the
-`avahi-client-dev` package to be installed.
+`avahi-client-dev` package to be installed. On Windows, you need the
+Bonjour SDK 3.0. You can pay to get this from Apple, but we have had
+good experience with the free download from www.softpedia.com.
 
 ## Using o2host
 

@@ -547,7 +547,6 @@ void O2sm_info::poll_outgoing()
     // sort msgs into immediate and schedule
     O2message_ptr *prevptr = &msgs;
     while (*prevptr) {
-        printf("poll_outgoing msg %p\n", *prevptr);
         if ((*prevptr)->data.timestamp != 0) {
             next = (*prevptr)->next;
             append_to_schedule(*prevptr);

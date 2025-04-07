@@ -303,6 +303,7 @@ def runAllTests():
     if not runTest("arraytest"): return
     if not runTest("bridgeapi"): return
     if not runTest("o2litemsg"): return
+    if not runTest("mqttself"): return
 
     if extensions:
         if not runTest("bundletest"): return

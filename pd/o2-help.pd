@@ -1,146 +1,113 @@
-#N canvas 340 33 1217 848 12;
-#X obj 4 41 cnv 1 1200 1 empty empty empty 8 12 0 13 #000000 #000000
-0;
-#X obj 4 800 cnv 1 1200 1 empty empty empty 8 12 0 13 #000000 #000000
-0;
+#N canvas 253 37 1217 848 12;
+#X obj 4 41 cnv 1 1200 1 empty empty empty 8 12 0 13 #000000 #000000 0;
+#X obj 4 800 cnv 1 1200 1 empty empty empty 8 12 0 13 #000000 #000000 0;
 #X obj 29 11 o2ensemble;
 #X text 111 11 - initialize \, configure O2;
-#X text 24 56 O2 offers network and interprocess communication. Arguments
-are the same as for the join message. You must join one and only one
-ensemble named by a symbol \, and communication is limited to within
-one ensemble. Messages are:, f 72;
+#X text 24 56 O2 offers network and interprocess communication. Arguments are the same as for the join message. You must join one and only one ensemble named by a symbol \, and communication is limited to within one ensemble. Messages are:, f 72;
 #X msg 35 308 time;
 #X msg 35 282 version;
 #X msg 35 257 leave;
 #X msg 36 126 join test;
 #X text 128 255 - shut down O2;
-#X text 127 282 - output message of the form [version version-symbol]
-;
+#X text 127 282 - output message of the form [version version-symbol];
 #X msg 34 333 status s1;
 #X text 126 310 - output message of the form [time time-in-ms];
-#X obj 16 375 o2ensemble test;
 #X listbox 37 434 27 0 0 0 - - - 0;
 #X obj 37 407 list;
 #X obj 16 466 route time;
 #X floatatom 16 497 10 0 0 0 - - - 0;
 #X listbox 647 405 20 0 0 0 - - - 0;
 #X obj 647 351 o2send s1 foo bar;
-#X text 125 125 - arguments are (1) ensemble name \, (2) network level
-(0: local host only \, 1: local network only \, 2: Internet (default)
-\, 3: wide-area discovery through MQTT. A symbol instead of 3 names
-MQTT server and optional port number \, default is :1883) \, (3) o2lite-enable
-(0 or 1) is 1 by default \, (4) http-enable (0 or 1) is 0 by default
-\, or use a symbol to name a port \, default is :8080 \, (5) http-root
-is ./web by default. -d flags sets O2 debug flags. -c 1 (default) enables
-being O2 clock reference. -c 0 disables.;
+#X text 125 125 - arguments are (1) ensemble name \, (2) network level (0: local host only \, 1: local network only \, 2: Internet (default) \, 3: wide-area discovery through MQTT. A symbol instead of 3 names MQTT server and optional port number \, default is :1883) \, (3) o2lite-enable (0 or 1) is 1 by default \, (4) http-enable (0 or 1) is 0 by default \, or use a symbol to name a port \, default is :8080 \, (5) http-root is ./web by default. -d flags sets O2 debug flags. -c 1 (default) enables being O2 clock reference. -c 0 disables.;
 #X msg 666 148 address s1 foo baz;
 #X text 811 148 - change send address to /s1/foo/baz;
 #X msg 666 173 types sff;
 #X msg 665 203 time \$1;
-#X text 814 202 - set timestamp for the next message. Timestamp resets
-to zero (immediate send) after each message is sent., f 54;
+#X text 814 202 - set timestamp for the next message. Timestamp resets to zero (immediate send) after each message is sent., f 54;
 #X msg 665 277 delay 2000;
 #X text 814 276 - set next timestamp to 2000ms from now.;
 #X msg 664 324 list hello 3 \$1;
 #X text 813 323 - send list elements in an O2 message;
-#X obj 609 224 bng 15 250 50 0 empty empty empty 17 7 0 10 #fcfcfc
-#000000 #000000;
+#X obj 609 224 bng 15 250 50 0 empty empty empty 17 7 0 10 #fcfcfc #000000 #000000;
 #X obj 610 249 t b b;
 #X msg 665 234 status;
-#X text 128 333 - output message of the form [status service-name n]
-\; n>0 means service is available. O2 documentation has details.;
-#X text 813 235 - output message of the form [status service-name n]
-;
-#X listbox 651 660 20 0 0 0 - - - 0;
-#X obj 651 629 o2receive s1 foo bar;
+#X text 128 333 - output message of the form [status service-name n] \; n>0 means service is available. O2 documentation has details.;
+#X text 813 235 - output message of the form [status service-name n];
+#X listbox 629 697 20 0 0 0 - - - 0;
 #X obj 647 378 list;
 #X obj 610 298 float;
 #X obj 610 326 + 1;
-#X obj 610 275 bng 15 250 50 0 empty empty empty 17 7 0 10 #fcfcfc
-#000000 #000000;
-#X text 608 57 o2send - send an O2 message using values from a list
-\; you must specify address and may specify message types. Messages
-are sent immediately unless list is preceded by a time or delay message.
-You can query status for the destination., f 78;
+#X obj 610 275 bng 15 250 50 0 empty empty empty 17 7 0 10 #fcfcfc #000000 #000000;
+#X text 608 57 o2send - send an O2 message using values from a list \; you must specify address and may specify message types. Messages are sent immediately unless list is preceded by a time or delay message. You can query status for the destination., f 78;
 #X msg 666 121 address s1 foo bar;
-#X text 797 350 - send an O2 message to /s1/foo/bar. Use optional -t
-types to restrict types sent. Use -r for reliable (TCP) transmission.
-Use -b (default) for best-effort (UDP) transmission., f 50;
-#X text 812 115 - change send address to /s1/foo/bar. -t \, -r \, -b
-options can be added (see o2send below), f 49;
-#X msg 985 596 address s1;
-#X msg 668 597 address s1 foo bar;
-#X msg 826 598 address s1 foo baz;
+#X text 797 350 - send an O2 message to /s1/foo/bar. Use optional -t types to restrict types sent. Use -r for reliable (TCP) transmission. Use -b (default) for best-effort (UDP) transmission., f 50;
+#X text 812 115 - change send address to /s1/foo/bar. -t \, -r \, -b options can be added (see o2send below), f 49;
+#X msg 957 598 address s1;
+#X msg 640 599 address s1 foo bar;
+#X msg 798 600 address s1 foo baz;
 #X text 813 172 - set type string for future messages;
-#X text 619 473 o2receive - receive an O2 message. Only messages for
-the address are output as a list of values. If only service is given
-\, all messages for that service are output. Types can be restricted
-with -t types in o2receive object or address message \, or with a types
-message., f 78;
-#X msg 669 542 types sff;
-#X text 816 541 - restrict incoming messages to specified types;
-#X msg 668 570 disable;
-#X text 818 565 - disable incoming messages \; reenable with address
-;
-#X listbox 864 659 20 0 0 0 - - - 0;
-#X obj 863 628 o2receive s1 foo bar;
-#X text 612 686 NOTE: O2 has NO FAN OUT to other processes: A service
-must be handled entirely within one process \, but two o2receive objects
-in the same process will receive copies of the same message if addresses
-match., f 78;
+#X msg 641 544 types sff;
+#X text 788 543 - restrict incoming messages to specified types;
+#X msg 640 572 disable;
+#X text 790 567 - disable incoming messages \; reenable with address;
+#X listbox 842 696 20 0 0 0 - - - 0;
+#X text 616 731 NOTE: O2 has NO FAN OUT to other processes: A service must be handled entirely within one process \, but two o2receive objects in the same process will receive copies of the same message if addresses match., f 78;
 #X obj 21 717 o2property;
-#X obj 88 744 bng 15 250 50 0 empty empty empty 17 7 0 10 #fcfcfc #000000
-#000000;
+#X obj 88 744 bng 15 250 50 0 empty empty empty 17 7 0 10 #fcfcfc #000000 #000000;
 #X listbox 21 765 27 0 0 0 - - - 0;
 #X text 18 533 o2property - get and set properties for services.;
 #X msg 35 566 put s1 color red;
-#X text 168 602 - get color property from s1 \, which can be a remote
-service., f 47;
+#X text 168 602 - get color property from s1 \, which can be a remote service., f 47;
 #X msg 35 643 get s2 color;
 #X msg 36 607 get s1 color;
-#X text 167 638 - if service is unknown \, o2property sends bang from
-right outlet., f 47;
+#X text 167 638 - if service is unknown \, o2property sends bang from right outlet., f 47;
 #X msg 34 675 get s1 flavor;
-#X text 167 674 - if property does not exist \, o2property sends bang
-from right outlet., f 48;
-#X text 168 565 - set the color property of s1 to red. s1 must be a
-local service., f 47;
-#X text 129 374 - Initialize O2 \; same arguments as join;
-#X connect 5 0 13 0;
-#X connect 6 0 13 0;
-#X connect 7 0 13 0;
-#X connect 8 0 13 0;
-#X connect 11 0 13 0;
-#X connect 13 0 15 0;
-#X connect 13 0 16 0;
-#X connect 15 0 14 0;
-#X connect 16 0 17 0;
-#X connect 19 0 37 0;
-#X connect 21 0 19 0;
-#X connect 23 0 19 0;
-#X connect 24 0 19 0;
-#X connect 26 0 19 0;
-#X connect 28 0 19 0;
-#X connect 30 0 31 0;
-#X connect 31 0 40 0;
-#X connect 31 1 26 0;
-#X connect 32 0 19 0;
-#X connect 36 0 35 0;
-#X connect 37 0 18 0;
-#X connect 38 0 39 0;
-#X connect 38 0 28 0;
-#X connect 39 0 38 1;
-#X connect 40 0 38 0;
-#X connect 42 0 19 0;
-#X connect 45 0 36 0;
-#X connect 46 0 36 0;
-#X connect 47 0 36 0;
-#X connect 50 0 36 0;
-#X connect 52 0 36 0;
-#X connect 55 0 54 0;
-#X connect 57 0 59 0;
-#X connect 57 1 58 0;
-#X connect 61 0 57 0;
-#X connect 63 0 57 0;
-#X connect 64 0 57 0;
-#X connect 66 0 57 0;
+#X text 167 674 - if property does not exist \, o2property sends bang from right outlet., f 48;
+#X text 168 565 - set the color property of s1 to red. s1 must be a local service., f 47;
+#X text 194 376 - Initialize O2 \; same arguments as join;
+#X obj 16 378 o2ensemble test -d srSRd;
+#X text 619 473 o2receive - receive an O2 message. Only messages for the address are output as a list of values. If only service is given \, all messages for that service are output. Types can be restricted with -t types in o2receive object or address message \, or with a types message. -w will wait for bang to start receiving., f 78;
+#X obj 629 666 o2receive s1 foo bar -w;
+#X obj 841 665 o2receive s1 foo bar -w;
+#X obj 919 623 loadbang;
+#X text 984 616 using loadbang to start reception *after* o2ensemble inititializes O2;
+#X connect 5 0 66 0;
+#X connect 6 0 66 0;
+#X connect 7 0 66 0;
+#X connect 8 0 66 0;
+#X connect 11 0 66 0;
+#X connect 14 0 13 0;
+#X connect 15 0 16 0;
+#X connect 18 0 35 0;
+#X connect 20 0 18 0;
+#X connect 22 0 18 0;
+#X connect 23 0 18 0;
+#X connect 25 0 18 0;
+#X connect 27 0 18 0;
+#X connect 29 0 30 0;
+#X connect 30 0 38 0;
+#X connect 30 1 25 0;
+#X connect 31 0 18 0;
+#X connect 35 0 17 0;
+#X connect 36 0 37 0;
+#X connect 36 0 27 0;
+#X connect 37 0 36 1;
+#X connect 38 0 36 0;
+#X connect 40 0 18 0;
+#X connect 43 0 68 0;
+#X connect 44 0 68 0;
+#X connect 45 0 68 0;
+#X connect 47 0 68 0;
+#X connect 49 0 68 0;
+#X connect 53 0 55 0;
+#X connect 53 1 54 0;
+#X connect 57 0 53 0;
+#X connect 59 0 53 0;
+#X connect 60 0 53 0;
+#X connect 62 0 53 0;
+#X connect 66 0 14 0;
+#X connect 66 0 15 0;
+#X connect 68 0 34 0;
+#X connect 69 0 51 0;
+#X connect 70 0 68 0;
+#X connect 70 0 69 0;

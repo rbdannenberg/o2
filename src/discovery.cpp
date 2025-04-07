@@ -124,6 +124,9 @@ O2err o2_discovery_initialize()
         my_tcp_port = o2_port_map[disc_port_index];
         o2_udp_server = Fds_info::create_udp_server(&my_tcp_port, false);
         if (o2_udp_server) {
+#ifndef O2_NO_DEBUG
+            o2_udp_server->set_description(o2_heapify("udp_recv_port"));
+#endif
             o2_ctx->proc = Proc_info::create_tcp_proc(O2TAG_PROC_TCP_SERVER,
                                                       NULL, &my_tcp_port);
             if (o2_ctx->proc) {
@@ -145,6 +148,7 @@ O2err o2_discovery_initialize()
     my_tcp_port = 0;
     o2_udp_server = Fds_info::create_udp_server(&my_udp_port, false);
     if (o2_udp_server) {
+        o2_udp_server->set_description(o2_heapify("udp_recv_port"));
         o2_ctx->proc = Proc_info::create_tcp_proc(O2TAG_PROC_TCP_SERVER,
                                                   NULL, &my_tcp_port);
     }
@@ -387,20 +391,6 @@ O2err o2_discovered_a_remote_process_name(const char *name, int version,
         O2node **entry_ptr = o2_ctx->path_tree.lookup(name);
         if (*entry_ptr) { // process is already discovered, ignore message
             Services_entry *services = *((Services_entry **) entry_ptr);
-#ifdef DONTSKIPTHISCODE
-            It seems that MQTT discovery comes in through
-            create_mqtt_connection, so this is never executed.
-#ifndef O2_NO_MQTT
-            if (services) {  // discovery is also a keep-alive signal for MQTT
-                O2node *proc = services->services[0].service;
-                if (ISA_MQTT(proc)) {
-                    ((MQTT_info *) proc)->timeout = o2_local_time() +
-                                                    MQTT_TIMEOUT_PERIOD;
-                    return O2_SUCCESS;
-                }
-            }
-#endif
-#endif
             O2_DBd(dbprintf("** process already discovered, ignore %s\n",
                             name));
             return O2_SUCCESS;

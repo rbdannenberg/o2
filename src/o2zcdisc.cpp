@@ -147,6 +147,9 @@ Bonjour_info::Bonjour_info(DNSServiceRef sr) {
     info = new Fds_info(DNSServiceRefSockFD(sd_ref),
                         NET_TCP_CLIENT, 0, this);
     info->read_type = READ_CUSTOM;  // we handle everything
+#ifndef O2_NO_DEBUG
+    info->set_description(o2_heapify("Bonjour_resolve_socket"));
+#endif
 }
 
 

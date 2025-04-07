@@ -286,6 +286,9 @@ O2err Http_server::accepted(Fds_info *conn)
     assert(tag == O2TAG_HTTP_SERVER);
     Http_conn *info = new Http_conn(conn, root, fds_info->port);
     conn->owner = info;
+#ifndef O2_NO_DEBUG
+    conn->set_description(o2_heapify("http_accepted_client"));
+#endif
     return O2_SUCCESS;
 }
 

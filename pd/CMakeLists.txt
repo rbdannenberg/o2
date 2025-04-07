@@ -52,7 +52,7 @@ project(o2pd DESCRIPTION "o2pd library"
 # set paths to required files and libraries
 set(PD_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../rbd/pd-0.54-1/src" CACHE PATH
     "Where to find Pd include files")
-set(O2_OPT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/../build/Debug/o2.lib" CACHE PATH
+set(O2_OPT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/../build/Release/o2.lib" CACHE PATH
     "The O2 optimized (release) library")  
 set(O2_DBG_LIB "${CMAKE_CURRENT_SOURCE_DIR}/../build/Debug/o2.lib" CACHE PATH
     "The O2 debug library")  
@@ -61,17 +61,13 @@ set(O2_DBG_LIB "${CMAKE_CURRENT_SOURCE_DIR}/../build/Debug/o2.lib" CACHE PATH
 set(PD_LIB "${CMAKE_CURRENT_SOURCE_DIR}/../../../rbd/pd-0.54-1/pd-0.54.1/bin/pd.lib" CACHE PATH 
  "Pd's optimized (release) library")
 
-# Create needed variables
-set(COMMON_PD_FLAGS -DPD -g -Wall -W0 -Wshadow -Wstrict-prototypes
-    -Wno-unused -Wno-parentheses -Wno-switch)
+set(LINUXCFLAGS -DPD -g -Wall -W0 -Wshadow -Wstrict-prototypes
+        -Wno-unused -Wno-parentheses -Wno-switch)
 
-set(WINDOWS_PD_FLAGS -DPD -Wall -W0) # This will work for windows; the above will cause an error
+set(APPLECFLAGS  -DPD -g -Wall -Wshadow -Wstrict-prototypes
+        -Wno-unused -Wno-parentheses -Wno-switch)
 
-set(LINUXCFLAGS ${COMMON_PD_FLAGS})
-
-set(APPLECFLAGS ${COMMON_PD_FLAGS})      
- 
-set(WIN32CFLAGS ${WINDOWS_PD_FLAGS})      
+set(WIN32CFLAGS  -DPD -Wall -W0)
  
 set(INCLUDEPATHS ../src/ "${PD_INCLUDE_PATH}")
 
@@ -93,7 +89,7 @@ else() # windows
 
 
 # Create libo2pd shared library
-add_library(libo2pd SHARED o2pd.c)
+add_library(libo2pd SHARED o2pd.c o2pd.h)
 target_include_directories(libo2pd PUBLIC ${INCLUDEPATHS})
 target_compile_options(libo2pd PUBLIC ${O2PD_CFLAGS})
 
@@ -119,7 +115,7 @@ set_target_properties(libo2pd PROPERTIES OUTPUT_NAME "o2pd")
 
 # Create o2_ensemble, o2_receive, o2_send and o2_property libraries
 ## o2ensemble ##
-add_library(o2ensemble MODULE o2ensemble.c)
+add_library(o2ensemble MODULE o2ensemble.c o2ensemble.h)
 target_include_directories(o2ensemble PUBLIC ${INCLUDEPATHS})
 target_compile_options(o2ensemble PUBLIC ${O2PD_CFLAGS})
 if(UNIX)

@@ -81,6 +81,9 @@ O2err o2_get_public_ip()
     }
     stun_try_count = 0;  // we get 5 tries every time we start
     Fds_info *fds_info = Fds_info::create_udp_server(&stun_server_port, true);
+#ifndef O2_NO_DEBUG
+    fds_info->set_description(o2_heapify("stun_udp_server_port"));
+#endif
     stun_info = new Stun_info(fds_info);
     O2_DBc(stun_info->co_info(fds_info, "created UDP server for STUN"));
     stun_server_address.init("stun.l.google.com", 19302, false);

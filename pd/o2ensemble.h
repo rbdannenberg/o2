@@ -9,13 +9,16 @@
 
 // You can enable lots of printing here:
 #define DBG if (1) 
+#define DBG2 if (1) /* VERY TEMPORARY DEBUGGING - REMOVE THIS! */
 
 typedef struct o2rcv
 {
     t_object x_obj;
-    const char *servicename;  // owned by pd (symbol name)
-    struct _addressnode *address;  // owned by addressnode and may be shared
-} t_o2rcv;       //  with other t_o2rcv objects
+    const char *path;    // local owned copy of the string
+    const char *types ;  // owned by pd (symbol name)
+    struct _addressnode *address;  // owned by addressnode which may be shared
+    struct o2rcv *next;  // list of o2rcv sharing same address
+} t_o2rcv;               //  with other t_o2rcv objects
 
 
 typedef struct _receivernode {
@@ -29,22 +32,9 @@ typedef struct _addressnode {
     const char *path;  // we own this, but this node and this path can only
                        // be deleted when there are no more receivers
     const char *types; // owned by pd (symbol name)
-    struct _servicenode *service;  // NULL unless this path is just service name
-                                   // owned by o2ens_services list
-    receivernode *receivers;
+    t_o2rcv *receivers;
     struct _addressnode *next;
 } addressnode;
 
 
-typedef struct _servicenode {
-    const char *service;  // owned by pd (symbol name)
-    // servicenode has a list of all addresses that begin with the
-    // service (name). One of these addresses may be the service itself,
-    // which means ALL messages for the service are delivered to handlers
-    // for that address. This whole service address is also pointed to by
-    // the wholeservice field, which is otherwise NULL.
-    addressnode *addresses;
-    addressnode *wholeservice;
-    struct _servicenode *next;
-} servicenode;
 

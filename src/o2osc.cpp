@@ -178,6 +178,9 @@ O2err o2_osc_port_new(const char *service_name, int port, bool tcp_flag)
         O2_DBc(osc->co_info(osc->fds_info, "created OSC_TCP_SERVER"));
     } else {
         osc->fds_info = Fds_info::create_udp_server(&port, true);
+#ifndef O2_NO_DEBUG
+        osc->fds_info->set_description(o2_heapify("osc_udp_recv_port"));
+#endif
         O2_DBc(osc->co_info(osc->fds_info, "created OSC_UDP_SERVER"));
         if (osc->fds_info) {
             osc->fds_info->owner = osc;
@@ -200,6 +203,9 @@ O2err Osc_info::accepted(Fds_info *conn)
     // create an osc_info for the connection
     Osc_info *info = new Osc_info(key, port, conn, O2TAG_OSC_TCP_CONNECTION);
     conn->owner = info;
+#ifndef O2_NO_DEBUG
+    conn->set_description(o2_heapify("osc_accepted_client"));
+#endif
     O2_DBc(info->co_info(conn, "OSC TCP CONNECTION accepted"));
     return O2_SUCCESS;
 }
@@ -286,6 +292,12 @@ O2err o2_osc_delegate(const char *service_name, const char *ip,
     if (tcp_flag) {
         osc->fds_info = Fds_info::create_tcp_client(ip, port_num, osc);
         rslt = osc->fds_info ? O2_SUCCESS : O2_FAIL;
+#ifndef O2_NO_DEBUG
+        char desc[128];
+        snprintf(desc, 64, "delegates_%s_to_osc_by_tcp_to_%s:%d",
+                 service_name, ip, port_num);
+        osc->fds_info->set_description(o2_heapify(desc));
+#endif
         O2_DBc(osc->co_info(osc->fds_info, "created TCP CLIENT for OSC"));
     } else {
         rslt = osc->udp_address.init(ip, port_num, false);

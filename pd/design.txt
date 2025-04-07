@@ -1,8 +1,112 @@
 design.txt
 Roger B. Dannenberg
-July 2022
+July 2022/2025
 
-Notes for O2 external:
+O2 ensemble and initialization:
+-------------------------------
+
+There can be only one O2 process running in an application, and it
+can join only one ensemble. This is inconsistent with the idea that
+you create an o2ensemble object in Pd to interface with O2.
+
+Initially there is no active o2ensemble. An o2ensemble becomes active
+when it initializes O2 and remains active until deleted, even after
+receiving a leave message which deactivates O2. To become
+active, the o2ensemble object can either be created (if it specifies
+and ensemble name) or can be sent a join message with a name. That
+creates two features:
+(1) o2-help, which has an o2ensemble box at the top as a "header"
+does not become active (since it does not specify an ensemble), 
+allowing some other o2ensemble to become active.
+(2) When the active o2ensemble is deleted, we do not arbitrarily
+assign the next o2ensemble object to be active, but allow the user
+to decide when to send a join message, making the target active. In
+this way the user and patch logic determine what happens after an
+o2ensemble object is deleted rather than having some invisible
+ordering automatically select an o2ensemble object and
+(re)activate O2.
+
+An o2ensemble remains active after a "leave" message is sent, allowing
+a subsequent "join" message. Again, this avoids a case where some
+hidden automated mechanism automatically selects an o2ensemble object
+and reactivates O2. Maybe the user simply wants to change the O2
+ensemble name. Of course, the user *does* have to know the active
+o2ensemble object to make *any* changes, and this could depend on the
+order in which patches are loaded.
+
+
+Multiple receivers on the same address
+--------------------------------------
+
+    There are three problems to solve: 
+(1) There can be 2 receive objects with the same address - both should
+  receive copies of the message.
+(2) There can be conflicting addresses and types, e.g. in O2, a
+  handler for /foo/bar will override one for /foo/bar/baz. For Pd, we
+  will only allow the creation of handlers that do *not* conflict with
+  other handlers. Creating a conflict will *disable* the o2receive
+  object until existing objects are deleted. Note that for two o2receive
+  objects to receive from the same address, they must also specify the
+  same type string (possibly no specification which defaults to "").
+(3) We cannot create services or methods until O2 is initialized,
+  which requires the creation of an o2ensemble object or sending a
+  join message to an o2ensemble object if none is active yet. What is
+  to prevent an o2receive object from getting initialized first? The
+  solution is that a bang will re-initialize the o2receive object. If
+  the object is active, the bang will be ignored, so an extra bang is
+  harmless. If the object is not active and its address conflicts
+  with an existing address, the bang is also ignored but an error
+  message is printed. The bang will attempt to use the *last* address
+  and type string for this object. The address and type string can be
+  initialized when the object is created and changed by an address
+  message, which sets the address whether there is a conflict or
+  not. An address message is an alternative to sending a bang.
+    Data structures: We keep a list of all active addresses. Each
+address (with type information) points to a list of o2receive
+objects. Each of these objects points back to the address if the
+object is active and this is the address it receives from; otherwise,
+the address is NULL, meaning inactive.
+    Implementation: objects have an address field. The master list of
+addresses is called addresses.
+    When a new object is created, search *all* addresses for a 
+conflict. If none, call o2_service_new if needed, then o2_method_new 
+if needed, and add a new address to the list of all addresses. The 
+o2receive object points to this address and is on the address's list. 
+Otherwise, if there is a conflict, print an error and set address to NULL. 
+    If an address message is received, and it has an address, remove 
+the o2receiver from the address's receivers list and set the address 
+field to NULL. If the address has no other receivers, remove the 
+address and call o2_method_free(). Then if there are no addresses with
+the same service, call o2_service_free().
+    When an O2 message arrives, the handler's data parameter is the
+address, which was put there by o2_method_new(). Deliver the message
+to each handler in address's list of objects.
+    When a t_o2rcv object is deleted, remove it from the list. Just as
+when an address is changeed, if the address list becomes empty, remove
+the address and call o2_method_free. Search the addresses for a
+matching service, and if none, call o2_service_free.
+    Note that you cannot have a general o2receive for every message to
+a service while also having a specific o2receive for a specific
+address within that service. The most recent address to become active
+blocks the use of any other address until it is disabled. E.g. suppose
+you have an o2receive object for /foo/bar. Now, you cannot create an
+o2receive for /foo or /foo/bar/baz. To receive from /foo, you need to
+(1) disable or delete or change the address of the o2receive for
+/foo/bar, (2) send an address of /foo to the desired o2receive or
+create a new o2receive with address /foo. (Any o2receive with /foo
+created *before* deleting the one for /foo/bar will be not active, and 
+it will not automatically start receiving even when the /foo/bar
+conflict is removed. You must at least send it an "address /foo"
+message to try again to receive from /foo.)
+
+    POLLING
+    o2ensemble is already polling at the Pd tick rate, so rather than 
+schedule another time object, we will rely on o2ensemble to call o2_poll,
+and callbacks from O2 will activate o2receive when messages arrive.
+
+
+Notes for O2 externals:
+-----------------------
 
 o2ensemble [ensemble-name] [network-level] [o2lite-enable] [http-enable]
            [http-root] [-d flags]- control O2
@@ -54,9 +158,23 @@ o2ensemble [ensemble-name] [network-level] [o2lite-enable] [http-enable]
         becoming the global time reference. The default is 1. Note
         that if two O2 processes claim to be the time reference, the
         process with the highest IP address and port number is the
-        reference and lower processes provide a backup clock.
+        reference and lower processes provide a backup clock. If a
+        join command does not provide at least an ensemble name, an
+        error message is printed and the message has no other effect.
+        If o2ensemble specified many parameters and then you shut
+        down O2 with a leave message, you *must* supply all of those
+        parameters again in a join message; otherwise, default values
+        will be used.  For no particular reason, and unlike other
+        parameters, the -d flags option is remembered once set by
+        join or o2ensemble parameter list until overridden by a new
+        join.
 
-    leave - shut down all O2 services and connections
+    leave - shut down all O2 services and connections. After O2 is
+        joined by an o2ensemble object, that object becomes active
+        and leave messages are ignored by all other o2ensemble
+        objects. If the active o2ensemble object is deleted, *any*
+        other o2ensemble object will respond to a leave message and
+        shut down the O2 connections until O2 is joined again.
 
     version - causes the list "version <version>" to be output, where
         <version> is a symbol of the form 2.0.1
@@ -165,9 +283,20 @@ o2receive [node]* [-t types] - receive O2 messages. If at least one
     Note that only one process can receive messages to a given
     service. Multiple o2receive objects can handle the same address
     within a process (Pd instance). Messages are delivered to every
-    matching o2receive object. If two processes offer the same
-    service, only one will get messages for that service, and actual
-    delivery depends upon matching the address and types.
+    matching o2receive object. Actual delivery depends upon matching
+    the address and types.
+
+  Address conflict: an address is in conflict with another when one of
+    the node sequences (nodes are the substrings between "/" separators)
+    is a substring of the other (but they are not equal). Furthermore,
+    equal addresses are in conflict if they are associated with
+    unequal type strings. No two o2receive objects can receive with
+    conflicting addresses, so only the first will receive O2
+    messages (until it is deleted or disabled or the address is
+    changed or O2 is shut down, after which any o2receive object can
+    be created or sent the same or different address or a bang, all of
+    which will start reception if there is no address conflict).
+
   Messages:
     address [node]+ [-t types] - (re)set the address according to the
         provided list. The first node is the service name. If there is
@@ -177,13 +306,25 @@ o2receive [node]* [-t types] - receive O2 messages. If at least one
         incoming messages. Parameters are coerced to these types if
         possible and otherwise the message is not output. If typestring
         is omitted, all messages matching the address are accepted.
+        This message may fail to set up O2 message reception if the
+        address conflicts with another active o2receive object.
+
+    bang - repeats the last address message (or intialization) if the
+        o2receive object is not currently receiving O2 messages due to
+        shutting down and restarting O2 or due to an earlier address
+        conflict.
 
     disable - stop this object from handling any more messages. Use an
-        address message to reenable handling.
+        address message or bang to reenable handling, but when an
+        o2receive object is disabled, if another object begins
+        receiving using a conflicting address, this o2receive will be
+        blocked from restarting reception.
 
     types [typestring] - (re)set the typestring associated with this
-        address. All o2receive objects with the same address are
-        affected.
+        address. If there are other o2receive objects receiving from
+        the same address, the o2receive with getting types will be in
+        conflict with others, and therefore it will not resume
+        receiving messages.
 
     
 o2property [service] [attribute] - get an O2 property

@@ -43,6 +43,12 @@ void service_two(O2msg_data_ptr data, const char *types,
 
 int main(int argc, const char * argv[])
 {
+    printf("Usage: dispatchtest [debugflags] "
+           "(see o2.h for flags, use a for all)\n");
+    if (argc >= 2) {
+        o2_debug_flags(argv[1]);
+        printf("debug flags are: %s\n", argv[1]);
+    }
     // o2_debug_flags("a");
     o2_initialize("test");    
     o2_service_new("one");

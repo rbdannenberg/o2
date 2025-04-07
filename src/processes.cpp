@@ -186,6 +186,9 @@ O2err Proc_info::accepted(Fds_info *conn)
     Proc_info *info = new Proc_info();
     conn->owner = info;
     info->fds_info = conn;
+#ifndef O2_NO_DEBUG
+    conn->set_description(o2_heapify("accepted_by_local_proc"));
+#endif
     // port and udp_sa are zero'd initially
     O2_DBc(info->co_info(conn, "PROC accepted connection"));
     return O2_SUCCESS;
@@ -241,6 +244,23 @@ Proc_info *Proc_info::create_tcp_proc(int tag, const char *ip, int *port)
         proc->o2_delete();
         return NULL;
     }
+#ifndef O2_NO_DEBUG
+    char desc[64];
+    const char *tag_string = "no_descr";
+    if (tag == O2TAG_PROC_TCP_SERVER) {
+        tag_string = "local_proc_tcp_socket";
+    } else if (tag == O2TAG_PROC) {
+        tag_string = "remote_proc";
+    } else if (tag == O2TAG_PROC_TEMP) {
+        tag_string = "proc_temp";
+    } else if (tag == O2TAG_OSC_TCP_SERVER) {
+        tag_string = "osc_server";
+    } else if (tag == O2TAG_OSC_TCP_CLIENT) {
+        tag_string = "osc_client";
+    }
+    snprintf(desc, 64, "%s:%d:%s", ip, *port, tag_string);
+    proc->fds_info->set_description(o2_heapify(desc));
+#endif
     return proc;
 }
 
