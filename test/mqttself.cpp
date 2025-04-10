@@ -13,13 +13,29 @@
 // process though - probably not). 
 
 // needed for usleep
+#include "stdlib.h"
 #include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
-#include "assert.h"
 
 bool got_am1 = false;
 bool got_am2 = false;
+
+
+// assertion-like test that works in release mode
+void must_succeed(int err_code, const char *msg)
+{
+    if (err_code != O2_SUCCESS) {
+        printf("Failed with code %d (%s)\n", err_code, msg);
+        exit(1);
+    }
+}
+
+
+void must_be_true(bool x, const char *msg)
+{
+    must_succeed(x ? O2_SUCCESS : O2_FAIL, msg);
+}
 
 
 // approximate delay while calling o2_poll()
@@ -35,10 +51,11 @@ void delay(float seconds)
 void am1_receive(O2msg_data_ptr data, const char *types,
               O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(!got_am1);  // allow only one message
+    must_be_true(!got_am1, "before am1_receive");  // allow only one message
     float f = argv[0]->f;
     printf("am1_receive: got %g\n", f);
-    assert(123.456 < f && f < 123.457);  // f should be 123.4567
+    // f should be 123.4567
+    must_be_true(123.456 < f && f < 123.457, "am1_receive value");
     got_am1 = true;
 }
 
@@ -46,17 +63,18 @@ void am1_receive(O2msg_data_ptr data, const char *types,
 void am2_receive(O2msg_data_ptr data, const char *types,
               O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(!got_am2);  // allow only one message
+    must_be_true(!got_am2, "before am2_receive");  // allow only one message
     float f = argv[0]->f;
     printf("am2_receive: got %g\n", f);
-    assert(234.567 < f && f < 234.568);  // f should be 234.5678
+    // f should be 234.5678
+    must_be_true(234.567 < f && f < 234.568, "am2_receive value");  
     got_am2 = true;
 }
 
 
 int main(int argc, const char *argv[])
 {
-    printf("Usage: mqttclient [debugflags]\n"
+    printf("Usage: mqttself [debugflags]\n"
            "    see o2.h for flags, use a for (almost) all\n");
     if (argc >= 2) {
         if (argv[1][0] != '-') {
@@ -68,20 +86,20 @@ int main(int argc, const char *argv[])
         printf("WARNING: mqttclient ignoring extra command line argments\n");
     }
 
-    assert(o2_initialize("test") == O2_SUCCESS);
-    assert(o2_mqtt_enable(NULL, 0) == O2_SUCCESS);
+    must_succeed(o2_initialize("test"), "o2_initialize");
+    must_succeed(o2_mqtt_enable(NULL, 0), "o2_mqtt_enable");
     printf("Creating am2 service.\n");
-    assert(o2_service_new("am2") == O2_SUCCESS);;
-    assert(o2_method_new("/am2/freq", "f", &am2_receive, NULL, false, true) ==
-           O2_SUCCESS);
+    must_succeed(o2_service_new("am2"), "o2_service_new am2");
+    must_succeed(o2_method_new("/am2/freq", "f", &am2_receive, 
+                               NULL, false, true), "o2_method_new am2");
     
     printf("Delay while we connect to MQTT broker\n");
     delay(3.0);  // wait for MQTT connection
 
     printf("Creating am1 service.\n");
-    assert(o2_service_new("am1") == O2_SUCCESS);
-    assert(o2_method_new("/am1/freq", "f", &am1_receive, NULL, false, true) ==
-           O2_SUCCESS);
+    must_succeed(o2_service_new("am1"), "o2_service_new am1");
+    must_succeed(o2_method_new("/am1/freq", "f", &am1_receive,
+                               NULL, false, true), "o2_method_new am1");
 
     printf("Sending to am2\n");
     o2_send_cmd("!am2/freq", 0, "f", 234.5678);
@@ -94,6 +112,6 @@ int main(int argc, const char *argv[])
     while (!got_am1) delay(0.1);
     
     o2_finish();
-    printf("CLIENT DONE\n");
+    printf("DONE\n");
     return 0;
 }

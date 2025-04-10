@@ -799,8 +799,8 @@ void read_from_tcp()
                 while (tcp_msg_got < tcp_in_msg->length) {
                     int togo = tcp_in_msg->length - tcp_msg_got;
                     if (togo > capacity) togo = capacity;
-                    n = recvfrom(tcp_sock, PTR(&tcp_in_msg->misc), togo, 
-                                 0, NULL, NULL);
+                    n = (long) recvfrom(tcp_sock, PTR(&tcp_in_msg->misc), togo,
+                                        0, NULL, NULL);
                     if (n <= 0) {
                         goto error_exit;
                     }
@@ -911,7 +911,7 @@ void o2l_send()
     if (parse_error || tcp_sock == INVALID_SOCKET) {
         return;
     }
-    out_msg->length = o2lswap32(out_msg_cnt - sizeof out_msg->length);
+    out_msg->length = (int32_t) o2lswap32(out_msg_cnt - sizeof out_msg->length);
     if (out_msg->misc & o2lswap32(O2_TCP_FLAG)) {
         send(tcp_sock, outbuf, out_msg_cnt, 0);
     } else {

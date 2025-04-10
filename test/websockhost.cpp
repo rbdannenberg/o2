@@ -85,7 +85,7 @@ int main(int argc, const char *argv[])
     o2_clock_set(NULL, NULL); // become the master clock
     while (running) {
         if (one_minute_max && o2_local_time() > 60) {
-            printf("timed out after 1 minute");
+            printf("timed out after 1 minute\n");
             break;
         }
         o2_poll();

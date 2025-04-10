@@ -1,11 +1,11 @@
 //  proprecv.c -- test properties across pair of processes
 //
 // Plan:
-//    create a service 1 on propsend
-//    create service2 on proprecv
+//    create a service one on propsend
+//    create service two on proprecv
 //    set an attr/value on propsend
-//    get the properties from service 1 on propsend
-//    get the properties from service 1 on proprecv
+//    get the properties from service one on propsend
+//    get the properties from service one on proprecv
 //    set an attr/value on proprecv
 //    on both proprecv and propsend
 //        search for services with attr and exact value
