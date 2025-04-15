@@ -404,7 +404,7 @@ void show_receivers(const char *info)
             printf("    Address %p %s types %s\n", a, a->path, a->types);
             for (t_o2rcv *r = a->receivers; r; r = r->next) {
                 printf("      Receiver %p", r);
-                if (r->path < (void *) 0x1000000) {
+                if (r->path < (const char *) 0x1000000) {
                     printf(" path %p types %s\n", r->path, r->types);
                 } else {
                     printf(" path %s types %s\n", r->path, r->types);

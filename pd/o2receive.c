@@ -19,7 +19,16 @@
 
 
 // See design.txt for an overview
-
+// parameters in o2receive are:
+// optional service followed by more atoms for notes, e.g.
+//    the sequence synth osc freq denotes /synth/osc/freq
+// optional flags before or after the address sequence:
+//    -w: wait for bang before creating a message handler
+//    -t typestring: limit messages to those with compatible
+//         types, and coerce incoming types according to
+//         typestring. You can receive:
+//            ihfdtTfBIc as Pd float,
+//            sS as Pd symbol
 
 // if types is "any" change to NULL.
 // if types is "none" change top empty string.
@@ -134,7 +143,7 @@ void o2rcv_address(t_o2rcv *x,  t_symbol *s, int argc, t_atom *argv)
     DBG2 printf("o2rcv: address, x->path %p\n", x->path);
 
     show_receivers("before o2rcv_address");
-    bool wait = set_address_from_args(x, s, argc, argv);
+    set_address_from_args(x, s, argc, argv);  // -w flag is ignored
     DBG2 printf("o2rcv_address after set: x->path %s x->address %p "
                 "x->address->path %s\n",
                 x->path, x->address, x->address ? x->address->path : NULL);
@@ -211,9 +220,9 @@ void *o2rcv_new(t_symbol *s, int argc, t_atom *argv)
     x->address = NULL;
     if (argc > 0) {  // get service
         printf("o2rcv_new calls set_address_from_args\n"); fflush(stdout);
-        set_address_from_args(x, s, argc, argv);
+        bool wait = set_address_from_args(x, s, argc, argv);
         if (x->path && !wait) {
-            (x, false);
+            update_receive_address(x);
         } else {
             DBG printf("o2rcv_address got wait option, so not receiving yet\n");
         }
