@@ -81,6 +81,8 @@ for arg in sys.argv[1:]:
         BIN = arg + PATHSEP
     print("Directory for test binaries:", BIN)
 
+print("*** Running test programs from", BIN, "***")
+
 def findLineInString(line, aString):
     return ('\n' + line + '\n') in aString
 

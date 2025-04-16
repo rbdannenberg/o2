@@ -28,14 +28,23 @@ static long implied_wakeup = 0;
 void o2_sleep(int n)
 {
     long now = timeGetTime();
-    if (now - implied_wakeup < 50) {
+    if (implied_wakeup != 0 && now - implied_wakeup < 50) {
         // assume the intention is a sequence of short delays
         implied_wakeup += n;
     } else { // a long time has elapsed
         implied_wakeup = now + n;
     }
-    if (implied_wakeup > now + 1) {
-        Sleep(implied_wakeup - now);
+    // if implied_wakeup is positive (near zero) because now
+    // is near the maximum unsigned int, which as signed is
+    // a small negative number, this differs from directly
+    // testing if implied_wakeup > now + 1, and it appears that
+    // even introducing delay as a variable changes behavior.
+    // Not sure what the C++ standard says about wrapping
+    // and what the optimizer is allowed to do, but in any
+    // case the subtraction is necessary when wrapping occurs:
+    long delay = implied_wakeup - (now + 1);
+    if (delay > 0) {
+        Sleep(delay);
     }
 }
 #else
