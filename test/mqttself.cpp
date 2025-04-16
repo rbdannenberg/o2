@@ -12,6 +12,7 @@
 // through MQTT (not sure if that works for messages to the same
 // process though - probably not). 
 
+#undef NDEBUG
 // needed for usleep
 #include "stdlib.h"
 #include "o2usleep.h"

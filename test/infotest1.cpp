@@ -1,6 +1,7 @@
 //  infotest1.c -- test if we get info via /_o2/si
 //
 
+#undef NDEBUG
 #include <stdio.h>
 #include "o2.h"
 #include "string.h"

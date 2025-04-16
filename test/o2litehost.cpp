@@ -8,6 +8,7 @@
 // run this program with test/o2liteserv, which is based on o2server.cpp
 
 
+#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>

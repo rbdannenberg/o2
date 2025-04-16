@@ -8,6 +8,7 @@
 // Note that there really are no tests other than
 // termination requires a server service in test ensemble.
 
+#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>

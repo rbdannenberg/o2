@@ -6,6 +6,7 @@
 // see o2server.c for details of the client-server protocol
 // run this program and open the URL http://wstest.local in a browser.
 
+#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>

@@ -3,6 +3,7 @@
 // send from all coercible types: i, h, f, d, t to 
 // handlers that ask for i, h, f, d, t, B, T, F
 
+#undef NDEBUG
 #include <stdio.h>
 #include "o2.h"
 #include "assert.h"

@@ -3,6 +3,7 @@
 // Roger B. Dannenberg
 // August 2020
 
+#undef NDEBUG
 #include "stdio.h"
 #include "o2.h"
 #include "o2internal.h"

@@ -4,6 +4,7 @@
 //  see oscsendtest.c for details
 
 
+#undef NDEBUG
 #include "stdio.h"
 #include "o2.h"
 #include "string.h"

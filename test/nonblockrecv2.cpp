@@ -7,6 +7,7 @@
 //  messages are sent, we should get MAX_MSG_COUNT back from client.
 //
 
+#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"

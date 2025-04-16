@@ -3,6 +3,7 @@
 //  see applead.c for details
 
 
+#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"

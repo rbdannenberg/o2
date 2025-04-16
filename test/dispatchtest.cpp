@@ -1,6 +1,7 @@
 //  dispatchtest.c -- dispatch messages between local services
 //
 
+#undef NDEBUG
 #include <stdio.h>
 #include <assert.h>
 #include "o2.h"

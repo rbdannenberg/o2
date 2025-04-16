@@ -4,6 +4,7 @@
  * see below the step by step explanation
  */
 
+#undef NDEBUG
 #ifdef WIN32
 #include <winsock2.h>  
 #include <windows.h>

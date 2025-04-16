@@ -9,6 +9,7 @@
 //         subscribe2 taps publish2
 //     copy0 (taps publish0)
 
+#undef NDEBUG
 #include "o2.h"
 #include "debug.h"
 #include <stdio.h>

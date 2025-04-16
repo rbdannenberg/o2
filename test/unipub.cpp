@@ -51,6 +51,7 @@
 //     Set the property of service pubIñtërnâtiônà£ißætiøn☃😎0 and test
 //     the property values in unisub.cpp
 
+#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>

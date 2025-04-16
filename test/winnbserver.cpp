@@ -4,6 +4,7 @@
 //  my understanding of how to nonblocking sockets should work.
 //
 
+#undef NDEBUG
 #include <stdio.h>
 #include <queue>
 #include <assert.h>

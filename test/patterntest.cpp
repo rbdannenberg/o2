@@ -1,6 +1,7 @@
 //  patterntest.c -- test use of address patterns
 //
 
+#undef NDEBUG
 #include <stdio.h>
 #include "o2.h"
 #include "assert.h"

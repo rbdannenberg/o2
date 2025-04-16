@@ -3,6 +3,7 @@
 //  see o2utserver.c for details
 
 
+#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>

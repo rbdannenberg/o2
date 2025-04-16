@@ -10,6 +10,7 @@
 // Keep receiving 10 messages per second until the last message is received.
 
 
+#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"

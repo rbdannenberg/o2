@@ -3,6 +3,7 @@
 //  this test is designed to run with oscsendtest.c
 
 
+#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"

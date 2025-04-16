@@ -1,6 +1,7 @@
 /* rawtcpserver.c -- performance test for "pure" tcp
  */
 
+#undef NDEBUG
 #ifdef WIN32
 #include <winsock2.h> 
 #include <windows.h> 

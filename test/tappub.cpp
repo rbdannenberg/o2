@@ -27,6 +27,7 @@
 //  Wait 1 more second so the other side can finish; then shut down
 //  cleanly.
 
+#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>

@@ -22,6 +22,7 @@
 // - keep running at least until a /cs/rt message can be processed
 
 
+#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>

@@ -61,6 +61,7 @@
 // FINISH
 
 
+#undef NDEBUG
 #include "o2.h"
 #include "hostip.h"
 #include "stdio.h"

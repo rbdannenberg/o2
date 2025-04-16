@@ -20,6 +20,7 @@
 //    get and check full properties string
 
 
+#undef NDEBUG
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>

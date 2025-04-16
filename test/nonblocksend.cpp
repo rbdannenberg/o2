@@ -36,6 +36,7 @@
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
+#undef NDEBUG
 #include "assert.h"
 
 int msg_count = 0;

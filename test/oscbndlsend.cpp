@@ -19,6 +19,7 @@
 //                 [/xyz/msg1 1011 "an arbitrary string at 3.1"],
 //                 [/abcdefg/msg2 2011 "another arbitrary string at 3.1"]]
 
+#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"

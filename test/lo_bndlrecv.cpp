@@ -3,6 +3,7 @@
 //  this test is designed to run with bndlsendtest.c
 //  this test is based on bndlrecvtest.c
 
+#undef NDEBUG
 #include "stdio.h"
 #include "assert.h"
 #include "lo/lo.h"

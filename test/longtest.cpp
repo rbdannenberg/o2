@@ -1,6 +1,7 @@
 // longtest.c -- test long messages that require allocation
 //
 
+#undef NDEBUG
 #include <stdio.h>
 #include "o2.h"
 #include "assert.h"

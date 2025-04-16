@@ -24,6 +24,7 @@
 // 15. sending ivxi where x is in ihfdt and there are 0 to 100
 //     of them AND the data is received as an array using coercion
 
+#undef NDEBUG
 #include <stdio.h>
 #include "o2.h"
 #include "assert.h"

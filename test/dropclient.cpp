@@ -2,6 +2,7 @@
 //
 //  This program works with dropserver.c See that for test description.
 
+#undef NDEBUG
 #include "stdio.h"
 #include "string.h"
 #include "assert.h"

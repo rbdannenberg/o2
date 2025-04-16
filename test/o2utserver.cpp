@@ -10,6 +10,7 @@
 //  between UDP messages.
 //  For TCP, measure longest time interval between messages.
 
+#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"

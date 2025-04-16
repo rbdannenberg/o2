@@ -11,6 +11,7 @@ This test:
 */
 
 // o2usleep.h goes first to set _XOPEN_SOURCE to define usleep:
+#undef NDEBUG
 #include <stdlib.h>
 #include "o2internal.h"
 #include "pathtree.h"

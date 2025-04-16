@@ -2,6 +2,7 @@
 //
 // Plan: see proprecv.c
 
+#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <assert.h>
@@ -33,7 +34,8 @@ void service_one(O2msg_data_ptr data, const char *types,
 // round-trip with other process for synchronization
 void sync_peers(int i)
 {
-    printf("* Sending /two/sync %d, waiting for %d: ...\n", i, i); fflush(stdout);
+    printf("* Sending /two/sync %d, waiting for %d: ...\n", i, i);
+    fflush(stdout);
     o2_send_cmd("/two/sync", 0, "i", i);
     while (sync_value == -1) {
         delay(10);

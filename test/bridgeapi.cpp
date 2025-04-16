@@ -23,6 +23,7 @@ subclass of Bridge_info will be Demo_info.
 
 
 // o2usleep.h goes first to set _XOPEN_SOURCE to define usleep:
+#undef NDEBUG
 #include <stdio.h>
 #include <assert.h>
 #include "o2internal.h"

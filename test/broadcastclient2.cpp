@@ -3,6 +3,8 @@
  * Get datagram stock market quotes from UDP broadcast:
  * see below the step by step explanation
  */
+
+#undef NDEBUG
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>

@@ -9,6 +9,7 @@
 //    receive "hello" message from follow,
 //    shut down
 
+#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"

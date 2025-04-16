@@ -22,6 +22,7 @@
 //   wait 1 second
 //   shut everything down
 
+#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"

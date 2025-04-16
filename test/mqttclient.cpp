@@ -3,6 +3,7 @@
 //  see mqttserver.c for details
 
 
+#undef NDEBUG
 // needed for usleep
 #include "o2usleep.h"
 #include "o2.h"

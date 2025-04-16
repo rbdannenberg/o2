@@ -127,8 +127,10 @@ function step(timeout = 0) {
     } else if (state == "GS0") {
         get_status("LK0");
     } else if (state == "LK0") {  // wait for and check list services function
-        must_be(one_prop == "", "LK0 bad one_prop"); 
-        must_be(two_prop == "", "LK0 bad two_prop"); 
+        must_be(one_prop == "",
+                "LK0 bad one_prop should be empty, is " + one_prop);
+        must_be(two_prop == "",
+                "LK0 bad two_prop should be empty, is " + two_prop); 
         sync_start(0, "GO0");
     } else if (state == "SYNC0") {
         sync_run(); 

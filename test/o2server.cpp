@@ -4,6 +4,7 @@
 //  that sends a message back and forth between a client and server.
 //
 
+#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>  // atoi

@@ -27,9 +27,37 @@
 //        remove attrs 3 5
 //    on both proprecv and propsend
 //        get and check full properties string
+// Implementation Notes
+//     Coordinating the more-or-less asynchronous service property
+// updates with the control flow of the test program has been
+// difficult. Here's the current strategy:
+//
+// Testing is done in two ways:
+//   1) in the service_info_handler, we check for correct incoming
+//      property strings
+//   2) in the "main" code, we query and check for properties
+// 
+// The sequencing relies on sync_peers which takes each process
+// through a sequence of states 0, 1, 2, ... as follows:
+//   1) sync_peers(i) for some new value of i
+//   2) call o2_service_set_property() to set a new value
+//   3) sync_peers(i+1) to wait for propagation of properties
+//   4) test current property values
+// These 4 stages are repeated for each test.
+//
+// sync_peers() has a race condition with property updates although
+// for TCP in the current O2 implementation, all service property 
+// updates should be delivered before the next message from sync_peers().
+// In any case, in sync_peers(), each process sends to the other and
+// waits for the other's message. After the message is received, there
+// is an additional 100ms delay to make sure you don't start changing
+// state before the other process gets the message you sent and updates
+// it's last_sync variable. Thus the only time last_sync can have
+// different values in the two processes is while they are in
+// sync_peers() (assuming message delivery is never held up for 100ms).
 
 
-
+#undef NDEBUG
 #include <stdio.h>
 #include <stdlib.h> // exit
 #include <assert.h>
@@ -60,7 +88,8 @@ void service_two(O2msg_data_ptr data, const char *types,
 // round-trip with other process for syncrhonization
 void sync_peers(int i)
 {
-    printf("* Sending /one/sync %d, waiting for %d ...\n", i, i); fflush(stdout);
+    printf("* Sending /one/sync %d, waiting for %d ...\n", i, i);
+    fflush(stdout);
     o2_send_cmd("/one/sync", 0, "i", i);
     while (sync_value == -1) {
         delay(10);
@@ -318,7 +347,8 @@ int main(int argc, const char * argv[])
     
     sync_peers(2);
     // search for services with attr and value pattern with :
-    o2_service_set_property("two", "attr0", "twovalue1two"); // will match value1
+    // (will match value1)
+    o2_service_set_property("two", "attr0", "twovalue1two");
     assert(o2_services_list_free() == O2_SUCCESS);
 
     sync_peers(3);

@@ -3,6 +3,7 @@
 //      that the delivery to tapper services works
 //
 
+#undef NDEBUG
 #include <stdio.h>
 #include "o2.h"
 #include "assert.h"

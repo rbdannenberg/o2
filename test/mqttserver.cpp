@@ -31,6 +31,7 @@ The test should work as follows:
 For development, this test should work without MQTT on a single machine.
 */
 
+#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "assert.h"

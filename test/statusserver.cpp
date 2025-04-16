@@ -5,7 +5,7 @@
 // to exit, then checks that the status of the service
 // reverts to "does not exist".
 
-
+#undef NDEBUG
 #include "stdio.h"
 #include "string.h"
 #include "assert.h"
