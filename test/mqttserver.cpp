@@ -31,10 +31,9 @@ The test should work as follows:
 For development, this test should work without MQTT on a single machine.
 */
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
-#include "assert.h"
+#include "testassert.h"
 
 #define MAX_MSG_COUNT 10
 
@@ -47,12 +46,12 @@ bool running = true;
 void server_fn(O2msg_data_ptr msg, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
+    o2assert(argc == 1);
     msg_count++;
     o2_send_cmd("/client/client", 0, "i", msg_count + 1000);
     printf("server received %d messages\n", msg_count);
     printf("msg_count %d incoming %d\n", msg_count, argv[0]->i32);
-    assert(msg_count == argv[0]->i32);
+    o2assert(msg_count == argv[0]->i32);
 }
 
 
@@ -131,7 +130,7 @@ int main(int argc, const char *argv[])
         wait_count++;
     }
 
-     assert(msg_count == MAX_MSG_COUNT);
+     o2assert(msg_count == MAX_MSG_COUNT);
 
     o2_finish();
     printf("SERVER DONE\n");

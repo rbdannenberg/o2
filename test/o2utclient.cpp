@@ -3,12 +3,11 @@
 //  see o2utserver.c for details
 
 
-#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include "testassert.h"
 
 
 int max_msg_count = 200000;

@@ -2,12 +2,11 @@
 //
 //  see o2server.cpp for details
 
-#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include "testassert.h"
 
 int max_msg_count = 1000;
 
@@ -39,7 +38,7 @@ void client_test(O2msg_data_ptr data, const char *types,
     if (msg_count < 100) {
         printf("client message %d is %d\n", msg_count, argv[0]->i32);
     }
-    assert(msg_count == argv[0]->i32);
+    o2assert(msg_count == argv[0]->i32);
 }
 
 

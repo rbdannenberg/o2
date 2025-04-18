@@ -12,7 +12,7 @@
 // through MQTT (not sure if that works for messages to the same
 // process though - probably not). 
 
-#undef NDEBUG
+#include "testassert.h"
 // needed for usleep
 #include "stdlib.h"
 #include "o2usleep.h"
@@ -23,7 +23,7 @@ bool got_am1 = false;
 bool got_am2 = false;
 
 
-// assertion-like test that works in release mode
+// o2assertion-like test that works in release mode
 void must_succeed(int err_code, const char *msg)
 {
     if (err_code != O2_SUCCESS) {

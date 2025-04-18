@@ -10,11 +10,10 @@
 // Keep receiving 10 messages per second until the last message is received.
 
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 
 int msg_count = 0;
 bool running = true;
@@ -31,9 +30,9 @@ static int unblock_count = NOTYET;
 void server_test(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 2);
-    assert(strcmp(types, "iB") == 0);
-    assert(argv[0]->i32 == msg_count);
+    o2assert(argc == 2);
+    o2assert(strcmp(types, "iB") == 0);
+    o2assert(argv[0]->i32 == msg_count);
     if (start_sending == NOTYET) {
         start_sending = o2_time_get();
         printf("Starting to receive from sender.\n");

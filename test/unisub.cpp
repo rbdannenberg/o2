@@ -2,12 +2,11 @@
 //
 //  see unipub.c for details
 
-#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>  // atoi
 #include <string.h>
-#include <assert.h>
+#include "testassert.h"
 
 // Visual Studio 2019 does not seem to handle literal utf-8 (or maybe it does
 // with the right configuration and invisible BOM characters, but I wasted too
@@ -103,13 +102,13 @@ void search_for_non_tapper(const char *service, bool must_exist)
             if (must_exist != found_it) {
                 printf("search_for_non_tapper %s must_exist %s\n",
                        service, must_exist ? "true" : "false");
-                assert(false);
+                o2assert(false);
             }
             return;
         }
         if (streql(name, service)) { // must not show as a tap
-            assert(o2_service_type(i) != O2_TAP);
-            assert(!o2_service_tapper(i));
+            o2assert(o2_service_type(i) != O2_TAP);
+            o2assert(!o2_service_tapper(i));
             found_it = true;
         }
         i++;
@@ -133,20 +132,20 @@ void client_test(O2msg_data_ptr data, const char *types,
     if (!running) {
         return;
     }
-    assert(argc == 3);
+    o2assert(argc == 3);
     if (msg_count < 10) {
         printf("client message %d: s=%s S=%s i=%d\n", msg_count, 
                argv[0]->s, argv[1]->S, argv[2]->i32);
     }
-    assert(streql(argv[0]->s, INTERNATIONALIZATIONXX));
-    assert(streql(argv[1]->S, INTERNATIONALIZATIONXX));
+    o2assert(streql(argv[0]->s, INTERNATIONALIZATIONXX));
+    o2assert(streql(argv[1]->S, INTERNATIONALIZATIONXX));
 
     msg_count++;
     if (argv[2]->i32 == -1) {
-        assert(msg_count == MAX_MSG_COUNT + 1);
+        o2assert(msg_count == MAX_MSG_COUNT + 1);
         running = false;
     } else {
-        assert(msg_count == argv[2]->i32 + 1);
+        o2assert(msg_count == argv[2]->i32 + 1);
         int i = msg_count < MAX_MSG_COUNT ? msg_count : -1;
         o2_send_cmd(server_addresses[msg_count % n_addrs], 0, "sSi", 
                     INTERNATIONALIZATIONXX, INTERNATIONALIZATIONXX, i);
@@ -163,22 +162,22 @@ static int copy_count = 0;
 void copy_sSi(O2msg_data_ptr data, const char *types,
               O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 3);
+    o2assert(argc == 3);
     if (copy_count < 5 * n_addrs) { // print the first 5 messages
         printf("copy_sSi got %s s=%s S=%s i=%d (copy_count %d)\n",
                data->address, argv[0]->s, argv[1]->S, argv[2]->i, copy_count);
     }
-    assert(streql(argv[0]->s, INTERNATIONALIZATIONXX));
-    assert(streql(argv[1]->S, INTERNATIONALIZATIONXX));
+    o2assert(streql(argv[0]->s, INTERNATIONALIZATIONXX));
+    o2assert(streql(argv[1]->S, INTERNATIONALIZATIONXX));
     if (argv[2]->i != -1) {
-        assert(argv[2]->i == copy_count);
+        o2assert(argv[2]->i == copy_count);
     }
     copy_count += n_addrs;
 }
 
 int list_properties()
 {
-    assert(o2_services_list() == O2_SUCCESS);
+    o2assert(o2_services_list() == O2_SUCCESS);
     // find the pub*0 service:
     int pub0 = 0;
     const char *pubname;
@@ -190,7 +189,7 @@ int list_properties()
         pub0++;
     }
     printf("Could not find %s in services\n", PUBINTERNATIONALIZATIONXX0);
-    assert(false);
+    o2assert(false);
     return -1;
 }
 
@@ -225,11 +224,11 @@ int main(int argc, const char *argv[])
     }
     
     // make one tap before the service
-    assert(o2_tap(PUBINTERNATIONALIZATIONXX0,
+    o2assert(o2_tap(PUBINTERNATIONALIZATIONXX0,
                   COPYINTERNATIONALIZATIONXX0,
                   TAP_RELIABLE) == O2_SUCCESS);
-    assert(o2_service_new(COPYINTERNATIONALIZATIONXX0) == O2_SUCCESS);
-    assert(o2_method_new(COPYINTERNATIONALIZATIONXX0ATA, "sSi",
+    o2assert(o2_service_new(COPYINTERNATIONALIZATIONXX0) == O2_SUCCESS);
+    o2assert(o2_method_new(COPYINTERNATIONALIZATIONXX0ATA, "sSi",
                          &copy_sSi, NULL, false, true) == O2_SUCCESS);
 
     server_addresses = O2_MALLOCNT(n_addrs, char *);
@@ -256,24 +255,24 @@ int main(int argc, const char *argv[])
 
     const char *value = 
             o2_service_getprop(pub0, ATTRINTERNATIONALIZATIONXX);
-    assert(value);
-    assert(streql(value, VALUEINTERNATIONALIZATIONXX));
+    o2assert(value);
+    o2assert(streql(value, VALUEINTERNATIONALIZATIONXX));
     O2_FREE((char *) value);
 
     value = o2_service_getprop(pub0, "attr1");
-    assert(streql(value, "value1"));
+    o2assert(streql(value, "value1"));
     O2_FREE((char *) value);
 
     value = o2_service_getprop(pub0, "norwegian");
-    assert(streql(value, NORWEGIANPROP));
+    o2assert(streql(value, NORWEGIANPROP));
     O2_FREE((char *) value);
 
     // search for unicode substrings of values:
-    assert(pub0 == o2_service_search(0, ATTRINTERNATIONALIZATIONXX,
+    o2assert(pub0 == o2_service_search(0, ATTRINTERNATIONALIZATIONXX,
                                      NATIONAL));
-    assert(pub0 == o2_service_search(0, "norwegian", SMALLAE));
+    o2assert(pub0 == o2_service_search(0, "norwegian", SMALLAE));
 
-    assert(o2_services_list_free() == O2_SUCCESS);
+    o2assert(o2_services_list_free() == O2_SUCCESS);
 
 
     // now install all taps
@@ -282,7 +281,7 @@ int main(int argc, const char *argv[])
         char tapper[128];
         sprintf(tappee, PUBINTERNATIONALIZATIONXXN, i);
         sprintf(tapper, SUBINTERNATIONALIZATIONXXN + 1, i);
-        assert(o2_tap(tappee, tapper, TAP_RELIABLE) == O2_SUCCESS);
+        o2assert(o2_tap(tappee, tapper, TAP_RELIABLE) == O2_SUCCESS);
     }
     // another second to deliver/install taps
     run_for_awhile(1);
@@ -303,9 +302,9 @@ int main(int argc, const char *argv[])
         char tapper[128];
         sprintf(tappee, PUBINTERNATIONALIZATIONXXN, i);
         sprintf(tapper, SUBINTERNATIONALIZATIONXXN + 1, i);
-        assert(o2_untap(tappee, tapper) == O2_SUCCESS);
+        o2assert(o2_untap(tappee, tapper) == O2_SUCCESS);
     }
-    assert(o2_untap(PUBINTERNATIONALIZATIONXX0,
+    o2assert(o2_untap(PUBINTERNATIONALIZATIONXX0,
                     COPYINTERNATIONALIZATIONXX0) == O2_SUCCESS);
     
     // publisher removes properties; wait a second for them to disappear
@@ -314,17 +313,17 @@ int main(int argc, const char *argv[])
     // check for no properties
     pub0 = list_properties();
     value = o2_service_getprop(pub0, ATTRINTERNATIONALIZATIONXX);
-    assert(value == NULL);
+    o2assert(value == NULL);
 
     value = o2_service_getprop(pub0, "attr1");
-    assert(value == NULL);
+    o2assert(value == NULL);
 
     value = o2_service_getprop(pub0, "norwegian");
-    assert(value == NULL);
-    assert(o2_services_list_free() == O2_SUCCESS);
+    o2assert(value == NULL);
+    o2assert(o2_services_list_free() == O2_SUCCESS);
 
 
-    assert(o2_services_list() == O2_SUCCESS);
+    o2assert(o2_services_list() == O2_SUCCESS);
     // find tapper and tappee as services
     for (int i = 0; i < n_addrs; i++) {
         char tappee[128];
@@ -339,8 +338,8 @@ int main(int argc, const char *argv[])
     // another second for unipub to finish checks
     run_for_awhile(1);
 
-    assert(copy_count / n_addrs == (MAX_MSG_COUNT / n_addrs + 1));
-    assert(msg_count == MAX_MSG_COUNT + 1);
+    o2assert(copy_count / n_addrs == (MAX_MSG_COUNT / n_addrs + 1));
+    o2assert(msg_count == MAX_MSG_COUNT + 1);
     for (int i = 0; i < n_addrs; i++) O2_FREE(server_addresses[i]);
     O2_FREE(server_addresses);
     o2_finish();

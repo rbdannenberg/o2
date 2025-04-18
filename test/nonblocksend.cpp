@@ -36,8 +36,7 @@
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#undef NDEBUG
-#include "assert.h"
+#include "testassert.h"
 
 int msg_count = 0;
 bool running = true;
@@ -48,8 +47,8 @@ O2time start_sending = NOTYET;
 void sender_done(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 0);
-    assert(strlen(types) == 0);
+    o2assert(argc == 0);
+    o2assert(strlen(types) == 0);
     running = false;
 }
 
@@ -88,7 +87,7 @@ int main(int argc, const char * argv[])
         msg_count++;
         o2_poll();
     }
-    assert(msg_count > 1); // first message should not have blocked
+    o2assert(msg_count > 1); // first message should not have blocked
     // it's possible 2nd message blocked and is queued
     printf("Blocked after %d msgs and %g s from start_sending.\n",
            msg_count, o2_time_get() -  start_sending);
@@ -105,7 +104,7 @@ int main(int argc, const char * argv[])
         o2_poll();
         o2_sleep(2); // 2ms
     }
-    assert(o2_can_send("server") == O2_SUCCESS);
+    o2assert(o2_can_send("server") == O2_SUCCESS);
 
     printf("Unblocked after %d msgs and %g s from start_sending.\n",
            msg_count, o2_time_get() -  start_sending);

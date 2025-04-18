@@ -3,12 +3,11 @@
 //  see mqttserver.c for details
 
 
-#undef NDEBUG
 // needed for usleep
 #include "o2usleep.h"
 #include "o2.h"
 #include "stdio.h"
-#include "assert.h"
+#include "testassert.h"
 
 int MAX_MSG_COUNT = 10;
 
@@ -21,7 +20,7 @@ void client_recv_reply(O2msg_data_ptr data, const char *types,
     msg_count++;
     int i = argv[0]->i32;
     printf("msg_count %d i %d\n", msg_count, i);
-    assert(msg_count + 1000 == i);
+    o2assert(msg_count + 1000 == i);
 
     // server will shut down when it gets a goodbye message
     if (msg_count >= MAX_MSG_COUNT) {

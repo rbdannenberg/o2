@@ -3,7 +3,7 @@
  * Example Stock Index Broadcast:
  */
 
-#undef NDEBUG
+#include "testassert.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>

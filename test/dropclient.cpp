@@ -2,10 +2,9 @@
 //
 //  This program works with dropserver.c See that for test description.
 
-#undef NDEBUG
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 #include "o2.h"
 
 int msg_count = 0;
@@ -23,7 +22,7 @@ int warning_count = 0;
 
 static void drop_warning(const char *warn, O2msg_data_ptr msg)
 {
-    assert(streql(warn, "dropping message because no handler was found"));
+    o2assert(streql(warn, "dropping message because no handler was found"));
     printf("drop_warning: got \"%s\"\n", warn);
     warning_count++;
     printf("warning_count %d\n", warning_count);
@@ -37,7 +36,7 @@ static void drop_warning(const char *warn, O2msg_data_ptr msg)
 void bye(O2msg_data_ptr msg, const char *types,
          O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
+    o2assert(argc == 1);
     msg_count++;
     printf("bye handler msg_count %d i %d\n", msg_count, argv[0]->i32);
 }
@@ -77,7 +76,7 @@ int main(int argc, const char *argv[])
     printf("We discovered the dropserver at time %g.\n", o2_local_time());
     
     while (msg_count < 1) pollsome();
-    assert(warning_count == 1);
+    o2assert(warning_count == 1);
     for (int i = 0; i < 25; i++) pollsome();
 
     o2_finish();

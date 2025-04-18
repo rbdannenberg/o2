@@ -1,10 +1,9 @@
 //  patterntest.c -- test use of address patterns
 //
 
-#undef NDEBUG
 #include <stdio.h>
 #include "o2.h"
-#include "assert.h"
+#include "testassert.h"
 #include "string.h"
 
 int message_count = 0;
@@ -15,10 +14,10 @@ void handler(O2msg_data_ptr data, const char *types,
              O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "i") == 0);
+    o2assert(strcmp(types, "i") == 0);
     O2arg_ptr arg = o2_get_next(O2_INT32);
     printf("%s: types=%s int32=%d\n", (const char *) user_data, types, arg->i);
-    assert(arg->i == expected);
+    o2assert(arg->i == expected);
     message_count++;
 }
 
@@ -30,7 +29,7 @@ void send_the_message(int count)
     }
     printf("    send_the_message expects count %d to be %d\n",
            message_count, count);
-    assert(message_count == count);
+    o2assert(message_count == count);
     message_count = 0;
 }
 

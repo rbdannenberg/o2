@@ -3,7 +3,7 @@
  * Example Stock Index Broadcast:
  */
 
-#undef NDEBUG
+#include "testassert.h"
 #ifdef WIN32
 #include <winsock2.h> 
 #include <windows.h> 

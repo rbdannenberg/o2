@@ -7,11 +7,10 @@
 //  messages are sent, we should get MAX_MSG_COUNT back from client.
 //
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 
 #include "o2base.h"
 
@@ -27,9 +26,9 @@ bool running = true;
 void server_test(o2_msg_data_ptr msg, const char *types,
                  o2_arg_ptr *argv, int argc, void *user_data)
 {
-    assert(argc == 2);
-    assert(strcmp(types, "iB") == 0);
-    assert(argv[0]->i32 == msg_count);
+    o2assert(argc == 2);
+    o2assert(strcmp(types, "iB") == 0);
+    o2assert(argv[0]->i32 == msg_count);
     msg_count++;
     if (argv[1]->B) {
         running = false;
@@ -72,7 +71,7 @@ int main(int argc, const char *argv[])
         o2_poll();
         o2_sleep(2);
     }
-    assert(got_start);
+    o2assert(got_start);
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     int blocked = false;
     while (msg_count < MAX_MSG_COUNT) {
@@ -88,7 +87,7 @@ int main(int argc, const char *argv[])
                 o2_poll();
                 o2_sleep(2);
             }
-            assert(got_one);
+            o2assert(got_one);
             blocked = true; // only expected got_one once
         }
         o2_poll();
@@ -100,8 +99,8 @@ int main(int argc, const char *argv[])
         o2_can_send("client"); // what happens when client disappears?
         o2_sleep(2);
     }
-    assert(got_max);
-    assert(o2_can_send("client") == O2_FAIL); // does not exist
+    o2assert(got_max);
+    o2assert(o2_can_send("client") == O2_FAIL); // does not exist
 
     o2_finish();
     printf("SERVER DONE\n");

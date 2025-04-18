@@ -4,11 +4,10 @@
 //  see oscsendtest.c for details
 
 
-#undef NDEBUG
 #include "stdio.h"
 #include "o2.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 
 int message_count = 0;
 O2time timed_start = 0;
@@ -20,8 +19,8 @@ int approx(double x) { return (x > -0.04) && (x < 0.04); }
 void osc_i_handler(O2msg_data_ptr data, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argv);
-    assert(argc == 1);
+    o2assert(argv);
+    o2assert(argc == 1);
     int i = argv[0]->i;
     if (i == 1234) {
         printf("osc_i_handler received 1234 at /oscrecv/i @ %g\n",
@@ -36,22 +35,20 @@ void osc_i_handler(O2msg_data_ptr data, const char *types,
         printf("osc_i_handler received %d at elapsed %g\n", i,
                o2_time_get() - timed_start);
         i -= 2000;
-        assert(i == timed_count);
-#ifndef NDEBUG
-        O2time now = o2_time_get(); // only needed in assert()
-#endif
-        assert(approx(timed_start + i * 0.1 - now));
+        o2assert(i == timed_count);
+        O2time now = o2_time_get(); // only needed in o2assert()
+        o2assert(approx(timed_start + i * 0.1 - now));
         timed_count++;
     } else if (i == 5678) {
         printf("osc_i_handler received 5678 @ %g but port should be closed.\n",
                o2_time_get());
-        assert(false);
+        o2assert(false);
     } else if (i == 6789) {
         printf("osc_i_handler received 6789 @ %g but port should be closed.\n",
                o2_time_get());
-        assert(false);
+        o2assert(false);
     } else {
-        assert(false); // unexpected message
+        o2assert(false); // unexpected message
     }
 }
 
@@ -73,7 +70,7 @@ int main(int argc, const char * argv[])
 
     printf("tcpflag %d\n", tcpflag);
     int err = o2_osc_port_new("oscrecv", 8100, tcpflag);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
     
     o2_clock_set(NULL, NULL);
     o2_service_new("oscrecv");
@@ -83,7 +80,7 @@ int main(int argc, const char * argv[])
         o2_sleep(2); // 2ms
     }
     err = o2_osc_port_free(8100);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
     printf("*** osc port freed @ %g\n", o2_time_get());
 
     // now wait for 4 seconds and check for more messages

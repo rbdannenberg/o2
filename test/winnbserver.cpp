@@ -4,10 +4,9 @@
 //  my understanding of how to nonblocking sockets should work.
 //
 
-#undef NDEBUG
 #include <stdio.h>
 #include <queue>
-#include <assert.h>
+#include "testassert.h"
 #include <windows.h>
 
 const char *dbflags = "";
@@ -127,7 +126,7 @@ void nbpoll()
             free(buf);
         } else {
             buf[n] = 0;
-            assert(strlen(buf) == n);  // make sure we can get the length
+            o2assert(strlen(buf) == n);  // make sure we can get the length
             pending_strings.push(buf);
         }
     }

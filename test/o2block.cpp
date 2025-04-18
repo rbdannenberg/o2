@@ -7,11 +7,10 @@
 //  messages are sent, we should get MAX_MSG_COUNT back from client.
 //
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 
 // This number must be big enough to cause TCP to block. 50000 is big
 // enough for macOS, but Ubuntu linux required 100000, which means it
@@ -32,8 +31,8 @@ bool got_max = false;
 void server_test(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
-    assert(strcmp(types, "i") == 0);
+    o2assert(argc == 1);
+    o2assert(strcmp(types, "i") == 0);
     if (argv[0]->i32 == 0) {
         got_start = true;
         printf("Got start (0) at %g\n", o2_time_get());
@@ -84,7 +83,7 @@ int main(int argc, const char *argv[])
         o2_poll();
         o2_sleep(2);
     }
-    assert(got_start);
+    o2assert(got_start);
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     int blocked = false;
     while (msg_count < MAX_MSG_COUNT) {
@@ -100,7 +99,7 @@ int main(int argc, const char *argv[])
                 o2_poll();
                 o2_sleep(2);
             }
-            assert(got_one);
+            o2assert(got_one);
             blocked = true; // only expected got_one once
         }
         o2_poll();
@@ -112,7 +111,7 @@ int main(int argc, const char *argv[])
         o2_poll();
         o2_sleep(2);
     }
-    assert(got_max);
+    o2assert(got_max);
     // after got_max, client waits 1 sec and exits, so if we "got_max"
     // and wait 2 sec, then we should see that the client does not exist
     now = o2_time_get();
@@ -120,7 +119,7 @@ int main(int argc, const char *argv[])
         o2_poll();
         o2_sleep(2);
     }
-    assert(o2_can_send("client") == O2_FAIL); // does not exist
+    o2assert(o2_can_send("client") == O2_FAIL); // does not exist
 
     o2_finish();
     printf("SERVER DONE\n");

@@ -2,9 +2,8 @@
 //
 //  this test is designed to run with oscsendtest.c
 
-#undef NDEBUG
 #include "stdio.h"
-#include "assert.h"
+#include "testassert.h"
 #include "lo/lo.h"
 #include "string.h"
 
@@ -34,8 +33,8 @@ double timetag_to_secs(lo_timetag tt)
 int osc_i_handler(const char *path, const char *types,
                    lo_arg **argv, int argc, void *msg, void *user_data)
 {
-    assert(argv);
-    assert(argc == 1);
+    o2assert(argv);
+    o2assert(argc == 1);
     int i = argv[0]->i;
     if (i == 1234) {
         printf("osc_i_handler received 1234 at /osc/i\n");
@@ -52,11 +51,11 @@ int osc_i_handler(const char *path, const char *types,
         printf("osc_i_handler received %d at elapsed %g\n", i,
                now - timed_start);
         i -= 2000;
-        assert(i == timed_count);
-        assert(small(timed_start + i * 0.1 - now));
+        o2assert(i == timed_count);
+        o2assert(small(timed_start + i * 0.1 - now));
         timed_count++;
     } else {
-        assert(0); // unexpected message
+        o2assert(0); // unexpected message
     }
     return 0;
 }

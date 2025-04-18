@@ -9,13 +9,12 @@
 //         subscribe2 taps publish2
 //     copy0 (taps publish0)
 
-#undef NDEBUG
 #include "o2.h"
 #include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>  // atoi
 #include <string.h>
-#include <assert.h>
+#include "testassert.h"
 
 // send this many messages followed by -1
 int MAX_MSG_COUNT = 200;
@@ -45,7 +44,7 @@ void search_for_non_tapper(const char *service, bool expected)
                        service, expected ? "true" : "false");
                 o2_print_path_tree();
             }
-            assert(expected == found_it);
+            o2assert(expected == found_it);
             return;
         }
         if (streql(name, service)) { // must not show as a tap
@@ -55,8 +54,8 @@ void search_for_non_tapper(const char *service, bool expected)
                        o2_service_tapper(i));
                 o2_print_path_tree();
             }
-            assert(st != O2_TAP);
-            assert(!o2_service_tapper(i));
+            o2assert(st != O2_TAP);
+            o2assert(!o2_service_tapper(i));
             found_it = true;
         }
         i++;
@@ -82,16 +81,16 @@ void client_test(O2msg_data_ptr data, const char *types,
     if (!running) {
         return;
     }
-    assert(argc == 1);
+    o2assert(argc == 1);
     if (msg_count < 10) {
         printf("client message %d is %d\n", msg_count, argv[0]->i32);
     }
     msg_count++;
     if (argv[0]->i32 == -1) {
-        assert(msg_count == MAX_MSG_COUNT + 1);
+        o2assert(msg_count == MAX_MSG_COUNT + 1);
         running = false;
     } else {
-        assert(msg_count == argv[0]->i32 + 1);
+        o2assert(msg_count == argv[0]->i32 + 1);
         int i = msg_count < MAX_MSG_COUNT ? msg_count : -1;
         o2_send_cmd(server_addresses[msg_count % n_addrs], 0, "i", i);
     }
@@ -105,12 +104,12 @@ static int copy_count = 0;
 void copy_i(O2msg_data_ptr data, const char *types,
             O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
+    o2assert(argc == 1);
     if (copy_count < 5 * n_addrs) { // print the first 5 messages
         printf("copy_i got %s i=%d\n", data->address, argv[0]->i);
     }
     if (argv[0]->i32 != -1) {
-        assert(argv[0]->i == copy_count);
+        o2assert(argv[0]->i == copy_count);
     }
     copy_count += n_addrs;
 }
@@ -152,9 +151,9 @@ int main(int argc, const char *argv[])
     }
     
     // make one tap before the service
-    assert(o2_tap("publish0", "copy0", TAP_RELIABLE) == O2_SUCCESS);
-    assert(o2_service_new("copy0") == O2_SUCCESS);
-    assert(o2_method_new("/copy0/i", "i", &copy_i, NULL, false, true) ==
+    o2assert(o2_tap("publish0", "copy0", TAP_RELIABLE) == O2_SUCCESS);
+    o2assert(o2_service_new("copy0") == O2_SUCCESS);
+    o2assert(o2_method_new("/copy0/i", "i", &copy_i, NULL, false, true) ==
            O2_SUCCESS);
 
     server_addresses = O2_MALLOCNT(n_addrs, char *);
@@ -179,7 +178,7 @@ int main(int argc, const char *argv[])
         char tapper[32];
         sprintf(tappee, "publish%d", i);
         sprintf(tapper, "subscribe%d", i);
-        assert(o2_tap(tappee, tapper, TAP_RELIABLE) == O2_SUCCESS);
+        o2assert(o2_tap(tappee, tapper, TAP_RELIABLE) == O2_SUCCESS);
     }
     // another second to deliver/install taps
     run_for_awhile(1);
@@ -201,14 +200,14 @@ int main(int argc, const char *argv[])
         char tapper[32];
         sprintf(tappee, "publish%d", i);
         sprintf(tapper, "subscribe%d", i);
-        assert(o2_untap(tappee, tapper) == O2_SUCCESS);
+        o2assert(o2_untap(tappee, tapper) == O2_SUCCESS);
     }
-    assert(o2_untap("publish0", "copy0") == O2_SUCCESS);
+    o2assert(o2_untap("publish0", "copy0") == O2_SUCCESS);
     
     // run for a second and check lists
     run_for_awhile(1);
     
-    assert(o2_services_list() == O2_SUCCESS);
+    o2assert(o2_services_list() == O2_SUCCESS);
     // find tapper and tappee as services
     for (int i = 0; i < n_addrs; i++) {
         char tappee[32];
@@ -225,8 +224,8 @@ int main(int argc, const char *argv[])
     // another second to deliver shutdown message to tappub
     run_for_awhile(1);
 
-    assert(msg_count == MAX_MSG_COUNT + 1);
-    assert(copy_count / n_addrs == (MAX_MSG_COUNT / n_addrs + 1));
+    o2assert(msg_count == MAX_MSG_COUNT + 1);
+    o2assert(copy_count / n_addrs == (MAX_MSG_COUNT / n_addrs + 1));
     for (int i = 0; i < n_addrs; i++) O2_FREE(server_addresses[i]);
     O2_FREE(server_addresses);
     o2_finish();

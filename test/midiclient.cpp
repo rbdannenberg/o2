@@ -2,7 +2,7 @@
 //
 // This program works with midiserver.c.
 
-#undef NDEBUG
+#include "testassert.h"
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"

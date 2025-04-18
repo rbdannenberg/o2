@@ -5,10 +5,9 @@
 // to exit, then checks that the status of the service
 // reverts to "does not exist".
 
-#undef NDEBUG
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 #include "o2internal.h"
 
 #define POLL_PERIOD 100
@@ -17,7 +16,7 @@ bool running = true;
 
 O2message_ptr make_message()
 {
-    assert(o2_send_start() == O2_SUCCESS);
+    o2assert(o2_send_start() == O2_SUCCESS);
     return o2_message_finish(0.0, "/This_is_from_make_message.", true);
 }
 
@@ -63,7 +62,7 @@ int main(int argc, const char * argv[])
     const char *my_iip;
     int tcp_port;
     O2err err = o2_get_addresses(&my_pip, &my_iip, &tcp_port);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
     printf("Before stun: address is %s:%s:%04x\n", my_pip, my_iip, tcp_port);
 
     // wait for client service to be discovered

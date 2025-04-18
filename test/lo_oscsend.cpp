@@ -2,9 +2,8 @@
 //
 //  this test is designed to run with oscrecvtest.c
 
-#undef NDEBUG
 #include "stdio.h"
-#include "assert.h"
+#include "testassert.h"
 #include "lo/lo.h"
 #include "string.h"
 

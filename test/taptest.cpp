@@ -3,10 +3,9 @@
 //      that the delivery to tapper services works
 //
 
-#undef NDEBUG
 #include <stdio.h>
 #include "o2.h"
-#include "assert.h"
+#include "testassert.h"
 #include "string.h"
 
 bool got_the_message = false;
@@ -19,7 +18,7 @@ void service_none(O2msg_data_ptr data, const char *types,
                   O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "") == 0);
+    o2assert(strcmp(types, "") == 0);
     printf("service_none types=%s\n", types);
     got_the_message = true;
 }
@@ -28,8 +27,8 @@ void service_none(O2msg_data_ptr data, const char *types,
 void service_nonep(O2msg_data_ptr data, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "") == 0);
-    assert(argc == 0);
+    o2assert(strcmp(types, "") == 0);
+    o2assert(argc == 0);
     printf("service_ip types=%s\n", types);
     got_the_message = true;
 }
@@ -39,9 +38,9 @@ void service_i(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "i") == 0);
+    o2assert(strcmp(types, "i") == 0);
     O2arg_ptr arg = o2_get_next(O2_INT32);
-    assert(arg->i == 1234);
+    o2assert(arg->i == 1234);
     printf("service_i types=%s int32=%d\n", types, arg->i);
     got_the_message = true;
 }
@@ -50,9 +49,9 @@ void service_i(O2msg_data_ptr data, const char *types,
 void service_ip(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "i") == 0);
-    assert(argc == 1);
-    assert(argv[0]->i == 1234);
+    o2assert(strcmp(types, "i") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->i == 1234);
     printf("service_ip types=%s int32=%d\n", types, argv[0]->i);
     got_the_message = true;
 }
@@ -62,9 +61,9 @@ void service_c(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "c") == 0);
+    o2assert(strcmp(types, "c") == 0);
     O2arg_ptr arg = o2_get_next(O2_CHAR);
-    assert(arg->c == 'Q');
+    o2assert(arg->c == 'Q');
     printf("service_c types=%s char=%c\n", types, arg->c);
     got_the_message = true;
 }
@@ -73,9 +72,9 @@ void service_c(O2msg_data_ptr data, const char *types,
 void service_cp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "c") == 0);
-    assert(argc == 1);
-    assert(argv[0]->c == 'Q');
+    o2assert(strcmp(types, "c") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->c == 'Q');
     printf("service_cp types=%s char=%c\n", types, argv[0]->c);
     got_the_message = true;
 }
@@ -85,9 +84,9 @@ void service_B(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "B") == 0);
+    o2assert(strcmp(types, "B") == 0);
     O2arg_ptr arg = o2_get_next(O2_BOOL);
-    assert(arg->B);
+    o2assert(arg->B);
     printf("service_B types=%s bool=%d\n", types, arg->B);
     got_the_message = true;
 }
@@ -96,9 +95,9 @@ void service_B(O2msg_data_ptr data, const char *types,
 void service_Bp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "B") == 0);
-    assert(argc == 1);
-    assert(argv[0]->B);
+    o2assert(strcmp(types, "B") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->B);
     printf("service_Bp types=%s bool=%d\n", types, argv[0]->B);
     got_the_message = true;
 }
@@ -108,9 +107,9 @@ void service_h(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "h") == 0);
+    o2assert(strcmp(types, "h") == 0);
     O2arg_ptr arg = o2_get_next(O2_INT64);
-    assert(arg->h == 12345);
+    o2assert(arg->h == 12345);
     // long long "coercion" to make gcc happy
     printf("service_h types=%s int64=%lld\n", types,
            (long long) arg->h);
@@ -121,9 +120,9 @@ void service_h(O2msg_data_ptr data, const char *types,
 void service_hp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "h") == 0);
-    assert(argc == 1);
-    assert(argv[0]->h == 12345);
+    o2assert(strcmp(types, "h") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->h == 12345);
     // long long "coercion" to make gcc happy
     printf("service_hp types=%s int64=%lld\n", types, 
            (long long) argv[0]->h);
@@ -135,9 +134,9 @@ void service_f(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "f") == 0);
+    o2assert(strcmp(types, "f") == 0);
     O2arg_ptr arg = o2_get_next(O2_FLOAT);
-    assert(arg->f == 1234.5);
+    o2assert(arg->f == 1234.5);
     printf("service_f types=%s float=%g\n", types, arg->f);
     got_the_message = true;
 }
@@ -146,9 +145,9 @@ void service_f(O2msg_data_ptr data, const char *types,
 void service_fp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "f") == 0);
-    assert(argc == 1);
-    assert(argv[0]->f == 1234.5);
+    o2assert(strcmp(types, "f") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->f == 1234.5);
     printf("service_fp types=%s float=%g\n", types, argv[0]->f);
     got_the_message = true;
 }
@@ -158,9 +157,9 @@ void service_d(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "d") == 0);
+    o2assert(strcmp(types, "d") == 0);
     O2arg_ptr arg = o2_get_next(O2_DOUBLE);
-    assert(arg->d == 1234.56);
+    o2assert(arg->d == 1234.56);
     printf("service_d types=%s double=%g\n", types, arg->d);
     got_the_message = true;
 }
@@ -169,9 +168,9 @@ void service_d(O2msg_data_ptr data, const char *types,
 void service_dp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "d") == 0);
-    assert(argc == 1);
-    assert(argv[0]->d == 1234.56);
+    o2assert(strcmp(types, "d") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->d == 1234.56);
     printf("service_dp types=%s double=%g\n", types, argv[0]->d);
     got_the_message = true;
 }
@@ -181,9 +180,9 @@ void service_t(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "t") == 0);
+    o2assert(strcmp(types, "t") == 0);
     O2arg_ptr arg = o2_get_next(O2_TIME);
-    assert(arg->t == 1234.567);
+    o2assert(arg->t == 1234.567);
     printf("service_t types=%s time=%g\n", types, arg->t);
     got_the_message = true;
 }
@@ -192,9 +191,9 @@ void service_t(O2msg_data_ptr data, const char *types,
 void service_tp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "t") == 0);
-    assert(argc == 1);
-    assert(argv[0]->t == 1234.567);
+    o2assert(strcmp(types, "t") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->t == 1234.567);
     printf("service_tp types=%s time=%g\n", types, argv[0]->t);
     got_the_message = true;
 }
@@ -204,9 +203,9 @@ void service_s(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "s") == 0);
+    o2assert(strcmp(types, "s") == 0);
     O2arg_ptr arg = o2_get_next(O2_STRING);
-    assert(strcmp(arg->s, "1234") == 0);
+    o2assert(strcmp(arg->s, "1234") == 0);
     printf("service_s types=%s string=%s\n", types, arg->s);
     got_the_message = true;
 }
@@ -215,9 +214,9 @@ void service_s(O2msg_data_ptr data, const char *types,
 void service_sp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "s") == 0);
-    assert(argc == 1);
-    assert(strcmp(argv[0]->s, "1234") == 0);
+    o2assert(strcmp(types, "s") == 0);
+    o2assert(argc == 1);
+    o2assert(strcmp(argv[0]->s, "1234") == 0);
     printf("service_sp types=%s string=%s\n", types, argv[0]->s);
     got_the_message = true;
 }
@@ -227,9 +226,9 @@ void service_S(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "S") == 0);
+    o2assert(strcmp(types, "S") == 0);
     O2arg_ptr arg = o2_get_next(O2_SYMBOL);
-    assert(strcmp(arg->S, "123456") == 0);
+    o2assert(strcmp(arg->S, "123456") == 0);
     printf("service_S types=%s symbol=%s\n", types, arg->S);
     got_the_message = true;
 }
@@ -238,9 +237,9 @@ void service_S(O2msg_data_ptr data, const char *types,
 void service_Sp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "S") == 0);
-    assert(argc == 1);
-    assert(strcmp(argv[0]->S, "123456") == 0);
+    o2assert(strcmp(types, "S") == 0);
+    o2assert(argc == 1);
+    o2assert(strcmp(argv[0]->S, "123456") == 0);
     printf("service_Sp types=%s symbol=%s\n", types, argv[0]->S);
     got_the_message = true;
 }
@@ -250,9 +249,9 @@ void service_b(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "b") == 0);
+    o2assert(strcmp(types, "b") == 0);
     O2arg_ptr arg = o2_get_next(O2_BLOB);
-    assert(arg->b.size = a_blob->size &&
+    o2assert(arg->b.size = a_blob->size &&
            memcmp(arg->b.data, a_blob->data, 15) == 0);
     printf("service_b types=%s blob=%p\n", types, &arg->b);
     got_the_message = true;
@@ -262,9 +261,9 @@ void service_b(O2msg_data_ptr data, const char *types,
 void service_bp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "b") == 0);
-    assert(argc == 1);
-    assert(argv[0]->b.size = a_blob->size &&
+    o2assert(strcmp(types, "b") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->b.size = a_blob->size &&
            memcmp(argv[0]->b.data, a_blob->data, 15) == 0);
     printf("service_bp types=%s blob=%p\n", types, &argv[0]->b);
     got_the_message = true;
@@ -275,9 +274,9 @@ void service_m(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "m") == 0);
+    o2assert(strcmp(types, "m") == 0);
     O2arg_ptr arg = o2_get_next(O2_MIDI);
-    assert(arg->m == a_midi_msg);
+    o2assert(arg->m == a_midi_msg);
     printf("service_m types=%s midi = %2x %2x %2x\n", types,
            (arg->m >> 16) & 0xff, (arg->m >> 8) & 0xff, arg->m & 0xff);
     got_the_message = true;
@@ -287,10 +286,10 @@ void service_m(O2msg_data_ptr data, const char *types,
 void service_mp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "m") == 0);
-    assert(argc == 1);
+    o2assert(strcmp(types, "m") == 0);
+    o2assert(argc == 1);
     O2arg_ptr arg = argv[0];
-    assert(arg->m == a_midi_msg);
+    o2assert(arg->m == a_midi_msg);
     printf("service_mp types=%s midi = %2x %2x %2x\n", types,
            (arg->m >> 16) & 0xff, (arg->m >> 8) & 0xff, arg->m & 0xff);
     got_the_message = true;
@@ -301,7 +300,7 @@ void service_T(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "T") == 0);
+    o2assert(strcmp(types, "T") == 0);
     printf("service_T types=%s\n", types);
     got_the_message = true;
 }
@@ -310,8 +309,8 @@ void service_T(O2msg_data_ptr data, const char *types,
 void service_Tp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "T") == 0);
-    assert(argc == 1);
+    o2assert(strcmp(types, "T") == 0);
+    o2assert(argc == 1);
     printf("service_Tp types=%s\n", types);
     got_the_message = true;
 }
@@ -321,7 +320,7 @@ void service_F(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "F") == 0);
+    o2assert(strcmp(types, "F") == 0);
     printf("service_F types=%s\n", types);
     got_the_message = true;
 }
@@ -330,8 +329,8 @@ void service_F(O2msg_data_ptr data, const char *types,
 void service_Fp(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "F") == 0);
-    assert(argc == 1);
+    o2assert(strcmp(types, "F") == 0);
+    o2assert(argc == 1);
     printf("service_Fp types=%s\n", types);
     got_the_message = true;
 }
@@ -341,7 +340,7 @@ void service_I(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "I") == 0);
+    o2assert(strcmp(types, "I") == 0);
     printf("service_I types=%s\n", types);
     got_the_message = true;
 }
@@ -350,8 +349,8 @@ void service_I(O2msg_data_ptr data, const char *types,
 void service_Ip(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "I") == 0);
-    assert(argc == 1);
+    o2assert(strcmp(types, "I") == 0);
+    o2assert(argc == 1);
     printf("service_Ip types=%s\n", types);
     got_the_message = true;
 }
@@ -361,7 +360,7 @@ void service_N(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "N") == 0);
+    o2assert(strcmp(types, "N") == 0);
     printf("service_N types=%s\n", types);
     got_the_message = true;
 }
@@ -370,8 +369,8 @@ void service_N(O2msg_data_ptr data, const char *types,
 void service_Np(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "N") == 0);
-    assert(argc == 1);
+    o2assert(strcmp(types, "N") == 0);
+    o2assert(argc == 1);
     printf("service_Np types=%s\n", types);
     got_the_message = true;
 }
@@ -382,40 +381,40 @@ void service_many(O2msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     O2arg_ptr arg = o2_get_next(O2_INT32);
-    assert(arg->i == 1234);
+    o2assert(arg->i == 1234);
     arg = o2_get_next(O2_CHAR);
-    assert(arg->c == 'Q');
+    o2assert(arg->c == 'Q');
     arg = o2_get_next(O2_BOOL);
-    assert(arg->B);
+    o2assert(arg->B);
     arg = o2_get_next(O2_INT64);
-    assert(arg->h == 12345LL);
+    o2assert(arg->h == 12345LL);
     arg = o2_get_next(O2_FLOAT);
-    assert(arg->f == 1234.5);
+    o2assert(arg->f == 1234.5);
     arg = o2_get_next(O2_DOUBLE);
-    assert(arg->d == 1234.56);
+    o2assert(arg->d == 1234.56);
     arg = o2_get_next(O2_TIME);
-    assert(arg->t == 1234.567);
+    o2assert(arg->t == 1234.567);
     arg = o2_get_next(O2_STRING);
-    assert(strcmp(arg->s, "1234") == 0);
+    o2assert(strcmp(arg->s, "1234") == 0);
     arg = o2_get_next(O2_SYMBOL);
-    assert(strcmp(arg->S, "123456") == 0);
+    o2assert(strcmp(arg->S, "123456") == 0);
     arg = o2_get_next(O2_BLOB);
-    assert((arg->b.size == a_blob->size) &&
+    o2assert((arg->b.size == a_blob->size) &&
            memcmp(arg->b.data, a_blob->data, 15) == 0);
     arg = o2_get_next(O2_MIDI);
-    assert(arg->m == a_midi_msg);
+    o2assert(arg->m == a_midi_msg);
     arg = o2_get_next(O2_TRUE);
-    assert(arg);
+    o2assert(arg);
     arg = o2_get_next(O2_FALSE);
-    assert(arg);
+    o2assert(arg);
     arg = o2_get_next(O2_INFINITUM);
-    assert(arg);
+    o2assert(arg);
     arg = o2_get_next(O2_NIL);
-    assert(arg);
+    o2assert(arg);
     arg = o2_get_next(O2_INT32);
-    assert(arg->i == 1234);
+    o2assert(arg->i == 1234);
 
-    assert(strcmp(types, "icBhfdtsSbmTFINi") == 0);
+    o2assert(strcmp(types, "icBhfdtsSbmTFINi") == 0);
     printf("service_many types=%s\n", types);
     got_the_message = true;
 }
@@ -424,21 +423,21 @@ void service_many(O2msg_data_ptr data, const char *types,
 void service_manyp(O2msg_data_ptr data, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 16);
-    assert(argv[0]->i == 1234);
-    assert(argv[1]->c == 'Q');
-    assert(argv[2]->B);
-    assert(argv[3]->h == 12345LL);
-    assert(argv[4]->f == 1234.5);
-    assert(argv[5]->d == 1234.56);
-    assert(argv[6]->t == 1234.567);
-    assert(strcmp(argv[7]->s, "1234") == 0);
-    assert(strcmp(argv[8]->S, "123456") == 0);
-    assert((argv[9]->b.size == a_blob->size) &&
+    o2assert(argc == 16);
+    o2assert(argv[0]->i == 1234);
+    o2assert(argv[1]->c == 'Q');
+    o2assert(argv[2]->B);
+    o2assert(argv[3]->h == 12345LL);
+    o2assert(argv[4]->f == 1234.5);
+    o2assert(argv[5]->d == 1234.56);
+    o2assert(argv[6]->t == 1234.567);
+    o2assert(strcmp(argv[7]->s, "1234") == 0);
+    o2assert(strcmp(argv[8]->S, "123456") == 0);
+    o2assert((argv[9]->b.size == a_blob->size) &&
            memcmp(argv[9]->b.data, a_blob->data, 15) == 0);
-    assert(argv[10]->m == a_midi_msg);
-    assert(argv[15]->i == 1234);
-    assert(strcmp(types, "icBhfdtsSbmTFINi") == 0);
+    o2assert(argv[10]->m == a_midi_msg);
+    o2assert(argv[15]->i == 1234);
+    o2assert(strcmp(types, "icBhfdtsSbmTFINi") == 0);
     printf("service_manyp types=%s\n", types);
     got_the_message = true;
 }
@@ -452,18 +451,18 @@ void service_two(O2msg_data_ptr msg, const char *types,
     o2_extract_start(msg);
     if (strcmp(msg->address + 1, "two/i") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
-        assert(arg && arg->i == 1234);
+        o2assert(arg && arg->i == 1234);
         printf("service_two types=%s arg=%d\n", types, arg->i);
     } else if (strcmp(msg->address + 1, "two/id") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
         int i;
-        assert(arg && arg->i == 1234);
+        o2assert(arg && arg->i == 1234);
         i = arg->i;
         arg = o2_get_next(O2_DOUBLE);
-        assert(arg->d == 1234.56);
+        o2assert(arg->d == 1234.56);
         printf("service_two types=%s args=%d %g\n", types, i, arg->d);
     } else {
-        assert(false);
+        o2assert(false);
     }
     got_the_message = true;
 }
@@ -477,18 +476,18 @@ void service_three(O2msg_data_ptr msg, const char *types,
     o2_extract_start(msg);
     if (strcmp(msg->address + 1, "three/i") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
-        assert(arg->i == 1234);
+        o2assert(arg->i == 1234);
         printf("service_three types=%s arg=%d\n", types, arg->i);
     } else if (strcmp(msg->address + 1, "three/id") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
         int i;
-        assert(arg && arg->i == 1234);
+        o2assert(arg && arg->i == 1234);
         i = arg->i;
         arg = o2_get_next(O2_DOUBLE);
-        assert(arg->d == 1234.56);
+        o2assert(arg->d == 1234.56);
         printf("service_three types=%s args=%d %g\n", types, i, arg->d);
     } else {
-        assert(false);
+        o2assert(false);
     }
     got_the_message = true;
 }
@@ -502,18 +501,18 @@ void service_four(O2msg_data_ptr msg, const char *types,
     o2_extract_start(msg);
     if (strcmp(msg->address + 1, "four/i") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
-        assert(arg->i == 1234);
+        o2assert(arg->i == 1234);
         printf("service_four types=%s arg=%d\n", types, arg->i);
     } else if (strcmp(msg->address + 1, "four/id") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
         int i;
-        assert(arg && arg->i == 1234);
+        o2assert(arg && arg->i == 1234);
         i = arg->i;
         arg = o2_get_next(O2_DOUBLE);
-        assert(arg->d == 1234.56);
+        o2assert(arg->d == 1234.56);
         printf("service_four types=%s args=%d %g\n", types, i, arg->d);
     } else {
-        assert(false);
+        o2assert(false);
     }
     got_the_message = true;
 }
@@ -523,7 +522,7 @@ void service_nonetap(O2msg_data_ptr data, const char *types,
                      O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "") == 0);
+    o2assert(strcmp(types, "") == 0);
     printf("service_nonetap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -532,8 +531,8 @@ void service_nonetap(O2msg_data_ptr data, const char *types,
 void service_noneptap(O2msg_data_ptr data, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "") == 0);
-    assert(argc == 0);
+    o2assert(strcmp(types, "") == 0);
+    o2assert(argc == 0);
     printf("service_noneptap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -543,9 +542,9 @@ void service_itap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "i") == 0);
+    o2assert(strcmp(types, "i") == 0);
     O2arg_ptr arg = o2_get_next(O2_INT32);
-    assert(arg->i == 1234);
+    o2assert(arg->i == 1234);
     printf("service_itap types=%s int32=%d\n", types, arg->i);
     tapped_the_message = true;
 }
@@ -554,9 +553,9 @@ void service_itap(O2msg_data_ptr data, const char *types,
 void service_iptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "i") == 0);
-    assert(argc == 1);
-    assert(argv[0]->i == 1234);
+    o2assert(strcmp(types, "i") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->i == 1234);
     printf("service_iptap types=%s int32=%d\n", types, argv[0]->i);
     tapped_the_message = true;
 }
@@ -566,9 +565,9 @@ void service_ctap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "c") == 0);
+    o2assert(strcmp(types, "c") == 0);
     O2arg_ptr arg = o2_get_next(O2_CHAR);
-    assert(arg->c == 'Q');
+    o2assert(arg->c == 'Q');
     printf("service_ctap types=%s char=%c\n", types, arg->c);
     tapped_the_message = true;
 }
@@ -577,9 +576,9 @@ void service_ctap(O2msg_data_ptr data, const char *types,
 void service_cptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "c") == 0);
-    assert(argc == 1);
-    assert(argv[0]->c == 'Q');
+    o2assert(strcmp(types, "c") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->c == 'Q');
     printf("service_cptap types=%s char=%c\n", types, argv[0]->c);
     tapped_the_message = true;
 }
@@ -589,9 +588,9 @@ void service_Btap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "B") == 0);
+    o2assert(strcmp(types, "B") == 0);
     O2arg_ptr arg = o2_get_next(O2_BOOL);
-    assert(arg->B);
+    o2assert(arg->B);
     printf("service_Btap types=%s bool=%d\n", types, arg->B);
     tapped_the_message = true;
 }
@@ -600,9 +599,9 @@ void service_Btap(O2msg_data_ptr data, const char *types,
 void service_Bptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "B") == 0);
-    assert(argc == 1);
-    assert(argv[0]->B);
+    o2assert(strcmp(types, "B") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->B);
     printf("service_Bptap types=%s bool=%d\n", types, argv[0]->B);
     tapped_the_message = true;
 }
@@ -612,9 +611,9 @@ void service_htap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "h") == 0);
+    o2assert(strcmp(types, "h") == 0);
     O2arg_ptr arg = o2_get_next(O2_INT64);
-    assert(arg->h == 12345);
+    o2assert(arg->h == 12345);
     // long long "coercion" to make gcc happy
     printf("service_htap types=%s int64=%lld\n", types,
            (long long) arg->h);
@@ -625,9 +624,9 @@ void service_htap(O2msg_data_ptr data, const char *types,
 void service_hptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "h") == 0);
-    assert(argc == 1);
-    assert(argv[0]->h == 12345);
+    o2assert(strcmp(types, "h") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->h == 12345);
     // long long "coercion" to make gcc happy
     printf("service_hptap types=%s int64=%lld\n", types, 
            (long long) argv[0]->h);
@@ -639,9 +638,9 @@ void service_ftap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "f") == 0);
+    o2assert(strcmp(types, "f") == 0);
     O2arg_ptr arg = o2_get_next(O2_FLOAT);
-    assert(arg->f == 1234.5);
+    o2assert(arg->f == 1234.5);
     printf("service_ftap types=%s float=%g\n", types, arg->f);
     tapped_the_message = true;
 }
@@ -650,9 +649,9 @@ void service_ftap(O2msg_data_ptr data, const char *types,
 void service_fptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "f") == 0);
-    assert(argc == 1);
-    assert(argv[0]->f == 1234.5);
+    o2assert(strcmp(types, "f") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->f == 1234.5);
     printf("service_fptap types=%s float=%g\n", types, argv[0]->f);
     tapped_the_message = true;
 }
@@ -662,9 +661,9 @@ void service_dtap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "d") == 0);
+    o2assert(strcmp(types, "d") == 0);
     O2arg_ptr arg = o2_get_next(O2_DOUBLE);
-    assert(arg->d == 1234.56);
+    o2assert(arg->d == 1234.56);
     printf("service_dtap types=%s double=%g\n", types, arg->d);
     tapped_the_message = true;
 }
@@ -673,9 +672,9 @@ void service_dtap(O2msg_data_ptr data, const char *types,
 void service_dptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "d") == 0);
-    assert(argc == 1);
-    assert(argv[0]->d == 1234.56);
+    o2assert(strcmp(types, "d") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->d == 1234.56);
     printf("service_dptap types=%s double=%g\n", types, argv[0]->d);
     tapped_the_message = true;
 }
@@ -685,9 +684,9 @@ void service_ttap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "t") == 0);
+    o2assert(strcmp(types, "t") == 0);
     O2arg_ptr arg = o2_get_next(O2_TIME);
-    assert(arg->t == 1234.567);
+    o2assert(arg->t == 1234.567);
     printf("service_ttap types=%s time=%g\n", types, arg->t);
     tapped_the_message = true;
 }
@@ -696,9 +695,9 @@ void service_ttap(O2msg_data_ptr data, const char *types,
 void service_tptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "t") == 0);
-    assert(argc == 1);
-    assert(argv[0]->t == 1234.567);
+    o2assert(strcmp(types, "t") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->t == 1234.567);
     printf("service_tptap types=%s time=%g\n", types, argv[0]->t);
     tapped_the_message = true;
 }
@@ -708,9 +707,9 @@ void service_stap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "s") == 0);
+    o2assert(strcmp(types, "s") == 0);
     O2arg_ptr arg = o2_get_next(O2_STRING);
-    assert(strcmp(arg->s, "1234") == 0);
+    o2assert(strcmp(arg->s, "1234") == 0);
     printf("service_stap types=%s string=%s\n", types, arg->s);
     tapped_the_message = true;
 }
@@ -719,9 +718,9 @@ void service_stap(O2msg_data_ptr data, const char *types,
 void service_sptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "s") == 0);
-    assert(argc == 1);
-    assert(strcmp(argv[0]->s, "1234") == 0);
+    o2assert(strcmp(types, "s") == 0);
+    o2assert(argc == 1);
+    o2assert(strcmp(argv[0]->s, "1234") == 0);
     printf("service_sptap types=%s string=%s\n", types, argv[0]->s);
     tapped_the_message = true;
 }
@@ -731,9 +730,9 @@ void service_Stap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "S") == 0);
+    o2assert(strcmp(types, "S") == 0);
     O2arg_ptr arg = o2_get_next(O2_SYMBOL);
-    assert(strcmp(arg->S, "123456") == 0);
+    o2assert(strcmp(arg->S, "123456") == 0);
     printf("service_Stap types=%s symbol=%s\n", types, arg->S);
     tapped_the_message = true;
 }
@@ -742,9 +741,9 @@ void service_Stap(O2msg_data_ptr data, const char *types,
 void service_Sptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "S") == 0);
-    assert(argc == 1);
-    assert(strcmp(argv[0]->S, "123456") == 0);
+    o2assert(strcmp(types, "S") == 0);
+    o2assert(argc == 1);
+    o2assert(strcmp(argv[0]->S, "123456") == 0);
     printf("service_Sptap types=%s symbol=%s\n", types, argv[0]->S);
     tapped_the_message = true;
 }
@@ -754,9 +753,9 @@ void service_btap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "b") == 0);
+    o2assert(strcmp(types, "b") == 0);
     O2arg_ptr arg = o2_get_next(O2_BLOB);
-    assert(arg->b.size = a_blob->size &&
+    o2assert(arg->b.size = a_blob->size &&
            memcmp(arg->b.data, a_blob->data, 15) == 0);
     printf("service_btap types=%s blob=%p\n", types, &(arg->b));
     tapped_the_message = true;
@@ -766,9 +765,9 @@ void service_btap(O2msg_data_ptr data, const char *types,
 void service_bptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "b") == 0);
-    assert(argc == 1);
-    assert(argv[0]->b.size = a_blob->size &&
+    o2assert(strcmp(types, "b") == 0);
+    o2assert(argc == 1);
+    o2assert(argv[0]->b.size = a_blob->size &&
            memcmp(argv[0]->b.data, a_blob->data, 15) == 0);
     printf("service_bptap types=%s blob=%p\n", types, &argv[0]->b);
     tapped_the_message = true;
@@ -779,9 +778,9 @@ void service_mtap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "m") == 0);
+    o2assert(strcmp(types, "m") == 0);
     O2arg_ptr arg = o2_get_next(O2_MIDI);
-    assert(arg->m == a_midi_msg);
+    o2assert(arg->m == a_midi_msg);
     printf("service_mtap types=%s midi = %2x %2x %2x\n", types,
            (arg->m >> 16) & 0xff, (arg->m >> 8) & 0xff, arg->m & 0xff);
     tapped_the_message = true;
@@ -791,10 +790,10 @@ void service_mtap(O2msg_data_ptr data, const char *types,
 void service_mptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "m") == 0);
-    assert(argc == 1);
+    o2assert(strcmp(types, "m") == 0);
+    o2assert(argc == 1);
     O2arg_ptr arg = argv[0];
-    assert(arg->m == a_midi_msg);
+    o2assert(arg->m == a_midi_msg);
     printf("service_mptap types=%s midi = %2x %2x %2x\n", types,
            (arg->m >> 16) & 0xff, (arg->m >> 8) & 0xff, arg->m & 0xff);
     tapped_the_message = true;
@@ -805,7 +804,7 @@ void service_Ttap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "T") == 0);
+    o2assert(strcmp(types, "T") == 0);
     printf("service_Ttap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -814,8 +813,8 @@ void service_Ttap(O2msg_data_ptr data, const char *types,
 void service_Tptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "T") == 0);
-    assert(argc == 1);
+    o2assert(strcmp(types, "T") == 0);
+    o2assert(argc == 1);
     printf("service_Tptap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -825,7 +824,7 @@ void service_Ftap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "F") == 0);
+    o2assert(strcmp(types, "F") == 0);
     printf("service_Ftap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -834,8 +833,8 @@ void service_Ftap(O2msg_data_ptr data, const char *types,
 void service_Fptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "F") == 0);
-    assert(argc == 1);
+    o2assert(strcmp(types, "F") == 0);
+    o2assert(argc == 1);
     printf("service_Fptap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -845,7 +844,7 @@ void service_Itap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "I") == 0);
+    o2assert(strcmp(types, "I") == 0);
     printf("service_Itap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -854,8 +853,8 @@ void service_Itap(O2msg_data_ptr data, const char *types,
 void service_Iptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "I") == 0);
-    assert(argc == 1);
+    o2assert(strcmp(types, "I") == 0);
+    o2assert(argc == 1);
     printf("service_Iptap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -865,7 +864,7 @@ void service_Ntap(O2msg_data_ptr data, const char *types,
                O2arg_ptr *argv, int argc, const void *user_data)
 {
     o2_extract_start(data);
-    assert(strcmp(types, "N") == 0);
+    o2assert(strcmp(types, "N") == 0);
     printf("service_Ntap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -874,8 +873,8 @@ void service_Ntap(O2msg_data_ptr data, const char *types,
 void service_Nptap(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(strcmp(types, "N") == 0);
-    assert(argc == 1);
+    o2assert(strcmp(types, "N") == 0);
+    o2assert(argc == 1);
     printf("service_Nptap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -886,40 +885,40 @@ void service_manytap(O2msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     O2arg_ptr arg = o2_get_next(O2_INT32);
-    assert(arg->i == 1234);
+    o2assert(arg->i == 1234);
     arg = o2_get_next(O2_CHAR);
-    assert(arg->c == 'Q');
+    o2assert(arg->c == 'Q');
     arg = o2_get_next(O2_BOOL);
-    assert(arg->B);
+    o2assert(arg->B);
     arg = o2_get_next(O2_INT64);
-    assert(arg->h == 12345LL);
+    o2assert(arg->h == 12345LL);
     arg = o2_get_next(O2_FLOAT);
-    assert(arg->f == 1234.5);
+    o2assert(arg->f == 1234.5);
     arg = o2_get_next(O2_DOUBLE);
-    assert(arg->d == 1234.56);
+    o2assert(arg->d == 1234.56);
     arg = o2_get_next(O2_TIME);
-    assert(arg->t == 1234.567);
+    o2assert(arg->t == 1234.567);
     arg = o2_get_next(O2_STRING);
-    assert(strcmp(arg->s, "1234") == 0);
+    o2assert(strcmp(arg->s, "1234") == 0);
     arg = o2_get_next(O2_SYMBOL);
-    assert(strcmp(arg->S, "123456") == 0);
+    o2assert(strcmp(arg->S, "123456") == 0);
     arg = o2_get_next(O2_BLOB);
-    assert((arg->b.size == a_blob->size) &&
+    o2assert((arg->b.size == a_blob->size) &&
            memcmp(arg->b.data, a_blob->data, 15) == 0);
     arg = o2_get_next(O2_MIDI);
-    assert(arg->m == a_midi_msg);
+    o2assert(arg->m == a_midi_msg);
     arg = o2_get_next(O2_TRUE);
-    assert(arg);
+    o2assert(arg);
     arg = o2_get_next(O2_FALSE);
-    assert(arg);
+    o2assert(arg);
     arg = o2_get_next(O2_INFINITUM);
-    assert(arg);
+    o2assert(arg);
     arg = o2_get_next(O2_NIL);
-    assert(arg);
+    o2assert(arg);
     arg = o2_get_next(O2_INT32);
-    assert(arg->i == 1234);
+    o2assert(arg->i == 1234);
 
-    assert(strcmp(types, "icBhfdtsSbmTFINi") == 0);
+    o2assert(strcmp(types, "icBhfdtsSbmTFINi") == 0);
     printf("service_manytap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -928,21 +927,21 @@ void service_manytap(O2msg_data_ptr data, const char *types,
 void service_manyptap(O2msg_data_ptr data, const char *types,
                    O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 16);
-    assert(argv[0]->i == 1234);
-    assert(argv[1]->c == 'Q');
-    assert(argv[2]->B);
-    assert(argv[3]->h == 12345LL);
-    assert(argv[4]->f == 1234.5);
-    assert(argv[5]->d == 1234.56);
-    assert(argv[6]->t == 1234.567);
-    assert(strcmp(argv[7]->s, "1234") == 0);
-    assert(strcmp(argv[8]->S, "123456") == 0);
-    assert((argv[9]->b.size == a_blob->size) &&
+    o2assert(argc == 16);
+    o2assert(argv[0]->i == 1234);
+    o2assert(argv[1]->c == 'Q');
+    o2assert(argv[2]->B);
+    o2assert(argv[3]->h == 12345LL);
+    o2assert(argv[4]->f == 1234.5);
+    o2assert(argv[5]->d == 1234.56);
+    o2assert(argv[6]->t == 1234.567);
+    o2assert(strcmp(argv[7]->s, "1234") == 0);
+    o2assert(strcmp(argv[8]->S, "123456") == 0);
+    o2assert((argv[9]->b.size == a_blob->size) &&
            memcmp(argv[9]->b.data, a_blob->data, 15) == 0);
-    assert(argv[10]->m == a_midi_msg);
-    assert(argv[15]->i == 1234);
-    assert(strcmp(types, "icBhfdtsSbmTFINi") == 0);
+    o2assert(argv[10]->m == a_midi_msg);
+    o2assert(argv[15]->i == 1234);
+    o2assert(strcmp(types, "icBhfdtsSbmTFINi") == 0);
     printf("service_manyptap types=%s\n", types);
     tapped_the_message = true;
 }
@@ -956,18 +955,18 @@ void service_twotap(O2msg_data_ptr msg, const char *types,
     o2_extract_start(msg);
     if (strcmp(msg->address + 1, "twotap/i") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
-        assert(arg && arg->i == 1234);
+        o2assert(arg && arg->i == 1234);
         printf("service_twotap types=%s arg=%d\n", types, arg->i);
     } else if (strcmp(msg->address + 1, "twotap/id") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
         int i;
-        assert(arg && arg->i == 1234);
+        o2assert(arg && arg->i == 1234);
         i = arg->i;
         arg = o2_get_next(O2_DOUBLE);
-        assert(arg->d == 1234.56);
+        o2assert(arg->d == 1234.56);
         printf("service_twotap types=%s args=%d %g\n", types, i, arg->d);
     } else {
-        assert(false);
+        o2assert(false);
     }
     tapped_the_message = true;
 }
@@ -981,18 +980,18 @@ void service_threetap(O2msg_data_ptr msg, const char *types,
     o2_extract_start(msg);
     if (strcmp(msg->address + 1, "threetap/i") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
-        assert(arg->i == 1234);
+        o2assert(arg->i == 1234);
         printf("service_threetap types=%s arg=%d\n", types, arg->i);
     } else if (strcmp(msg->address + 1, "threetap/id") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
         int i;
-        assert(arg && arg->i == 1234);
+        o2assert(arg && arg->i == 1234);
         i = arg->i;
         arg = o2_get_next(O2_DOUBLE);
-        assert(arg->d == 1234.56);
+        o2assert(arg->d == 1234.56);
         printf("service_threetap types=%s args=%d %g\n", types, i, arg->d);
     } else {
-        assert(false);
+        o2assert(false);
     }
     tapped_the_message = true;
 }
@@ -1006,18 +1005,18 @@ void service_fourtap(O2msg_data_ptr msg, const char *types,
     o2_extract_start(msg);
     if (strcmp(msg->address + 1, "fourtap/i") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
-        assert(arg->i == 1234);
+        o2assert(arg->i == 1234);
         printf("service_fourtap types=%s arg=%d\n", types, arg->i);
     } else if (strcmp(msg->address + 1, "fourtap/id") == 0) {
         O2arg_ptr arg = o2_get_next(O2_INT32);
         int i;
-        assert(arg && arg->i == 1234);
+        o2assert(arg && arg->i == 1234);
         i = arg->i;
         arg = o2_get_next(O2_DOUBLE);
-        assert(arg->d == 1234.56);
+        o2assert(arg->d == 1234.56);
         printf("service_fourtap types=%s args=%d %g\n", types, i, arg->d);
     } else {
-        assert(false);
+        o2assert(false);
     }
     tapped_the_message = true;
 }

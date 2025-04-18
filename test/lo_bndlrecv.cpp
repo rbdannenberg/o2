@@ -3,9 +3,8 @@
 //  this test is designed to run with bndlsendtest.c
 //  this test is based on bndlrecvtest.c
 
-#undef NDEBUG
 #include "stdio.h"
-#include "assert.h"
+#include "testassert.h"
 #include "lo/lo.h"
 #include "string.h"
 #include <stdbool.h>
@@ -72,11 +71,11 @@ int meta_handler(const char *name, lo_arg **argv, int argc)
     }
     printf("%s received %d, \"%s\"\n", name, argv[0]->i, &(argv[1]->s));
     printf("    elapsed time: %g msg_count %d\n", now - start_time, msg_count);
-    assert(argv);
-    assert(argc == 2);
-    assert(argv[0]->i == ints[msg_count]);
-    assert(strcmp(&(argv[1]->s), strings[msg_count]) == 0);
-    assert(approximate(now - start_time, times[msg_count]));
+    o2assert(argv);
+    o2assert(argc == 2);
+    o2assert(argv[0]->i == ints[msg_count]);
+    o2assert(strcmp(&(argv[1]->s), strings[msg_count]) == 0);
+    o2assert(approximate(now - start_time, times[msg_count]));
     msg_count++;
     return 0;
 }
@@ -120,7 +119,7 @@ int main(int argc, const char * argv[])
         lo_server_recv_noblock(server, 0);
         o2_sleep(10); // 10ms
     }
-    assert(test_called);
+    o2assert(test_called);
     lo_server_free(server);
     o2_sleep(1000);
     printf("OSCRECV DONE\n");

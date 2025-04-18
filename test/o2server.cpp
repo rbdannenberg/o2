@@ -4,12 +4,11 @@
 //  that sends a message back and forth between a client and server.
 //
 
-#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>  // atoi
 #include <string.h>
-#include <assert.h>
+#include "testassert.h"
 
 
 // To put some weight on fast address lookup, we create n_addrs
@@ -30,7 +29,7 @@ bool running = true;
 void server_test(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
+    o2assert(argc == 1);
     msg_count++;
     if (use_tcp) 
         o2_send_cmd(client_addresses[msg_count % n_addrs], 0, "i", msg_count);
@@ -45,7 +44,7 @@ void server_test(O2msg_data_ptr msg, const char *types,
     if (argv[0]->i32 == -1) {
         running = false;
     } else {
-        assert(msg_count == argv[0]->i32);
+        o2assert(msg_count == argv[0]->i32);
     }
 }
 
@@ -65,7 +64,7 @@ int main(int argc, const char *argv[])
     if (argc >= 3) {
         n_addrs = atoi(argv[2]);
         printf("n_addrs is %d\n", n_addrs);
-        assert(n_addrs > 0); // n_addrs should equal client's n_addrs
+        o2assert(n_addrs > 0); // n_addrs should equal client's n_addrs
         if (strchr(argv[2], 't')) {
             use_tcp = true;
             printf("Using TCP\n");

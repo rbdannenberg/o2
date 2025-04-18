@@ -23,9 +23,8 @@ subclass of Bridge_info will be Demo_info.
 
 
 // o2usleep.h goes first to set _XOPEN_SOURCE to define usleep:
-#undef NDEBUG
 #include <stdio.h>
-#include <assert.h>
+#include "testassert.h"
 #include "o2internal.h"
 #include "services.h"
 
@@ -152,29 +151,29 @@ int main(int argc, const char * argv[])
     demo_protocol = new Demo_protocol();
 
     demo_info = new Demo_info();
-    assert(demo_info);
+    o2assert(demo_info);
 
     // create a service named "demobridge1"
     err = Services_entry::service_provider_new(
             "demobridge1", NULL, demo_info, o2_get_context()->proc);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
 
     // view the service status
     int stat = o2_status("demobridge1");
     print_status(stat);
-    assert(stat == O2_BRIDGE_NOTIME);
+    o2assert(stat == O2_BRIDGE_NOTIME);
     // send to the service
     o2_send("/demobridge1/test", 0, "i", 23); // no clock, no sync
-    assert(message_int == 23);
+    o2assert(message_int == 23);
     message_int = -1;
 
     // send a message to the service
     o2_clock_set(NULL, NULL);
     stat = o2_status("demobridge1");
     print_status(stat);
-    assert(stat == O2_BRIDGE);
+    o2assert(stat == O2_BRIDGE);
     o2_send("/demobridge1/test", 0, "i", 34); // clock, no sync
-    assert(message_int == 34);
+    o2assert(message_int == 34);
     message_int = -1;
     
     // send message over the bridge and check timing
@@ -185,22 +184,22 @@ int main(int argc, const char * argv[])
         o2_poll();
         o2_sleep(2);
     }
-    assert(message_int == 45);
+    o2assert(message_int == 45);
     double delay = o2_time_get() - now;
     printf("expected delay = 0.2, actual delay = %g\n", delay);
-    assert(delay > 0.19 && delay < 0.21);
+    o2assert(delay > 0.19 && delay < 0.21);
     message_int = -1;
 
     // change the bridge status to internal scheduling
     demo_info->no_scheduling_here = false;
     stat = o2_status("demobridge1");
     print_status(stat);
-    assert(stat == O2_BRIDGE);
+    o2assert(stat == O2_BRIDGE);
 
     // send an untimed message
     o2_send("/demobridge1/test", 0, "i", 56); // clock, sync
     // check receipt of the untimed message to SYNCED bridge
-    assert(message_int == 56);
+    o2assert(message_int == 56);
     message_int = -1;
 
     // send a timed message to SYNCED bridge
@@ -213,17 +212,17 @@ int main(int argc, const char * argv[])
         o2_poll();
         o2_sleep(2); // 2 ms
     }
-    assert(message_int == 67);
+    o2assert(message_int == 67);
     delay = o2_time_get() - now;
     printf("expected delay for timed message = 0.0, actual delay = %g\n",
            delay);
-    assert(delay >= 0.0 && delay < 0.01);
+    o2assert(delay >= 0.0 && delay < 0.01);
     message_int = -1;
 
     // close the bridge
     delete demo_protocol;
-    assert(demo_protocol_destructed);
-    assert(demo_info_destructed);
+    o2assert(demo_protocol_destructed);
+    o2assert(demo_info_destructed);
    
     printf("calling o2_finish()\n");
     o2_finish();

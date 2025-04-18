@@ -5,7 +5,6 @@
 //
 
 
-#undef NDEBUG
 #define WIN32_LEAN_AND_MEAN
 
 #include <windows.h>
@@ -14,7 +13,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <queue>
-#include <assert.h>
+#include "testassert.h"
 
 #define MESSAGE "This is a message to be echoed by the server\n"
 
@@ -117,7 +116,7 @@ void nbpoll()
             client_socket = INVALID_SOCKET;
         } else {
             buf[n] = 0;
-            assert(strlen(buf) == n);  // make sure we can get the length
+            o2assert(strlen(buf) == n);  // make sure we can get the length
             recv_flag = true;
         }
     }
@@ -168,7 +167,7 @@ int main(int argc, const char * argv[])
     server_addr.sin_addr.s_addr = 0x0100007F; // inet_addr("192.168.1.157"); // "127.0.0.1");
     // htonl(0xc044019d);  // 192.168.1.157
     server_addr.sin_port = htons(44444);
-    assert(server_addr.sin_addr.s_addr != INADDR_NONE);
+    o2assert(server_addr.sin_addr.s_addr != INADDR_NONE);
 
     if (::connect(client_socket, (const sockaddr *) &server_addr, sizeof(struct sockaddr)) == -1) {
         int err = WSAGetLastError();
@@ -184,8 +183,8 @@ int main(int argc, const char * argv[])
     while (count < 100 && !failure) {
         nbpoll();
         if (recv_flag) {
-            assert(!send_flag);
-            assert(strcmp(buf, MESSAGE) == 0);
+            o2assert(!send_flag);
+            o2assert(strcmp(buf, MESSAGE) == 0);
             recv_flag = false;  // got it
             send_flag = true;   // send it again
             count++;

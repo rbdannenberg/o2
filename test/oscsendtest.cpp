@@ -22,11 +22,10 @@
 //   wait 1 second
 //   shut everything down
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 
 int main(int argc, const char * argv[])
 {
@@ -73,12 +72,12 @@ int main(int argc, const char * argv[])
 
     O2err err = o2_osc_delegate("oscsend", "localhost", 8100, tcpflag);
     printf("*** o2_osc_delegate oscsend returned %d\n", err);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
     
     // send 12 messages, 1 every 0.5s, and stop
     for (int n = 0; n < 12; n++) {
         err = o2_send("/oscsend/i", 0, "i", 1234);
-        assert(err == O2_SUCCESS);
+        o2assert(err == O2_SUCCESS);
         printf("sent 1234 to /oscsend/i @ %g\n", o2_time_get());
         // pause for 0.5s, but keep running O2 by polling
         for (int i = 0; i < 250; i++) {
@@ -114,7 +113,7 @@ int main(int argc, const char * argv[])
     printf("*** Sending to closed port (we expect) @ %g\n", o2_time_get());
     err = o2_send("/oscsend/i", 0, "i", 5678);
     printf("Return value is %d %s\n", err, o2_error_to_string(err));
-    assert(err == (tcpflag ? O2_NO_SERVICE : O2_SUCCESS));
+    o2assert(err == (tcpflag ? O2_NO_SERVICE : O2_SUCCESS));
     o2_service_free("oscsend");
     printf("*** Calling o2_finish @ %g\n", o2_time_get());
     o2_finish();

@@ -3,12 +3,11 @@
 //  see statusserver.c for details
 
 
-#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>  // atoi
 #include <string.h>
-#include <assert.h>
+#include "testassert.h"
 
 #define POLL_PERIOD 100
 
@@ -68,7 +67,7 @@ int main(int argc, const char * argv[])
     const char *iipaddr;
     int tcp_port;
     O2err err = o2_get_addresses(&pipaddr, &iipaddr, &tcp_port);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
     printf("My address is %s:%s:%04x\n", pipaddr, iipaddr, tcp_port);
     
     while (running) {

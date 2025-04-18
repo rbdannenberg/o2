@@ -1,10 +1,9 @@
 //  bundletest.c -- dispatch messages between local services
 //
 
-#undef NDEBUG
 #include <stdio.h>
 #include "o2.h"
-#include "assert.h"
+#include "testassert.h"
 
 
 #define N_ADDRS 20
@@ -16,10 +15,10 @@ int expected = 0;  // expected encodes the expected order of invoking services
 void service_one(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
-    assert(argv[0]->i == 1234);
+    o2assert(argc == 1);
+    o2assert(argv[0]->i == 1234);
     printf("service_one called\n");
-    assert(expected % 10 == 1);
+    o2assert(expected % 10 == 1);
     expected /= 10;
 }
 
@@ -27,10 +26,10 @@ void service_one(O2msg_data_ptr data, const char *types,
 void service_two(O2msg_data_ptr data, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
-    assert(argv[0]->i == 2345);
+    o2assert(argc == 1);
+    o2assert(argv[0]->i == 2345);
     printf("service_two called\n");
-    assert(expected % 10 == 2);
+    o2assert(expected % 10 == 2);
     expected /= 10;
 }
 
@@ -74,7 +73,7 @@ int main(int argc, const char * argv[])
     // delivery. It's unspecified how many times you need to call
     // o2_poll(), but once or twice should be enough. 100 to be sure!
     for (int i = 0; i < 100 && expected != 0; i++) o2_poll();
-    assert(expected == 0);
+    o2assert(expected == 0);
     
     expected = 21;
     o2_send_start();
@@ -82,7 +81,7 @@ int main(int argc, const char * argv[])
     o2_add_message(two);
     o2_send_finish(0.0, "#two", true);
     for (int i = 0; i < 100 && expected != 0; i++) o2_poll();
-    assert(expected == 0);
+    o2assert(expected == 0);
     
     // make a nested bundle ((12)(12))
     o2_send_start();
@@ -99,7 +98,7 @@ int main(int argc, const char * argv[])
     o2_send_finish(0.0, "#two", true);
     O2_FREE(bdl);
     for (int i = 0; i < 100 && expected != 0; i++) o2_poll();
-    assert(expected == 0);
+    o2assert(expected == 0);
     
     o2_finish();
     printf("DONE\n");

@@ -27,12 +27,11 @@
 //  Wait 1 more second so the other side can finish; then shut down
 //  cleanly.
 
-#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include "testassert.h"
 #include "debug.h"
 
 // To put some weight on fast address lookup, we create n_addrs
@@ -61,7 +60,7 @@ void search_for_non_tapper(const char *service, bool expected)
                        service, expected ? "true" : "false");
                 o2_print_path_tree();
             }
-            assert(expected == found_it);
+            o2assert(expected == found_it);
             return;
         }
         if (streql(name, service)) { // must not show as a tap
@@ -71,8 +70,8 @@ void search_for_non_tapper(const char *service, bool expected)
                            o2_service_tapper(i));
                 o2_print_path_tree();
             }
-            assert(st != O2_TAP);
-            assert(!o2_service_tapper(i));
+            o2assert(st != O2_TAP);
+            o2assert(!o2_service_tapper(i));
             found_it = true;
         }
         i++;
@@ -99,7 +98,7 @@ void run_for_awhile(double dur)
 void server_test(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
+    o2assert(argc == 1);
     if (msg_count < 10) {
         printf("server message %d is %d\n", msg_count, argv[0]->i32);
     }
@@ -108,7 +107,7 @@ void server_test(O2msg_data_ptr msg, const char *types,
         printf("server_test got %s i=%d\n", msg->address, argv[0]->i);
         running = false;
     } else {
-        assert(msg_count == argv[0]->i32);
+        o2assert(msg_count == argv[0]->i32);
     }
     msg_count++;
     if (msg_count  % 100 == 0) {
@@ -121,12 +120,12 @@ static int copy_count = 0;
 void copy_i(O2msg_data_ptr msg, const char *types,
                   O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
+    o2assert(argc == 1);
     if (copy_count < 5 * n_addrs) { // print the first 5 messages
         printf("copy_i got %s i=%d\n", msg->address, argv[0]->i);
     }
     if (argv[0]->i != -1) {
-        assert(argv[0]->i == copy_count);
+        o2assert(argv[0]->i == copy_count);
     }
     copy_count += n_addrs;
 }
@@ -168,9 +167,9 @@ int main(int argc, const char *argv[])
         o2_method_new(path, "i", &server_test, NULL, false, true);
     }
 
-    assert(o2_tap("publish0", "subscribe0", TAP_RELIABLE) == O2_SUCCESS);
-    assert(o2_service_new("subscribe0") == O2_SUCCESS);
-    assert(o2_method_new("/subscribe0/i", "i", &copy_i,
+    o2assert(o2_tap("publish0", "subscribe0", TAP_RELIABLE) == O2_SUCCESS);
+    o2assert(o2_service_new("subscribe0") == O2_SUCCESS);
+    o2assert(o2_method_new("/subscribe0/i", "i", &copy_i,
                          NULL, false, true) == O2_SUCCESS);
     
     // we are the master clock
@@ -182,12 +181,12 @@ int main(int argc, const char *argv[])
     }
     printf("Finished %d messages at %g\n", msg_count, o2_time_get());
     // remove our tap
-    assert(o2_untap("publish0", "subscribe0") == O2_SUCCESS);
+    o2assert(o2_untap("publish0", "subscribe0") == O2_SUCCESS);
 
     run_for_awhile(1); // allow time for taps to disappear
 
     // check all taps are gone
-    assert(o2_services_list() == O2_SUCCESS);
+    o2assert(o2_services_list() == O2_SUCCESS);
     // find tapper and tappee as services
     for (int i = 0; i < n_addrs; i++) {
         char tappee[32];
@@ -202,8 +201,8 @@ int main(int argc, const char *argv[])
     // copy_count incremented every n_addrs messages starting with the
     // first. Note there are actually MAX_MSG_COUNT+1 messages sent,
     // so the expression for total expected is tricky.
-    assert(copy_count / n_addrs == (MAX_MSG_COUNT / n_addrs + 1));
-    assert(msg_count == MAX_MSG_COUNT + 1);
+    o2assert(copy_count / n_addrs == (MAX_MSG_COUNT / n_addrs + 1));
+    o2assert(msg_count == MAX_MSG_COUNT + 1);
 
     run_for_awhile(1); // allow time for tapsub to check things
 

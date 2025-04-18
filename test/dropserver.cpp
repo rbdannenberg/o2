@@ -17,8 +17,7 @@
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#undef NDEBUG
-#include "assert.h"
+#include "testassert.h"
 
 int msg_count = 0;
 
@@ -39,7 +38,7 @@ static void drop_warning(const char *warn, O2msg_data_ptr msg)
 {
     printf("drop_warning: got \"%s\"\n", warn);
     if (expected_warning[0]) {
-        assert(streql(warn, expected_warning));
+        o2assert(streql(warn, expected_warning));
     }
     warning_count++;
     printf("warning_count %d\n", warning_count);
@@ -51,7 +50,7 @@ static void drop_warning(const char *warn, O2msg_data_ptr msg)
 void hi(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
+    o2assert(argc == 1);
     msg_count++;
     printf("bye handler msg_count %d i %d\n", msg_count, argv[0]->i32);
 }
@@ -88,8 +87,8 @@ int main(int argc, const char *argv[])
                        "clock and a non-zero timestamp";
     rslt = o2_send_cmd("/dropserver/hi", 10.0, "i", 4);
     printf("Return 0 is %d\n", rslt);
-    assert(rslt == O2_NO_CLOCK);
-    assert(warning_count == 0);
+    o2assert(rslt == O2_NO_CLOCK);
+    o2assert(warning_count == 0);
     pollsome(); // call o2_poll even if not necessary
 
     // we are the reference clock
@@ -107,55 +106,55 @@ int main(int argc, const char *argv[])
                        "service was not found";
     rslt = o2_send_cmd("/nonservice/", 0, "i", 1);
     printf("Return 1 is %d\n", rslt);
-    assert(rslt == O2_NO_SERVICE);
-    assert(warning_count == 1);
+    o2assert(rslt == O2_NO_SERVICE);
+    o2assert(warning_count == 1);
     pollsome(); // call o2_poll even if not necessary
 
     expected_warning = "dropping message because "
                        "no handler was found";
     rslt = o2_send_cmd("/dropserver/drop", 0, "i", 2);
     printf("Return 2 is %d\n", rslt);
-    assert(rslt == O2_SUCCESS);
-    assert(warning_count == 2);
+    o2assert(rslt == O2_SUCCESS);
+    o2assert(warning_count == 2);
     pollsome(); // call o2_poll even if not necessary
 
     expected_warning = "dropping message because of type mismatch";
     rslt = o2_send_cmd("/dropserver/hi", 0, "f", 3.3);
     printf("Return 3 is %d\n", rslt);
-    assert(rslt == O2_SUCCESS);
-    assert(warning_count == 3);
+    o2assert(rslt == O2_SUCCESS);
+    o2assert(warning_count == 3);
     pollsome(); // call o2_poll even if not necessary
 
     expected_warning = "dropping message because "
     "of type coercion failure";
     rslt = o2_send_cmd("/dropserver/coerce", 0, "s", "4");
     printf("Return 4 is %d\n", rslt);
-    assert(rslt == O2_SUCCESS);
-    assert(warning_count == 4);
+    o2assert(rslt == O2_SUCCESS);
+    o2assert(warning_count == 4);
     pollsome(); // call o2_poll even if not necessary
     
     rslt = o2_method_new("/dropclient/impossible", "i",
                          &hi, NULL, false, true);
     printf("Return 5 is %d\n", rslt);
-    assert(rslt = O2_NO_SERVICE);
+    o2assert(rslt = O2_NO_SERVICE);
     pollsome(); // call o2_poll even if not necessary
 
     expected_warning = "none";
     rslt = o2_send_cmd("/dropclient/drop", 0, "i", 6);
     printf("Return 6 is %d\n", rslt);
-    assert(rslt == O2_SUCCESS);
-    assert(warning_count == 4);
+    o2assert(rslt == O2_SUCCESS);
+    o2assert(warning_count == 4);
     pollsome(); // call o2_poll even if not necessary
 
     rslt = o2_send_cmd("/dropclient/bye", 0, "i", 7);
     printf("Return 7 is %d\n", rslt);
-    assert(rslt == O2_SUCCESS);
-    assert(warning_count == 4);
+    o2assert(rslt == O2_SUCCESS);
+    o2assert(warning_count == 4);
     pollsome(); // call o2_poll even if not necessary
     
     rslt = o2_send_cmd("/dropserver/coerce", 0, "f", 8.1);
     printf("Return 8 is %d\n", rslt);
-    assert(rslt == O2_SUCCESS);
+    o2assert(rslt == O2_SUCCESS);
 
     // delay 0.5 second
     double now = o2_time_get();
@@ -170,13 +169,13 @@ int main(int argc, const char *argv[])
     now = o2_time_get();
     rslt = o2_send_cmd("/dropserver/drop", now + 0.1, "i", 2);
     printf("Return 9 is %d\n", rslt);
-    assert(rslt == O2_SUCCESS);
-    assert(warning_count == 4);
+    o2assert(rslt == O2_SUCCESS);
+    o2assert(warning_count == 4);
     while (o2_time_get() < now + 0.2) {
         o2_poll();
         o2_sleep(2);
     }
-    assert(warning_count == 5);
+    o2assert(warning_count == 5);
 
     o2_finish();
     printf("DROPSERVER DONE\n");

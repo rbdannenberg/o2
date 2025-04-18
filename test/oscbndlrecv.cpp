@@ -3,11 +3,10 @@
 //  this test is designed to run with oscsendtest.c
 
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 
 // Here's what is sent
 //   at NOW+2.9: [/xyz/msg1 1009 "an arbitrary string at 2.9"],
@@ -92,11 +91,11 @@ void meta_handler(const char *name, O2arg_ptr *argv, int argc,
     printf("    elapsed %g timestamp %g o2 time %g last_time %g\n",
            o2_time_get() - start_time, msg->timestamp, o2_time_get(),
            o2_gtsched.last_time);
-    assert(argv);
-    assert(argc == 2);
-    assert(argv[0]->i == ints[msg_count]);
-    assert(strcmp(argv[1]->s, strings[msg_count]) == 0);
-    assert(approximate(o2_time_get() - start_time, times[msg_count]));
+    o2assert(argv);
+    o2assert(argc == 2);
+    o2assert(argv[0]->i == ints[msg_count]);
+    o2assert(strcmp(argv[1]->s, strings[msg_count]) == 0);
+    o2assert(approximate(o2_time_get() - start_time, times[msg_count]));
     msg_count++;
 }
 
@@ -132,7 +131,7 @@ int main(int argc, const char * argv[])
     printf("tcpflag %d\n", tcpflag);
     o2_service_new("oscrecv");
     int err = o2_osc_port_new("oscrecv", 8100, tcpflag);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
     printf("created osc server port 8100\n");
 
     o2_clock_set(NULL, NULL);
@@ -146,7 +145,7 @@ int main(int argc, const char * argv[])
         o2_poll();
         o2_sleep(1); // 1ms
     }
-    assert(test_called);
+    o2assert(test_called);
     o2_osc_port_free(8100);
     o2_finish();
     o2_sleep(1000);

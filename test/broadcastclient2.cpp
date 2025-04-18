@@ -4,7 +4,7 @@
  * see below the step by step explanation
  */
 
-#undef NDEBUG
+#include "testassert.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>

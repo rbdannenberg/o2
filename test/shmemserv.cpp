@@ -13,7 +13,7 @@ This test:
 */
 
 // o2usleep.h goes first to set _XOPEN_SOURCE to define usleep:
-#undef NDEBUG
+#include "testassert.h"
 #include <stdlib.h>
 #include "o2internal.h"
 #include "pathtree.h"
@@ -66,7 +66,7 @@ int main(int argc, const char * argv[])
     }
     o2_initialize("test");
     int res = o2_shmem_initialize();
-    assert(res == O2_SUCCESS);
+    o2assert(res == O2_SUCCESS);
     smbridge = o2_shmem_inst_new();
 
     sharedmem(); // start and run the thread
@@ -100,10 +100,10 @@ int main(int argc, const char * argv[])
 void server_test(O2msg_data_ptr msg, const char *types, 
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
+    o2assert(argc == 1);
     o2_extract_start(msg);
     O2arg_ptr i_arg = o2_get_next(O2_INT32);
-    assert(i_arg);
+    o2assert(i_arg);
     int got_i = i_arg->i;
 
     msg_count++;
@@ -121,7 +121,7 @@ void server_test(O2msg_data_ptr msg, const char *types,
     if (got_i == -1) {
         running = false;
     } else {
-        assert(msg_count == got_i);
+        o2assert(msg_count == got_i);
     }
 }
 
@@ -137,14 +137,14 @@ void sift_han(O2msg_data_ptr msg, const char *types,
     if (!(as = o2sm_get_next(O2_STRING)) || !(ai = o2sm_get_next(O2_INT32)) ||
         !(af = o2sm_get_next(O2_FLOAT)) || !(at = o2sm_get_next(O2_TIME))) {
         printf("sift_han problem getting parameters from message");
-        assert(false);
+        o2assert(false);
     }
     printf("sift_han called\n");
-    assert(user_data == (void *) 111);
-    assert(streql(as->s, "this is a test"));
-    assert(ai->i == 1234);
-    assert(about_equal(af->f, 123.4));
-    assert(about_equal(at->t, 567.89));
+    o2assert(user_data == (void *) 111);
+    o2assert(streql(as->s, "this is a test"));
+    o2assert(ai->i == 1234);
+    o2assert(about_equal(af->f, 123.4));
+    o2assert(about_equal(at->t, 567.89));
     sift_called = true;
 }
 
@@ -189,7 +189,7 @@ bool o2sm_act()
         if (start_wait + 1 > o2sm_time_get() && !sift_called) {
             return true;
         } else {
-            assert(sift_called);
+            o2assert(sift_called);
             printf("shmemthread received loop-back message\n");
             // we are ready for the client, so announce the server services
             o2sm_service_new("server", NULL);

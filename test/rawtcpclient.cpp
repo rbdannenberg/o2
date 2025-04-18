@@ -3,7 +3,7 @@
  * This currently only runs on macOS
  */
 
-#undef NDEBUG
+#include "testassert.h"
 #ifdef WIN32
 #include <winsock2.h> 
 #include <windows.h> 

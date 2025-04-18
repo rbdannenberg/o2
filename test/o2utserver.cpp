@@ -10,11 +10,10 @@
 //  between UDP messages.
 //  For TCP, measure longest time interval between messages.
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
 #define LATE 0.110 // how late increments late_counts?
@@ -39,13 +38,13 @@ double max_udp_interval = 0;
 void server_tcp(O2msg_data_ptr msg, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
+    o2assert(argc == 1);
     int i = argv[0]->i32;
     if (i == -1) {
         running = false;
     } else {
         last_tcp += 2;
-        assert(last_tcp == i);
+        o2assert(last_tcp == i);
         double now = o2_local_time();
 		double lateness = now - last_tcp_time;
         max_tcp_interval = MAX(max_tcp_interval, lateness);
@@ -58,7 +57,7 @@ void server_tcp(O2msg_data_ptr msg, const char *types,
 void server_udp(O2msg_data_ptr msg, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
+    o2assert(argc == 1);
     int i = argv[0]->i32;
 
     last_udp += 2;

@@ -1,10 +1,9 @@
 // longtest.c -- test long messages that require allocation
 //
 
-#undef NDEBUG
 #include <stdio.h>
 #include "o2.h"
-#include "assert.h"
+#include "testassert.h"
 #include "string.h"
 
 bool got_the_message = false;
@@ -20,16 +19,14 @@ void service_f(O2msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
-        assert(*types ==  O2_FLOAT);
-#ifndef NDEBUG
-        O2arg_ptr arg = // only needed for assert()
-#endif
+        o2assert(*types ==  O2_FLOAT);
+        O2arg_ptr arg = // only needed for o2assert()
         o2_get_next(O2_FLOAT);
-        assert(arg);
-        assert(arg->f == i + 123);
+        o2assert(arg);
+        o2assert(arg->f == i + 123);
         types++;
     }
-    assert(*types == 0); // end of string, got arg_count floats
+    o2assert(*types == 0); // end of string, got arg_count floats
     got_the_message = true;
 }
 
@@ -40,16 +37,14 @@ void service_d(O2msg_data_ptr data, const char *types,
 {
     o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
-        assert(*types ==  O2_DOUBLE);
-#ifndef NDEBUG
-        O2arg_ptr arg = // only needed for assert()
-#endif
+        o2assert(*types ==  O2_DOUBLE);
+        O2arg_ptr arg = // only needed for o2assert()
         o2_get_next(O2_DOUBLE);
-        assert(arg);
-        assert(arg->d == i + 1234);
+        o2assert(arg);
+        o2assert(arg->d == i + 1234);
         types++;
     }
-    assert(*types == 0); // end of string, got arg_count floats
+    o2assert(*types == 0); // end of string, got arg_count floats
     got_the_message = true;
 }
 
@@ -58,15 +53,15 @@ void service_d(O2msg_data_ptr data, const char *types,
 void service_fc(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == arg_count);
+    o2assert(argc == arg_count);
     o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
-        assert(*types == 'i');
-        assert(argv[i]);
-        assert(argv[i]->i == i + 123);
+        o2assert(*types == 'i');
+        o2assert(argv[i]);
+        o2assert(argv[i]->i == i + 123);
         types++;
     }
-    assert(*types == 0); // end of string, got arg_count floats
+    o2assert(*types == 0); // end of string, got arg_count floats
     got_the_message = true;
 }
 
@@ -75,18 +70,16 @@ void service_fc(O2msg_data_ptr data, const char *types,
 void service_dc(O2msg_data_ptr data, const char *types,
                 O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == arg_count);
+    o2assert(argc == arg_count);
     o2_extract_start(data);
     for (int i = 0; i < arg_count; i++) {
-        assert(*types ==  'h');
-        assert(argv[i]);
-#ifndef NDEBUG
-        int64_t actual = argv[i]->h; // only needed for assert()
-#endif
-        assert(actual == i + 1234);
+        o2assert(*types ==  'h');
+        o2assert(argv[i]);
+        int64_t actual = argv[i]->h; // only needed for o2assert()
+        o2assert(actual == i + 1234);
         types++;
     }
-    assert(*types == 0); // end of string, got arg_count floats
+    o2assert(*types == 0); // end of string, got arg_count floats
     got_the_message = true;
 }
 

@@ -8,7 +8,7 @@
  * ioctl call to determine the number of characters in the input queue
  */
 
-#undef NDEBUG
+#include "testassert.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "unistd.h"

@@ -51,12 +51,11 @@
 //     Set the property of service pubIñtërnâtiônà£ißætiøn☃😎0 and test
 //     the property values in unisub.cpp
 
-#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include "testassert.h"
 
 // Visual Studio 2019 does not seem to handle literal utf-8 (or maybe it does
 // with the right configuration and invisible BOM characters, but I wasted too
@@ -141,13 +140,13 @@ void search_for_non_tapper(const char *service, bool must_exist)
             if (must_exist != found_it) {
                 printf("search_for_non_tapper %s must_exist %s\n",
                        service, must_exist ? "true" : "false");
-                assert(false);
+                o2assert(false);
             }
             return;
         }
         if (streql(name, service)) { // must not show as a tap
-            assert(o2_service_type(i) != O2_TAP);
-            assert(!o2_service_tapper(i));
+            o2assert(o2_service_type(i) != O2_TAP);
+            o2assert(!o2_service_tapper(i));
             found_it = true;
         }
         i++;
@@ -166,9 +165,9 @@ void run_for_awhile(double dur)
 
 int check_args(O2arg_ptr *argv, int argc)
 {
-    assert(argc == 3);
-    assert(streql(argv[0]->s, INTERNATIONALIZATIONXX));
-    assert(streql(argv[1]->S, INTERNATIONALIZATIONXX));
+    o2assert(argc == 3);
+    o2assert(streql(argv[0]->s, INTERNATIONALIZATIONXX));
+    o2assert(streql(argv[1]->S, INTERNATIONALIZATIONXX));
     return argv[2]->i;
 }
 
@@ -188,7 +187,7 @@ void server_test(O2msg_data_ptr msg, const char *types,
         printf("server_test got %s i=%d\n", msg->address, i);
         running = false;
     } else {
-        assert(msg_count == i);
+        o2assert(msg_count == i);
     }
     msg_count++;
     if (msg_count  % 100 == 0) {
@@ -206,7 +205,7 @@ void copy_sSi(O2msg_data_ptr msg, const char *types,
                msg->address, argv[0]->s, argv[1]->S, i, copy_count);
     }
     if (i != -1) {
-        assert(i == copy_count);
+        o2assert(i == copy_count);
     }
     copy_count += n_addrs;
 }
@@ -239,7 +238,7 @@ int main(int argc, const char *argv[])
         sprintf(path, PUBINTERNATIONALIZATIONXXN, i);
         o2_service_new(path + 1);
         strcat(path, SLASHATA);
-        assert(o2_method_new(path, "sSi", &server_test, NULL, false, true) ==
+        o2assert(o2_method_new(path, "sSi", &server_test, NULL, false, true) ==
                O2_SUCCESS);
         printf("Added method for %s\n", path);
         
@@ -253,11 +252,11 @@ int main(int argc, const char *argv[])
     o2_service_set_property(PUBINTERNATIONALIZATIONXX0,
                             "norwegian", NORWEGIANPROP);
 
-    assert(o2_tap(PUBINTERNATIONALIZATIONXX0,
+    o2assert(o2_tap(PUBINTERNATIONALIZATIONXX0,
                   SUBINTERNATIONALIZATIONXX0,
                   TAP_RELIABLE) == O2_SUCCESS);
-    assert(o2_service_new(SUBINTERNATIONALIZATIONXX0) == O2_SUCCESS);
-    assert(o2_method_new(SUBINTERNATIONALIZATIONXX0ATA, "sSi", &copy_sSi,
+    o2assert(o2_service_new(SUBINTERNATIONALIZATIONXX0) == O2_SUCCESS);
+    o2assert(o2_method_new(SUBINTERNATIONALIZATIONXX0ATA, "sSi", &copy_sSi,
                          NULL, false, true) == O2_SUCCESS);
     
     // we are the master clock
@@ -268,7 +267,7 @@ int main(int argc, const char *argv[])
         o2_sleep(2); // 2ms
     }
     // remove our tap
-    assert(o2_untap(PUBINTERNATIONALIZATIONXX0,
+    o2assert(o2_untap(PUBINTERNATIONALIZATIONXX0,
                     SUBINTERNATIONALIZATIONXX0) == O2_SUCCESS);
     // remove properties
     o2_service_property_free(PUBINTERNATIONALIZATIONXX0,
@@ -281,7 +280,7 @@ int main(int argc, const char *argv[])
     run_for_awhile(1); // allow time for taps to disappear
 
     // check all taps are gone
-    assert(o2_services_list() == O2_SUCCESS);
+    o2assert(o2_services_list() == O2_SUCCESS);
     // find tapper and tappee as services
     for (int i = 0; i < n_addrs; i++) {
         char tappee[128];
@@ -298,8 +297,8 @@ int main(int argc, const char *argv[])
     // starting with the first. Note there are actually 
     // MAX_MSG_COUNT+1 messages sent,
     // so the expression for total expected is tricky.
-    assert(copy_count / n_addrs == (MAX_MSG_COUNT / n_addrs + 1));
-    assert(msg_count == MAX_MSG_COUNT + 1);
+    o2assert(copy_count / n_addrs == (MAX_MSG_COUNT / n_addrs + 1));
+    o2assert(msg_count == MAX_MSG_COUNT + 1);
 
     o2_finish();
     printf("SERVER DONE\n");

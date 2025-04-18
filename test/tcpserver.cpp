@@ -4,11 +4,10 @@
 //  that sends a message back and forth between a client and server.
 //
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 
 // To put some weight on fast address lookup, we create N_ADDRS
 // different addresses to use.
@@ -25,7 +24,7 @@ bool running = true;
 void server_test(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
-    assert(argc == 1);
+    o2assert(argc == 1);
     msg_count++;
     o2_send_cmd(client_addresses[msg_count % N_ADDRS], 0, "i", msg_count);
     if (msg_count % 10000 == 0) {
@@ -37,7 +36,7 @@ void server_test(O2msg_data_ptr msg, const char *types,
     if (argv[0]->i32 == -1) {
         running = false;
     } else {
-        assert(msg_count == argv[0]->i32);
+        o2assert(msg_count == argv[0]->i32);
     }
 }
 

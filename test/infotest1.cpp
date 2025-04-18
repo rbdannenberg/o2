@@ -1,11 +1,10 @@
 //  infotest1.c -- test if we get info via /_o2/si
 //
 
-#undef NDEBUG
 #include <stdio.h>
 #include "o2.h"
 #include "string.h"
-#include <assert.h>
+#include "testassert.h"
 
 #define N_ADDRS 10
 #define EXPECTED_COUNT 6
@@ -61,7 +60,7 @@ void service_info_handler(O2msg_data_ptr data, const char *types,
     const char *my_iip = NULL;
     int my_port = -1;
     O2err err = o2_get_addresses(&my_pip, &my_iip, &my_port);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
     char my_proc_name[O2_MAX_PROCNAME_LEN];
     if (!my_pip) my_pip = "none";
     if (!my_iip) my_iip = "none";

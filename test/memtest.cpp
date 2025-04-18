@@ -13,11 +13,10 @@
 //    sizes lists.
 // 4. allocate 1000 random sizes and free them (100 times)
 
-#undef NDEBUG
 #include <stdlib.h>
 #include <stdio.h>
 #include "o2internal.h"
-#include "assert.h"
+#include "testassert.h"
 #if WIN32
 #define random rand
 #endif

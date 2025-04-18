@@ -6,7 +6,6 @@
 // see o2server.c for details of the client-server protocol
 // run this program and open the URL http://wstest.local in a browser.
 
-#undef NDEBUG
 #include "o2.h"
 #if WIN32
 #include "Direct.h"
@@ -19,7 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include "testassert.h"
 
 bool running = true;
 bool one_minute_max = false;
@@ -78,7 +77,7 @@ int main(int argc, const char *argv[])
 
     // enable websockets
     O2err rslt = o2_http_initialize(port, path); 
-    assert(rslt == O2_SUCCESS);
+    o2assert(rslt == O2_SUCCESS);
     
     o2_service_new("websockhost");
     o2_method_new("/websockhost/stop", "", &stop_handler, NULL, false, true);

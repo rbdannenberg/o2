@@ -20,9 +20,8 @@
 //    get and check full properties string
 
 
-#undef NDEBUG
 #include <stdio.h>
-#include <assert.h>
+#include "testassert.h"
 #include <string.h>
 #include "o2.h"
 
@@ -66,7 +65,7 @@ int one; // index for service "one"
 int two; // index for service "two"
 void lookup()
 {
-    assert(o2_services_list() == O2_SUCCESS);
+    o2assert(o2_services_list() == O2_SUCCESS);
     int i = 0;
     one = -1;
     two = -1;
@@ -77,8 +76,8 @@ void lookup()
         i++;
         sn = o2_service_name(i);
     }
-    assert(one > -1);
-    assert(two > -1);
+    o2assert(one > -1);
+    o2assert(two > -1);
 }
 
 
@@ -90,144 +89,144 @@ int main(int argc, const char * argv[])
     o2_service_new("two");
     lookup();
 
-    assert(o2_service_type(one) == O2_LOCAL);
+    o2assert(o2_service_type(one) == O2_LOCAL);
     const char *pip;
     const char *iip;
     char procname[O2_MAX_PROCNAME_LEN];
     int port;
     O2err err = o2_get_addresses(&pip, &iip, &port);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
     sprintf(procname, "%s:%s:%04x", pip, iip, port);
-    assert(streql(o2_service_process(one), "_o2"));
-    assert(o2_service_tapper(one) == NULL);
+    o2assert(streql(o2_service_process(one), "_o2"));
+    o2assert(o2_service_tapper(one) == NULL);
 
-    assert(streql(o2_service_properties(one), ""));
-    assert(streql(o2_service_properties(two), ""));
+    o2assert(streql(o2_service_properties(one), ""));
+    o2assert(streql(o2_service_properties(two), ""));
     // set an attr/value
-    assert(o2_service_set_property("bad", "attr1", "value1") == O2_FAIL);
-    assert(o2_service_set_property("one", "attr0", "value0") == O2_SUCCESS);
-    assert(o2_services_list_free() == O2_SUCCESS);
+    o2assert(o2_service_set_property("bad", "attr1", "value1") == O2_FAIL);
+    o2assert(o2_service_set_property("one", "attr0", "value0") == O2_SUCCESS);
+    o2assert(o2_services_list_free() == O2_SUCCESS);
     // get the properties from service 1
     lookup();
-    assert(o2_services_list() == O2_SUCCESS);
-    assert(streql(o2_service_properties(one), "attr0:value0;"));
+    o2assert(o2_services_list() == O2_SUCCESS);
+    o2assert(streql(o2_service_properties(one), "attr0:value0;"));
 
     // get empty properties from service 2
-    assert(streql(o2_service_properties(two), ""));
+    o2assert(streql(o2_service_properties(two), ""));
     // get the value from service 1
     const char *gp = o2_service_getprop(one, "attr0");
-    assert(streql(gp, "value0"));
+    o2assert(streql(gp, "value0"));
     O2_FREE((char *) gp);
     // fail to get the value from service 2
     gp = o2_service_getprop(two, "attr0");
-    assert(gp == NULL);
+    o2assert(gp == NULL);
 
     // search for services with attr and value pattern within
-    assert(o2_service_search(0, "attr0", "val") == one);
+    o2assert(o2_service_search(0, "attr0", "val") == one);
     // search for services with attr and value pattern with :
     o2_service_set_property("two", "attr1", "twovalue1two"); // will match value1
-    assert(o2_services_list_free() == O2_SUCCESS);
+    o2assert(o2_services_list_free() == O2_SUCCESS);
     lookup();
-    assert(o2_service_search(0, "attr1", ":value1") == -1);
-    assert(o2_service_search(0, "attr1", ":twovalue") == two);
+    o2assert(o2_service_search(0, "attr1", ":value1") == -1);
+    o2assert(o2_service_search(0, "attr1", ":twovalue") == two);
     // search for services with attr and value pattern with ;
-    assert(o2_service_search(0, "attr1", "value1two;") == two);
-    assert(o2_service_search(0, "attr1", "value1;") == -1);
+    o2assert(o2_service_search(0, "attr1", "value1two;") == two);
+    o2assert(o2_service_search(0, "attr1", "value1;") == -1);
     // search for services with attr and exact value
-    assert(o2_service_search(0, "attr1", ":twovalue1two;") == two);
-    assert(o2_service_search(0, "attr1", ":value1two;") == -1);
+    o2assert(o2_service_search(0, "attr1", ":twovalue1two;") == two);
+    o2assert(o2_service_search(0, "attr1", ":value1two;") == -1);
 
     // change value
-    assert(o2_service_set_property("one", "attr1", "newvalue1") == O2_SUCCESS);
-    assert(o2_services_list_free() == O2_SUCCESS);
+    o2assert(o2_service_set_property("one", "attr1", "newvalue1") == O2_SUCCESS);
+    o2assert(o2_services_list_free() == O2_SUCCESS);
     // get the changed value
     lookup();
     gp = o2_service_getprop(one, "attr1");
-    assert(streql(gp, "newvalue1"));
+    o2assert(streql(gp, "newvalue1"));
     O2_FREE((char *) gp);
 
     // remove the value
-    assert(o2_service_property_free("one", "attr1") == O2_SUCCESS);
-    assert(o2_services_list_free() == O2_SUCCESS);
+    o2assert(o2_service_property_free("one", "attr1") == O2_SUCCESS);
+    o2assert(o2_services_list_free() == O2_SUCCESS);
     // fail to get the value
     lookup();
     gp = o2_service_getprop(one, "attr1");
-    assert(gp == NULL);
+    o2assert(gp == NULL);
     gp = o2_service_properties(one);
-    assert(streql(gp, "attr0:value0;"));
+    o2assert(streql(gp, "attr0:value0;"));
     // add several new attr/values 2 3 4 5 6
-    assert(o2_service_set_property("one", "attr1", "value1") == O2_SUCCESS);
-    assert(o2_service_set_property("one", "attr2", "value2") == O2_SUCCESS);
-    assert(o2_service_set_property("one", "attr3", "value3") == O2_SUCCESS);
-    assert(o2_service_set_property("one", "attr4", "value4") == O2_SUCCESS);
-    assert(o2_service_set_property("one", "attr5", "value5") == O2_SUCCESS);
+    o2assert(o2_service_set_property("one", "attr1", "value1") == O2_SUCCESS);
+    o2assert(o2_service_set_property("one", "attr2", "value2") == O2_SUCCESS);
+    o2assert(o2_service_set_property("one", "attr3", "value3") == O2_SUCCESS);
+    o2assert(o2_service_set_property("one", "attr4", "value4") == O2_SUCCESS);
+    o2assert(o2_service_set_property("one", "attr5", "value5") == O2_SUCCESS);
 
     // get the values
-    assert(o2_services_list_free() == O2_SUCCESS);
+    o2assert(o2_services_list_free() == O2_SUCCESS);
     lookup();
     gp = o2_service_properties(one);
-    assert(streql(gp,
+    o2assert(streql(gp,
         "attr5:value5;attr4:value4;attr3:value3;attr2:value2;attr1:value1;attr0:value0;"));
     gp = o2_service_getprop(one, "attr1");
-    assert(streql(gp, "value1"));
+    o2assert(streql(gp, "value1"));
     O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr2");
-    assert(streql(gp, "value2"));
+    o2assert(streql(gp, "value2"));
     O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr3");
-    assert(streql(gp, "value3"));
+    o2assert(streql(gp, "value3"));
     O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr4");
-    assert(streql(gp, "value4"));
+    o2assert(streql(gp, "value4"));
     O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr5");
-    assert(streql(gp, "value5"));
+    o2assert(streql(gp, "value5"));
     O2_FREE((char *) gp);
 
     // remove attrs 1 3 5
-    assert(o2_services_list_free() == O2_SUCCESS);
-    assert(o2_service_property_free("one", "attr1") == O2_SUCCESS);
-    assert(o2_service_property_free("one", "attr3") == O2_SUCCESS);
-    assert(o2_service_property_free("one", "attr5") == O2_SUCCESS);
-    assert(o2_services_list_free() == O2_SUCCESS);
+    o2assert(o2_services_list_free() == O2_SUCCESS);
+    o2assert(o2_service_property_free("one", "attr1") == O2_SUCCESS);
+    o2assert(o2_service_property_free("one", "attr3") == O2_SUCCESS);
+    o2assert(o2_service_property_free("one", "attr5") == O2_SUCCESS);
+    o2assert(o2_services_list_free() == O2_SUCCESS);
 
     // get and check full properties string
     lookup();
     gp = o2_service_getprop(one, "attr2");
-    assert(streql(gp, "value2"));
+    o2assert(streql(gp, "value2"));
     O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr4");
-    assert(streql(gp, "value4"));
+    o2assert(streql(gp, "value4"));
     O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr1");
-    assert(o2_service_getprop(one, "attr1") == NULL);
+    o2assert(o2_service_getprop(one, "attr1") == NULL);
     gp = o2_service_getprop(one, "attr3");
-    assert(o2_service_getprop(one, "attr3") == NULL);
+    o2assert(o2_service_getprop(one, "attr3") == NULL);
     gp = o2_service_getprop(one, "attr5");
-    assert(o2_service_getprop(one, "attr5") == NULL);
-    assert(o2_services_list_free() == O2_SUCCESS);
+    o2assert(o2_service_getprop(one, "attr5") == NULL);
+    o2assert(o2_services_list_free() == O2_SUCCESS);
     
     // check escaped chars
-    assert(o2_service_set_property("one", "attr1", "\\;\\:\\\\") == O2_SUCCESS);
-    assert(o2_service_set_property("one", "attr2", "\\:value2\\;") == O2_SUCCESS);
-    assert(o2_service_set_property("one", "attr3", "val\\\\\\\\ue3") ==
+    o2assert(o2_service_set_property("one", "attr1", "\\;\\:\\\\") == O2_SUCCESS);
+    o2assert(o2_service_set_property("one", "attr2", "\\:value2\\;") == O2_SUCCESS);
+    o2assert(o2_service_set_property("one", "attr3", "val\\\\\\\\ue3") ==
            O2_SUCCESS);
-    assert(o2_service_set_property("one", "attr4", "\\\\\\\\\\;\\:value4") ==
+    o2assert(o2_service_set_property("one", "attr4", "\\\\\\\\\\;\\:value4") ==
            O2_SUCCESS);
     lookup();
     gp = o2_service_getprop(one, "attr1");
-    assert(streql(gp, "\\;\\:\\\\"));
+    o2assert(streql(gp, "\\;\\:\\\\"));
     O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr2");
-    assert(streql(gp, "\\:value2\\;"));
+    o2assert(streql(gp, "\\:value2\\;"));
     O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr3");
-    assert(streql(gp, "val\\\\\\\\ue3"));
+    o2assert(streql(gp, "val\\\\\\\\ue3"));
     O2_FREE((char *) gp);
     gp = o2_service_getprop(one, "attr4");
-    assert(streql(gp, "\\\\\\\\\\;\\:value4"));
+    o2assert(streql(gp, "\\\\\\\\\\;\\:value4"));
     O2_FREE((char *) gp);
-    assert(o2_services_list_free() == O2_SUCCESS);
+    o2assert(o2_services_list_free() == O2_SUCCESS);
 
     o2_finish();
     printf("\nDONE\n");  // leading newline is required by rt.py to find success

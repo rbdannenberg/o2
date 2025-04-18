@@ -19,11 +19,10 @@
 //                 [/xyz/msg1 1011 "an arbitrary string at 3.1"],
 //                 [/abcdefg/msg2 2011 "another arbitrary string at 3.1"]]
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 
 int block_check = true;
 
@@ -118,7 +117,7 @@ int main(int argc, const char * argv[])
     }
 
     int err = o2_osc_delegate("oscsend", "localhost", 8100, tcpflag);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
     printf("connected to port 8100\n");
     
     O2time now = o2_time_get();

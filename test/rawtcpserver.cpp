@@ -1,12 +1,11 @@
 /* rawtcpserver.c -- performance test for "pure" tcp
  */
 
-#undef NDEBUG
 #ifdef WIN32
 #include <winsock2.h> 
 #include <windows.h> 
 #include <stdint.h>
-#include <assert.h>
+#include "testassert.h"
 #else
 #include <unistd.h>
 #include <sys/types.h>
@@ -101,7 +100,7 @@ int main(int argc, char **argv)
     int done = FALSE;
     while (!done) {
 #ifdef WIN32
-        assert(false); // no windows select() implementation
+        o2assert(false); // no windows select() implementation
 #else
         int i;
         poll(fds, fds_len, 0);

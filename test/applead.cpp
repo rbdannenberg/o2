@@ -9,11 +9,10 @@
 //    receive "hello" message from follow,
 //    shut down
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 
 int hello_count = 0;
 O2time cs_time = 1000000.0;
@@ -92,10 +91,10 @@ void rtt_reply(O2msg_data_ptr msg, const char *types,
     float minimum = argv[2]->f;
     printf("rtt_reply: service %s mean %g min %g\n",
            service_name, mean, minimum);
-    assert(rtt_sent);
-    assert(streql(service_name, client_ip_port));
-    assert(mean >= 0 && mean < 1);
-    assert(minimum >= 0 && minimum < 1);
+    o2assert(rtt_sent);
+    o2assert(streql(service_name, client_ip_port));
+    o2assert(mean >= 0 && mean < 1);
+    o2assert(minimum >= 0 && minimum < 1);
     rtt_received = true;
 }
 

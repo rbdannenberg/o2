@@ -1,9 +1,8 @@
 //  dispatchtest.c -- dispatch messages between local services
 //
 
-#undef NDEBUG
 #include <stdio.h>
-#include <assert.h>
+#include "testassert.h"
 #include "o2.h"
 
 
@@ -72,8 +71,8 @@ int main(int argc, const char * argv[])
     }
     o2_finish();
     printf("after finish, s is %d, w is %d\n", s, w);
-    assert(s == 5000);
-    assert(w == 5001);
+    o2assert(s == 5000);
+    o2assert(w == 5001);
     printf("DONE\n");
     return 0;
 }

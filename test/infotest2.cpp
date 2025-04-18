@@ -8,7 +8,7 @@
 // Based on clockref.cpp
 
 
-#undef NDEBUG
+#include "testassert.h"
 #include <stdio.h>
 #include "o2.h"
 #include <stdlib.h>  // exit

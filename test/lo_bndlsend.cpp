@@ -19,9 +19,8 @@
 //                 [/xyz/msg1 1011 "an arbitrary string at 3.1"],
 //                 [/abcdefg/msg2 2011 "another arbitrary string at 3.1"]]
 
-#undef NDEBUG
 #include "stdio.h"
-#include "assert.h"
+#include "testassert.h"
 #include "lo/lo.h"
 #include "string.h"
 
@@ -107,7 +106,7 @@ int main(int argc, const char * argv[])
     char s[128];
     
     int rslt = lo_send(client, "/test", "");
-    assert(rslt != -1);
+    o2assert(rslt != -1);
     
     lo_timetag now;
     lo_timetag_now(&now);

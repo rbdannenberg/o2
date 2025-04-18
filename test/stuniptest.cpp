@@ -3,7 +3,7 @@
 // Roger B. Dannenberg
 // August 2020
 
-#undef NDEBUG
+#include "testassert.h"
 #include "stdio.h"
 #include "o2.h"
 #include "o2internal.h"
@@ -18,13 +18,13 @@ int main(int argc, const char * argv[])
     O2err err = o2_mqtt_enable(NULL, 0);
     if (o2n_network_found && err) {
         printf("Error from o2_mqtt_enable: %d\n", err);
-        assert(!err);
+        o2assert(!err);
     } else if (!o2n_network_found && err != O2_NO_NETWORK) {
         printf("Unexpected return value %s (%d) when not o2n_network_found\n",
                o2_error_to_string(err), err);
     }
     // test for reinitialization attempt:
-    assert(o2_initialize("test") == O2_ALREADY_RUNNING);
+    o2assert(o2_initialize("test") == O2_ALREADY_RUNNING);
     for (int i = 0; i < 5000; i++) { // run for up to 10 seconds
         o2_poll();
         if (o2n_public_ip[0]) break;

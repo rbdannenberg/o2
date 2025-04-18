@@ -2,11 +2,10 @@
 //
 //  see o2server.c for details
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 #include "o2base.h"  // to get o2_sleep
 
 
@@ -38,7 +37,7 @@ void client_test(o2_msg_data_ptr data, const char *types,
     if (msg_count < 100) {
         printf("client message %d is %d\n", msg_count, argv[0]->i32);
     }
-    assert(msg_count == argv[0]->i32);
+    o2assert(msg_count == argv[0]->i32);
 }
 
 

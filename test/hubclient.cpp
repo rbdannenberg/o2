@@ -3,12 +3,11 @@
 //  see hubserver.c for details
 
 
-#undef NDEBUG
 #include "o2.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
-#include "assert.h"
+#include "testassert.h"
 #include "hostip.h"
 
 #ifndef WIN32
@@ -74,7 +73,7 @@ void client_info_handler(O2msg_data_ptr data, const char *types,
 #endif
     if (!properties || properties[0]) {
         printf("FAILURE -- expected empty string for properties\n");
-        assert(false);
+        o2assert(false);
     }
     if (status == O2_UNKNOWN) {
         return;  // service has been removed
@@ -83,8 +82,8 @@ void client_info_handler(O2msg_data_ptr data, const char *types,
     if (streql(service_name, "server")) {
         o2_parse_name(process, (char *) server_pip, (char *) server_iip,
                       &server_port);
-        assert(server_iip[0] != 0);
-        assert(server_pip[0] != 0);
+        o2assert(server_iip[0] != 0);
+        o2assert(server_pip[0] != 0);
     }
 }
     
@@ -154,8 +153,8 @@ void wait_for_server()
 #endif
         }
     }
-    assert(server_pip[0]);
-    assert(server_iip[0]);
+    o2assert(server_pip[0]);
+    o2assert(server_iip[0]);
     printf("#   -> server_pip %s server_iip %s server_port %d\n", server_pip,
            server_iip, server_port);
 }    
@@ -168,10 +167,10 @@ void wait_for_pip()
     int my_port;
     while (true) {
         O2err err = o2_get_addresses(&pip, &iip, &my_port);
-        assert(!err);
+        o2assert(!err);
         if (pip[0]) {
             printf("#  -> wait_for_pip got %s\n", pip);
-            assert(!streql(pip, "00000000"));
+            o2assert(!streql(pip, "00000000"));
             return;
         }
         printf("#   -> waiting for public IP\n");
@@ -190,15 +189,15 @@ bool my_ipport_is_greater(const char *server_pip,
     const char *iip;
     int my_port;
     O2err err = o2_get_addresses(&pip, &iip, &my_port);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
     strcpy(my_pip, pip); // copy O2 ip to our variable
     strcpy(my_iip, iip); // copy O2 ip to our variable
     printf("#   -> my_pip %s my_iip %s my_port %d\n", my_pip, my_iip, my_port);
     printf("#   -> server_pip %s server_iip %s server_port %d\n", server_pip,
            server_iip, server_port);
-    assert(*server_pip && streql(server_pip, my_pip));
-    assert(*server_iip && streql(server_iip, my_iip));
-    assert(server_port >= 0 && server_port != my_port);
+    o2assert(*server_pip && streql(server_pip, my_pip));
+    o2assert(*server_iip && streql(server_iip, my_iip));
+    o2assert(server_port >= 0 && server_port != my_port);
     return my_port > server_port;
 }
 
@@ -245,7 +244,7 @@ int test_self_as_hub(int order)
     substep("6B: server should shut down now");
     delay_for(0.5);
     step(7, "make sure server is shut down");
-    assert(o2_status("server") == O2_FAIL);
+    o2assert(o2_status("server") == O2_FAIL);
     delay_for(0.5);
     step(8, "server expected to reinitialize and call o2_hub()");
     step(9, "wait for server");
@@ -303,7 +302,7 @@ int test_other_as_hub(int order)
     char iip_dot[O2N_IP_LEN];
     o2_hex_to_dot(server_iip_copy, iip_dot);
     O2err err = o2_hub(pip_dot, iip_dot, server_port_copy, server_port_copy);
-    assert(err == O2_SUCCESS);
+    o2assert(err == O2_SUCCESS);
     wait_for_pip();
     bool client_greater = my_ipport_is_greater(server_pip_copy, 
                              server_iip_copy, server_port_copy);
@@ -324,9 +323,9 @@ int test_other_as_hub(int order)
     step(10, "check that we discovered expected server IP:port");
     printf("#   -> hub says server is %s:%s:%04x\n", server_pip, server_iip,
            server_port);
-    assert(streql(server_pip, server_pip_copy));
-    assert(streql(server_iip, server_iip_copy));
-    assert(server_port == server_port_copy);
+    o2assert(streql(server_pip, server_pip_copy));
+    o2assert(streql(server_iip, server_iip_copy));
+    o2assert(server_port == server_port_copy);
     return step_11_to_13(good, actual);
 }
 #endif
@@ -357,7 +356,7 @@ int main(int argc, const char *argv[])
     int rslt = test_other_as_hub(EITHER);
     printf("#   -> test_other_as_hub returned %s\n", test_to_string[rslt]);
     step(14, "check for expected LOW/HIGH result");
-    assert(rslt == LOW || rslt == HIGH);
+    o2assert(rslt == LOW || rslt == HIGH);
     while (true) {
         step(15, "pick who will be hub");
         int r = rand() & 1;

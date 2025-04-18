@@ -2,12 +2,11 @@
 //
 //  see tcpserver.c for details
 
-#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>   // atoi
 #include <string.h>
-#include <assert.h>
+#include "testassert.h"
 
 
 #define N_ADDRS 20
@@ -36,7 +35,7 @@ void client_test(O2msg_data_ptr data, const char *types,
     if (msg_count < 100) {
         printf("client message %d is %d\n", msg_count, argv[0]->i32);
     }
-    assert(msg_count == argv[0]->i32);
+    o2assert(msg_count == argv[0]->i32);
 }
 
 

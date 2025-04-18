@@ -6,12 +6,11 @@
 // see o2server.c for details of the client-server protocol
 // run this program and open the URL http://wstest.local in a browser.
 
-#undef NDEBUG
 #include "o2.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include "testassert.h"
 
 int max_msg_count = 500;
 
@@ -43,7 +42,7 @@ void client_test(o2_msg_data_ptr data, const char *types,
     if (msg_count < 100) {
         printf("client message %d is %d\n", msg_count, argv[0]->i32);
     }
-    assert(msg_count == argv[0]->i32);
+    o2assert(msg_count == argv[0]->i32);
 }
 
 
@@ -88,7 +87,7 @@ int main(int argc, const char *argv[])
 
     // enable websockets
     O2err rslt = http_initialize("wstest", 8080, "www"); 
-    assert(rslt == O2_SUCCESS);
+    o2assert(rslt == O2_SUCCESS);
 
     o2_clock_set(NULL, NULL); // become the master clock
     o2_service_new("client");
