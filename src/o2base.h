@@ -36,6 +36,7 @@
 #    else
 #        if __GNUC__ >= 4
 #            define O2_EXPORT extern __attribute__ ((visibility("default")))
+#            define O2_CLASS_EXPORT
 #        else
 #            define O2_EXPORT extern
 #            define O2_CLASS_EXPORT 
@@ -45,15 +46,10 @@
 
 // do we really need to export any classes? O2 nominally has a C API,
 // so unless someone needs to "peek" into the implementation, we should
-// hide classes. Nevertheless, some classes are declared O2_CLASS_EXPORT,
-// so rather than assume that's wrong, I'm going to disable it and see
-// what happens. We can undo this and extend the O2_EXPORT/O2_CLASS_EXPORT
-// definitions above if we really want to export any classes.
-#ifdef O2_CLASS_EXPORT
-#undef O2_CLASS_EXPORT
-#endif
-// disable O2_CLASS_EXPORT for everyone:
-#define O2_CLASS_EXPORT
+// hide classes. Nevertheless, Bridge_protocol and Bridge_info classes
+// are exported to allow external code to provide custom bridges between
+// O2 and other protocols (similar to O2lite and shared memory bridges,
+// which are built-in.
 
 #ifdef __cplusplus
 #include <cstddef>

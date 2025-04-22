@@ -79,7 +79,7 @@ void o2_strcpy(char *__restrict dst, const char *__restrict src,
 class Proc_info;
 class O2_CLASS_EXPORT Bridge_info;
 
-class O2_CLASS_EXPORT O2_context {
+class O2_context {
 public:
     // msg_types is used to hold type codes as message args are accumulated
     Vec<char> msg_types;
