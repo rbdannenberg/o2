@@ -21,7 +21,7 @@ class Service_tap : O2obj {
 };
 
 
-class Services_entry : public O2node {
+class O2_CLASS_EXPORT Services_entry : public O2node {
   public:
     Vec<Service_provider> services;
             // dynamic array of type Service_provider

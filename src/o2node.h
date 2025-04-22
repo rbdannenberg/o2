@@ -308,7 +308,7 @@ public:
 
 // A message handler that uses a socket or other connection to
 // deliver messages remotely
-class Proxy_info : public O2node, public Net_interface {
+class O2_CLASS_EXPORT Proxy_info : public O2node, public Net_interface {
 public:
     // Proc_info is created when a remote process is "discovered," but that
     // does not mean it really exists because discovery info could be stale.
