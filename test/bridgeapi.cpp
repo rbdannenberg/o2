@@ -155,7 +155,16 @@ int main(int argc, const char * argv[])
 
     // create a service named "demobridge1"
     err = Services_entry::service_provider_new(
-            "demobridge1", NULL, demo_info, o2_get_context()->proc);
+            "demobridge1", NULL, demo_info,
+            // it seems like this should not work unless statically linked
+            // with O2 on Win32, but we'll see.... Alternative is to make a
+            // fill C-like API for an external client like this to create a
+            // bridge, or rewrite the whole Bridge class abstraction in O2
+            // to avoid a class. Or, we could say bridge must be created in
+            // C++ and allow a class export spec for Win32 (but currently,
+            // following the philosophy that O2 has a C-compatible API, we
+            // disable class exports throughout O2.
+            ((O2_context *) o2_get_context())->proc);
     o2assert(err == O2_SUCCESS);
 
     // view the service status

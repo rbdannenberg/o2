@@ -130,6 +130,7 @@ void o2_print_bytes(const char *prefix, const char *bytes, int len)
         i += 16;
     }
 }
+
 #endif
 
 

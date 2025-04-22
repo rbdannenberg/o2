@@ -949,6 +949,21 @@ O2time o2_global_offset = 0.0;
 int o2_poll_count = 0;  // counter for testing things
 #endif
 
+thread_local O2_context *o2_ctx = NULL;
+static O2_context main_context;
+
+
+O2_EXPORT void *o2_get_context()
+{
+    return o2_ctx;
+}
+
+O2_EXPORT void *o2_set_context(void *context)
+{
+    void *save = (void *) o2_ctx;
+    o2_ctx = context ? (O2_context *) context : &main_context;
+    return save;
+}
 
 
 #ifdef WIN32
@@ -1000,7 +1015,6 @@ O2err o2_network_enable(bool enable)
 
 O2err o2_initialize(const char *ensemble_name)
 {
-    static O2_context main_context;
     O2err err;
     if (o2_ensemble_name) return O2_ALREADY_RUNNING;
 

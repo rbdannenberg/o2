@@ -228,12 +228,12 @@ void sift_han(O2msg_data_ptr msg, const char *types,
     sift_called = true;
 }
 
-O2_context o2sm_ctx;
+void *o2sm_ctx = NULL;
 
 
 void sharedmem_init()
 {
-    o2sm_initialize(&o2sm_ctx, smbridge);
+    o2sm_ctx = o2sm_initialize(smbridge);
     o2sm_service_new("sift", NULL);
 
     o2sm_method_new("/sift", "sift", &sift_han, (void *)111, false, false);

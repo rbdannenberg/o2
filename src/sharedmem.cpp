@@ -123,11 +123,11 @@ o2_shmem_inst_new() - creates a new O2sm_info. The O2sm_info must be
  
 o2_shmem_inst_count() - returns the number of shared memory instances.
 
-o2sm_initialize() - installs an O2_context for the O2SM thread and
-    retains the Bridge_info* which contains a message queue for
-    messages from O2SM to O2*. The O2_context contains mappings from
-    addresses to handlers in path_tree and full_path_table.  (O2SM
-    thread)
+o2sm_initialize() - create and install an O2_context for the O2SM
+    thread and retains the Bridge_info* which contains a message
+    queue for messages from O2SM to O2*. The O2_context contains
+    mappings from addresses to handlers in path_tree and
+    full_path_table.  (O2SM thread)
 
 o2sm_get_id() - returns a unique ID for this bridged process. This
     might be useful if you want to create a unique service that does
@@ -181,8 +181,19 @@ int main()
 void *shared_memory_thread(void *ignore) // the thread entry point
 {
     O2_context ctx;
-    o2sm_initialize(&ctx, smbridge); // connects us to bridge
+    void *ctx = o2sm_initialize(smbridge); // connects us to bridge
+    // ctx is an opaque pointer to a new O2_context. It can be
+    // passed to o2_set_context() if you want to designate a thread
+    // to play the role of this shared memory thread. For example,
+    // you can create an audio thread and "hand off" the shared
+    // memory thread to the audio thread, or when the audio thread
+    // is not running, you can allow the main thread to process
+    // messages to the shared memory thread by calling
+    // o2_set_context(ctx) to run as the shared memory thread, and
+    // return to main thread processing by o2_set_context(NULL).
+
     ... run the thread ...
+
     o2sm_finish();
     return NULL;
 }
@@ -585,10 +596,11 @@ void O2sm_info::poll_outgoing()
 }
 
 
-void o2sm_initialize(O2_context *ctx, Bridge_info *inst)
+void *o2sm_initialize(Bridge_info *inst)
 {
-    O2_DBb(dbprintf("o2sm_initialize ctx %p Bridge_info %p\n", ctx, inst));
-    o2_ctx = ctx;
+    o2_ctx = new O2_context();
+    O2_DBb(dbprintf("o2sm_initialize ctx %p Bridge_info %p\n", o2_ctx, inst));
+
     // local memory allocation will use malloc() to get a chunk on the
     // first call to O2_MALLOC by the shared memory thread. If
     // o2_memory() was called with mallocp = false, the thread
@@ -604,6 +616,7 @@ void o2sm_initialize(O2_context *ctx, Bridge_info *inst)
 
     o2_ctx->proc = NULL;
     o2_ctx->binst = inst;
+    return (void *) o2_ctx;
 }
 
 
@@ -617,7 +630,7 @@ void o2sm_finish()
     O2message_ptr msg = o2_message_finish(0.0, "/_o2/o2sm/fin", true);
     // free the o2_ctx data
     O2_DBb(dbprintf("o2sm_finish finishing O2_context@%p\n", o2_ctx));
-    o2_ctx->finish();
+    delete o2_ctx;
     o2_ctx = NULL;
     // notify O2 to remove bridge: does not require o2_ctx
     o2sm_message_send(msg);

@@ -148,12 +148,12 @@ void sift_han(O2msg_data_ptr msg, const char *types,
     sift_called = true;
 }
 
-O2_context o2sm_ctx;
+void *o2sm_ctx = NULL;
 
 
 void sharedmem_init()
 {
-    o2sm_initialize(&o2sm_ctx, smbridge);
+    o2sm_ctx = o2sm_initialize(smbridge);
     o2sm_service_new("sift", NULL);
 
     o2sm_method_new("/sift", "sift", &sift_han, (void *)111, false, false);
@@ -199,11 +199,11 @@ bool o2sm_act()
             for (int i = 0; i < n_addrs; i++) {
                 char path[100];
 
-                sprintf(path, "!client/benchmark/%d", i);
+                snprintf(path, 100, "!client/benchmark/%d", i);
                 client_addresses[i] = O2_MALLOCNT(strlen(path) + 1, char);
                 strcpy(client_addresses[i], path);
 
-                sprintf(path, "/server/benchmark/%d", i);
+                snprintf(path, 100, "/server/benchmark/%d", i);
                 server_addresses[i] = O2_MALLOCNT(strlen(path) + 1, char);
                 strcpy(server_addresses[i], path);
                 o2sm_method_new(path, "i", &server_test, NULL, false, true);

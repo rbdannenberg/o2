@@ -176,6 +176,9 @@ public:
     }
 
     ~O2_context() {
+        if (!finishing) {
+            finish();
+        }
         O2_DBb(dbprintf("~O2_context@%p\n", this));
     }
 
@@ -226,9 +229,17 @@ extern thread_local O2_context *o2_ctx;
 /* On Windows, there is a problem referencing o2_ctx as a dll export
  * from outside the O2 DLL (when O2 is compiled as a dynamic library
  * which is not normally recommended anyway). To allow access from
- * outside the library, use o2_get_context(): 
+ * outside the library, use o2_get_context(), but this purposefully
+ * returns an opaque pointer to prevent access to class O2_context.
  */
-O2_EXPORT O2_context* o2_get_context();
+O2_EXPORT void *o2_get_context();
+
+/* given an opaque context pointer (from o2_get_context() or
+ * o2sm_intialize(), you can make it the O2 context (o2_ctx)
+ * by calling o2_set_context(). If context is NULL, the main
+ * O2 context is restored to o2_ctx.
+ */
+O2_EXPORT void *o2_set_context(void *context);
 
 
 #include "clock.h"

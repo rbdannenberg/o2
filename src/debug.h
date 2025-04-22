@@ -49,7 +49,7 @@ extern "C" {
 #define O2_DBdo(x)
 #define O2_DBbw(x)
 #else
-void dbprintf(const char *format, ...);
+O2_EXPORT void dbprintf(const char *format, ...);
 
 const char *o2_tag_to_string(int tag);
 

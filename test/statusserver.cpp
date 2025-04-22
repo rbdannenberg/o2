@@ -101,7 +101,7 @@ int main(int argc, const char * argv[])
     } else {
         printf("FAIL: client service status is %d\n", o2_status("client"));
 #ifndef O2_NO_DEBUG
-        o2_get_context()->show_tree();
+        o2_print_path_tree();
 #endif
     }
     o2_finish();
