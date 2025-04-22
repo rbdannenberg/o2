@@ -132,7 +132,13 @@ public:
 };
 
 
-O2_EXPORT O2sm_info *o2_shmem_inst_new();
+O2_EXPORT void *o2_shmem_inst_new();
+
+// return the id for this bridge:
+O2_EXPORT int o2_shmem_inst_id(void *inst);
+
+// send message (as O2list_elem) to a shared memory process
+O2_EXPORT void o2_shmem_inst_outgoing_push(void *inst, O2list_elem *msg);
 
 // return number of shared memory instances
 O2_EXPORT int o2_shmem_inst_count();

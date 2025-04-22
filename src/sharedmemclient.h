@@ -67,10 +67,10 @@ O2_EXPORT void o2sm_poll();
 O2_EXPORT O2time o2sm_time_get();
 // removed: this is not for clients:
 // O2_EXPORT O2err o2_shmem_inst_finish(Bridge_info *inst);
-O2_EXPORT void *o2sm_initialize(Bridge_info *inst);
+O2_EXPORT void *o2sm_initialize(void *inst);
 // removed: this is not for clients:
 // O2_EXPORT O2err o2_shmem_finish();
-O2_EXPORT O2message_ptr o2sm_get_message(Bridge_info *inst);
+// O2_EXPORT O2message_ptr o2sm_get_message(Bridge_info *inst);
 // o2sm_service_new announces services to the O2 process.
 O2_EXPORT O2err o2sm_service_new(const char *service, const char *properties);
 

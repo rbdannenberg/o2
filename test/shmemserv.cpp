@@ -28,7 +28,7 @@ pthread_t pt_thread_pid;
 #include "sharedmem.h"
 
 
-Bridge_info *smbridge = NULL;
+void *smbridge = NULL;
 
 int n_addrs = 20;
 bool running = true;

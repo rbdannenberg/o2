@@ -26,7 +26,7 @@ pthread_t pt_thread_pid;
 #include "sharedmem.h"
 
 
-Bridge_info *smbridge = NULL;
+void *smbridge = NULL;
 
 int max_msg_count = 1000;
 int n_addrs = 20;

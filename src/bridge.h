@@ -158,6 +158,7 @@ public:
         O2_DBw(dbprintf("new Bridge_info@%p id %d\n", this, id));
         proto->instances.push_back(this);
     }
+
     virtual ~Bridge_info() {
         O2_DBw(dbprintf("deleting Bridge_info@%p id %d\n", this, id));
         proto->remove_instance(id);
@@ -170,7 +171,9 @@ public:
 #ifndef O2_NO_DEBUG
     virtual void show(int indent);
 #endif
+
     virtual bool local_is_synchronized() { return IS_SYNCED(this); }
+
     O2status status(const char **process) {
         if (process) {
             *process = get_proc_name();

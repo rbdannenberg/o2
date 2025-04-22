@@ -159,14 +159,14 @@ Typical shared memory process organization is as follows:
 
 #include "o2internal.h"  // O2_context is not defined in o2.h, so use this
 #include "sharedmem.h"
-Bridge_info *smbridge = NULL; // global variable accessed by both threads
+void *smbridge = NULL; // global variable accessed by both threads
 
 int main()
 {
     ...
     // create the shared memory process bridge (execute this in O2 thread):
-    int err = o2_shmem_initialize(); assert(err == O2_SUCCESS);
     smbridge = o2_shmem_inst_new();
+    int err = o2_shmem_initialize(smbridge); assert(err == O2_SUCCESS);
     // create shared memory thread
     err = pthread_create(&pt_thread_pid, NULL, &shared_memory_thread, NULL);
     ... run concurrently with the shared memory thread ...
@@ -215,10 +215,24 @@ Bridge_protocol *o2sm_protocol = NULL;
 // Call to establish a connection from a shared memory process to 
 // O2. This runs in the O2 thread.
 // 
-O2sm_info *o2_shmem_inst_new()
+void *o2_shmem_inst_new()
 {
     assert(o2sm_protocol);  // did you remember to call o2_shmem_initialize()?
-    return new O2sm_info();
+    return (void *) (new O2sm_info());  // cast to void * to avoid class export
+}
+
+
+int o2_shmem_inst_id(void *inst)
+{
+    assert(inst);
+    return ((O2sm_info *) inst)->id;
+}
+
+
+void o2_shmem_inst_outgoing_push(void *inst, O2list_elem *msg)
+{
+    O2sm_info *shmem_inst = (O2sm_info *) inst;
+    shmem_inst->outgoing.push(msg);
 }
 
 
@@ -596,7 +610,7 @@ void O2sm_info::poll_outgoing()
 }
 
 
-void *o2sm_initialize(Bridge_info *inst)
+void *o2sm_initialize(void *inst)
 {
     o2_ctx = new O2_context();
     O2_DBb(dbprintf("o2sm_initialize ctx %p Bridge_info %p\n", o2_ctx, inst));
@@ -615,7 +629,7 @@ void *o2sm_initialize(Bridge_info *inst)
     // memory gets passed around as messages.)
 
     o2_ctx->proc = NULL;
-    o2_ctx->binst = inst;
+    o2_ctx->binst = (Bridge_info *) inst;
     return (void *) o2_ctx;
 }
 
