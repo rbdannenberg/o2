@@ -99,6 +99,8 @@ int main(int argc, const char *argv[])
     printf("Calling o2_finish()\n");
     o2_finish();
 #endif
+    // might be some asynchrony in shutdown, so wait before final message
+    o2_sleep(1000);
     if (one_minute_max && o2_local_time() > 60) {
         printf("WEBSOCKETHOST TIMED OUT\n");
     } else {

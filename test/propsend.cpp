@@ -452,6 +452,10 @@ int main(int argc, const char * argv[])
     sync_peers(14);
 
     o2_finish();
+    // some asynchronous shutdown observed, so to make sure DONE does
+    // not appear in the middle of some other output line on Win32, 
+    // delay for a second
+    o2_sleep(1000);
     printf("DONE\n");
     return 0;
 }

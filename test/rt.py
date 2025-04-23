@@ -327,9 +327,9 @@ def runAllTests():
                          "statusserver.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("statusserver", "SERVER DONE", 
                          "statusclient.htm", "WEBSOCKETHOST DONE"): return
-        if not runWsTest("propsend a", "DONE", 
+        if not runWsTest("propsend", "DONE", 
                          "proprecv.htm", "WEBSOCKETHOST DONE"): return
-        if not runWsTest("o2litehost 500t da", "CLIENT DONE", 
+        if not runWsTest("o2litehost 500t d", "CLIENT DONE", 
                          "wsserv.htm", "WEBSOCKETHOST DONE"): return
         if not runWsTest("tapsub", "CLIENT DONE", 
                          "tappub.htm", "WEBSOCKETHOST DONE"): return
