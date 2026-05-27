@@ -593,8 +593,8 @@ Fds_info::~Fds_info()
     if (description) {
         O2_DBo(dbprintf("freeing Fds_info %p: %s\n", this, description));
         O2_FREE((void *) description);
-    } else {
-        printf("Fds_info destructor %p\n", this);
+    // } else {
+    //     printf("Fds_info destructor %p\n", this);
     }
 #endif
 }
@@ -704,8 +704,11 @@ O2err Fds_info::send(bool block)
         O2_DBo(dbprintf("o2n_send - index %d tag is NET_TCP_CONNECTING, "
                         "so we poll\n", fds_index));
         // we need to wait until connected before we can send
-        while (o2n_recv() == O2_SUCCESS && net_tag == NET_TCP_CONNECTING) {
+        int i = 0;
+        while (i < 3 && o2n_recv() == O2_SUCCESS &&
+               net_tag == NET_TCP_CONNECTING) {
             o2_sleep(1);
+            i++;
         }
     }
     // if we are already in o2n_recv(), it will return O2_ALREADY_RUNNING
@@ -719,8 +722,11 @@ O2err Fds_info::send(bool block)
         FD_SET(pfd->fd, &write_set);
         int total;
         // try while a signal interrupts us
+        struct timeval tv;
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
         while ((total = select((int) (pfd->fd + 1), NULL,
-                               &write_set, NULL, NULL)) != 1) {
+                               &write_set, NULL, &tv)) != 1) {
 #ifdef WIN32
             int err;
             if (total == SOCKET_ERROR && (err = WSAGetLastError()) != WSAEINTR) {
@@ -730,6 +736,12 @@ O2err Fds_info::send(bool block)
                 print_socket_error(errno, "Fds_info::send");
 #endif
                 return O2_SOCKET_ERROR;
+            }
+            // Timeout (select returned 0) or other non-error condition
+            if (total == 0) {
+                O2_DBo(dbprintf("o2n_send - index %d select() timed out, "
+                                "connection not established\n", fds_index));
+                break;
             }
         }
         if (total != 1) {

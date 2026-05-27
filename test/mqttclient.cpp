@@ -6,6 +6,7 @@
 // needed for usleep
 #include "o2usleep.h"
 #include "o2.h"
+#include "debug.h"  // for o2_debug
 #include "stdio.h"
 #include "testassert.h"
 
@@ -43,6 +44,9 @@ int main(int argc, const char *argv[])
             printf("debug flags are: %s\n", argv[1]);
         }
     }
+    o2_debug |= O2_DBF_FLAG;
+    printf("F flag added to debug flags to force use of MQTT\n");
+
     if (argc > 2) {
         printf("WARNING: mqttclient ignoring extra command line argments\n");
     }
@@ -89,7 +93,12 @@ int main(int argc, const char *argv[])
         o2_poll();
         usleep(2000);
     }
-    
+
+    if (o2_mqtt_can_send() != O2_SUCCESS) {
+        printf("No MQTT broker connected.\nSERVER FAIL\n");
+        o2_finish();
+        return 1;
+    }
     o2_finish();
     printf("CLIENT DONE\n");
     return 0;

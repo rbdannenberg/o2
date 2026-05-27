@@ -8,9 +8,11 @@
 // A message is sent to am2 and then a message is sent to am1.
 // The process then shuts down, calling o2_finish().
 //
-// Be sure to test with/without F flag to force messages to go
-// through MQTT (not sure if that works for messages to the same
-// process though - probably not). 
+// We thought maybe F flag could force messages to go through MQTT,
+// but F does not stop messages between local services, which bypass
+// MQTT. So this test really does nothing but start MQTT, send some
+// messages locally, and exit. But it will FAIL if a connection
+// cannot be made to MQTT.
 
 #include "testassert.h"
 // needed for usleep
@@ -75,27 +77,40 @@ void am2_receive(O2msg_data_ptr data, const char *types,
 
 int main(int argc, const char *argv[])
 {
-    printf("Usage: mqttself [debugflags]\n"
-           "    see o2.h for flags, use a for (almost) all\n");
+    const char *broker = "localhost";
+    printf("Usage: mqttself [debugflags] [brokerhost]\n"
+           "    see o2.h for flags, use a for (almost) all\n"
+           "    brokerhost defaults to localhost\n");
     if (argc >= 2) {
         if (argv[1][0] != '-') {
             o2_debug_flags(argv[1]);
             printf("debug flags are: %s\n", argv[1]);
         }
     }
-    if (argc > 2) {
-        printf("WARNING: mqttclient ignoring extra command line argments\n");
+    if (argc >= 3) {
+        broker = argv[2];
     }
 
     must_succeed(o2_initialize("test"), "o2_initialize");
-    must_succeed(o2_mqtt_enable(NULL, 0), "o2_mqtt_enable");
+    must_succeed(o2_mqtt_enable(broker, 0), "o2_mqtt_enable");
     printf("Creating am2 service.\n");
     must_succeed(o2_service_new("am2"), "o2_service_new am2");
     must_succeed(o2_method_new("/am2/freq", "f", &am2_receive, 
                                NULL, false, true), "o2_method_new am2");
     
-    printf("Delay while we connect to MQTT broker\n");
-    delay(3.0);  // wait for MQTT connection
+    printf("Waiting to connect to MQTT broker\n");
+    for (float start = o2_local_time(); o2_local_time() - start < 5.0 && 
+                                        o2_mqtt_can_send() != O2_SUCCESS; ) {
+        o2_poll();
+        usleep(10000);  // 10 msec
+    }
+
+    if (o2_mqtt_can_send() != O2_SUCCESS) {
+        printf("MQTT broker not reachable; cannot test.\n");
+        o2_finish();
+        printf("FAIL\n");
+        return 1;
+    }
 
     printf("Creating am1 service.\n");
     must_succeed(o2_service_new("am1"), "o2_service_new am1");

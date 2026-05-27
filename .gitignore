@@ -106,7 +106,6 @@ bugs/osctest.eml
 /o2host/o2host.xcodeproj/
 /o2litepy/py3pkg/o2litepy.egg-info/
 /o2litepy/py3pkg/dist/
-/o2litepy/py3pkg/src/o2litepy.egg-info/
 
 /o2litepy/py3pkg/src/
 
@@ -123,7 +122,6 @@ bugs/osctest.eml
 /demo/browser-to-soundcool/source_to_zip.sh
 
 /Release_x86_64/
-
 
 /MinSizeRel/
 

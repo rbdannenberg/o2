@@ -2821,6 +2821,22 @@ O2message_ptr o2_postpone_delivery(void);
  */
  O2_EXPORT O2err o2_mqtt_enable(const char *broker, int port_num);
 
+/**
+ * \brief Check whether the MQTT broker connection is ready to send.
+ *
+ * Note that O2_SUCCESS is zero, so:
+ *     if (o2_mqtt_can_send()) { printf("CANNOT send to MQTT now."); }
+ * or much better:
+ *     if (o2_mqtt_can_send() != O2_SUCCESS) {
+ *         printf("CANNOT send to MQTT now."); }
+ *     }
+ *
+ * @return O2_SUCCESS if connected and no message is pending,
+ *         O2_BLOCKED if connected but a message is queued,
+ *         O2_FAIL if not connected (no mqtt_info, or still connecting).
+ */
+ O2_EXPORT O2err o2_mqtt_can_send();
+
 /** @} */ // end of a mqttapi group
 #endif
 

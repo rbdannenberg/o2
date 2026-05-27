@@ -235,7 +235,7 @@ static void announce_synchronized()
     // if we do not have a public IP yet, this will fail, but then we will
     // get a public IP later and send an MQTT discovery message, so the clock
     // sync status will get to all subscribers as soon as possible either way.
-    if (o2_mqtt_send_disc() == O2_SUCCESS) {
+    if (o2_mqtt_send_disc(false) == O2_SUCCESS) {
         for (int i = 0; i < o2_mqtt_procs.size(); i++) {
             MQTT_info *mqtt_proc = o2_mqtt_procs[i];
             if (mqtt_proc->local_is_synchronized()) {

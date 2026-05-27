@@ -30,8 +30,8 @@ static int unblock_count = NOTYET;
 void server_test(O2msg_data_ptr msg, const char *types,
                  O2arg_ptr *argv, int argc, const void *user_data)
 {
-    o2assert(argc == 2);
-    o2assert(strcmp(types, "iB") == 0);
+    o2assert(argc == 3);
+    o2assert(strcmp(types, "iBs") == 0);
     o2assert(argv[0]->i32 == msg_count);
     if (start_sending == NOTYET) {
         start_sending = o2_time_get();
@@ -44,6 +44,7 @@ void server_test(O2msg_data_ptr msg, const char *types,
     if (argv[1]->B) {
         running = false;
     }
+    o2assert(strlen(argv[2]->s) == 1023);
 }
 
 
@@ -78,7 +79,7 @@ int main(int argc, const char * argv[])
     }
     o2_initialize("test");
     o2_service_new("server");
-    o2_method_new("/server/test", "iB", &server_test, NULL, false, true);
+    o2_method_new("/server/test", "iBs", &server_test, NULL, false, true);
     o2_method_new("/server/stat", "iB", &server_stat, NULL, false, true);
     
     // we are the master clock

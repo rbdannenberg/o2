@@ -33,6 +33,14 @@ bool o2_mqtt_waiting_for_public_ip = false;
 static MQTT_info *mqtt_info = NULL;
 
 
+O2err o2_mqtt_can_send()
+{
+    if (!mqtt_info || !mqtt_info->fds_info) return O2_FAIL;
+    if (mqtt_info->fds_info->net_tag & NET_TCP_CONNECTING) return O2_FAIL;
+    return mqtt_info->fds_info->out_message ? O2_BLOCKED : O2_SUCCESS;
+}
+
+
 class O2_MQTTcomm : public MQTTcomm {
 public:
     O2err msg_send(O2netmsg_ptr msg, bool block) {
@@ -57,7 +65,7 @@ O2err o2_mqtt_enable(const char *broker, int port_num)
     if (!o2_ensemble_name) {
         return O2_NOT_INITIALIZED;
     }
-    if (!broker || broker[0] == 0) broker = "mqtt.eclipseprojects.io";
+    if (!broker || broker[0] == 0) broker = "broker.hivemq.com";
     if (port_num == 0) port_num = 1883; // default for MQTT
     // look up the server to get the IP address. That way, we can get the
     // blocking call out of the way when the process starts up, and we
@@ -65,7 +73,7 @@ O2err o2_mqtt_enable(const char *broker, int port_num)
     // We cannot actually connect until we know our public IP address,
     // which we are getting from a stun server asynchronously since UDP
     // could could result in several retries and should be non-blocking.
-    RETURN_IF_ERROR(mqtt_address.init(broker, 1883, true));
+    RETURN_IF_ERROR(mqtt_address.init(broker, port_num, true));
     if (!mqtt_address.to_dot(mqtt_broker_ip)) {
         perror("converting mqtt ip to string");
         return O2_FAIL;
@@ -76,10 +84,12 @@ O2err o2_mqtt_enable(const char *broker, int port_num)
 }
 
 
-O2err o2_mqtt_send_disc()
+O2err o2_mqtt_send_disc(bool first_time)
 {
     // send name to O2-<ensemblename>/disc, retain is off.
-    if (!o2_ctx->proc->key || !mqtt_info) { // no name and no mqtt connection
+    if (!first_time && o2_mqtt_can_send() != O2_SUCCESS) {
+        O2_DBq(dbprintf("not publishing to O2-%s/disc; awaiting connection\n",
+                        o2_ensemble_name));
         return O2_FAIL;
     }
     O2_DBq(dbprintf("publishing to O2-%s/disc with payload %s/%s\n",
@@ -109,7 +119,7 @@ static O2err mqtt_ping_sched()
 static void mqtt_ping_send(O2msg_data_ptr msg, const char *types,
                            O2arg_ptr *argv, int argc, const void *user_data)
 {
-    o2_mqtt_send_disc();
+    o2_mqtt_send_disc(false);  // only sends if o2_can_send_msg() == O2_SUCCESS
     mqtt_ping_sched();
 }
 
@@ -173,9 +183,10 @@ O2err o2_mqtt_initialize()
     // subscribe to O2-<ensemblename>/disc:
     RETURN_IF_ERROR(mqtt_comm.subscribe("disc", false));
     RETURN_IF_ERROR(mqtt_comm.subscribe(o2_ctx->proc->key, false));
+    o2_mqtt_send_disc(true);  // first time message (allows queing)
     // start sending keep-alive messages every MQTT_KEEPALIVE_PERIOD:
     // first call is as if in a message handler:
-    mqtt_ping_send(NULL, NULL, NULL, 0, NULL);
+    mqtt_ping_sched();
     // start checking for timeouts every MQTT_CHECK_TIMEOUTS_PERIOD:
     return mqtt_check_timeouts_sched();
 }
@@ -200,14 +211,6 @@ O2err o2_mqtt_finish()
     }
     mqtt_comm.finish();
     return O2_SUCCESS;
-}
-
-
-O2err o2_mqtt_can_send()
-{
-    return (mqtt_info ?
-            (mqtt_info->fds_info->out_message ? O2_BLOCKED : O2_SUCCESS) :
-            O2_FAIL);
 }
 
 

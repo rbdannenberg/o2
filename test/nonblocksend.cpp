@@ -27,10 +27,10 @@
 // be processed almost immediately.
 //
 // Messages:
-//    Normal sequence of TCP messages: /server/test "iB" msg_count true
+//    Normal sequence of TCP messages: /server/test "iBs" msg_count true str
 //    UDP message to say we've reached a blocking state:
-//                                     /server/stat "i" msg_count
-//    End of sequence:                 /server/test "iB" msg_count false
+//                                     /server/stat "iB" msg_count true
+//    End of sequence:                 /server/test "iBs" msg_count false
 
 
 #include "o2.h"
@@ -42,6 +42,8 @@ int msg_count = 0;
 bool running = true;
 #define NOTYET -999
 O2time start_sending = NOTYET;
+#define BIG_STRING_LEN 1024
+char bigstring[BIG_STRING_LEN];
 
 // at the end, we get a message to /sender/done
 void sender_done(O2msg_data_ptr msg, const char *types,
@@ -55,6 +57,11 @@ void sender_done(O2msg_data_ptr msg, const char *types,
 
 int main(int argc, const char * argv[])
 {
+    for (int i = 0; i < BIG_STRING_LEN; i++) {
+        bigstring[i] = 'a' + (i % 26);
+    }
+    bigstring[BIG_STRING_LEN - 1] = 0;  // end of string
+
     printf("Usage: nonblocksend [flags]] "
            "(see o2.h for flags, use a for (almost) all)\n");
     if (argc >= 2) {
@@ -83,9 +90,12 @@ int main(int argc, const char * argv[])
     printf("Here we go! ...\ntime is %g.\n", o2_time_get());
     start_sending = o2_time_get();
     while (o2_can_send("server") == O2_SUCCESS) {
-        o2_send_cmd("!server/test", 0, "iB", msg_count, false);
+        o2_send_cmd("!server/test", 0, "iBs", msg_count, false, bigstring);
         msg_count++;
         o2_poll();
+        if (msg_count % 5000 == 0) {
+            printf("msg_count %d\n", msg_count);
+        }
     }
     o2assert(msg_count > 1); // first message should not have blocked
     // it's possible 2nd message blocked and is queued
@@ -117,9 +127,12 @@ int main(int argc, const char * argv[])
 
     // send until blocks again
     while (o2_can_send("server") == O2_SUCCESS) {
-        o2_send_cmd("!server/test", 0, "iB", msg_count, false);
+        o2_send_cmd("!server/test", 0, "iBs", msg_count, false, bigstring);
         msg_count++;
         o2_poll();
+        if (msg_count % 5000 == 0) {
+            printf("msg_count %d\n", msg_count);
+        }
     }
     printf("Blocked again after %d msgs and %g s after start_sending.\n",
            msg_count, o2_time_get() - start_sending);
@@ -127,7 +140,7 @@ int main(int argc, const char * argv[])
     // send 2 * msg_count more messages to make sure blocking works
     int n = 2 * msg_count;
     for (int i = 0; i < n; i++) {
-        o2_send_cmd("!server/test", 0, "iB", msg_count, false);
+        o2_send_cmd("!server/test", 0, "iBs", msg_count, false, bigstring);
         msg_count++;
         o2_poll();
         if (msg_count % 5000 == 0) {
@@ -137,7 +150,7 @@ int main(int argc, const char * argv[])
     printf("Sent %d more messages to make sure blocking works\n", n);
 
     // send last message
-    o2_send_cmd("!server/test", 0, "iB", msg_count, true);
+    o2_send_cmd("!server/test", 0, "iBs", msg_count, true, bigstring);
     printf("Sent %d messages total in %g s.\n",
            msg_count, o2_time_get() - start_sending);
 

@@ -217,10 +217,12 @@ int main(int argc, const char * argv[])
     o2_clock_set(NULL, NULL);
 
     // wait for client service to be discovered
+    printf("Waiting for service two ...\n");
     while (o2_status("two") < O2_REMOTE) {
         o2_poll();
         o2_sleep(2); // 2ms
     }
+    printf("    found service two.\n");
     
     lookup(); // confirm we have expected services one and two
     o2assert(o2_service_type(one) == O2_LOCAL);

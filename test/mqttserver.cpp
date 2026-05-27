@@ -32,6 +32,7 @@ For development, this test should work without MQTT on a single machine.
 */
 
 #include "o2.h"
+#include "debug.h"  // for o2_debug
 #include "stdio.h"
 #include "testassert.h"
 
@@ -71,6 +72,9 @@ int main(int argc, const char *argv[])
         o2_debug_flags(argv[1]);
         printf("debug flags are: %s\n", argv[1]);
     }
+    o2_debug |= O2_DBF_FLAG;
+    printf("F flag added to debug flags to force use of MQTT\n");
+
     if (argc > 2) {
         printf("WARNING: o2server ignoring extra command line argments\n");
     }
@@ -132,6 +136,11 @@ int main(int argc, const char *argv[])
 
      o2assert(msg_count == MAX_MSG_COUNT);
 
+     if (o2_mqtt_can_send() != O2_SUCCESS) {
+         printf("No MQTT broker connected.\nSERVER FAIL\n");
+         o2_finish();
+         return 1;
+     }
     o2_finish();
     printf("SERVER DONE\n");
     return 0;
