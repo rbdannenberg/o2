@@ -257,6 +257,8 @@
 // if you compile it separately, it will expect to link with 
 // o2_dbg_malloc; but in o2lite, we have no o2_dbg_malloc and set
 // up macros in o2lite.h to override this default.
+// we also need to override hdprintf, which is in O2 but not O2lite:
+#define hdprintf printf
 #include "hostipimpl.h"
 
 #if !defined(O2_NO_ZEROCONF) && !defined(O2_NO_O2DISCOVERY)

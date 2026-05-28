@@ -155,12 +155,12 @@ public:
             Proxy_info(NULL, O2TAG_BRIDGE) {
         proto = proto_;
         id = o2_bridge_next_id++;
-        O2_DBw(dbprintf("new Bridge_info@%p id %d\n", this, id));
+        O2_DBw(hdprintf("new Bridge_info@%p id %d\n", this, id));
         proto->instances.push_back(this);
     }
 
     virtual ~Bridge_info() {
-        O2_DBw(dbprintf("deleting Bridge_info@%p id %d\n", this, id));
+        O2_DBw(hdprintf("deleting Bridge_info@%p id %d\n", this, id));
         proto->remove_instance(id);
     }
   

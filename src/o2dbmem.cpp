@@ -14,10 +14,10 @@ void ((*o2_free_ptr)(void *)) = NULL;
 #ifndef O2_NO_DEBUG
 void *o2_dbg_malloc(size_t size, const char *file, int line)
 {
-    O2_DBm(dbprintf("O2_MALLOC %lld in %s:%d", (long long) size, file, line));
+    O2_DBm(hdprintf("O2_MALLOC %lld in %s:%d", (long long) size, file, line));
     fflush(stdout);
     void *obj = o2_malloc(size, file, line);
-    O2_DBm(printf(" -> %p\n", obj));
+    O2_DBm(dbprintf(" -> %p\n", obj));
     assert(obj);
     return obj;
 }
@@ -25,7 +25,7 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
 
 void o2_dbg_free(const void *obj, const char *file, int line)
 {
-    O2_DBm(dbprintf("O2_FREE in %s:%d <- %p\n", file, line, obj));
+    O2_DBm(hdprintf("O2_FREE in %s:%d <- %p\n", file, line, obj));
     // bug in C. free should take a const void * but it doesn't
     o2_free((void *) obj, file, line);
 }
@@ -49,10 +49,10 @@ void *o2_calloc(size_t n, size_t s)
 #else
 void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line)
 {
-    O2_DBm(dbprintf("O2_CALLOC %lu of %lu in %s:%d", n, s, file, line));
+    O2_DBm(hdprintf("O2_CALLOC %lu of %lu in %s:%d", n, s, file, line));
     fflush(stdout);
     void *obj = o2_malloc(s, file, line);
-    O2_DBm(printf(" -> %p\n", obj));
+    O2_DBm(dbprintf(" -> %p\n", obj));
     assert(obj);
     memset(obj, 0, n * s);
     return obj;
@@ -100,7 +100,7 @@ void *o2_malloc(size_t size, const char *file, int line)
         postpad[i] = ((int64_t) p) + 3;
     }
     if (p->thechunk == (int64_t *) TRACE_ADDR) {
-        printf("allocating TRACE_ADDR %p\n", p->thechunk);
+        hdprintf("allocating TRACE_ADDR %p\n", p->thechunk);
     }
     return p->thechunk;
 }
@@ -115,8 +115,8 @@ void o2_free(void *ptr, const char *file, int line)
     cptr -= offset;
     memchunk_ptr p = (memchunk_ptr) cptr;
     if (p->thechunk == (int64_t *) TRACE_ADDR) {
-        printf("freeing TRACE_ADDR %p file %s line %d\n",
-               p->thechunk, p->file, p->line);
+        hdprintf("freeing TRACE_ADDR %p file %s line %d\n",
+                 p->thechunk, p->file, p->line);
     }
     assert(p->free_flag == false);
     p->free_flag = true;
@@ -148,13 +148,13 @@ void o2_mem_finish()
         memchunk_ptr p = memlist;        
         memlist = memlist->next;
         if (!p->free_flag) {
-            printf("o2_mem_finish: O2 did not free %p size %ld file "
-                   "%s line %d%s\n",
-                   p->thechunk, p->size, p->file, p->line,
-                   p->thechunk == (int64_t *) TRACE_ADDR ?
-                                              " (TRACE_ADDR)" : "");
+            hdprintf("o2_mem_finish: O2 did not free %p size %ld file "
+                     "%s line %d%s\n",
+                     p->thechunk, p->size, p->file, p->line,
+                     p->thechunk == (int64_t *) TRACE_ADDR ?
+                                                " (TRACE_ADDR)" : "");
         }
         free(p);
     }
-    printf("o2_mem_finish complete\n");
+    hdprintf("o2_mem_finish complete\n");
 }

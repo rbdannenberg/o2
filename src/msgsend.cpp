@@ -170,7 +170,7 @@ O2message_ptr Pending_msgs_queue::dequeue() {
     #ifndef O2_NO_DEBUG
     extern void *o2_mem_watch;
     if (msg == o2_mem_watch) {
-        printf("Pending_msgs_queue::dequeue %p == o2_mem_watch\n", msg);
+        hdprintf("Pending_msgs_queue::dequeue %p == o2_mem_watch\n", msg);
     }
     #endif
     O2_DBl(o2_dbg_msg("Pending_msgs_queue::dequeue", msg, &msg->data, "from",
@@ -386,7 +386,7 @@ void msg_send_to_tap(Service_tap *tap)
     memcpy((char *) (newmsg->data.address + newaddrall),
            msg->data.address + curaddrall, len);
     o2_prepare_to_deliver(newmsg); // transfer ownership to o2_ctx->msgs
-    O2_DBp(dbprintf("tap send from %s to %s at %s\n",
+    O2_DBp(hdprintf("tap send from %s to %s at %s\n",
                     msg->data.address, newmsg->data.address, tap->proc->key));
     // must send message to tap->proc
     if (ISA_REMOTE_PROC(tap->proc)) {  // send to remote process
@@ -444,7 +444,7 @@ void o2_msg_deliver(O2node *service, Services_entry *ss)
     // STEP 2: Isolate the type string, which is after the address
     types = o2_msg_types(msg);
 
-    O2_DBl(dbprintf("o2_msg_deliver msg %p addr %s\n", msg, address));
+    O2_DBl(hdprintf("o2_msg_deliver msg %p addr %s\n", msg, address));
 
     // STEP 3: If service is a Handler, call the handler directly
     if (ISA_HANDLER(service)) {
@@ -552,9 +552,9 @@ O2err o2_send_marker(const char *path, double time, bool tcp_flag,
 
     O2_DB((msg->data.address[1] == '_' || msg->data.address[1] == '@') ?
           O2_DBS_FLAG : O2_DBs_FLAG,  // either non-system (s) or system (S)
-          dbprintf("sending%s (%p) ", (tcp_flag ? " cmd" : ""), msg);
+          hdprintf("sending%s (%p) ", (tcp_flag ? " cmd" : ""), msg);
           o2_msg_data_print(&msg->data);
-          printf("\n"));
+          dbprintf("\n"));
     return o2_message_send(msg);
 }
 

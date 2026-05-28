@@ -559,7 +559,7 @@ void o2_handler_entry_finish(Handler_entry *handler)
 void o2_handler_entry_show(Handler_entry *handler)
 {
     if (handler->full_path) {
-        printf(" full_path=%s", handler->full_path);
+        dbprintf(" full_path=%s", handler->full_path);
     }
 }
 #endif

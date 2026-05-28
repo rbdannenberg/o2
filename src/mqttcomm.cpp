@@ -103,7 +103,7 @@ O2err MQTTcomm::initialize(const char *server, int port_num)
     mqtt_append_bytes(bytes, 6);
     O2netmsg_ptr msg = mqtt_finish_msg(MQTT_CONNECT);
     connack_expected++;
-    O2_DBQ(dbprintf("sending MQTT_CONNECT connack expected %d\n",
+    O2_DBQ(hdprintf("sending MQTT_CONNECT connack expected %d\n",
                     connack_expected));
     connack_time = o2_local_time();
     return msg_send(msg);
@@ -120,7 +120,7 @@ O2err MQTTcomm::subscribe(const char *topic, bool block)
     mqtt_append_bytes(&byte, 1);
     O2netmsg_ptr msg = mqtt_finish_msg(MQTT_SUBSCRIBE);
     suback_expected++;
-    O2_DBq(dbprintf("sending MQTT_SUBSCRIBE O2-%s/%s suback expected %d\n",
+    O2_DBq(hdprintf("sending MQTT_SUBSCRIBE O2-%s/%s suback expected %d\n",
                     o2_ensemble_name, topic, suback_expected));
     suback_time = o2_local_time();
     return msg_send(msg, block);
@@ -176,24 +176,24 @@ bool MQTTcomm::handle_first_msg()
             goto incomplete;
         }
         connack_count++;
-        O2_DBQ(dbprintf("MQTT_CONNACK received, count %d\n", connack_count));
+        O2_DBQ(hdprintf("MQTT_CONNACK received, count %d\n", connack_count));
         mqtt_input.drop_front(4);
     } else if (first == MQTT_SUBACK) {
         if (size < 5) {
             goto incomplete;
         }
         suback_count++;
-        O2_DBQ(dbprintf("MQTT_SUBACK received, count %d\n", suback_count));
+        O2_DBQ(hdprintf("MQTT_SUBACK received, count %d\n", suback_count));
         mqtt_input.drop_front(5);
     } else if (first == MQTT_PUBACK) {
         if (size < 4) {
             goto incomplete;
         }
         puback_count++;
-        O2_DBQ(dbprintf("MQTT_PUBACK received, count %d\n", puback_count));
+        O2_DBQ(hdprintf("MQTT_PUBACK received, count %d\n", puback_count));
         mqtt_input.drop_front(4);
     } else {
-        printf("O2 Warning: could not parse incoming MQTT message\n");
+        hdprintf("O2 Warning: could not parse incoming MQTT message\n");
         mqtt_input.drop_front(size); // empty input buffer and hope to resync
     }
     return true;
@@ -225,17 +225,17 @@ void MQTTcomm::deliver(const char *data, int len)
     // check for expected acks after every message comes in:
     if (connack_count < connack_expected &&
         connack_time < o2_local_time() - MQTT_TIMEOUT) {
-        printf("WARNING: Did not receive expected MQTT CONNACK\n");
+        hdprintf("WARNING: Did not receive expected MQTT CONNACK\n");
         connack_count++; // only warn once per lost ack
     }
     if (suback_count < suback_expected &&
         suback_time < o2_local_time() - MQTT_TIMEOUT) {
-        printf("WARNING: Did not receive expected MQTT SUBACK\n");
+        hdprintf("WARNING: Did not receive expected MQTT SUBACK\n");
         suback_count++; // only warn once per lost ack
     }
     if (puback_count < puback_expected &&
         puback_time < o2_local_time() - MQTT_TIMEOUT) {
-        printf("WARNING: Did not receive expected MQTT PUBACK\n");
+        hdprintf("WARNING: Did not receive expected MQTT PUBACK\n");
         puback_count++; // only warn once per lost ack
     }
 }
@@ -259,14 +259,14 @@ O2err MQTTcomm::publish(const char *subtopic, const uint8_t *payload,
     payload_len += suffix_len;
     assert(o2_ctx->msg_data.size() == 8 + strlen(o2_ensemble_name) +
                                       strlen(subtopic) + payload_len);
-    O2_DBQ(printf("MQTTcomm::publish payload_len %d\n", payload_len));
+    O2_DBQ(hdprintf("MQTTcomm::publish payload_len %d\n", payload_len));
     O2netmsg_ptr msg = mqtt_finish_msg(MQTT_PUBLISH | retain);
-    O2_DBQ(printf("MQTTcomm::publish message len %d\n", msg->length));
+    O2_DBQ(hdprintf("MQTTcomm::publish message len %d\n", msg->length));
     // puback_expected++;  // we are not setting QOS to get puback
-    O2_DBQ(dbprintf("sending that msg via MQTT_PUBLISH puback expected %d\n",
+    O2_DBQ(hdprintf("sending that msg via MQTT_PUBLISH puback expected %d\n",
                     puback_expected));
     O2err err = msg_send(msg, block);
-    O2_DBQ(if (err) printf("MQTTcomm::msg_send returns %s\n",
+    O2_DBQ(if (err) hdprintf("MQTTcomm::msg_send returns %s\n",
                            o2_error_to_string(err)););
     return err;
 }

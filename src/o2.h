@@ -377,7 +377,11 @@ typedef enum {
     //
     /// Either a network connection was not found or no public IP IP
     /// address found.
-    O2_NO_NETWORK = -20
+    O2_NO_NETWORK = -20,
+
+    /// \brief no operation because an interrupt (ctrl-C) occurred
+    //
+    O2_INTERRUPT_REQUESTED = -21
 
 } O2err;
 
@@ -511,6 +515,8 @@ typedef enum {
 ///   - I - disable Internet connections, e.g., do not acquire public IP.
 ///   - k - trace clock synchronization protocol
 ///   - l - trace messages to #o2_msg_deliver
+///   - L - write debug output to "./o2debug.log" instead of stdout. The
+///         file is reset each time 'L' is passed to o2_debug_flags().
 ///   - m - trace O2_MALLOC and O2_FREE calls
 ///   - n - enable all network flags (no malloc or scheduling): rRsS
 ///   - N - disable network if flags are set before o2_initialize() is
@@ -541,6 +547,22 @@ O2_EXPORT void o2_debug_flags(const char *flags);
  *  @return return the error code as a string
  */
 O2_EXPORT const char *o2_error_to_string(O2err i);
+
+/**
+ * \brief Set the name of the debug log file.
+ *
+ * Call this with a full or relative path to the log file name
+ * BEFORE calling #o2_debug_flags(). The string is owned by the
+ * caller and is not copied, so do not free an allocated name.
+ * Default name is "o2debug.log".
+ * The log file is created by the 'L' debug flag. Output to the
+ * file is immediately flushed, but the file is never closed by
+ * O2, even when O2 is stopped (#o2_finish()) and restarted.
+ * The file is emptied each time #o2_debug_flags() is called
+ * with 'L'.
+ */
+O2_EXPORT void o2_set_logfile_name(const char *name);
+
 
 /** @} */
 
@@ -1610,15 +1632,40 @@ O2_EXPORT void o2_message_warnings(
  *  accuracy is expected.
  *
  *  @return 0 (O2_SUCCESS) if succeed, -1 (O2_FAIL) if not, -5
- *      (O2_ALREADY_RUNNING) if #o2_poll is called recursively.
+ *      (O2_ALREADY_RUNNING) if #o2_poll is called recursively,
+ *      -21 (O2_INTERRUPT_REQUESTED) if an interrupt (e.g., ctrl-C)
+ *      occurred.
  */
 O2_EXPORT O2err o2_poll(void);
+
+/**
+ * \brief Reset a pending interrupt to continue O2 operation.
+ *
+ * When #o2_initialize() is called, an interrupt handler is set up
+ * so that O2 can be shut down in an orderly fashion. The interrupt
+ * action does nothing but cause #o2_poll() and #o2_run() to
+ * immediately return #O2_INTERRUPT_REQUESTED. Sometimes, you might
+ * want to continue operation to shut down a shared memory process,
+ * notify other processes, or perform other cleanup that requires
+ * #o2_poll() or #o2_run() to function. To continue operation after
+ * receiving #O2_INTERRUPT_REQUESTED, set an application flag to
+ * remember you have been interrupted, and call
+ * #o2_reset_interrupt_request(). It is the application's responsibility
+ * to call #o2_finish() and exit, although O2 also sets an #at_exit
+ * handler that will run #o2_finish() when the application calls #exit().
+ *
+ * @return O2_SUCCESS if an interrupt request was cleared.
+ *         O2_FAIL if there was no interrupt request.
+ */
+O2_EXPORT O2err o2_reset_interrupt_request(void);
 
 /**
  * \brief Run O2.
  *
  * Call #o2_poll at the rate (in Hz) indicated.
- * Returns if a handler sets #o2_stop_flag to non-zero.
+ *
+ * @return O2_SUCCESS if a handler sets #o2_stop_flag to non-zero.
+ *         O2_INTERRUPT_REQUESTED if an interrupt (e.g., ctrl-C) occurred.
  */
 O2_EXPORT int o2_run(int rate);
 

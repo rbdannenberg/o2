@@ -951,7 +951,7 @@ int o2_poll_count = 0;  // counter for testing things
 
 thread_local O2_context *o2_ctx = NULL;
 static O2_context main_context;
-
+bool o2_interrupt_requested = false;
 
 O2_EXPORT void *o2_get_context()
 {
@@ -970,7 +970,7 @@ O2_EXPORT void *o2_set_context(void *context)
 // ctrl-C handler for windows (referenced below)
 static BOOL WINAPI console_ctrl_handler(DWORD dw_ctrl_type)
 {
-    o2_finish();
+    o2_interrupt_requested = true;
     // Return TRUE if handled this message, further handler functions 
     // won't be called.
     // Return FALSE to pass this message to further handlers until
@@ -983,9 +983,7 @@ static BOOL WINAPI console_ctrl_handler(DWORD dw_ctrl_type)
 static void o2_int_handler(int s)
 {
     // debugging statement: race condition, should be removed:
-    printf("O2 Caught signal %d\n", s);
-    o2_finish(); // clean up ports
-    exit(1);
+    o2_interrupt_requested = true;
 }
 #endif
 
@@ -1163,7 +1161,7 @@ static void send_one_sv_msg(Proxy_info *proc, const char *service_name,
     if (!msg) return; // must be out of memory, no error is reported
     o2_prepare_to_deliver(msg);
     proc->send(false);
-    O2_DBd(dbprintf("o2_notify_others sent %s to %s (%s) "
+    O2_DBd(hdprintf("o2_notify_others sent %s to %s (%s) "
                     "tappee %s properties %s\n", service_name, proc->key,
                     added ? "added" : "removed", tappee, properties));
 }
@@ -1214,11 +1212,11 @@ O2err o2_tap_new(const char *tapper, Proxy_info *proxy, O2string tappee,
         return O2_BAD_NAME;
     }
     // proxy is the process providing the tapper service
-    O2_DBd(dbprintf("o2_tap_new adding tapper %s in %s to %s\n",
+    O2_DBd(hdprintf("o2_tap_new adding tapper %s in %s to %s\n",
                     tapper, proxy->key, tappee));
     Services_entry *ss = Services_entry::must_get_services(tappee);
 
-    O2_DBp(dbprintf("o2_tap: forward %s to %s mode %s\n", tappee, tapper,
+    O2_DBp(hdprintf("o2_tap: forward %s to %s mode %s\n", tappee, tapper,
                     (send_mode == TAP_KEEP ? "keep" :
                      send_mode == TAP_RELIABLE ? "reliable" : "besteffort")));
 
@@ -1229,7 +1227,7 @@ O2err o2_tap_new(const char *tapper, Proxy_info *proxy, O2string tappee,
         Service_tap *tap = &ss->taps[i];
         if (streql(tap->tapper, tapper) &&
             tap->proc == proxy) {
-            O2_DBp(dbprintf("o2_tap of %s ignored - already tapped\n", tappee));
+            O2_DBp(hdprintf("o2_tap of %s ignored - already tapped\n", tappee));
             return O2_SERVICE_EXISTS;
         }
     }
@@ -1245,7 +1243,7 @@ O2err o2_tap_new(const char *tapper, Proxy_info *proxy, O2string tappee,
 O2err o2_tap_remove(const char *tapper, Proxy_info *proc,
                     O2string tappee)
 {
-    O2_DBp(dbprintf("o2_tap_remove tapper %s in %s tappee %s\n",
+    O2_DBp(hdprintf("o2_tap_remove tapper %s in %s tappee %s\n",
                     tapper, proc->key, tappee));
 
     Services_entry *ss = (Services_entry *) *o2_ctx->path_tree.lookup(tappee);
@@ -1261,7 +1259,8 @@ O2err o2_service_new(const char *service_name)
         return O2_NOT_INITIALIZED;
     }
 //    int len = strlen(service_name);
-//    for (int i = 0; i < len; i++) printf("%d %x ", i, service_name[i]); printf("\n");
+//    for (int i = 0; i < len; i++)
+//        dbprintf("%d %x ", i, service_name[i]); dbprintf("\n");
     if (!service_name || !isalpha(service_name[0]) ||
         strchr(service_name, '/') || strlen(service_name) > O2_MAX_NAME_LEN) {
         return O2_BAD_NAME;
@@ -1274,13 +1273,13 @@ O2err o2_service_new(const char *service_name)
 
 void o2_message_drop_warning(const char *warn, O2msg_data_ptr msg)
 {
-    printf("Warning: %s,\n    message is ", warn);
+    hdprintf("Warning: %s,\n    message is ", warn);
 #ifdef O2_NO_DEBUG
-    printf("%s (%s)", msg->address, o2_msg_data_types(msg));
+    dbprintf("%s (%s)", msg->address, o2_msg_data_types(msg));
 #else
     o2_msg_data_print(msg);
 #endif
-    printf("\n");
+    dbprintf("\n");
 }
 
 
@@ -1360,6 +1359,9 @@ O2err o2_poll()
     if (o2_poll_in_progress) {
         return O2_ALREADY_RUNNING;
     }
+    if (o2_interrupt_requested) {
+        return O2_INTERRUPT_REQUESTED;
+    }
     o2_poll_in_progress = true;
     // DEBUGGING: check_messages();
     o2_local_now = o2_local_time();
@@ -1387,6 +1389,16 @@ O2err o2_poll()
 }
 
 
+O2err o2_reset_interrupt_request()
+{
+    if (!o2_interrupt_requested) {
+        return O2_FAIL;
+    }
+    o2_interrupt_requested = false;
+    return O2_SUCCESS;
+}
+
+
 bool o2_stop_flag = false;
 
 int o2_run(int rate)
@@ -1397,6 +1409,9 @@ int o2_run(int rate)
     if (sleep_ms < 1) sleep_ms = 1;
     o2_stop_flag = false;
     while (!o2_stop_flag) {
+        if (o2_interrupt_requested) {
+            return O2_INTERRUPT_REQUESTED;
+        }
         o2_poll();
         o2_sleep(sleep_ms);
     }

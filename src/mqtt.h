@@ -41,7 +41,7 @@ public:
 #ifndef O2_NO_DEBUG
     void show(int indent) {
         O2node::show(indent);
-        printf("\n");
+        dbprintf("\n");
     }
 #endif
 };

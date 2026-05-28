@@ -151,12 +151,12 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
                     asl->size == 33) {  // found "name="; proc name len is 28
                     strncpy(name, (char *) asl->text + 5, 28);
                     name[28] = 0;  // make sure name is zero-terminated
-                    // O2LDB printf("o2lite: got a TXT field name=%s\n", name);
+                    // O2LDB dbprintf("o2lite: got a TXT field name=%s\n", name);
                 } else if (strncmp((char *) asl->text, "vers=", 5) == 0) {
-                    /* O2LDB { printf("o2lite: got a TXT field: ");
+                    /* O2LDB { dbprintf("o2lite: got a TXT field: ");
                             for (int i = 0; i < asl->size; i++) {
-                                printf("%c", asl->text[i]); }
-                            printf("\n"); }
+                                dbprintf("%c", asl->text[i]); }
+                            dbprintf("\n"); }
                     */
                     version = o2l_parse_version((char *) asl->text + 5,
                                                 asl->size - 5);

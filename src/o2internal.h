@@ -179,7 +179,7 @@ public:
         if (!finishing) {
             finish();
         }
-        O2_DBb(dbprintf("~O2_context@%p\n", this));
+        O2_DBb(hdprintf("~O2_context@%p\n", this));
     }
 
     // deallocate everything that may have been allocated and attached
@@ -203,7 +203,7 @@ public:
         arg_data.finish();
         msg_types.finish();
         msg_data.finish();
-        O2_DBb(dbprintf("O2_context::finish@%p\n", this));
+        O2_DBb(hdprintf("O2_context::finish@%p\n", this));
     }
 
 #ifndef O2_NO_DEBUG

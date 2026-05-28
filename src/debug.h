@@ -50,6 +50,7 @@ extern "C" {
 #define O2_DBbw(x)
 #else
 O2_EXPORT void dbprintf(const char *format, ...);
+O2_EXPORT void hdprintf(const char *format, ...);
 
 const char *o2_tag_to_string(int tag);
 
@@ -86,12 +87,13 @@ O2_EXPORT void o2_print_bytes(const char* prefix, const char* bytes, int len);
 #define O2_DBW_FLAG 0x200000
 #define O2_DBw_FLAG 0x400000
 #define O2_DBz_FLAG 0x800000
+#define O2_DBL_FLAG 0x1000000
 // IMPORTANT: if you add a flag here or reorder flags, you must also modify
 // debug_chars in debug.cpp and probably define O2_DB*? below. Also, update
 // O2_DBG_FLAGS here:
 // All flag bits are defined here except DBF. O2_DBG_FLAG is used for
 // "general" debug output, which is enabled if any flag within DBG is set:
-#define O2_DBG_FLAGS (0xFFFFFF - (O2_DBF_FLAG))
+#define O2_DBG_FLAGS ((O2_DBL_FLAG) - 1 - (O2_DBF_FLAG))
 // All flags but m (malloc/free) and l (o2_msg_deliver) and
 // F (force-MQTT) enabled by "A":
 #define O2_DBA_FLAGS (O2_DBG_FLAGS - O2_DBm_FLAG - O2_DBl_FLAG)

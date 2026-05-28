@@ -14,4 +14,6 @@
 // interface declared by hostip.h from o2lite.c.
 //
 #include "o2base.h"
+// need to replace O2-specific debug printing routine
+#define hdprintf printf
 #include "hostipimpl.h"

@@ -126,7 +126,7 @@ Proc_info::~Proc_info()
     if (ISA_REMOTE_PROC(this)) { // not for PROC_TEMP or PROC_TCP_SERVER
         Services_entry::remove_services_by(this);
     } else {
-        O2_DBo(dbprintf("freeing local proc_info %p tag %s name %s\n",
+        O2_DBo(hdprintf("freeing local proc_info %p tag %s name %s\n",
                         this, o2_tag_to_string(tag), key));
     }
     delete_fds_info();
@@ -144,7 +144,7 @@ O2err Proc_info::send(bool block) {
     } else {  // send via UDP
         rslt = o2n_send_udp(&udp_address, (O2netmsg_ptr) msg);
         if (rslt != O2_SUCCESS) {
-            O2_DBn(printf("Proxy_info::send error, port %d\n",
+            O2_DBn(hdprintf("Proxy_info::send error, port %d\n",
                           udp_address.get_port()));
         }
     }
@@ -161,15 +161,15 @@ void o2_show_sockets()
         Fds_info *info = o2n_fds_info[i];
         Proxy_info *proc = (Proxy_info *) info->owner;
         if (proc) {
-            printf("    %d net_tag %x (%s) socket %ld info %p "
-                   "owner %p (%s%s)\n", i, info->net_tag,
-                   o2_tag_to_string(info->net_tag), (long) info->get_socket(),
-                   info, proc, o2_tag_to_string(proc->tag),
-                   (proc == o2_ctx->proc ? ", local proc" : ""));
+            dbprintf("    %d net_tag %x (%s) socket %ld info %p "
+                     "owner %p (%s%s)\n", i, info->net_tag,
+                     o2_tag_to_string(info->net_tag), (long) info->get_socket(),
+                     info, proc, o2_tag_to_string(proc->tag),
+                     (proc == o2_ctx->proc ? ", local proc" : ""));
         } else {
-            printf("    %d net_tag %x (%s) socket %ld info %p owner "
-                   "NULL\n", i, info->net_tag, o2_tag_to_string(info->net_tag),
-                   (long) info->get_socket(), info);
+            dbprintf("    %d net_tag %x (%s) socket %ld info %p owner "
+                     "NULL\n", i, info->net_tag, o2_tag_to_string(info->net_tag),
+                     (long) info->get_socket(), info);
         }
     }
 }
@@ -207,7 +207,7 @@ O2err Proc_info::connected()
         Service_provider *spp = &se->services[0];
         o2_send_cmd("!_o2/si", 0.0, "siss", key, status(NULL),
                     key, spp->properties ? spp->properties + 1 : "");
-        O2_DBd(printf("Proc_info::connected: key %s status %d\n",
+        O2_DBd(hdprintf("Proc_info::connected: key %s status %d\n",
                       key, status(NULL)))
         is_connected = true;
     }
@@ -219,7 +219,7 @@ O2err Proc_info::connected()
 void Proc_info::show(int indent)
 {
     O2node::show(indent);
-    printf(" port=%d name=%s\n", udp_address.get_port(), key);
+    dbprintf(" port=%d name=%s\n", udp_address.get_port(), key);
 }
 #endif
 
@@ -285,8 +285,8 @@ void o2_processes_initialize()
     O2_DBG(
         char ipdot[O2N_IP_LEN];
         o2_hex_to_dot(o2n_internal_ip, ipdot);
-        printf("\n===================================================="
-               "==============================\n");
+        dbprintf("\n===================================================="
+                 "==============================\n");
         dbprintf("Local Process Name is %s (%s:%d)\n            "
                  "Receive Port %d (0x%x)\n============================="
                  "=====================================================\n\n",

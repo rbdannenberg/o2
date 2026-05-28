@@ -26,7 +26,7 @@ static Vec<Bridge_protocol *> bridges;
 void Bridge_info::show(int indent)
 {
     O2node::show(indent);
-    printf(" bridge protocol %s id %d\n", proto->protocol, id);
+    dbprintf(" bridge protocol %s id %d\n", proto->protocol, id);
 }
 #endif
 
@@ -49,7 +49,7 @@ Bridge_protocol::Bridge_protocol(const char *name) {
 
 
 Bridge_protocol::~Bridge_protocol() {
-    O2_DBb(dbprintf("deleting Bridge_protocol@%p name %s size %d\n",
+    O2_DBb(hdprintf("deleting Bridge_protocol@%p name %s size %d\n",
                     this, protocol, instances.size()));
     remove_services(NULL);  // remove all Bridge_info for this protocol
     // this is a little tricky: deleting an instance, which is a Bridge_info,
@@ -59,13 +59,13 @@ Bridge_protocol::~Bridge_protocol() {
     // last element of instances to index 0. The size of instances shrinks
     // by 1 each iteration until there is nothing left.
     while (instances.size() > 0) {
-        O2_DBb(dbprintf("deleting %s Bridge instance@%p\n",
+        O2_DBb(hdprintf("deleting %s Bridge instance@%p\n",
                         protocol, instances[0]));
         instances[0]->o2_delete();
     }
     int i = o2_bridge_find_protocol(protocol, NULL);
     if (i >= 0) {
-        O2_DBb(dbprintf("removing Bridge_protocol@%p name %s index %d "
+        O2_DBb(hdprintf("removing Bridge_protocol@%p name %s index %d "
                         "size %d from array of protocols\n",
                         this, protocol, i, instances.size()));
         bridges.remove(i);
@@ -104,7 +104,7 @@ int o2_bridge_find_protocol(const char *name, Bridge_protocol **protocol)
 // specific process.
 O2err Bridge_protocol::remove_services(Bridge_info *bi)
 {
-    O2_DBb(dbprintf("remove_services delegating to bridge protocol@%p name"
+    O2_DBb(hdprintf("remove_services delegating to bridge protocol@%p name"
                     " %s instance %p%s\n", this, protocol, bi,
                     bi ? "" : " (all)"));
     O2err result = O2_SUCCESS;
@@ -119,7 +119,7 @@ O2err Bridge_protocol::remove_services(Bridge_info *bi)
             if (service && ISA_BRIDGE(service) &&
                 (!bi || bi == (Bridge_info *) service) &&
                 ((Bridge_info *) service)->proto == this) {
-                O2_DBb(dbprintf("remove_services removing %s delegating to "
+                O2_DBb(hdprintf("remove_services removing %s delegating to "
                                 "bridge instance %p protocol %s\n",
                                 services->key, bi, protocol));
                 if (services->proc_service_remove(services->key, o2_ctx->proc,
@@ -192,9 +192,9 @@ void o2_bridge_csget_handler(O2msg_data_ptr msgdata, int seqno,
 void o2_bridge_cscs_handler(O2msg_data_ptr msgdata, const char *types,
                             O2arg_ptr *argv, int argc, const void *user_data)
 {
-    O2_DBd(printf("o2ws_bridge_cscs_handler, source is:\n");
+    O2_DBd(hdprintf("o2ws_bridge_cscs_handler, source is:\n");
            (o2_message_source ? o2_message_source->show(4)
-                              : (void) printf("    NULL\n")));
+                              : (void) dbprintf("    NULL\n")));
     // make sure source is really an Http_conn: check tag and proto:
     if (!o2_message_source || !ISA_BRIDGE(o2_message_source)) {
         return;  // some non-websocket sender invoked /_o2/ws/cs/cs!
@@ -377,7 +377,7 @@ public:
     }
 
     virtual ~O2lite_info() {
-        O2_DBb(dbprintf("deleting O2lite_info@%p\n", this));
+        O2_DBb(hdprintf("deleting O2lite_info@%p\n", this));
         if (!this) return;
         // remove all sockets serviced by this connection
         proto->remove_services(this);
@@ -424,14 +424,14 @@ public:
 #ifndef O2_NO_DEBUG
     virtual void show(int indent) {
         Bridge_info::show(indent);
-        printf("\n");
+        dbprintf("\n");
     }
 #endif
     // virtual O2status status(const char **process);  -- see Bridge_info
 
     // Net_interface:
     O2err accepted(Fds_info *conn) {
-        printf("ERROR: O2lite_info is not a server\n");
+        hdprintf("ERROR: O2lite_info is not a server\n");
         conn->close_socket(true);
         return O2_FAIL;
     }
@@ -441,7 +441,7 @@ public:
 
 O2lite_protocol::~O2lite_protocol()
 {
-    O2_DBb(dbprintf("deleting O2lite_protocol@%p\n", this));
+    O2_DBb(hdprintf("deleting O2lite_protocol@%p\n", this));
     o2_method_free("/_o2/o2lite");
     // also free all O2lite connections
     for (int i = 0; i < o2n_fds_info.size(); i++) {
@@ -466,8 +466,8 @@ void o2lite_dy_handler(O2msg_data_ptr msgdata, const char *types,
     
     
     if (!streql(argv[0]->s, o2_ensemble_name)) {
-        O2_DBd(printf("    Ignored: ensemble name %s is not %s\n", 
-                      argv[0]->s, o2_ensemble_name));
+        O2_DBd(dbprintf("    Ignored: ensemble name %s is not %s\n", 
+                        argv[0]->s, o2_ensemble_name));
         return;
     }
     // assumes o2lite is initialized, but it must be

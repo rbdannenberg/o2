@@ -87,7 +87,7 @@ static void o2_clock_synchronized(O2time local_time, O2time ref_time)
     // in addition, compute the offset to absolute time in case we need an
     // OSC timestamp
     compute_osc_time_offset(ref_time);
-    O2_DBG(dbprintf("obtained clock sync at %g\n", o2_time_get()));
+    O2_DBG(hdprintf("obtained clock sync at %g\n", o2_time_get()));
 #endif
 }
 
@@ -123,7 +123,7 @@ static void set_clock(double local_time, double new_ref)
 {
     global_time_base = LOCAL_TO_GLOBAL(local_time); // current estimate
     local_time_base = local_time;
-    O2_DBk(dbprintf("set_clock: using %.3f, should be %.3f\n",
+    O2_DBk(hdprintf("set_clock: using %.3f, should be %.3f\n",
                     global_time_base, new_ref));
      double clock_advance = new_ref - global_time_base; // how far to catch up
     clock_rate_id++; // cancel any previous calls to catch_up_handler()
@@ -164,7 +164,7 @@ static void set_clock(double local_time, double new_ref)
             // after a long time) on their own.
         }
     }
-    O2_DBk(dbprintf("adjust clock to %g, rate %g\n",
+    O2_DBk(hdprintf("adjust clock to %g, rate %g\n",
                     LOCAL_TO_GLOBAL(local_time), clock_rate));
  }
 
@@ -212,7 +212,7 @@ static void compute_osc_time_offset(O2time now)
 #endif
     osc_time -= (uint64_t) (now * 4294967296.0);
     o2_osc_time_offset(osc_time);
-    O2_DBk(dbprintf("osc_time_offset (in sec) %g\n", osc_time / 4294967296.0));
+    O2_DBk(hdprintf("osc_time_offset (in sec) %g\n", osc_time / 4294967296.0));
 }
 #endif
 
@@ -288,7 +288,7 @@ void o2_clock_status_change(Proxy_info *proxy)
             Service_provider *spp = &services->services[0];
             if (status == O2_LOCAL) {
                 if (HANDLER_IS_LOCAL(spp->service)) {
-                    O2_DBk(dbprintf("o2_clock_status_change sends /si \"%s\" "
+                    O2_DBk(hdprintf("o2_clock_status_change sends /si \"%s\" "
                             "O2_LOCAL(%d) proc \"_o2\" properties \"%s\"\n",
                             services->key, O2_LOCAL,
                             spp->properties ? spp->properties + 1 : ""));
@@ -297,7 +297,7 @@ void o2_clock_status_change(Proxy_info *proxy)
                 }
             } else if ((status == O2_REMOTE || status == O2_BRIDGE) &&
                        spp->service == proxy) {
-                O2_DBk(dbprintf("o2_clock_status_change sends /si \"%s\" %s(%d)"
+                O2_DBk(hdprintf("o2_clock_status_change sends /si \"%s\" %s(%d)"
                         " proxy \"%s\" properties \"%s\"\n", services->key,
                         o2_status_to_string(status), status, proxy->key,
                         spp->properties ? spp->properties + 1 : ""));
@@ -330,9 +330,9 @@ void o2_clocksynced_handler(O2msg_data_ptr msg, const char *types,
             if (info->net_tag != NET_TCP_CLIENT &&
                 info->net_tag != NET_TCP_CONNECTION) {
 #ifndef O2_NO_DEBUG
-                printf("ERROR: unexpected net_tag %04x (%s) on entry %p in "
-                       "o2_clocksynced handler\n", info->net_tag,
-                       o2_tag_to_string(info->net_tag), info);
+                hdprintf("ERROR: unexpected net_tag %04x (%s) on entry %p in "
+                         "o2_clocksynced handler\n", info->net_tag,
+                         o2_tag_to_string(info->net_tag), info);
 #endif
                 return;
             }
@@ -342,15 +342,15 @@ void o2_clocksynced_handler(O2msg_data_ptr msg, const char *types,
             entry->tag |= O2TAG_SYNCED;
 #endif
         } else {
-            printf("ERROR: unexpected tag for %s in !_o2/cs/cs message\n",
-                   name);
+            hdprintf("ERROR: unexpected tag for %s in !_o2/cs/cs message\n",
+                     name);
             return;
         }
         // entry must be either Proc_info or MQTT_info, os it's a Proxy_info
         o2_clock_status_change((Proxy_info *) entry);
         return;
     }
-    O2_DBG(dbprintf("### ERROR in o2_clocksynced_handler, bad service %s\n",
+    O2_DBG(hdprintf("### ERROR in o2_clocksynced_handler, bad service %s\n",
                     name));
 }
 
@@ -391,7 +391,7 @@ static void cs_ping_reply_handler(O2msg_data_ptr msg, const char *types,
     round_trip_time[i] = rtt;
     ref_minus_local[i] = ref_time - now;
     ping_reply_count++;
-    O2_DBk(dbprintf("got clock reply, ref_time %g, rtt %g, count %d\n",
+    O2_DBk(hdprintf("got clock reply, ref_time %g, rtt %g, count %d\n",
                     ref_time, rtt, ping_reply_count));
 #ifndef O2_NO_DEBUG
     if (o2_debug & O2_DBk_FLAG) {
@@ -405,15 +405,15 @@ static void cs_ping_reply_handler(O2msg_data_ptr msg, const char *types,
         dbprintf("reference minus local:");
         int k = start;
         for (int j = 0; j < count; j++) {
-            printf(" %g", ref_minus_local[k]);
+            dbprintf(" %g", ref_minus_local[k]);
             k = (k + 1) % CLOCK_SYNC_HISTORY_LEN;
         }
-        printf("\n"); dbprintf("round trip:");
+        dbprintf("\n"); dbprintf("round trip:");
         for (int j = 0; j < count; j++) {
-            printf(" %g", round_trip_time[start]);
+            dbprintf(" %g", round_trip_time[start]);
             start = (start + 1) % CLOCK_SYNC_HISTORY_LEN;
         }
-        printf("\n");
+        dbprintf("\n");
     }
 #endif
     if (ping_reply_count >= CLOCK_SYNC_HISTORY_LEN) {
@@ -473,7 +473,7 @@ static void o2_clock_ping_at(O2time when, int id)
 void o2_start_cs_pings()
 {
     ping_process_id++;  // cancel any previous "process"
-    O2_DBc(dbprintf("** found clock service, is_refclk=%d\n", is_refclk));
+    O2_DBc(hdprintf("** found clock service, is_refclk=%d\n", is_refclk));
     if (is_refclk) {
         o2_clock_is_synchronized = true;
         return; // no clock sync; we're the reference
@@ -543,7 +543,7 @@ void o2_ping_send_handler(O2msg_data_ptr msg, const char *types,
     O2time t1 = CLOCK_SYNC_HISTORY_LEN * 0.1 - 0.01;
     if (clock_sync_send_time - start_sync_time > t1) when += 0.4;
     if (clock_sync_send_time - start_sync_time > 5.0) when += 9.5;
-    O2_DBk(dbprintf("clock request sent at %g\n", clock_sync_send_time));
+    O2_DBk(hdprintf("clock request sent at %g\n", clock_sync_send_time));
     // schedule another call to o2_ping_send_handler
     o2_clock_ping_at(when, id);
 }
@@ -620,7 +620,7 @@ static void cs_ping_handler(O2msg_data_ptr msg, const char *types,
 O2err o2_clock_set(o2_time_callback callback, void *data)
 {
     if (!o2_ensemble_name) {
-        O2_DBk(dbprintf("o2_clock_set cannot be called before "
+        O2_DBk(hdprintf("o2_clock_set cannot be called before "
                         "o2_initialize.\n"));
         return O2_NOT_INITIALIZED;
     }
@@ -648,7 +648,7 @@ O2err o2_clock_set(o2_time_callback callback, void *data)
     Services_entry::service_new("_cs\000\000");
     o2_method_new_internal("/_cs/get", "is", &cs_ping_handler,
                            NULL, false, false);
-    O2_DBG(dbprintf("** reference clock established, time is now %g\n",
+    O2_DBG(hdprintf("** reference clock established, time is now %g\n",
                     o2_local_time()));
 
     return O2_SUCCESS;

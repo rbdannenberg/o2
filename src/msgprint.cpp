@@ -21,20 +21,20 @@
 void o2_msg_data_print(O2msg_data_ptr msg)
 {
     int i;
-    printf("%s @ %g", msg->address, msg->timestamp);
-    printf(" by %s", msg->misc & O2_TCP_FLAG ? "TCP" : "UDP");
+    dbprintf("%s @ %g", msg->address, msg->timestamp);
+    dbprintf(" by %s", msg->misc & O2_TCP_FLAG ? "TCP" : "UDP");
     if (msg->timestamp > 0.0) {
         if (msg->timestamp > o2_global_now) {
-            printf(" (now+%gs)", msg->timestamp - o2_global_now);
+            dbprintf(" (now+%gs)", msg->timestamp - o2_global_now);
         } else {
-            printf(" (%gs late)", o2_global_now - msg->timestamp);
+            dbprintf(" (%gs late)", o2_global_now - msg->timestamp);
         }
     }
 #ifndef O2_NO_BUNDLES
     if (IS_BUNDLE(msg)) {
-        FOR_EACH_EMBEDDED(msg, printf(" <ELEM ");
+        FOR_EACH_EMBEDDED(msg, dbprintf(" <ELEM ");
                           o2_msg_data_print(embedded);
-                          printf(" >");
+                          dbprintf(" >");
                           len = embedded->length)
         return;
     }
@@ -45,105 +45,105 @@ void o2_msg_data_print(O2msg_data_ptr msg)
     while (*types) {
         switch (*types) {
             case O2_INT32:
-                printf(" %d", *((int32_t *) data_next));
+                dbprintf(" %d", *((int32_t *) data_next));
                 data_next += sizeof(int32_t);
                 break;
             case O2_FLOAT:
-                printf(" %gf", *((float *) data_next));
+                dbprintf(" %gf", *((float *) data_next));
                 data_next += sizeof(float);
                 break;
             case O2_STRING:
-                printf(" \"%s\"", data_next);
+                dbprintf(" \"%s\"", data_next);
                 data_next += o2_strsize(data_next);
                 break;
             case O2_BLOB: {
                 int size = *((int32_t *) data_next);
                 data_next += sizeof(int32_t);
                 if (size > 12) {
-                    printf(" (%d byte blob)", size);
+                    dbprintf(" (%d byte blob)", size);
                 } else {
-                    printf(" (");
+                    dbprintf(" (");
                     for (i = 0; i < size; i++) {
-                        if (i > 0) printf(" ");
-                        printf("%#02x", (unsigned char) (data_next[i]));
+                        if (i > 0) dbprintf(" ");
+                        dbprintf("%#02x", (unsigned char) (data_next[i]));
                     }
-                    printf(")");
+                    dbprintf(")");
                 }
                 data_next += ((size + 3) & ~3);
                 break;
             }
             case O2_INT64:
                 // note: gcc complained about %lld with int64_t:
-                printf(" %lld", *((long long *) data_next));
+                dbprintf(" %lld", *((long long *) data_next));
                 data_next += sizeof(int64_t);
                 break;
             case O2_DOUBLE:
-                printf(" %g", *((double *) data_next));
+                dbprintf(" %g", *((double *) data_next));
                 data_next += sizeof(double);
                 break;
             case O2_TIME:
-                printf(" %gs", *((double *) data_next));
+                dbprintf(" %gs", *((double *) data_next));
                 data_next += sizeof(double);
                 break;
             case O2_SYMBOL:
-                printf(" '%s'", data_next);
+                dbprintf(" '%s'", data_next);
                 data_next += o2_strsize(data_next);
                 break;
             case O2_CHAR:
-                printf(" '%c'", *((int32_t *) data_next));
+                dbprintf(" '%c'", *((int32_t *) data_next));
                 data_next += sizeof(int32_t);
                 break;
             case O2_MIDI:
-                printf(" <MIDI: ");
+                dbprintf(" <MIDI: ");
                 for (i = 0; i < 4; i++) {
-                    if (i > 0) printf(" "); 
-                    printf("0x%02x", data_next[i]);
+                    if (i > 0) dbprintf(" "); 
+                    dbprintf("0x%02x", data_next[i]);
                 }
-                printf(">");
+                dbprintf(">");
                 data_next += 4;
                 break;
             case O2_BOOL:
-                printf(" %s", (*(int32_t *) data_next) ?
+                dbprintf(" %s", (*(int32_t *) data_next) ?
                              "Bool:true" : "Bool:false");
                 data_next += sizeof(int32_t);
                 break;
             case O2_TRUE:
-                printf(" #T");
+                dbprintf(" #T");
                 break;
             case O2_FALSE:
-                printf(" #F");
+                dbprintf(" #F");
                 break;
             case O2_NIL:
-                printf(" Nil");
+                dbprintf(" Nil");
                 break;
             case O2_INFINITUM:
-                printf(" Infinitum");
+                dbprintf(" Infinitum");
                 break;
             case O2_ARRAY_START:
-                printf(" [");
+                dbprintf(" [");
                 break;
             case O2_ARRAY_END:
-                printf(" ]");
+                dbprintf(" ]");
                 break;
             case O2_VECTOR: {
                 int len = *((int32_t *) data_next);
                 data_next += sizeof(int32_t);
-                printf(" <");
+                dbprintf(" <");
                 O2type vtype = (O2type) (*types++);
                 for (i = 0; i < len; i++) {
-                    if (i > 0) printf(" ");
+                    if (i > 0) dbprintf(" ");
                     if (vtype == O2_INT32) {
-                        printf(" %d", *((int32_t *) data_next));
+                        dbprintf(" %d", *((int32_t *) data_next));
                         data_next += sizeof(int32_t);
                     } else if (vtype == O2_INT64) {
                         // note: gcc complains about %lld and int64_t
-                        printf(" %lld", *((long long *) data_next));
+                        dbprintf(" %lld", *((long long *) data_next));
                         data_next += sizeof(int64_t);
                     } else if (vtype == O2_FLOAT) {
-                        printf(" %gf", *((float *) data_next));
+                        dbprintf(" %gf", *((float *) data_next));
                         data_next += sizeof(float);
                     } else if (vtype == O2_DOUBLE) {
-                        printf(" %g", *((double *) data_next));
+                        dbprintf(" %g", *((double *) data_next));
                         data_next += sizeof(double);
                     }
                     // note: vector of O2_TIME is not valid
@@ -151,7 +151,7 @@ void o2_msg_data_print(O2msg_data_ptr msg)
                 break;
             }
             default:
-                printf(" O2 WARNING: unhandled type: %c\n", *types);
+                dbprintf(" O2 WARNING: unhandled type: %c\n", *types);
                 break;
         }
         types++;

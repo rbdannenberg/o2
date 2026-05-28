@@ -41,8 +41,8 @@ int o2_strsize(const char *s)
 void Hash_node::show(int indent)
 {
     O2node::show(indent);
-    if (num_children == 0) printf(" (hash table is empty)");
-    printf("\n");
+    if (num_children == 0) dbprintf(" (hash table is empty)");
+    dbprintf("\n");
     Enumerate en(this);
     O2node *entry;
     while ((entry = en.next())) {
@@ -162,9 +162,9 @@ Handler_entry::~Handler_entry()
 void Handler_entry::show(int indent)
 {
     O2node::show(indent);
-    if (key) printf(" key=%s", key);
-    if (full_path) printf(" full_path=%s", full_path);
-    printf("\n");
+    if (key) dbprintf(" key=%s", key);
+    if (full_path) dbprintf(" full_path=%s", full_path);
+    dbprintf("\n");
 }
 #endif
 
@@ -224,8 +224,8 @@ void Handler_entry::invoke(O2msg_data_ptr msg, const char *types)
 // debugging code to print o2_node and o2_info structures
 void O2node::show(int indent)
 {
-    for (int i = 0; i < indent; i++) printf("  ");
-    printf("%s@%p %s", o2_tag_to_string(tag), this, key);
+    for (int i = 0; i < indent; i++) dbprintf("  ");
+    dbprintf("%s@%p %s", o2_tag_to_string(tag), this, key);
 }
 #endif
 
@@ -266,7 +266,7 @@ O2string o2_heapify(const char *path)
     char *rslt = O2_MALLOCNT(len, char);
     strncpy(rslt, path, len); // zero fills
 #if O2MEM_DEBUG > 1
-    printf("    o2_heapify rslt: %p:%s\n", rslt, rslt);
+    dbprintf("    o2_heapify rslt: %p:%s\n", rslt, rslt);
 #endif
     return rslt;
 }

@@ -192,9 +192,9 @@ void DNSSD_API zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                          const unsigned char *txt_record, void *context)
 {
     port = ntohs(port);
-    O2_DBz(printf("zc_resolve_callback err %d name %s hosttarget %s port %d"
-                  " len %d context %p\n",
-                  err, fullname, hosttarget, port, txt_len, context));
+    O2_DBz(hdprintf("zc_resolve_callback err %d name %s hosttarget %s port %d"
+                    " len %d context %p\n",
+                    err, fullname, hosttarget, port, txt_len, context));
     uint8_t proc_name_len;
     const char *proc_name = (const char *) TXTRecordGetValuePtr(txt_len,
                                     txt_record, "name", &proc_name_len);
@@ -207,7 +207,7 @@ void DNSSD_API zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         goto no_discovery;
     }
     o2_strcpy(name, proc_name, proc_name_len + 1);  // extra 1 for EOS
-    O2_DBz(dbprintf("got a TXT field: name=%s\n", name));
+    O2_DBz(hdprintf("got a TXT field: name=%s\n", name));
     {   // remove name from resolve_pending
         int i;
         bool found_it = false;
@@ -222,7 +222,7 @@ void DNSSD_API zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
                     resolve_pending.insert(0, rt);
                 } else {  // we got the info we need, so remove this name
                     // from the pending list.
-                    O2_DBz(dbprintf("zc_resolve_callback resolve_pending name"
+                    O2_DBz(hdprintf("zc_resolve_callback resolve_pending name"
                             "%s@%p freed seqno %d\n", resolve_pending[i].name,
                             resolve_pending[i].name, resolve_pending[i].seqno));
                     O2_FREE((void *) resolve_pending[i].name);
@@ -234,9 +234,8 @@ void DNSSD_API zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         }
         
         if (!found_it) {
-            O2_DBz(printf("zc_resolve_callback could not find this name %s\n"
-                          "    proc name: %s\n",
-                          (char *) context, name));
+            O2_DBz(hdprintf("zc_resolve_callback could not find this name %s\n"
+                            "    proc name: %s\n", (char *) context, name));
         }
     }
     if (!is_valid_proc_name(name, port, internal_ip, &udp_port)) {
@@ -248,10 +247,10 @@ void DNSSD_API zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         const char *vers_num = (const char *) TXTRecordGetValuePtr(txt_len,
                                          txt_record, "vers", &vers_num_len);
         O2_DBz(if (vers_num) {
-                   dbprintf("got a TXT field: vers=");
+                   hdprintf("got a TXT field: vers=");
                    for (int i = 0; i < vers_num_len; i++) {
-                       printf("%c", vers_num[i]); }
-                   printf("\n"); });
+                       dbprintf("%c", vers_num[i]); }
+                   dbprintf("\n"); });
         if (!vers_num ||
             (version = o2_parse_version(vers_num, vers_num_len)) == 0) {
             goto no_discovery;
@@ -264,7 +263,7 @@ void DNSSD_API zc_resolve_callback(DNSServiceRef sd_ref, DNSServiceFlags flags,
         resolve_info->info->close_socket(true);
         resolve_info = NULL;
     } else {
-        O2_DBz(printf("zc_resolve_callback with null resolve_info\n"));
+        O2_DBz(hdprintf("zc_resolve_callback with null resolve_info\n"));
     }
     resolve();  // no-op if empty
 }
@@ -288,7 +287,7 @@ void resolve()
         resolve_type rt = resolve_pending.last();
         rt.unresolved = false;  // since we are calling resolve on this name
         const char *name = rt.name;
-        O2_DBz(dbprintf("Setting up DNSServiceResolve name %s@%p at %g "
+        O2_DBz(hdprintf("Setting up DNSServiceResolve name %s@%p at %g "
                         "seqno %d\n", name, name, o2_local_time(), rt.seqno));
         assert(name);
         err = DNSServiceResolve(&sd_ref, 0, kDNSServiceInterfaceIndexAny, name,
@@ -314,7 +313,7 @@ void DNSSD_API zc_register_callback(DNSServiceRef sd_ref,
         DNSServiceFlags flags, DNSServiceErrorType err, const char *name,
         const char *regtype, const char *domain, void *context)
 {
-    O2_DBz(dbprintf("zc_register_callback err %d registered %s as %s domain "
+    O2_DBz(hdprintf("zc_register_callback err %d registered %s as %s domain "
                     "%s\n", err, name, regtype, domain));
 }
 
@@ -337,8 +336,8 @@ static void DNSSD_API rr_callback(DNSServiceRef sd_ref,
         DNSRecordRef record_ref, DNSServiceFlags flags,
         DNSServiceErrorType err, void *context)
 {
-    O2_DBz(printf("rr_callback sd_ref %p record_ref %p flags %d err %d\n",
-                  sd_ref, record_ref, flags, err));
+    O2_DBz(hdprintf("rr_callback sd_ref %p record_ref %p flags %d err %d\n",
+                    sd_ref, record_ref, flags, err));
 }
 
 
@@ -357,11 +356,13 @@ static Bonjour_info *zc_register(const char *type_domain,  const char *host,
                 "O2 discovery is not possible.\n", err);
         return NULL;
     }
-    O2_DBz(dbprintf("Registered port %d with text:\n", port);
+    O2_DBz(hdprintf("Registered port %d with text:\n", port);
            for (int i = 0; i < text_end; ) {
-               printf("    ");
-               for (int j = 0; j < text[i]; j++) printf("%c", text[i + 1 + j]);
-               printf("\n"); i += 1 + text[i]; });
+               dbprintf("    ");
+               for (int j = 0; j < text[i]; j++) {
+                   dbprintf("%c", text[i + 1 + j]);
+               }
+               dbprintf("\n"); i += 1 + text[i]; });
     // make a handler for the socket that was returned
     return new Bonjour_info(sd_ref);
 }
@@ -416,7 +417,7 @@ static void DNSSD_API zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags f
                 const char *name, const char *regtype,
                 const char *domain, void *context)
 {
-    O2_DBz(dbprintf("zc_browse_callback err %d flags %d name %s as %s domain "
+    O2_DBz(hdprintf("zc_browse_callback err %d flags %d name %s as %s domain "
                     "%s\n", err, flags, name, regtype, domain));
     // match if ensemble name is a prefix of name, e.g. "ensname (2)"
     if (!(flags & kDNSServiceFlagsAdd) ||
@@ -428,7 +429,7 @@ static void DNSSD_API zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags f
         rt = &resolve_pending[i];
         if (strcmp(name, rt->name) == 0) {
             rt->unresolved = true;  // resolve is already in progress; do it
-            O2_DBz(dbprintf("zc_browse_callback name %s@%p already pending"
+            O2_DBz(hdprintf("zc_browse_callback name %s@%p already pending"
                             " seqno %d\n", rt->name, rt->name, rt->seqno));
             return;                 // again later -- maybe there's new info
         }
@@ -436,7 +437,7 @@ static void DNSSD_API zc_browse_callback(DNSServiceRef sd_ref, DNSServiceFlags f
     rt = resolve_pending.append_space(1);
     rt->name = o2_heapify(name);
     rt->seqno = ++rtcount;
-    O2_DBz(dbprintf("zc_browse_callback rt->name gets %s@%p seqno %d\n",
+    O2_DBz(hdprintf("zc_browse_callback rt->name gets %s@%p seqno %d\n",
                     rt->name, rt->name, rt->seqno));
     rt->unresolved = true;  // we need to resolve it
     rt->asap = true;
@@ -470,22 +471,24 @@ O2err o2_zcdisc_initialize()
     text_end = vers_loc + 5 + (int) strlen(vers_num);
     text[vers_loc - 1] = text_end - vers_loc;
     
-    O2_DBz(printf("Setting up DNSServiceRegister\n"));
+    O2_DBz(hdprintf("Setting up DNSServiceRegister\n"));
     int port = o2_ctx->proc->fds_info->port;
     Bonjour_info *zcreg = 
             zc_register("_o2proc._tcp.", NULL, port, text_end, text);
     if (zcreg == NULL) {
         return O2_FAIL;
     }
-    O2_DBz(dbprintf("Registered port %d with text:\n", port);
+    O2_DBz(hdprintf("Registered port %d with text:\n", port);
            for (int i = 0; i < text_end; ) {
-               printf("    ");
-               for (int j = 0; j < text[i]; j++) printf("%c", text[i + 1 + j]);
-               printf("\n"); i += 1 + text[i]; });
+               dbprintf("    ");
+               for (int j = 0; j < text[i]; j++) {
+                   dbprintf("%c", text[i + 1 + j]);
+               }
+               dbprintf("\n"); i += 1 + text[i]; });
 
     // create a browser
     DNSServiceRef sd_ref;
-    O2_DBz(printf("Setting up DNSServiceBrowse\n"));
+    O2_DBz(hdprintf("Setting up DNSServiceBrowse\n"));
     DNSServiceErrorType err = DNSServiceBrowse(&sd_ref, 0, 
                                 kDNSServiceInterfaceIndexAny, "_o2proc._tcp.",
                                 NULL, zc_browse_callback, NULL);
@@ -509,7 +512,7 @@ O2err o2_zcdisc_initialize()
 void o2_zcdisc_finish()
 {
     for (int i = 0; i < resolve_pending.size(); i++) {
-        O2_DBz(dbprintf("o2_zcdisc_finish resolve_pending name %s@%p seqno %d "
+        O2_DBz(hdprintf("o2_zcdisc_finish resolve_pending name %s@%p seqno %d "
                         "freed\n", resolve_pending[i].name,
                         resolve_pending[i].name, resolve_pending[i].seqno));
         O2_FREE((void *) resolve_pending[i].name);
@@ -567,7 +570,7 @@ static O2err zc_create_services(AvahiClient *c);
 
 void o2_zcdisc_finish()
 {
-    O2_DBz(dbprintf("o2_zcdisc_finish\n"));
+    O2_DBz(hdprintf("o2_zcdisc_finish\n"));
     // (I think) these are freed by avahi_client_free later, so
     // we remove the dangling pointers:
     zc_group = NULL;
@@ -605,7 +608,7 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
             break;
         case AVAHI_RESOLVER_FOUND: {
             char a[AVAHI_ADDRESS_STR_MAX], *t;
-            O2_DBz(dbprintf("Avahi resolve service '%s' of type '%s' in "
+            O2_DBz(hdprintf("Avahi resolve service '%s' of type '%s' in "
                             "domain '%s':\n", name, type, domain));
             avahi_address_snprint(a, sizeof(a), address);
             char name[32];
@@ -614,17 +617,17 @@ static void zc_resolve_callback(AvahiServiceResolver *r,
             int version = 0;
             name[0] = 0;
             for (AvahiStringList *asl = txt; asl; asl = asl->next) {
-                O2_DBz(printf("resolve callback text: %s\n", asl->text));
+                O2_DBz(hdprintf("resolve callback text: %s\n", asl->text));
                 if (strncmp((char *) asl->text, "name=", 5) == 0 &&
                     asl->size == 33) {  // found "name="; proc name len is 28
                     o2_strcpy(name, (char *) asl->text + 5, 29); // includes EOS
-                    O2_DBz(dbprintf("got a TXT field name=%s\n", name));
+                    O2_DBz(hdprintf("got a TXT field name=%s\n", name));
                 }
                 if (strncmp((char *) asl->text, "vers=", 5) == 0) {
-                    O2_DBz(dbprintf("got a TXT field: ");
+                    O2_DBz(hdprintf("got a TXT field: ");
                            for (int i = 0; i < asl->size; i++) {
-                                printf("%c", asl->text[i]); }
-                           printf("\n"));
+                                dbprintf("%c", asl->text[i]); }
+                           dbprintf("\n"));
                     version = o2_parse_version((char *) asl->text + 5,
                                                asl->size - 5);
                 }
@@ -661,7 +664,7 @@ static void zc_browse_callback(AvahiServiceBrowser *b,
             o2_zcdisc_finish();
             return;
         case AVAHI_BROWSER_NEW:
-            O2_DBz(dbprintf("(Avahi Browser) NEW: service '%s' of type '%s' "
+            O2_DBz(hdprintf("(Avahi Browser) NEW: service '%s' of type '%s' "
                             "in domain '%s'\n", name, type, domain));
             /* We ignore the returned resolver object. In the callback
                function we free it. If the server is terminated before
@@ -674,12 +677,12 @@ static void zc_browse_callback(AvahiServiceBrowser *b,
                         name, avahi_strerror(avahi_client_errno(c)));
             break;
         case AVAHI_BROWSER_REMOVE:
-            O2_DBz(dbprintf("(Avahi Browser) REMOVE: service '%s' of type '%s'"
+            O2_DBz(hdprintf("(Avahi Browser) REMOVE: service '%s' of type '%s'"
                             " in domain '%s'\n", name, type, domain));
             break;
         case AVAHI_BROWSER_ALL_FOR_NOW:
         case AVAHI_BROWSER_CACHE_EXHAUSTED:
-            O2_DBz(dbprintf("(Avahi Browser) %s\n",
+            O2_DBz(hdprintf("(Avahi Browser) %s\n",
                             event == AVAHI_BROWSER_CACHE_EXHAUSTED ?
                             "CACHE_EXHAUSTED" : "ALL_FOR_NOW"));
             break;
@@ -696,7 +699,7 @@ static void entry_group_callback(AvahiEntryGroup *g,
     switch (state) {
         case AVAHI_ENTRY_GROUP_ESTABLISHED :
             /* The entry group has been established successfully */
-            O2_DBz(dbprintf("(Avahi) Service '%s' successfully established.\n",
+            O2_DBz(hdprintf("(Avahi) Service '%s' successfully established.\n",
                             zc_name));
             break;
         case AVAHI_ENTRY_GROUP_COLLISION : {
@@ -706,7 +709,7 @@ static void entry_group_callback(AvahiEntryGroup *g,
             n = avahi_alternative_service_name(zc_name);
             avahi_free(zc_name);
             zc_name = n;
-            O2_DBz(dbprintf("(Avahi) Service name collision, renaming "
+            O2_DBz(hdprintf("(Avahi) Service name collision, renaming "
                             "service to '%s'\n", zc_name));
             /* And recreate the services */
             zc_create_services(avahi_entry_group_get_client(g));
@@ -747,7 +750,7 @@ O2err zc_commit_group(AvahiClient *c, char **name,
         // Publish a service with type, name, and text. Note that text1
         // and/or text2 might be NULL. avahi_entry_group_add_service will
         // ignore anything after NULL:
-        O2_DBz(dbprintf("(Avahi) Adding service to group, name '%s' "
+        O2_DBz(hdprintf("(Avahi) Adding service to group, name '%s' "
                         "type '%s'\n", *name, type));
         if ((ret = avahi_entry_group_add_service(*group, AVAHI_IF_UNSPEC,
                      AVAHI_PROTO_UNSPEC, (AvahiPublishFlags) 0,
@@ -766,7 +769,7 @@ O2err zc_commit_group(AvahiClient *c, char **name,
             goto fail;
         }
     } else {
-        O2_DBz(printf("Debug: avahi_entry_group_is_empty() returned false\n"));
+        O2_DBz(hdprintf("Debug: avahi_entry_group_is_empty() returned false\n"));
     }
     return O2_SUCCESS;
 collision:
@@ -775,7 +778,7 @@ collision:
     n = avahi_alternative_service_name(*name);
     avahi_free(*name);
     *name = n;
-    O2_DBz(dbprintf("(Avahi) Service name collision, renaming service to "
+    O2_DBz(hdprintf("(Avahi) Service name collision, renaming service to "
                     "'%s'\n", *name));
     avahi_entry_group_reset(*group);
     return zc_commit_group(c, name, group, type, port, text1, text2);
@@ -793,7 +796,7 @@ static O2err zc_create_services(AvahiClient *c)
     strcpy(name, "name=");
     int name_end = 5 + strlen(o2_ctx->proc->key);
     strcpy(name + 5, o2_ctx->proc->key);  // proc->key is 24 bytes
-    O2_DBz(printf("zc_create_services proc->key %s\n", o2_ctx->proc->key));
+    O2_DBz(hdprintf("zc_create_services proc->key %s\n", o2_ctx->proc->key));
     // for discovery, we need udp port too, so append it after ':'
     name[name_end++] = ':';
     sprintf(name + name_end, "%04x", o2_ctx->proc->udp_address.get_port());
@@ -856,7 +859,7 @@ O2err o2_zcdisc_initialize()
     if (zc_running) {
         return O2_ALREADY_RUNNING;
     }
-    O2_DBz(dbprintf("o2_zcdisc_initialize\n"));
+    O2_DBz(hdprintf("o2_zcdisc_initialize\n"));
     zc_running = true;
     // need a copy because if there is a collision, zc_name is freed
     zc_name = avahi_strdup(o2_ensemble_name);
@@ -902,8 +905,8 @@ void o2_poll_avahi()
         int ret = avahi_simple_poll_iterate(zc_poll, 0);
         if (ret == 1) {
             zc_running = false;
-            O2_DBz(printf("o2_poll_avahi got quit from "
-                          "avahi_simple_poll_iterate\n"));
+            O2_DBz(hdprintf("o2_poll_avahi got quit from "
+                            "avahi_simple_poll_iterate\n"));
         } else if (ret < 0) {
             zc_running = false;
             fprintf(stderr, "Error: avahi_simple_poll_iterate returned %d\n",

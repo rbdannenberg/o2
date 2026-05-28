@@ -283,11 +283,10 @@ static int64_t o2mem_get_seqno(const void *ptr);
 
 void *o2_dbg_malloc(size_t size, const char *file, int line)
 {
-    O2_DBm(dbprintf("O2_MALLOC %zd bytes in %s:%d", size, file, line));
-    O2_DBm(fflush(stdout));
+    O2_DBm(hdprintf("O2_MALLOC %zd bytes in %s:%d", size, file, line));
     void *obj = (*o2_malloc_ptr)(size);
     O2_DBm(if (o2_memory_mgmt)
-               printf(" -> #%" PRId64 "@%p act_sz %zd\n",
+               dbprintf(" -> #%" PRId64 "@%p act_sz %zd\n",
                       o2mem_get_seqno(obj), obj, OBJ_SIZE(obj)));
     assert(obj && IS_ALIGNED(obj));
     return obj;
@@ -295,7 +294,7 @@ void *o2_dbg_malloc(size_t size, const char *file, int line)
 
 void o2_dbg_free(void *obj, const char *file, int line)
 {
-    O2_DBm(dbprintf("O2_FREE %zu bytes in %s:%d : #%" PRId64 "@%p\n",
+    O2_DBm(hdprintf("O2_FREE %zu bytes in %s:%d : #%" PRId64 "@%p\n",
                     OBJ_SIZE(obj), file, line, o2mem_get_seqno(obj), obj));
     // bug in C. free should take a const void * but it doesn't
     (*o2_free_ptr)((void *) obj);
@@ -321,10 +320,10 @@ void *o2_calloc(size_t n, size_t s)
 #else
 void *o2_dbg_calloc(size_t n, size_t s, const char *file, int line)
 {
-    O2_DBm(dbprintf("O2_CALLOC %zu of %zu in %s:%d", n, s, file, line));
+    O2_DBm(hdprintf("O2_CALLOC %zu of %zu in %s:%d", n, s, file, line));
     fflush(stdout);
     void *obj = (*o2_malloc_ptr)(n * s);
-    O2_DBm(printf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj));
+    O2_DBm(dbprintf(" -> #%" PRId64 "@%p\n", o2mem_get_seqno(obj), obj));
     assert(obj);
     memset(obj, 0, OBJ_SIZE(obj));
     return obj;
@@ -544,8 +543,8 @@ void o2_mem_finish()
     if (o2mem_state == INITIALIZED) {
 #if O2MEM_DEBUG
         // this is expensive, but so is shutting down, so why not...
-        printf("**** o2_mem_finish checking for memory leaks...\n");
-        printf("**** o2_mem_finish detected %sleaks.\n",
+        hdprintf("**** o2_mem_finish checking for memory leaks...\n");
+        hdprintf("**** o2_mem_finish detected %sleaks.\n",
                o2_mem_check_all(true) ? "" : "NO ");
 #endif
         chunk_ptr chunk = (chunk_ptr) allocated_chunk_list.pop();
@@ -741,8 +740,8 @@ void *o2_malloc(size_t size)
         preamble = malloc_one_object(realsize, size, need_debug_space);
 #if EXTRA
         endptr = ((char *) preamble) + realsize + need_debug_space;
-        printf("Needed malloc_one_object to get %p, endptr %p\n",
-               result, endptr);
+        hdprintf("Needed malloc_one_object to get %p, endptr %p\n",
+                 result, endptr);
 #endif
         goto gotnew;
     } else if (o2_ctx->chunk_remaining < realsize + need_debug_space) {
@@ -761,8 +760,8 @@ void *o2_malloc(size_t size)
             preamble = malloc_one_object(realsize, size, need_debug_space);
 #if EXTRA
             endptr = ((char *) preamble) + realsize + need_debug_space;
-            printf("Used malloc_one_object to get %p, endptr %p\n",
-                   result, endptr);
+            hdprintf("Used malloc_one_object to get %p, endptr %p\n",
+                     result, endptr);
 #endif
             goto gotnew;
         }
@@ -777,7 +776,7 @@ void *o2_malloc(size_t size)
             goto done;
         }
 #if EXTRA
-        printf("new chunk at %p of size %d\n", o2_ctx->chunk, O2MEM_CHUNK_SIZE);
+        hdprintf("new chunk at %p of size %d\n", o2_ctx->chunk, O2MEM_CHUNK_SIZE);
         chunk_base = o2_ctx->chunk;
         chunk_end = o2_ctx->chunk + O2MEM_CHUNK_SIZE;
         endptr = chunk_end;
@@ -813,7 +812,7 @@ void *o2_malloc(size_t size)
 #if O2MEM_DEBUG
     write_debug_info_into(preamble, realsize);
 #if O2MEM_DEBUG > 1
-    printf("  allocated from chunk seqno=%ld\n", o2_mem_seqno);
+    dbprintf("  allocated from chunk seqno=%ld\n", o2_mem_seqno);
 #endif
 #endif
   done:
@@ -856,9 +855,9 @@ void o2_free(void *ptr)
 #if O2MEM_DEBUG
     postlude = PREAMBLE_TO_POSTLUDE(preamble);
 #if O2MEM_DEBUG > 1
-    printf("freeing block #%lld size %lld realsize %lld\n",
-           (long long) postlude->seqno, (long long) preamble->size,
-           (long long) realsize);
+    hdprintf("freeing block #%lld size %lld realsize %lld\n",
+             (long long) postlude->seqno, (long long) preamble->size,
+             (long long) realsize);
 #endif
     if (ptr == o2_mem_watch) {
         fprintf(stderr, "o2_mem_watch %p freed. Block seqno %lld\n",

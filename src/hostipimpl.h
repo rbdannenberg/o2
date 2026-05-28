@@ -137,7 +137,7 @@ static int hex_to_nibble(char hex)
     else if (hex >= 'A' && hex <= 'F') return hex - 'A' + 10;
     else if (hex >= 'a' && hex <= 'f') return hex - 'a' + 10;
 #ifndef O2_NO_DEBUG
-    printf("ERROR: bad hex character passed to hex_to_nibble()\n");
+    hdprintf("ERROR: bad hex character passed to hex_to_nibble()\n");
 #endif
     return 0;
 }

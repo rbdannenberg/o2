@@ -157,7 +157,7 @@ public:
 
     virtual O2err accepted(Fds_info *conn) = 0;
     virtual O2err connected() {
-            printf("ERROR: connected called by mistake\n"); return O2_FAIL; }
+            hdprintf("ERROR: connected called by mistake\n"); return O2_FAIL; }
     virtual O2err deliver(O2netmsg_ptr msg) = 0;
 
     // override writeable iff WRITE_CUSTOM:

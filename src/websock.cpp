@@ -90,12 +90,12 @@ public:
     }
 #endif
     O2ws_protocol() : Bridge_protocol("O2ws") {
-        O2_DBw(dbprintf("new O2ws_protocol %p\n", this));
+        O2_DBw(hdprintf("new O2ws_protocol %p\n", this));
        pending_ws_senders = NULL;
     }
     
     virtual ~O2ws_protocol() {
-        O2_DBbw(dbprintf("deleting O2ws_protocol@%p\n", this));
+        O2_DBbw(hdprintf("deleting O2ws_protocol@%p\n", this));
         o2_method_free("/_o2/o2ws"); // remove all o2ws support handlers
         pending_ws_senders = NULL;
     }
@@ -242,7 +242,7 @@ O2err o2_http_initialize(int port, const char *root)
 Http_server::Http_server(int port, const char *root_) :
         Proxy_info(NULL, O2TAG_HTTP_SERVER)
 {
-    O2_DBw(dbprintf("new Http_server %p\n", this));
+    O2_DBw(hdprintf("new Http_server %p\n", this));
     fds_info = Fds_info::create_tcp_server(&port, this);
     root = root_;
     // caller must check for fds_info and delete this object if NULL
@@ -267,7 +267,7 @@ Http_server::Http_server(int port, const char *root_) :
 
 Http_server::~Http_server()
 {
-    O2_DBw(dbprintf("delete Http_server %p socket %lld\n",
+    O2_DBw(hdprintf("delete Http_server %p socket %lld\n",
                this, (long long) (fds_info ? fds_info->get_socket() : -1)));
     // close all the client connections
     int n = o2n_fds_info.size();
@@ -296,7 +296,7 @@ O2err Http_server::accepted(Fds_info *conn)
 Http_conn::Http_conn(Fds_info *conn, const char *root_, int port_) :
         Bridge_info(o2ws_protocol)
 {
-    O2_DBw(dbprintf("new Http_conn %p socket %lld\n",
+    O2_DBw(hdprintf("new Http_conn %p socket %lld\n",
                     this, (long long) conn->get_socket());
            conn->trace_socket_flag = true;);
     inf = 0;
@@ -331,7 +331,7 @@ O2err Http_conn::close()
         o2netmsg->length = 4 + 19;
         fds_info->send_tcp(false, o2netmsg);
     }
-    O2_DBw(dbprintf("closing Http_conn %p\n", this));
+    O2_DBw(hdprintf("closing Http_conn %p\n", this));
     return O2_SUCCESS;
 }
 
@@ -339,7 +339,7 @@ O2err Http_conn::close()
 Http_conn::~Http_conn()
 {
     if (!this) return;
-    O2_DBw(dbprintf("delete Http_conn %p, is_web_socket %d sent_close_command"
+    O2_DBw(hdprintf("delete Http_conn %p, is_web_socket %d sent_close_command"
                     " %d\n", this, is_web_socket, sent_close_command));
     // even though we may have sent a CLOSE command, we do not wait for it
     // to be sent in cases where sends are pending. If the CLOSE was sent,
@@ -430,7 +430,7 @@ O2err Http_conn::websocket_upgrade(const char *key, int msg_len)
 //
 O2err Http_conn::ws_msg_is_complete(const char **error)
 {
-    // printf("CALLED ws_msg_is_complete with %d\n", inbuf.size());
+    // hdprintf("CALLED ws_msg_is_complete with %d\n", inbuf.size());
     // we are upgraded. inbuf is all the data so far.
     int inbuf_size = inbuf.size();
     
@@ -461,9 +461,9 @@ O2err Http_conn::ws_msg_is_complete(const char **error)
     ws_msg_len = payload_length + maskx + 4;
     /*
     if (ws_msg_len <= inbuf_size)
-        printf("GOT WS MSG LEN %d, payload %d, OF %d\n",
+        hdprintf("GOT WS MSG LEN %d, payload %d, OF %d\n",
                ws_msg_len, payload_length, inbuf_size);
-    else printf("   WAITING FOR WS MSG, %d SO FAR\n", inbuf_size);
+    else dbprintf("   WAITING FOR WS MSG, %d SO FAR\n", inbuf_size);
      */
     return (ws_msg_len <= inbuf_size ? O2_SUCCESS : O2_FAIL);
 }
@@ -534,11 +534,11 @@ O2err Http_conn::handle_websocket_msg(const char **error)
     assert(payload_len + payload - msg <= inbuf.size());
 
     /*
-    printf("BEFORE UNMASK %d bytes: ", payload_len);
+    hdprintf("BEFORE UNMASK %d bytes: ", payload_len);
     for (int i = 0; i < payload_len; i++) {
-        printf("%02x ", (uint8_t) payload[i]);
+        dbprintf("%02x ", (uint8_t) payload[i]);
     }
-    printf("\n");
+    dbprintf("\n");
      */
     
     for (int i = 0; i < payload_len; i++) {
@@ -546,20 +546,20 @@ O2err Http_conn::handle_websocket_msg(const char **error)
     }
     
     /*
-    printf("UNMASKED %d bytes: ", payload_len);
+    hdprintf("UNMASKED %d bytes: ", payload_len);
     for (int i = 0; i < payload_len; i++) {
-        putchar(payload[i]);
+        dbprintf("%c", payload[i]);
     }
-    printf("\n");
+    dbprintf("\n");
      */
     
     // now payload is an unencoded payload as a string of length payload_len
     // with no EOS
     /*
-    printf("    Websocket payload: ");
+    dbprintf("    Websocket payload: ");
     for (int i = 0; i < payload_len; i++)
-        if (payload[i] == ETX) putchar('|'); else putchar(payload[i]);
-    putchar('\n');
+        if (payload[i] == ETX) dbprintf("|"); else dbprintf("%c", payload[i]);
+    dbprintf("\n");
      */
     if (opcode == WSOP_PING || (opcode == WSOP_CLOSE && !sent_close_command)) {
         // send payload back
@@ -572,7 +572,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
             memcpy(reply->payload + 2, payload, payload_len);
             reply->length = payload_len + 2;
             fds_info->send_tcp(false, reply);
-            O2_DBw(dbprintf("Sent %s back to client\n",
+            O2_DBw(hdprintf("Sent %s back to client\n",
                             (opcode == WSOP_PING ? "PONG" : "CLOSE")));
             inbuf.drop_front((int) (payload + payload_len - msg));
             ws_msg_len = -1;
@@ -585,7 +585,7 @@ O2err Http_conn::handle_websocket_msg(const char **error)
         } else {
             // otherwise we skip it -- maybe client will hang up, hope not
             // if so, the fix is probably to support longer Pong messages
-            O2_DBw(dbprintf("websocket got opcode %d but payload_len %d "
+            O2_DBw(hdprintf("websocket got opcode %d but payload_len %d "
                             "is too long.\n", opcode, payload_len));
             return O2_SUCCESS;
         }
@@ -630,33 +630,37 @@ O2err Http_conn::handle_websocket_msg(const char **error)
             return O2_FAIL;
         }
     }
-    O2_DBw(dbprintf("websocket bridge incoming %s @ %g (%c): ",
+    O2_DBw(hdprintf("websocket bridge incoming %s @ %g (%c): ",
                     address, time, tcp_flag ? 'T' : 'F');
-           for (int i = 4; i < flen; i++) printf(" %s", fields[i]);
+           for (int i = 4; i < flen; i++) dbprintf(" %s", fields[i]);
            putchar('\n');)
     o2_message_source = this;
     // finish building message before we destroy the source in inbuf
     to_send = o2_message_finish(time, address, tcp_flag);
 
     /*
-    printf("BEFORE drop_front, %d left:", inbuf.size());
-    for (int i = 0; i < inbuf.size(); i++) printf(" %02x", (uint8_t) inbuf[i]);
-    printf("\n");
+    hdprintf("BEFORE drop_front, %d left:", inbuf.size());
+    for (int i = 0; i < inbuf.size(); i++) {
+        dbprintf(" %02x", (uint8_t) inbuf[i]);
+    }
+    dbprintf("\n");
      */
     
     inbuf.drop_front((int) (payload + payload_len - msg));  // shift the input stream
     
     /*
-    printf("AFTER drop_front, %d left:", inbuf.size());
-    for (int i = 0; i < inbuf.size(); i++) printf(" %02x", (uint8_t) inbuf[i]);
-    printf("\n");
+    hdprintf("AFTER drop_front, %d left:", inbuf.size());
+    for (int i = 0; i < inbuf.size(); i++) {
+        dbprintf(" %02x", (uint8_t) inbuf[i]);
+    }
+    dbprintf("\n");
     */
 
     ws_msg_len = -1;
     o2_message_send(to_send);  // this may return an error such as O2_NO_SERVICE
     return O2_SUCCESS;  // but we still report success to avoid closing websocket
   bad_message:
-    O2_DBw(dbprintf("websocket bridge bad_message\n"));
+    O2_DBw(hdprintf("websocket bridge bad_message\n"));
     // now we need to remove the message from inbuf
     inbuf.drop_front((int) (payload + payload_len - msg));
     ws_msg_len = -1;
@@ -677,13 +681,13 @@ O2err Http_conn::send_msg_later(O2message_ptr msg)
 
 static void print_websocket_data(const char *wsmsg)
 {
-    printf("SENDING ");
+    hdprintf("SENDING ");
     while (*wsmsg) {
-        if (*wsmsg == ETX) printf(" | ");
-        else printf("%c", *wsmsg);
+        if (*wsmsg == ETX) dbprintf(" | ");
+        else dbprintf("%c", *wsmsg);
         wsmsg++;
     }
-    printf("\n");
+    dbprintf("\n");
 }
 
 // As a proxy, deliver a message to the remote host. This can only be a
@@ -709,7 +713,7 @@ O2err Http_conn::send(bool block)
     // <address> ETX <types> ETX <time> ETX <T/F> ETX [<value>ETX]*
     o2_ctx->msg_data.append(msg->data.address, (int) strlen(msg->data.address));
     o2_ctx->msg_data.push_back(ETX);
-    O2_DBw(printf("just the address field: ");
+    O2_DBw(hdprintf("just the address field: ");
            o2_ctx->msg_data.push_back(0);
            print_websocket_data(&o2_ctx->msg_data[0]);
            o2_ctx->msg_data.pop_back());
@@ -861,14 +865,14 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     msg_end += 4;  // the real end is after \r\n\r\n
     msg_len = (int) (msg_end - &inbuf[0]);
     
-    O2_DBw(printf("    got %d-byte header", msg_len));
-    O2_DBW(printf(": <<");
+    O2_DBw(dbprintf("    got %d-byte header", msg_len));
+    O2_DBW(dbprintf(": <<");
            for (int i = 0; i < msg_len; i++) {
                putchar(inbuf[i]);
-               if (inbuf[i] == '\n') printf("    "); // indent
+               if (inbuf[i] == '\n') dbprintf("    "); // indent
            }
-           printf(">>"));
-    O2_DBw(printf("\n"));
+           dbprintf(">>"));
+    O2_DBw(dbprintf("\n"));
     
     // parse the request:
     sec_web_key = NULL;
@@ -879,7 +883,7 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
         const char *end = strchr(sec_web_key, '\r');
         // terminate the string:
         *((char *) end) = 0;  // (modifies the request header!)
-        O2_DBw(dbprintf("upgrading socket %lld to websocket\n",
+        O2_DBw(hdprintf("upgrading socket %lld to websocket\n",
                         (long long) fds_info->get_socket()));
         return websocket_upgrade(sec_web_key, msg_len);
     } else if (strncmp(&inbuf[0], "GET /", 5) == 0) {
@@ -908,12 +912,12 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
                 delete reader;
                 reader = NULL;
             } else {
-                O2_DBw(printf("\n"));
+                O2_DBw(dbprintf("\n"));
                 inbuf.drop_front(msg_len);
                 return O2_SUCCESS;
             }
         } else {
-            O2_DBw(printf(" - rejected, path contains \"..\"\n"));
+            O2_DBw(dbprintf(" - rejected, path contains \"..\"\n"));
         }
     }
     inbuf.drop_front(msg_len);
@@ -935,7 +939,7 @@ O2err Http_conn::deliver(O2netmsg_ptr msg)
     assert(payload_len <= content_len + 150);  // confirm we allocated enough
     msg->length = payload_len;
     fds_info->send_tcp(false, msg);
-    O2_DBw(dbprintf("closing web socket: %s%s\n", text, text2));
+    O2_DBw(hdprintf("closing web socket: %s%s\n", text, text2));
     fds_info->close_socket(false);
     return O2_SUCCESS;
 }
@@ -949,7 +953,7 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
 #endif
 {
     conn = NULL; // needed by delete if file open fails
-    printf("HTTP GET %s\n", c_path);
+    hdprintf("HTTP GET %s\n", c_path);
     data = NULL;
     last_ref = &data;
     port = port_;
@@ -962,7 +966,7 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
                       OPEN_EXISTING, FILE_FLAG_OVERLAPPED | 
                       FILE_FLAG_SEQUENTIAL_SCAN, NULL);
     if (inf == INVALID_HANDLE_VALUE) {
-        printf("    -> file not found\n");
+        dbprintf("    -> file not found\n");
     } else {
         connection->inf = 0;  // means read is in progress
         memset(&overlapped, 0, sizeof(overlapped));
@@ -973,7 +977,7 @@ Http_reader::Http_reader(const char *c_path, Http_conn *connection,
     // open the file
     connection->inf = open(c_path, O_RDONLY | O_NONBLOCK, 0);
     if (connection->inf < 0) {
-        printf("    -> file not found\n");
+        dbprintf("    -> file not found\n");
     } else {
 #endif
         conn = connection;
@@ -1000,7 +1004,7 @@ void Http_reader::poll()
             ready_for_read = false;
             DWORD err = GetLastError();
             if (err != ERROR_IO_PENDING) {
-                O2_DBw(dbprintf("ReadFile error %d, *last_ref %p\n",
+                O2_DBw(hdprintf("ReadFile error %d, *last_ref %p\n",
                                 err, *last_ref));
                 read_eof();  // EOF and error are both treated as eof
                 return;
@@ -1017,7 +1021,7 @@ void Http_reader::poll()
     } else {  // could be end of file or else file read error
         DWORD err = GetLastError();
         if (err != ERROR_IO_PENDING) {
-            O2_DBw(dbprintf("GetOverlappedResult result %d, *last_ref %p\n",
+            O2_DBw(hdprintf("GetOverlappedResult result %d, *last_ref %p\n",
                             err, *last_ref));
             read_eof();  // EOF and error are both treated as eof
             return;
@@ -1201,9 +1205,11 @@ O2err Http_reader::read_eof()
     conn->fds_info->out_message = data;  // transfer to output queue
     /*
     while (data) {
-        printf("SENDING %d bytes ||", data->length);
-        // for (int i = 0; i < data->length; i++) putchar(data->payload[i]);
-        printf("||\n");
+        hdprintf("SENDING %d bytes ||", data->length);
+        for (int i = 0; i < data->length; i++) {
+            dbprintf("%c", data->payload[i]);
+        }
+        dbprintf("||\n");
         data = data->next;
     }
      */

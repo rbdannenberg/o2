@@ -509,21 +509,22 @@ int o2sm_dispatch(O2message_ptr msg)
     bool delivered = false;
     // printf("o2sm_dispatch %s\n", msg->data.address);
     assert(msg->data.address[0] == '/' || msg->data.address[0] == '!');
+    O2_DBB(o2_dbg_msg("o2sm_dispatch", msg, &msg->data, NULL, NULL));
 #ifdef O2SM_PATTERNS
     O2node *service = o2_msg_service(&msg->data, &services);
     if (service) {
 #endif
         char *address = msg->data.address;
-    
+        
         // STEP 2: Isolate the type string, which is after the address
         const char *types = o2_msg_types(msg);
-
+        
 #ifdef O2SM_PATTERNS
         // STEP 3: If service is a Handler, call the handler directly
         if (ISA_HANDLER(service)) {
             o2_call_handler((handler_entry_ptr) service, &msg->data, types);
             delivered = true;
-        // STEP 4: If path begins with '!', or O2_NO_PATTERNS, full path lookup
+            // STEP 4: If path begins with '!', or O2_NO_PATTERNS, full path lookup
         } else if (ISA_HASH(service) && (address[0] == '!')) {
 #endif
             O2node *handler;
@@ -534,9 +535,8 @@ int o2sm_dispatch(O2message_ptr msg)
                 delivered = true;
             }
 #ifdef O2SM_PATTERNS
-        }
         // STEP 5: Use path tree to find handler
-        else if (ISA_HASH(service)) {
+        } else if (ISA_HASH(service)) {
             char name[NAME_BUF_LEN];
             address = strchr(address + 1, '/'); // search for end of srvc name
             if (address) {
@@ -596,6 +596,9 @@ void O2sm_info::poll_outgoing()
                               head, &head->data, NULL, NULL));
             next = head->next;
             o2sm_dispatch(head);
+            if (!o2_ctx) {  // must have called o2sm_finish() to shut down
+                return;
+            }
             head = next;
         }
     }
@@ -613,7 +616,7 @@ void O2sm_info::poll_outgoing()
 void *o2sm_initialize(void *inst)
 {
     o2_ctx = new O2_context();
-    O2_DBb(dbprintf("o2sm_initialize ctx %p Bridge_info %p\n", o2_ctx, inst));
+    O2_DBb(hdprintf("o2sm_initialize ctx %p Bridge_info %p\n", o2_ctx, inst));
 
     // local memory allocation will use malloc() to get a chunk on the
     // first call to O2_MALLOC by the shared memory thread. If
@@ -643,7 +646,7 @@ void o2sm_finish()
     o2_add_int32(o2_ctx->binst->id);
     O2message_ptr msg = o2_message_finish(0.0, "/_o2/o2sm/fin", true);
     // free the o2_ctx data
-    O2_DBb(dbprintf("o2sm_finish finishing O2_context@%p\n", o2_ctx));
+    O2_DBb(hdprintf("o2sm_finish finishing O2_context@%p\n", o2_ctx));
     delete o2_ctx;
     o2_ctx = NULL;
     // notify O2 to remove bridge: does not require o2_ctx

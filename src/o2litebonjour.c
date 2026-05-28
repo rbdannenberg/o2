@@ -141,8 +141,8 @@ static void DNSSD_API zc_resolve_callback(DNSServiceRef sd_ref,
         const char *vers_num = (const char *) TXTRecordGetValuePtr(txt_len,
                                          txt_record, "vers", &vers_num_len);
         O2LDB if (vers_num) {
-                  printf("o2lite: got a TXT field: vers=%.*s\n", 
-                         vers_num_len, vers_num); }
+                  printf("o2lite: got a TXT field: vers=%.*s\n",
+                           vers_num_len, vers_num); }
 
         if (!vers_num ||
             (version = o2l_parse_version(vers_num, vers_num_len) == 0)) {

@@ -140,7 +140,7 @@ O2err o2_discovery_initialize()
         fprintf(stderr, "Unable to allocate a discovery port.\n");
         return O2_NO_PORT;
     }
-    O2_DBdo(dbprintf("**** discovery port %ld (%d already taken).\n",
+    O2_DBdo(hdprintf("**** discovery port %ld (%d already taken).\n",
                      (long) my_tcp_port, disc_port_index));
 #else
     // no fixed port list, so any port will do
@@ -270,7 +270,7 @@ static O2err o2_broadcast_message(int port, int local_remote)
     
     // broadcast the message remotely if remote flag is set
     if (o2n_network_found && (local_remote & 2)) {
-        O2_DBd(dbprintf("broadcasting discovery msg to port %d\n", port));
+        O2_DBd(hdprintf("broadcasting discovery msg to port %d\n", port));
         if (o2n_send_broadcast(port, (O2netmsg_ptr) m) < 0) {
             O2_FREE(m);
             return O2_SEND_FAIL; // skips local send, but that's OK because
@@ -322,8 +322,8 @@ void o2_discovery_handler(O2msg_data_ptr msg, const char *types,
     int dy = dy_arg->i32;
     
     if (!streql(ens, o2_ensemble_name)) {
-        O2_DBd(printf("    Ignored: ensemble name %s is not %s\n", 
-                      ens, o2_ensemble_name));
+        O2_DBd(dbprintf("    Ignored: ensemble name %s is not %s\n", 
+                        ens, o2_ensemble_name));
         return;
     }
     O2_DBF(return);  // force-MQTT flag blocks peer-to-peer discovery
@@ -364,8 +364,8 @@ O2err o2_discovered_a_remote_process(int version, const char *public_ip,
     snprintf(name, O2_MAX_PROCNAME_LEN, "@%s:%s:%04x%c%c%c%c",
              public_ip, internal_ip, tcp_port, 0, 0, 0, 0);
 
-    O2_DBd(printf("    o2_discovery_handler: remote %s local %s\n",
-                  name, o2_ctx->proc->key));
+    O2_DBd(dbprintf("    o2_discovery_handler: remote %s local %s\n",
+                    name, o2_ctx->proc->key));
     return o2_discovered_a_remote_process_name(name, version, internal_ip,
                                                tcp_port, udp_port, dy);
 }
@@ -377,7 +377,7 @@ O2err o2_discovered_a_remote_process_name(const char *name, int version,
     Proc_info *proc = NULL;
     O2message_ptr reply_msg = NULL;
     if ((version & 0xFF0000) != (O2_VERSION & 0xFF0000)) {
-        O2_DBd(printf("Remote process %s ignored because %x is incompatible "
+        O2_DBd(hdprintf("Remote process %s ignored because %x is incompatible "
                       "with our version %x\n", name, version, O2_VERSION));
         return O2_FAIL;
     }
@@ -385,13 +385,13 @@ O2err o2_discovered_a_remote_process_name(const char *name, int version,
         assert(o2_ctx->proc->key);
         int compare = strcmp(o2_ctx->proc->key, name);
         if (compare == 0) {
-            O2_DBd(dbprintf("Ignored: I received my own broadcast message\n"));
+            O2_DBd(hdprintf("Ignored: I received my own broadcast message\n"));
             return O2_SUCCESS; // the "discovered process" is this one
         }
         O2node **entry_ptr = o2_ctx->path_tree.lookup(name);
         if (*entry_ptr) { // process is already discovered, ignore message
             Services_entry *services = *((Services_entry **) entry_ptr);
-            O2_DBd(dbprintf("** process already discovered, ignore %s\n",
+            O2_DBd(hdprintf("** process already discovered, ignore %s\n",
                             name));
             return O2_SUCCESS;
         }
@@ -415,7 +415,7 @@ O2err o2_discovered_a_remote_process_name(const char *name, int version,
                 proc->o2_delete(); // error recovery: don't leak memory
             } else {
                 // this connection will be closed by receiving client
-                O2_DBd(dbprintf("** discovery sending O2_DY_CALLBACK to %s\n",
+                O2_DBd(hdprintf("** discovery sending O2_DY_CALLBACK to %s\n",
                                 name));
             }
             return O2_SUCCESS;
@@ -431,13 +431,13 @@ O2err o2_discovered_a_remote_process_name(const char *name, int version,
         int dy_flag = O2_DY_CONNECT;
 #endif
         Services_entry::service_provider_new(name, NULL, proc, proc);
-        O2_DBd(dbprintf("** discovery sending O2_DY_CONNECT to server %s\n",
+        O2_DBd(hdprintf("** discovery sending O2_DY_CONNECT to server %s\n",
                         name));
         reply_msg = o2_make_dy_msg(o2_ctx->proc, true, false, dy_flag);
     } else { // dy is not O2_DY_INFO, must be O2_DY_CONNECT
              //    or O2_DY_REPLY or O2_DY_HUB
         if (!o2_message_source || !ISA_PROC(o2_message_source)) {
-            O2_DBG(dbprintf("** o2_discovered_a_remote_process_name dy %d "
+            O2_DBG(hdprintf("** o2_discovered_a_remote_process_name dy %d "
                             "o2_message_source %p tag %s\n",
                             dy, o2_message_source, (o2_message_source ?
                              o2_tag_to_string(o2_message_source->tag) :
@@ -448,41 +448,41 @@ O2err o2_discovered_a_remote_process_name(const char *name, int version,
         proc->key = o2_heapify(name);
         Services_entry::service_provider_new(proc->key, NULL, proc, proc);
         if (dy == O2_DY_HUB) { // this is the hub, this is the server side
-            printf("######## This is the hub server side #######\n");
+            hdprintf("######## This is the hub server side #######\n");
             // send a /dy to remote with O2_DY_REPLY
-            O2_DBd(dbprintf("** discovery got HUB sending REPLY to hub %s\n",
+            O2_DBd(hdprintf("** discovery got HUB sending REPLY to hub %s\n",
                             name));
             reply_msg = o2_make_dy_msg(o2_ctx->proc, true, false, O2_DY_REPLY);
 #ifndef O2_NO_HUB
         } else if (dy == O2_DY_REPLY) { // first message from hub
             if (!streql(name, o2_hub_addr)) { // should be equal
-                printf("Warning: expected O2_DY_REPLY to be from hub\n");
+                hdprintf("Warning: expected O2_DY_REPLY to be from hub\n");
                 o2_message_source->fds_info->close_socket(true);
                 return O2_FAIL;
             }
-            printf("####### This is the hub client side #######\n");
+            hdprintf("####### This is the hub client side #######\n");
             proc->uses_hub = O2_HUB_REMOTE;
             o2_send_start();
             reply_msg = o2_message_finish(0.0, "!_o2/hub", true);
-            O2_DBd(dbprintf("** discovery got REPLY sending !_o2/hub %s\n",
+            O2_DBd(hdprintf("** discovery got REPLY sending !_o2/hub %s\n",
                             name));
 #endif
         } else if (dy == O2_DY_CONNECT) { 
             // similar to info, but sender has just made a tcp connection
-            O2_DBG(dbprintf("** discovery got CONNECT from client %s, %s\n",
+            O2_DBG(hdprintf("** discovery got CONNECT from client %s, %s\n",
                             name, "connection complete"));
 #ifndef O2_NO_HUB
             if (streql(name, o2_hub_addr)) {
                 proc->uses_hub = O2_HUB_REMOTE;
-                O2_DBd(dbprintf("** discovery got CONNECT from hub, %s %s\n",
+                O2_DBd(hdprintf("** discovery got CONNECT from hub, %s %s\n",
                                 "sending !_o2/hub to", name));
                 o2_send_start();
                 reply_msg = o2_message_finish(0.0, "!_o2/hub", true);
             }
 #endif
         } else {
-            O2_DBd(printf("Warning: unexpected dy type %d name %s\n",
-                          dy, name));
+            O2_DBd(hdprintf("Warning: unexpected dy type %d name %s\n",
+                            dy, name));
             proc->o2_delete();
         }
     }
@@ -494,7 +494,7 @@ O2err o2_discovered_a_remote_process_name(const char *name, int version,
     if (!err) err = o2_send_clocksync_proc(proc);
     if (!err) err = o2_send_services(proc);
     if (!err) err = proc->udp_address.init_hex(internal_ip, udp_port, false);
-    O2_DBd(dbprintf("UDP port %d for remote proc %s set to %d avail as %d\n",
+    O2_DBd(hdprintf("UDP port %d for remote proc %s set to %d avail as %d\n",
                     udp_port, internal_ip, ntohs(proc->udp_address.sa.sin_port),
                     proc->udp_address.get_port()));
     // NOTE: The remote process may not exist! Maybe discovery info was stale.
@@ -536,7 +536,7 @@ O2err o2_send_services(Proxy_info *proc)
                     o2_add_true();
                     o2_add_string(spp->properties ? spp->properties : ";");
                     o2_add_int32(0);  // send_mode is ignored for services
-                    O2_DBd(dbprintf("o2_send_services sending %s to %s\n",
+                    O2_DBd(hdprintf("o2_send_services sending %s to %s\n",
                                     entry->key, dest));
                 }
                 // can only be one locally provided service, so stop searching
@@ -551,7 +551,7 @@ O2err o2_send_services(Proxy_info *proc)
                 o2_add_false();  // this is a tap, not a service & properties
                 o2_add_string(entry->key); // tappee service name
                 o2_add_int32(stp->send_mode); // reliable, best effort or keep
-                O2_DBd(dbprintf("o2_send_services sending tapper %s tappee %s"
+                O2_DBd(hdprintf("o2_send_services sending tapper %s tappee %s"
                                 " to %s\n", stp->tapper, entry->key, dest));
             }
         }
@@ -597,12 +597,12 @@ static void hub_has_new_client(Proc_info *nc)
             int err = client_info->send(false);
             if (err) {
                 assert(o2_ctx->proc->key);
-                printf("ERROR sending discovery message from hub:\n"
-                        "    client %s server %s hub %s\n",
-                        client_info->key, server_info->key,
-                        o2_ctx->proc->key);
+                hdprintf("ERROR sending discovery message from hub:\n"
+                         "    client %s server %s hub %s\n",
+                         client_info->key, server_info->key,
+                         o2_ctx->proc->key);
             }
-            O2_DBd(dbprintf("hub_has_new_client %s sent %s to %s\n",
+            O2_DBd(hdprintf("hub_has_new_client %s sent %s to %s\n",
                     o2_ctx->proc->key, server_info->key, client_info->key));
         }
     }
@@ -617,7 +617,7 @@ void o2_hub_handler(O2msg_data_ptr msg, const char *types,
     assert(o2_message_source);
     if (ISA_REMOTE_PROC(o2_message_source)) {
         o2_ctx->proc->uses_hub = O2_I_AM_HUB;
-        printf("####### I am the hub #########\n");
+        hdprintf("####### I am the hub #########\n");
         hub_has_new_client(TO_PROC_INFO(o2_message_source));
     }
 }
@@ -649,7 +649,7 @@ void o2_services_handler(O2msg_data_ptr msg, const char *types,
     // proc might not really be a Proxy_info, but at least it is an O2node,
     // and we can check the tag:
     if (!proc || (!ISA_REMOTE_PROC(proc))) {
-        O2_DBG(dbprintf("### ERROR: o2_services_handler did not find %s\n", 
+        O2_DBG(hdprintf("### ERROR: o2_services_handler did not find %s\n", 
                         name);
                o2_ctx->show_tree());
         
@@ -676,10 +676,10 @@ void o2_services_handler(O2msg_data_ptr msg, const char *types,
         char *prop_tap = prop_tap_arg->s;
         O2tap_send_mode send_mode = (O2tap_send_mode) send_mode_arg->i32;
         if (strchr(service, '/')) {
-            O2_DBG(dbprintf("### ERROR: o2_services_handler got bad service "
+            O2_DBG(hdprintf("### ERROR: o2_services_handler got bad service "
                             "name - %s\n", service));
         } else if (addarg->B) { // add a new service or tap from remote proc
-            O2_DBd(dbprintf("found service /%s offered by /%s%s %s\n", service,
+            O2_DBd(hdprintf("found service /%s offered by /%s%s %s\n", service,
                             proc->key, (isservicearg->B ? " props " :
                                         " tapper "), prop_tap));
             if (isservicearg->B) {
