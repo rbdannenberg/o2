@@ -549,19 +549,44 @@ O2_EXPORT void o2_debug_flags(const char *flags);
 O2_EXPORT const char *o2_error_to_string(O2err i);
 
 /**
- * \brief Set the name of the debug log file.
+ * \brief Enable log file for debug output.
  *
- * Call this with a full or relative path to the log file name
- * BEFORE calling #o2_debug_flags(). The string is owned by the
- * caller and is not copied, so do not free an allocated name.
- * Default name is "o2debug.log".
- * The log file is created by the 'L' debug flag. Output to the
- * file is immediately flushed, but the file is never closed by
- * O2, even when O2 is stopped (#o2_finish()) and restarted.
- * The file is emptied each time #o2_debug_flags() is called
- * with 'L'.
+ * Logging information, mostly enabled through #o2_debug_flags(),
+ * but directly produced by calls to #hdprintf() and #dbprintf()
+ * (see src/o2debug.h), is written to stdout by default, but
+ * can be directed to a file using this function. See also
+ * #o2_logfile_path(). When console output is not available or
+ * not wanted, you can divert debug output to a log file and
+ * run "tail -f o2debug.log" in a shell to see the messages.
+ *
+ * Log file output is flushed immediately. Normally, the file is
+ * never closed so the application can continue using the log file
+ * after #o2_finish(), and logging will continue if O2 is restarted
+ * using #o2_initialize().
+ *
+ * Log file output is also enabled by the 'L' flag (see #o2_debug_flags()),
+ * but note that #o2_debug_flags() can only be used to force using
+ * the log file and has no effect if 'L' is missing.
+ *
+ * @param enable opens and clears any existing log file for output if true.
+ *     closes the file (if open) and resumes use of stdout if false.
+ *
+ * @return the previous value of #enable
  */
-O2_EXPORT void o2_set_logfile_name(const char *name);
+O2_EXPORT bool o2_use_logfile(bool enable);
+
+/**
+ * \brief Set a path for logging information.
+ *
+ * The log file name defaults to "o2debug.log", but you can specify
+ * the path *before* calling #o2_use_logfile(), which can be indirectly
+ * called by #o2_debug_flags(). The path string is owned by the
+ * caller and is not copied, but you should ensure the string is never
+ * freed.
+ * 
+ * @return previous value of the path (initially "o2debug.log")
+ */
+O2_EXPORT const char *o2_logfile_path(const char *path);
 
 
 /** @} */

@@ -12,7 +12,7 @@
 #ifndef O2_NO_DEBUG
 const char *o2_debug_prefix = "O2";
 int o2_debug = 0;
-static const char *o2_logf_name = "o2debug.log";
+static const char *o2_logf_path = "o2debug.log";
 static FILE *o2_logf = nullptr;
 
 
@@ -47,9 +47,25 @@ void hdprintf(const char *format, ...)
 }
 
 
-void o2_set_logfile_name(const char *name)
+bool o2_use_logfile(bool enable)
 {
-    o2_logf_name = name;
+    bool prev = (o2_logf != nullptr);
+    if (o2_logf) {
+        fclose(o2_logf);
+        o2_logf = nullptr;
+    }
+    if (enable) {
+        o2_logf = fopen(o2_logf_path, "w");
+    }
+    return prev;
+}
+
+
+const char *o2_logfile_path(const char *path)
+{
+    const char *prev = o2_logf_path;
+    o2_logf_path = path;
+    return prev;
 }
 
 
@@ -77,14 +93,9 @@ void o2_debug_flags(const char *flags)
     if (strchr(flags, 'A')) o2_debug |= O2_DBA_FLAGS;
     if (strchr(flags, 'N')) o2n_network_enabled = false;
     if (strchr(flags, 'I')) o2n_internet_enabled = false;
-    if (strchr(flags, 'L')) {
-        // note that log file is reset each time o2_debug_flags is called
-        o2_logf = fopen(o2_logf_name, "w");
-    } else {
-        if (o2_logf) {
-            fclose(o2_logf);
-            o2_logf = nullptr;
-        }
+    if (strchr(flags, 'L') && o2_logf == nullptr) {
+        // 'L' can *only* enable logfile use, and it cannot reset the file:
+        o2_use_logfile(true);
     }
 #endif
 }
