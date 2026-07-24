@@ -562,7 +562,7 @@ int unpack_message(addressnode *a, O2msg_data_ptr msg,
             SETFLOAT(pdmsg + i, arg->f);
             break;
           case 's': case 'S':
-            if (types && types[n] != 's') {
+            if (types && types[i] != 's') {
                 pd_error(x, DROPMSG, msgtypes, expected);
                 return -1;
             }
@@ -570,7 +570,7 @@ int unpack_message(addressnode *a, O2msg_data_ptr msg,
             SETSYMBOL(pdmsg + i, gensym((const char *) (arg->S)));
             break;
           case 'I':
-            if (types && types[n] != 'f') {
+            if (types && types[i] != 'f') {
                 pd_error(x, DROPMSG, msgtypes, expected);
                 return -1;
             }
@@ -578,7 +578,7 @@ int unpack_message(addressnode *a, O2msg_data_ptr msg,
             SETFLOAT(pdmsg + i, FLT_MAX);
             break;
           case 'c':
-            if (types && types[n] != 'f') {
+            if (types && types[i] != 'f') {
                 pd_error(x, DROPMSG, msgtypes, expected);
                 return -1;
             }
@@ -590,7 +590,7 @@ int unpack_message(addressnode *a, O2msg_data_ptr msg,
             return -1;  // error
         }
     }
-    return n;  // no error    
+    return n;  // no error
 }
 
 

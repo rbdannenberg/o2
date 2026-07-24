@@ -84,3 +84,10 @@ O2_EXPORT O2err o2sm_method_new(const char *path, const char *typespec,
                                 bool coerce, bool parse);
 O2_EXPORT void o2sm_finish();
 
+// This will dispatch a message to a local service, avoiding a round-trip
+// through the host, but this may cause out-of-order delivery compared
+// to messages using normal send functions, and it bypasses the host's
+// ability to direct the message to services on other processes.
+O2_EXPORT int o2sm_dispatch(O2message_ptr msg);
+
+
