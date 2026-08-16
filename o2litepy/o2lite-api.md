@@ -5,15 +5,14 @@
 
 O2lite functions are all methods within the class O2lite.
 In this documentation, we assume you have a single instance
-of O2lite named `o2lite`. Thus, we write `o2lite.time_get()` to
-indicate a call to the `time_get()` method of O2lite. Of course,
+of `O2lite` named `o2lite`. Thus, we write `o2lite.time_get()` to
+indicate a call to the `time_get()` method of `O2lite`. Of course,
 you can use a name other than `o2lite`.
 
 ## Examples
-###Receiving a string from ensemble "test":
+### Receiving a string from ensemble "test":
 ```[Python]
-from o2litepy import O2lite
-o2lite = O2lite()
+from o2litepy import o2lite
 o2lite.initialize("test", debug_flags="a")
 o2lite.set_services("example")
 o2lite.method_new("/example/str", "s", True, str_handler, None)
@@ -23,62 +22,71 @@ o2lite.sleep(30)  # polls for 30 seconds
 ```
 ## Sending a float to service "sensor", ensemble "test":
 ```[Python]
-from o2litepy import O2lite
-o2lite = O2lite()
+from o2litepy import o2lite
 o2lite.initialize("test", debug_flags="a")
 # wait for connect and clock sync with host:
 while o2lite.time_get() < 0:
     o2lite.sleep(1)
-# send now that we are connected:
+
+# send (reliably) now that we are connected:
 o2lite.send_cmd("/test/sensor", "f", 3.14)
-# poll for another second - exiting immediately or not polling
-# may close the connection before message delivery completes:
+
+# poll for another second (exiting immediately or not polling
+# may close the connection before message delivery completes):
 o2lite.sleep(1) 
 # Normally, a "main loop" will call o2lite.poll() frequently
-# so you do not need to explicitly call o2lite.sleep() after
-# sending.
+# and you should not call o2lite.sleep() after sending.
 ```
+
 ## Time
 - `o2lite.local_now` is the current local time, updated every
-  `o2lite.poll()`, which starts from 0
+     o2lite.poll(), which starts from 0
 
-- `o2lite.time_get()` retrieves the global time in seconds,
-  but -1 until clock synchronization completes.
+- `o2lite.time_get()` retrieves the global time in seconds, but -1
+     until clock synchronization completes. (Do not confuse with
+     get_time(), which retrieves a time from an O2 message.)
 
-- `o2lite.local_time()` retrieves the local time (`local_now`
-   is identical within the polling period and should be faster).
-
+- `o2lite.local_time()` retrieves the local time (local_now is identical
+     within the polling period and should be faster).
 
 ## Debugging
 - `debug_flags` is a string used to set some debugging options:
-  `'b'` -- print actual bytes of messages
-  `'s'` -- print O2 messages when sent
-  `'r'` -- print O2 messages when received
-  `'d'` -- print info about discovery
-  `'g'` -- general debugging info
-  `'a'` -- all debugging messages except b
+
+  - `'b'` -- print actual bytes of messages
+  - `'s'` -- print O2 messages when sent
+  - `'r'` -- print O2 messages when received
+  - `'c'` -- clock sync messages (matching /cs/)
+  - `'d'` -- print info about discovery
+  - `'g'` -- general debugging info
+  - `'a'` -- all debugging messages except b
 
 Setting any flag automatically enables `'g'`. `debug_flags`
 can be set directly, or `debug flags` can be passed as a
-parameter to initialize().
+parameter to `initialize()`.
 
 ## Initialization
+*One* instance of the `O2lite` class is assigned to `o2lite` by the module.
 
-You should create *one* instance of the O2lite class, e.g.
-```[Python]
-    o2lite = O2lite()
-```
-- `o2lite.initialize(ensemble_name, debug_flags="")` must
-  be called before using any other O2lite methods.
+`o2lite.initialize(ensemble_name, debug_flags="")` must be called
+before using any other O2lite methods.
   
 ## O2 Types
 
 This library supports the following data type codes and types in
 messages:
-- 'i' 32-bit signed integer (Python int)
-- 'f' 32-bit IEEE float (Python float)
-- 's' string (Python str)
-- 't' 64-bit double time-stamp (Python float)
+- `'i'` 32-bit signed integer (Python int)
+
+- `'f'` 32-bit IEEE float (Python float)
+
+- `'s'` string (Python str)
+
+- `'t'` 64-bit double time-stamp (Python float)
+
+- `'h'` 64-bit int
+
+- `'B'` Boolean
+
+- `'b'` binary blob
 
 This limited set is intentional to minimize the size of o2lite
 implementations, but it is likely to expand with more types.
@@ -95,7 +103,8 @@ Messages are sent with either `send()`, to send via UDP, or
     zero for "as soon as possible."
   - `type_string` is a string of type codes (see above).
   - `data` parameters are actual values for the message.
-  - The message is sent via UDP. For example,
+
+  The message is sent via UDP. For example,
     ```o2lite.send("/host/info", "isf", 57, "hello", 3.14)```
     will send a messages to O2 address "/host/info" with
     integer, string and float values as shown.
@@ -147,15 +156,70 @@ Finally, you need to declare a handler that accepts 3 parameters:
 The handler will typically begin by extracting parameters from
 the message using the following functions:
 
-- `o2lite.get_int32()` -  check for and return a 32-bit integer
+- `o2lite.get_blob()` check for and return an O2blob as bytes
 
-- `o2lite.get_float()` - check for and return a 32-bit float
+- `o2lite.get_bool()` check for and return a Boolean
 
-- `o2lite.get_time()` - check for and return a time (double with type 't')
+- `o2lite.get_double()` check for and return a 64-bit float (double)
 
-- `o2lite.get_string()` - check for and return a string
+- `o2lite.get_float()` check for and return a 32-bit float
+
+- `o2lite.get_int32()` check for and return a 32-bit integer
+
+- `o2lite.get_int64()` check for and return a 64-bit integer
+
+- `o2lite.get_string()` check for and return a string
+
+- `o2lite.get_time()` check for and return a time (double with type 't')
 
 Values are returned sequentially from the message and the sequence
 of requests must match the sequence of types in the message
 (available in the `type_string parameter`, but you can assume the
 strings match the type_string specified in `method_new()`).
+
+## Implementation Details on Discovery:
+
+Discovery will find services representing O2 hosts as quickly
+as possible. We could initiate connections with all possible
+hosts, but since O2lite only connects to one host, it is better
+to attempt connections sequentially until one is successful.
+Normally, we will connect to the first host and not bother with
+the rest.
+
+To conduct orderly, sequential connection attempts, we
+call discovery.get_host() if no host is connected and no
+connection is in progress. This is done in our polling loop.
+
+Once we get a candidate host, we attempt to synchronously make
+a TCP connection. The connection may eventually fail, e.g. the
+host might refuse an O2lite connection or the host might crash,
+but until then, our tcp_socket is not None, and we use this
+condition to block further connection attempts to O2 hosts. If
+the TCP connect fails or closes, the tcp_socket is set to None
+so that we will go back to get_host() and try to connect to a
+new O2 host (as soon as we find one).
+
+If every connection fails, we will exhaust the list of services
+obtained by discovery. Since Bonjour is asynchronous, there
+might be a race condition that allowed us to miss an O2 host
+starting or restarting.  Therefore, if no new hosts appear after
+some time, we should restart the whole discovery process. The
+instance variable idle_start_time records when we notice that
+there are no hosts to try and no tcp_socket representing a
+connection attempt or successful connection. After 20 sec, we
+restart discovery.
+
+## Additional Internal Methods of Interest
+
+- `o2l_sys_time()` is a system-dependent function that returns time
+in seconds (for internal use to implement `o2lite.local_time()`)
+
+- `o2l_start_time` (for internal use) is the start time of the
+reference clock (may or may not be 0)
+
+- `o2lite.global_minus_local` is (for internal use) the skew between
+global and local time as estimated by clock synchronization.
+
+Caution: `o2lite.get_time()` and `o2lite.add_time()` are for message
+reading and constructing; they do not tell time.
+

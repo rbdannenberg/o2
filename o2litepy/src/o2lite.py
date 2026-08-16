@@ -183,6 +183,7 @@ o2lite.sleep(1)
 # Caution: O2lite.get_time() and O2lite.add_time() are for message
 #     reading and constructing; they do not tell time
 
+disabled()
 
 import ctypes
 import math

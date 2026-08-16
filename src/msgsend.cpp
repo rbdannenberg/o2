@@ -231,6 +231,7 @@ O2message_ptr o2_current_message()
 }
 
 
+
 // free the current message from o2_ctx->msgs
 // 
 void o2_complete_delivery()

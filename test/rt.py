@@ -267,7 +267,7 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
     global allOK
     # time.sleep(1)  # for some reason, I'm getting programs that fail 
     # immediately and nothing shows up in stdout or stderr, which is
-    # not reproducible running from the command line. Is there are 
+    # not reproducible running from the command line. Is there a 
     # bug or race condition in Python's subprocess (for macOS)? This 
     # sleep puts a pause between the shutting down of one pair of 
     # processes and the starting of the next. This is NOT the right
@@ -275,6 +275,128 @@ def runDouble(prog1, out1, prog2, out2, stall=False):
     # I'm not even sure where to start to track it down.
     p1p2 = startDouble(prog1, prog2)
     return finishDouble(prog1, p1p2[0], out1, prog2, p1p2[1], out2, stall)
+
+
+def startFour(prog1, prog2, prog3, prog4):
+    print((prog1 + '+' + prog2).rjust(30) + ": ", end='', flush=True)
+    p1 = runInBackground(prog1, "1")
+    p1.start()
+    time.sleep(0.5)
+    p2 = runInBackground(prog2, "2")
+    p2.start()
+    time.sleep(0.5)
+    p3 = runInBackground(prog2, "3")
+    p3.start()
+    time.sleep(0.5)
+    p4 = runInBackground(prog2, "4")
+    p4.start()
+    return (p1, p2, p3, p4)
+
+
+def finishFour(prog1, p1, out1, prog2, p2, out2,
+               prog3, p3, out3, prog4, p4, out4, stall):
+    global allOK
+    p1.join()
+    p2.join()
+    p3.join()
+    p4.join()
+    # could use dostall() here, but the delay is short and output is distracting
+    time.sleep(1)  # debugging test: is there a race to get stdout?
+
+    # Ports were left open in some earlier versions of O2, so we checked
+    # them carefully, but now with Bonjour/Avahi, this is not a problem
+    # and we are not using any particular set of ports, so I have removed
+    # the checks (except at the very end, just in case):
+    # portsOK, countmsg = checkports(False, False)
+    countmsg = ""
+    portsOK = True
+
+    with open("stdout1.txt", "r") as outf:
+        p1output = outf.read()
+    with open("stdout2.txt", "r") as outf:
+        p2output = outf.read()
+    with open("stdout3.txt", "r") as outf:
+        p3output = outf.read()
+    with open("stdout4.txt", "r") as outf:
+        p4output = outf.read()
+
+    if findLineInString(out1, p1output):
+        if findLineInString(out2, p2output):
+            if findLineInString(out3, p4output):
+                if findLineInString(out4, p4output):
+                    print("PASS", countmsg)
+                    if (not IS_OSX) and (not portsOK):
+                        allOK = False # halt the testing
+                else:
+                    allOK = False
+            else:
+                allOK = False
+        else:
+            allOK = False
+    else:
+        allOK = False
+
+    if (not portsOK) or (not allOK):
+        print("FAIL")
+        print("**** Failing output from " + prog1)
+        print(p1output)
+        print("**** Failing error output from " + prog1)
+        with open("stderr1.txt", "r") as errf:
+            print(errf.read())
+
+        print("**** Failing output from " + prog2)
+        print(p2output)
+        print("**** Failing error output from " + prog2)
+        with open("stderr2.txt", "r") as errf:
+            print(errf.read())
+
+        print("**** Failing output from " + prog3)
+        print(p3output)
+        print("**** Failing error output from " + prog3)
+        with open("stderr3.txt", "r") as errf:
+            print(errf.read())
+
+        print("**** Failing output from " + prog4)
+        print(p4output)
+        print("**** Failing error output from " + prog4)
+        with open("stderr4.txt", "r") as errf:
+            print(errf.read())
+
+    elif print_all_output:
+        print("**** p1.output")        
+        print(p1output)
+        print("**** p2.output")
+        print(p2output)
+        print("**** p3.output")
+        print(p3output)
+        print("**** p4.output")
+        print(p4output)
+
+    os.remove("stdout1.txt")
+    os.remove("stderr1.txt")
+    os.remove("stdout2.txt")
+    os.remove("stderr2.txt")
+    os.remove("stdout3.txt")
+    os.remove("stderr3.txt")
+    os.remove("stdout4.txt")
+    os.remove("stderr4.txt")
+    dostall(STALL_SEC)
+    return allOK
+
+
+def runFour(prog1, out1, prog2, out2, prog3, out3, prog4, out4, stall=False):
+    global allOK
+    # time.sleep(1)  # for some reason, I'm getting programs that fail 
+    # immediately and nothing shows up in stdout or stderr, which is
+    # not reproducible running from the command line. Is there a
+    # bug or race condition in Python's subprocess (for macOS)? This 
+    # sleep puts a pause between the shutting down of one pair of 
+    # processes and the starting of the next. This is NOT the right
+    # way to solve problems, but since this is very time dependent,
+    # I'm not even sure where to start to track it down.
+    p1p2p3p4 = startFour(prog1, prog2, prog3, prog4)
+    return finishFour(prog1, p1p2p3p4[0], out1, prog2, p1p2p3p4[1], out2,
+                      prog3, p1p2p3p4[2], out3, prog4, p1p2p3p4[3], out4, stall)
 
 
 def runWsTest(prog1, out1, url, out2, stall=False):
@@ -350,6 +472,15 @@ def runAllTests():
                      "o2liteserv u", "SERVER DONE"): return
     if not runDouble("statusclient", "CLIENT DONE",
                      "statusserver", "SERVER DONE"): return
+    if not runFour("o2litemultihost", "HOST DONE",
+                   "o2litemulticlient", "CLIENT DONE",
+                   "o2litemulticlient -w", "CLIENT DONE",
+                   "o2litemulticlient", "CLIENT DONE"): return
+    if not runFour("o2litemultihost udp", "HOST DONE",
+                   "o2litemulticlient udp", "CLIENT DONE",
+                   "o2litemulticlient -w udp", "CLIENT DONE",
+                   "o2litemulticlient udp", "CLIENT DONE"): return
+
     dostall(120)  # infotest2 will fail if Bonjour has an entry from
                   # a previous o2 process; long timeout
     if not runDouble("infotest2", "INFOTEST2 DONE",

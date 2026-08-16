@@ -4,7 +4,7 @@
 // Roger B. Dannenberg
 // July 2020
 //
-// see o2server.c for details of the client-server protocol
+// see o2server.cpp for details of the client-server protocol
 // run this program with test/o2liteserv, which is based on o2server.cpp
 
 
