@@ -6,7 +6,7 @@
 import socket
 import time
 
-from ip_util import is_hex, hex_to_byte
+from .ip_util import is_hex, hex_to_byte
 
 
 def validate_and_extract_udp_port(name):
@@ -23,6 +23,7 @@ def validate_and_extract_udp_port(name):
 class O2lite_disc:
     def __init__(self, ensemble, debug_flags):
         self.services = {}
+        self.ensemble = ensemble + "._o2proc"  # expected prefix from Bonjour
         self.discovered_services = []  # List to store discovered services
         self.browse_timeout = 2  # seconds
         self.debug_flags = debug_flags

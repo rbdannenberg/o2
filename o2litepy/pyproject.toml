@@ -1,26 +1,28 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "o2litepy"
-version = "0.0.1"
+version = "0.1.0"
 authors = [ { name="Roger B. Dannenberg", email="rbd@cs.cmu.edu" },
             { name="Zekai Shen" } ]
 description = "O2lite implementation in Python3"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = [ "zeroconf" ]
+dependencies = [ "netifaces", "zeroconf" ]
 
 [project.urls]
 Homepage = "https://github.com/rbdannenberg/o2"
 Issues = "https://github.com/rbdannenberg/o2/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = [ "src" ]

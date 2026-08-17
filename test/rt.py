@@ -102,7 +102,9 @@ class runInBackground(threading.Thread):
 
     def run(self):
         args = shlex.split(self.command)
-        args[0] = BIN + args[0] + EXE
+        # hack to allow tests to by python programs (e.g. with o2lite):
+        if not args[0].startswith("python"):
+            args[0] = BIN + args[0] + EXE
         output = " 1> stdout" + self.id + ".txt 2> stderr" + self.id + ".txt"
         process = subprocess.Popen(" ".join(args) + output, shell=True)
         timer = Timer(TIMEOUT_SEC, kill_process,
@@ -480,6 +482,14 @@ def runAllTests():
                    "o2litemulticlient udp", "CLIENT DONE",
                    "o2litemulticlient -w udp", "CLIENT DONE",
                    "o2litemulticlient udp", "CLIENT DONE"): return
+    if not runFour("o2litemultihost", "HOST DONE",
+                   "python o2litemulticlient.py", "CLIENT DONE",
+                   "python o2litemulticlient.py -w", "CLIENT DONE",
+                   "python o2litemulticlient.py", "CLIENT DONE"): return
+    if not runFour("o2litemultihost udp", "HOST DONE",
+                   "python o2litemulticlient.py udp", "CLIENT DONE",
+                   "python o2litemulticlient.py -w udp", "CLIENT DONE",
+                   "python o2litemulticlient.py udp", "CLIENT DONE"): return
 
     dostall(120)  # infotest2 will fail if Bonjour has an entry from
                   # a previous o2 process; long timeout

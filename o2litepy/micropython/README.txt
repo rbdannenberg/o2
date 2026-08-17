@@ -5,15 +5,11 @@ Mar 2024
 
 FOR PYTHON
 
-To build the Python package:
-% make build
-(package is built in py3pkg/dist)
-
-For documentation, see py3pkg/README.md 
+See ../README.md.
 
 FOR MICROPYTHON
 
-For documentation of the o2litepy module, see py3pkg/README.md  
+For general documentation of the o2litepy module, see ../README.md.
 
 My development process is described here:
     https://www.cs.cmu.edu/~rbd/blog/upyesp/upesp-blog4mar2024.html
@@ -25,12 +21,12 @@ MicroPython:
 
 You also need the package globals, but this is just an empty file,
 so do this from your development computer to create module globals:
-    ampy --port YOUR_SERIAL_PORT put src/globals.py lib/globals.py
+    ampy --port YOUR_SERIAL_PORT put micropython/globals.py lib/globals.py
 In other words, you just need globals.py on your MicroPython library
 path (/lib/). (If you do not want to clone the repo to get sources,
-just make any empty file and "ampy put" it into src/globals.py).
+just make any empty file and "ampy put" it into lib/globals.py).
 
-Finally, before using o2litepy.O2lite, you need to initialize your
+Finally, before using o2litepy.o2lite, you need to initialize your
 MicroPython Wi-Fi connection. The only requirement is to connect and
 store your internal IP address into globals.internal_ip_address.
 
@@ -60,11 +56,10 @@ Alternatively, see
 which shows how to avoid storing your password in every program you
 develop.
 
-Now, you can import and use O2lite:
+Now, you can import and use o2lite:
 
-from o2litepy import O2lite
-o2l = O2lite()
-o2l.initialize("test")  # pass in your O2 ensemble name
+from o2litepy import o2lite
+o2lite.initialize("test")  # pass in your O2 ensemble name
 ...
 
-See py3pkg/README.md for O2lite documentation.
+See ../README.md for O2lite documentation.

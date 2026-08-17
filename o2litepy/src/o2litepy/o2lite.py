@@ -12,8 +12,7 @@
 # EXAMPLES
 # Receiving a string from ensemble "test":
 """
-from o2litepy import O2lite
-o2lite = O2lite()
+from o2litepy import o2lite
 o2lite.initialize("test", debug_flags="a")
 o2lite.set_services("example")
 o2lite.method_new("/example/str", "s", True, str_handler, None)
@@ -23,8 +22,7 @@ o2lite.sleep(30)  # polls for 30 seconds
 """
 # Sending a float to service "sensor", ensemble "test":
 """
-from o2litepy import O2lite
-o2lite = O2lite()
+from o2litepy import o2lite
 o2lite.initialize("test", debug_flags="a")
 # wait for connect and clock sync with host:
 while o2lite.time_get() < 0:
@@ -40,10 +38,13 @@ o2lite.sleep(1)
 # so you do not need to explicitly call o2lite.sleep() after
 # sending.
 """
+
+_verbose = False
+
 #
 # TIME:
 # o2lite.local_now is the current local time, updated every
-#     O2lite.poll(), which starts from 0
+#     o2lite.poll(), which starts from 0
 # o2lite.time_get() retrieves the global time in seconds, but -1
 #     until clock synchronization completes. (Do not confuse with
 #     get_time(), which retrieves a time from an O2 message.)
@@ -53,8 +54,9 @@ o2lite.sleep(1)
 # DEBUGGING:
 # debug_flags is a string used to set some debugging options:
 #   b -- print actual bytes of messages
-#   s -- print O2 messages when sent
-#   r -- print O2 messages when received
+#   s -- print O2 messages when sent (except matching /cs/)
+#   r -- print O2 messages when received (except matching /cs/)
+#   c -- clock sync messages (matching /cs/)
 #   d -- print info about discovery
 #   g -- general debugging info
 #   a -- all debugging messages except b
@@ -63,8 +65,8 @@ o2lite.sleep(1)
 # initialize().
 #
 # INITIALIZATION
-# You should create *one* instance of the O2lite class, e.g.
-#     o2lite = O2lite().
+# *One* instance of the O2lite class is assigned to o2lite by module.
+#
 # o2lite.initialize(ensemble_name, debug_flags="") must be called
 #     before using any other O2lite methods.
 #
@@ -175,15 +177,14 @@ o2lite.sleep(1)
 #
 # ADDITIONAL INTERNAL METHODS OF INTEREST
 # o2l_sys_time() is a system-dependent function that returns time
-#     in seconds (for internal use to implement O2lite.local_time())
+#     in seconds (for internal use to implement o2lite.local_time())
 # o2l_start_time (for internal use) is the start time of the
 #     reference clock (may or may not be 0)
-# O2lite.global_minus_local is (for internal use) the skew between
+# o2lite.global_minus_local is (for internal use) the skew between
 #     global and local time as estimated by clock synchronization.
-# Caution: O2lite.get_time() and O2lite.add_time() are for message
+# Caution: o2lite.get_time() and o2lite.add_time() are for message
 #     reading and constructing; they do not tell time
 
-disabled()
 
 import ctypes
 import math
@@ -200,12 +201,12 @@ if sys.implementation.name == "micropython":
     # micropython cannot allocate a port number and tell you what it is
     initial_udp_recv_port = 55967  # chosen randomly from unassigned range
 else:
-    from py3fns import o2l_sys_time, find_my_ip_address
-    from py3discovery import Py3discovery as O2lite_discovery
+    from .py3fns import o2l_sys_time, find_my_ip_address
+    from .py3discovery import Py3discovery as O2lite_discovery
     # python can bind to port 0, allocate a free port, and tell you what it is:
     initial_udp_recv_port = 0  # chosen randomly from unassigned range
-from o2lite_handler import O2lite_handler
-from byte_swap import o2lswap32
+from .o2lite_handler import O2lite_handler
+from .byte_swap import o2lswap32
 
 # constants and flags
 O2L_VERSION = 0x020000
@@ -216,7 +217,7 @@ O2L_ALREADY_RUNNING = -5
 O2_UDP_FLAG = 0
 O2_TCP_FLAG = 1
 
-MAX_MSG_LEN = 4096
+MAX_MSG_LEN = 8192 # Originally 4096, too small for RAVE outputs
 PORT_MAX = 16
 
 O2L_CLOCKSYNC = True
@@ -273,6 +274,7 @@ class O2lite:
         # state for constructing messages
         self._outbuf = bytearray(MAX_MSG_LEN)
         self._out_msg_address = ""
+        self._out_msg_tcp_flag = False
         self.msg_timestamp = 0
 
         # state for unpacking parameters from messages
@@ -312,7 +314,7 @@ class O2lite:
 
         # expand "a" to "srd" (all debug flags but "b" enabled)
         if 'a' in debug_flags:
-            debug_flags += "srd"
+            debug_flags += "csrd"
         # if any flag is present, set 'g' flag for 'g'eneral messages
         if not 'g' in debug_flags and debug_flags != "":
             debug_flags += 'g'
@@ -385,23 +387,32 @@ class O2lite:
                 raise Exception("O2 type character " + type_char + \
                                 " not recognized")
             i += 1
-        # now we fall through to the send() code
-        if self.error or self._tcp_socket is None:
+        self._send_finish()
+
+
+    def _send_finish(self):
+        if self.error:
             return
 
         self._add_length()
 
-        if tcp:
-            bytes_sent = self._tcp_socket.send(
+        if self._out_msg_tcp_flag:
+            if self._tcp_socket is None:
+                print("O2lite error: cannot send, no tcp socket")
+                assert False, "cannot send"
+            else:
+                bytes_sent = self._tcp_socket.send(
                              self._outbuf[ : self._out_msg_cnt])
-        elif self._udp_send_address:
-            bytes_sent = self._udp_send_sock.sendto(
-                    self._outbuf[4 : self._out_msg_cnt], self._udp_send_address)
         else:
-            print("Error: cannot send, no udp_send_address.")
+            if self._udp_send_address is None:
+                print("O2lite error: cannot send, no udp_send_address")
+            else:
+                bytes_sent = self._udp_send_sock.sendto(
+                    self._outbuf[4 : self._out_msg_cnt], self._udp_send_address)
 
         # debug printing requested?
-        if 's' in self.debug_flags:
+        if (('c' if ("/cs/" in self._out_msg_address) else 's') in
+            self.debug_flags):
             self.msg_print(self._outbuf[4 : self._out_msg_cnt], "sending")
 
         self.num_msg += 1
@@ -422,6 +433,7 @@ class O2lite:
         self._out_msg_cnt += 1
         self._add_string(types)
         self._out_msg_address = address  # save for possible debug output
+        self._out_msg_tcp_flag = tcp
 
 
     def _add_length(self):
@@ -783,14 +795,15 @@ class O2lite:
 
 
     def _msg_dispatch(self, msg):
-        # debugging output requested?
-        if 'r' in self.debug_flags:
-            self.msg_print(msg, "received")
-
         self._msg_start_parse(msg)
         # remove the first character which can be either / or ! to be
         # compatible with stored handler addresses:
         address = self._parse_address[1 : ]
+
+        # debugging output requested?
+        if ('c' if ("/cs/" in address) else 'r') in self.debug_flags:
+            self.msg_print(msg, "received")
+
         typespec = self._parse_types
 
         for h in self.handlers:
@@ -836,8 +849,10 @@ class O2lite:
         capacity = MAX_MSG_LEN - 4  # 4 bytes for the length field
 
         if tcp_in_msg_length > capacity:
+            print("tcp_in_msg_len > capacity: ", tcp_in_msg_length, ", ", capacity)
             # Discard the message if it's too long
             while tcp_msg_got < tcp_in_msg_length:
+                # Did not discard properly??
                 togo = min(tcp_in_msg_length - tcp_msg_got, capacity)
                 try:
                     data = self._tcp_socket.recv(togo)
@@ -899,11 +914,12 @@ class O2lite:
         if self._tcp_socket is None:
             host = self.discovery.get_host()
             if host:
-                print("network_poll found host:", host)
                 self._network_connect(host["ip"], host["tcp_port"])
                 self._udp_send_address = o2l_address_init(
                         host["ip"], host["udp_port"], False)
-                print("udp_send_address", self._udp_send_address)
+                if _verbose:
+                    print("network_poll found host:", host)
+                    print("  udp_send_address", self._udp_send_address)
             elif self._idle_start_time == 1e7:  # start timeout:
                 self._idle_start_time = self.local_now
             elif self.local_now > self._idle_start_time + 20:  # timed out:
@@ -922,11 +938,9 @@ class O2lite:
         readable, _, _ = select.select(self._socket_list, [], [], 0)
 
         if self._tcp_socket in readable:
-            # print("O2lite: network_poll got TCP msg")
             self.read_from_tcp()
 
         if self._udp_recv_sock in readable:
-            # print("O2lite: network_poll got UDP msg")
             self.read_from_udp()
 
 
@@ -951,8 +965,10 @@ class O2lite:
             if "g" in self.debug_flags:
                 print(f"O2lite: connected to {ip} on port {port}.")
         except OSError as e:
-            print(f"O2lite: connection failed: {e}.")
+            if "g" in self.debug_flags:
+                print(f"O2lite: connection failed: {e}.")
             self.tcp_close()
+            return
 
         self.send_cmd("!_o2/o2lite/con", 0, "si", self.internal_ip,
                       self._udp_recv_port)
@@ -970,6 +986,7 @@ class O2lite:
         if self._parse_cnt + byte_count > len(self._parse_msg):
             print("O2lite: parse error reading message to",
                   f"{self._parse_address}, message too short.")
+            self.msg_print(self._parse_msg, "while parsing")
             raise ValueError("Parse error")
         if self._parse_types_index < len(self._parse_types) and \
            typecode != self._parse_types[self._parse_types_index]:
@@ -1063,3 +1080,4 @@ class O2lite:
     def get_time(self):
         return self._read_data(8, '>d', 't')  # Read 8 as big-endian double
 
+o2lite = O2lite()  # not initialized, but the singleton object can be imported

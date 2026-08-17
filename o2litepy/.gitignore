@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+
+# Python packaging/build artifacts
+build/
+dist/
+*.egg-info/
+
+# Common Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -25,9 +25,14 @@ a microcontroller.
 
 ## O2lite in Python
 
-See
-[o2litepy-api.md](https://github.com/rbdannenberg/o2/blob/master/o2litepy/o2lite-api.md)
-for details on programming with O2lite in Python.
+See [o2lite-api.md](o2lite-api.md) for details on programming with
+O2lite in Python.
+
+Build the o2lite package for Python using `make build` (requires
+`build` package to be installed), or just run `python -m
+build`. (Package is built in `dist/`.)
+
+For Micropython, see `micropython/README.txt`.
 
 ### Workflow and Lifecycle
 

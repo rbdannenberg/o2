@@ -3,11 +3,13 @@
 # Zekai Shen and Roger B. Dannenberg
 # March 2024
 
-from o2lite_disc import O2lite_disc, validate_and_extract_udp_port
+from .o2lite_disc import O2lite_disc, validate_and_extract_udp_port
 from zeroconf import ServiceBrowser, Zeroconf, ServiceInfo
 import socket
 import time
 from threading import Lock
+
+_verbose = False
 
 
 class Py3discovery (O2lite_disc):
@@ -26,12 +28,16 @@ class Py3discovery (O2lite_disc):
 
     def remove_service(self, zeroconf, service_type, name):
         # Service removed
-        print(f"Service removed: {name}")
+        if _verbose:
+            print(f"Service removed: {name}")
 
     def handle_new_service(self, info):
+        if _verbose:
+            print("handle_new_service", info)
+        if not info.name.startswith(self.ensemble):
+            return
         add = info.addresses
         server_ip = socket.inet_ntoa(info.addresses[0])
-        print("handle_new_service", info)
         tcp_port = info.port
 
         txt_records = info.properties
@@ -42,7 +48,8 @@ class Py3discovery (O2lite_disc):
             if udp_port:
                 service_discovered = {"ip": server_ip, "tcp_port": tcp_port,
                                       "udp_port": udp_port}
-                print("service_discovered", service_discovered)
+                if _verbose:
+                    print("service_discovered", service_discovered)
                 with self.dslock:
                     self.discovered_services.append(service_discovered)
 
@@ -52,7 +59,8 @@ class Py3discovery (O2lite_disc):
         """
         with self.dslock:
             service = self.discovered_services.pop(0)
-            print("get_host returns (and pops)", service)
+            if _verbose:
+                print("get_host returns (and pops)", service)
         return service
 
     def update_service(self, zeroconf, type, name):
@@ -63,9 +71,9 @@ class Py3discovery (O2lite_disc):
         self.zeroconf.close()
 
     def run_discovery(self):
-        print("run_discovery start_browsing")
+        if _verbose:
+            print("run_discovery start_browsing")
         browser = ServiceBrowser(self.zeroconf, "_o2proc._tcp.local.", self)
         time.sleep(self.browse_timeout)
         browser.cancel()
-        print("run_discovery browser.cancel")
         return self.discovered_services
