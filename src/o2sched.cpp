@@ -178,7 +178,6 @@ static void sched_dispatch(O2sched_ptr s, O2time run_until_time)
         O2message_ptr *msg_ptr = &s->table[O2_SCHED_BIN_TO_INDEX(s->last_bin)];
         while (*msg_ptr && ((*msg_ptr)->data.timestamp <= run_until_time)) {
             O2message_ptr msg = *msg_ptr;
-            assert(msg->next == 0 || (uint64_t) msg->next >= 0x100000000);
             *msg_ptr = msg->next; // unlink message msg
             // if we recursively schedule another message, use same scheduler:
             o2_active_sched = s;

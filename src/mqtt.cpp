@@ -438,9 +438,8 @@ void O2_MQTTcomm::disc_handler(char *payload, int payload_len)
                 ((MQTT_info *) proc)->timeout = 0;
                 mqtt_check_timeouts(NULL, NULL, NULL, 0, (void *) 1);
             }
-            return;
         }
-
+        return;
     }
     // action is "cs" or "dy". The "dy" message can be omitted if the
     // remote process already has clock sync, so we need to act as if

@@ -7,7 +7,7 @@
 #include <string.h>
 #include "o2ensemble.h"  // includes o2 and some helper functions for pd o2
 #include "x_vexp.h"
-#include "z_libpd.h"
+// #include "z_libpd.h"
 #include "o2pd.h"
 #ifdef _WIN32
 # include <malloc.h> /* MSVC or mingw on windows */

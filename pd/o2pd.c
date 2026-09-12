@@ -85,7 +85,7 @@ static addressnode *create_addressnode(const char *path, const char *types)
 {
     addressnode *addr = NEW_OBJ(addressnode);
     addr->path = o2pd_heapify(path);
-    addr->types = types;  // types is owned by caller and permanent,
+    // addr->types = types;  // types is owned by caller and permanent,
                           // no need to copy
     addr->receivers = NULL;
     DBG2 printf("create_addressnode created %p\n", addr);
@@ -132,7 +132,7 @@ static void remove_o2rcv_from_address(t_o2rcv *x)
 static void free_addressnode(addressnode *addr)
 {
     addr->next = NULL;
-    addr->types = NULL;
+    // addr->types = NULL;
     // unlink receivers from this address
     while (addr->receivers != NULL) {
         remove_o2rcv_from_address(addr->receivers);
@@ -242,8 +242,8 @@ void add_o2receive(t_o2rcv *x, bool service_exists)
     addressnode *addr = NULL;
     if (x->path != NULL && check_for_conflict(x->path, x->types, &addr)) {
         pd_error(x, "o2receive address(types) %s(%s) conflicts with existing"
-                 " address(types) %s(%s)", x->path, types_to_string(x->types),
-                 addr ? addr->path : "?", addr ? types_to_string(addr->types) : "?");
+                 " address %s", x->path, types_to_string(x->types),
+                 addr ? addr->path : "?");
         assert(x->address == NULL);
         assert(!service_exists);
         return;
@@ -331,9 +331,9 @@ void update_receive_address(t_o2rcv *x)
         return;
     }
 
-    if (x->path != NULL && streql(addr->path, x->path) &&
-        types_match(addr->types, x->types)) {
-        return;  // no-op if new address & types matches old address & types
+    if (x->path != NULL && streql(addr->path, x->path) /*&&
+        types_match(addr->types, x->types)*/) {
+        return;  // no-op if new address matches old address
     }
 
     // remove x from x->address's receivers list
@@ -401,7 +401,7 @@ void show_receivers(const char *info)
     DBG {
         printf("RECEIVERS %s\n", info);
         for (addressnode *a = addresses; a; a = a->next) {
-            printf("    Address %p %s types %s\n", a, a->path, a->types);
+            printf("    Address %p %s\n", a, a->path);
             for (t_o2rcv *r = a->receivers; r; r = r->next) {
                 printf("      Receiver %p", r);
                 if (r->path < (const char *) 0x1000000) {
@@ -475,6 +475,7 @@ bool check_for_conflict(const char *path, const char *types,
             return true;  // conflict found
         } else if (rslt == 2) {  // identical paths
             *addr = a;
+            /*
             if (types_match(types, a->types)) {
                 DBG2 printf("check_for_conflict returns false (2)\n");
                 return false;
@@ -483,6 +484,8 @@ bool check_for_conflict(const char *path, const char *types,
                             types, a->types);
                 return true;
             }
+            */
+           return false;
         }  // else no match found, continue search
     }
     DBG2 printf("check_for_conflict returns false (1's)\n");
@@ -520,7 +523,7 @@ O2err o2pd_error_report(t_object *x, const char *context, O2err err)
 // msgtypes is actual types provided by O2.
 // n is also the length of msgtypes.
 // returns actual size of pdmsg on completion, or -1 on error.
-int unpack_message(addressnode *a, O2msg_data_ptr msg, 
+int unpack_message(t_o2rcv *x, O2msg_data_ptr msg, 
                    const char *msgtypes, const char *types,
                    t_atom *pdmsg, int n)
 {
@@ -528,7 +531,6 @@ int unpack_message(addressnode *a, O2msg_data_ptr msg,
     DBG fflush(stdout);
 
     const char *DROPMSG = "dropping O2 message with types %s, expected %s";
-    t_o2rcv *x = a->receivers;
     DBG printf("unpack x %p msg %p msg->address %s\n", x, msg, msg->address);
     DBG fflush(stdout);
 
@@ -590,7 +592,7 @@ int unpack_message(addressnode *a, O2msg_data_ptr msg,
             return -1;  // error
         }
     }
-    return n;  // no error
+    return n;  // no error    
 }
 
 
@@ -611,13 +613,18 @@ void o2rcv_handler(O2_HANDLER_ARGS)
     DBG printf("o2rcv_handler called %s msglen %d\n", a->path, msglen);
     DBG fflush(stdout);
 
+    /*
     DBG printf("calling unpack_message\n"); DBG fflush(stdout);
     if (unpack_message(a, msg, types, a->types, pdmsg, msglen) < 0) {
         return;  // error - could not unpack for Pd or type error
     }
     DBG printf("unpack_message returned %d receivers %p\n",
                msglen, a->receivers); DBG fflush(stdout);
+    */
     for (t_o2rcv *r = a->receivers; r; r = r->next) {
+        if(unpack_message(r,msg,types,r->types,pdmsg,msglen)<0){
+            continue;// error - could not unpack for Pd or type error
+        }
         DBG printf("outlet_list for r=%p\n", r); DBG fflush(stdout);
         DBG printf("    outlet %p\n", r->x_obj.ob_outlet);
         DBG fflush(stdout);

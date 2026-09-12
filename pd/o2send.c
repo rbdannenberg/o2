@@ -7,7 +7,7 @@
 #include <string.h>
 #include "o2ensemble.h"  // includes o2 and some helper functions for pd o2
 #include "x_vexp.h"
-#include "z_libpd.h"
+// #include "z_libpd.h"
 #include "o2pd.h"
 #ifdef _WIN32
 # include <malloc.h> /* MSVC or mingw on windows */
@@ -57,7 +57,7 @@ void o2snd_check_flags(t_o2snd *x, int *argc, t_atom **argv)
 static void get_address(t_o2snd *x,  t_symbol *s, int argc, t_atom *argv)
 {
     const char *types = NULL;
-    int tcp_flag = false;  // default for sending is UDP
+    x->tcp_flag = false;  // default for sending is UDP
     char path[128];
     int last = 0;  // index of EOS
     path[0] = 0;
@@ -260,7 +260,7 @@ void o2snd_list(t_o2snd *x,  t_symbol *s, int argc, t_atom *argv)
                x->timestamp * 0.001, x->address, x->tcp_flag);
     DBG fflush(stdout);
     o2pd_error_report(&x->x_obj, "o2send",
-                       o2_send_finish(x->timestamp * 0.001, x->address, x->tcp_flag));
+            o2_send_finish(x->timestamp * 0.001, x->address, x->tcp_flag));
     x->timestamp = 0;
 }
 

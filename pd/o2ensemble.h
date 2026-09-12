@@ -31,7 +31,7 @@ typedef struct _receivernode {
 typedef struct _addressnode {
     const char *path;  // we own this, but this node and this path can only
                        // be deleted when there are no more receivers
-    const char *types; // owned by pd (symbol name)
+    // const char *types; // owned by pd (symbol name)
     t_o2rcv *receivers;
     struct _addressnode *next;
 } addressnode;
