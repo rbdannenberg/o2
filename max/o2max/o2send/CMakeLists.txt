@@ -1,0 +1,6 @@
+set_property(DIRECTORY PROPERTY max::external YES)
+set_property(DIRECTORY PROPERTY max::glob ON)
+project(o2send)
+target_compile_options(o2send PUBLIC ${O2MAX_CFLAGS})
+target_include_directories(o2send PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../o2lib")
+target_link_libraries(o2send PRIVATE o2max)

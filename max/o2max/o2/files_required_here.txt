@@ -1,0 +1,5 @@
+need these files in O2 source:
+- hostip.h
+- o2base.h
+- o2.h
+- o2 dynamic library (o2.dll and o2.lib for Windows)
