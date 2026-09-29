@@ -324,7 +324,7 @@ static long start_time;
 #endif
 
 /*********************************ESP32********************************/
-#elif ESP32
+#elif defined(ESP32)
 #include <lwip/sockets.h>
 #include <lwip/netdb.h>
 
@@ -1116,7 +1116,7 @@ static void o2l_clock_initialize(void)
 #elif WIN32
     timeBeginPeriod(1); // get 1ms resolution on Windows
     start_time = timeGetTime();
-#elif ESP32
+#elif defined(ESP32)
     // millis() is available, no work here!
 #else
 #error o2_clock has no implementation for this system
@@ -1177,7 +1177,7 @@ o2l_time o2l_local_time()
     return ((tv.tv_sec - start_time) + (tv.tv_usec * 0.000001));
 #elif WIN32
     return (o2l_time) ((timeGetTime() - start_time) * 0.001);
-#elif ESP32
+#elif defined(ESP32)
     // casting intended to do a double multiply or a float multiply,
     // depending on o2l_time's definition.
     return millis() * (o2l_time) 0.001F;
@@ -1244,7 +1244,7 @@ static void discovery_send()
 
 static void find_my_ip_address()
 {
-#ifndef ESP32 
+#if !defined(ESP32)
     o2n_get_internal_ip(o2n_internal_ip);
     char dot_ip[O2N_IP_LEN];
     o2_hex_to_dot(o2n_internal_ip, dot_ip);

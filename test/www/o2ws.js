@@ -95,9 +95,9 @@
 //     o2ws_get_string() - in a handler, get a string parameter.
 // APPLICATION RESPONSIBILITIES:
 //     o2ws_on_error(msg) (externally defined) - error messages
-//         (strings) are passed to this function. This function
-//         is not defined here, but rather intended for the
-//         application to define.
+//         (strings) are passed to this function in addition to being
+//         written to the console. This function is not defined here,
+//         but rather intended for the application to define.
 //     o2ws_status_msg(msg) (externally defined) - status messages
 //         (strings) are passed to this function if it is defined.
 //     /_o2/ls is an address that may be handled by the application.
@@ -291,18 +291,18 @@ function o2ws_clock_callback(id) {
 }
 
 
-function o2ws_initialize(ensemble) {
+function o2ws_initialize(ensemble, host=document.location.host) {
     if (!o2ws_websocket) {
         o2ws_ensemble = ensemble;
         o2ws_ping_reply_count = 0;
-        o2ws_websocket = new WebSocket('ws://' + document.location.host + '/o2ws');
+        o2ws_websocket = new WebSocket('ws://' + host + '/o2ws');
         o2ws_websocket.onopen = function(evt) { o2ws_open_handler(evt); };
         o2ws_websocket.onclose = function(evt) { o2ws_close_handler(evt) };
         o2ws_websocket.onmessage = function(evt) { o2ws_message_handler(evt) };
         o2ws_websocket.onerror = function(evt) {
-            if (typeof o2ws_error === 'function')
-                o2ws_error("Websocket to O2 host was closed " +
-                           "abnormally by the host") };
+            if (typeof o2ws_on_error === 'function')
+                o2ws_on_error("Websocket to O2 host was closed " +
+                              "abnormally by the host") };
         o2ws_method_new("/_o2/id", "i", true, o2ws_id_handler, null);
         o2ws_method_new("/_o2/cs/put", "it", true, o2ws_csput_handler, null);
         o2ws_send_start("/_o2/ws/dy", 0.0, "s", true);
@@ -360,15 +360,30 @@ function dropMessage(fields) {
 var o2ws_method_dict = {};
 var o2ws_method_array = [];
 
+
+// O2lite's current implementation does not use timestamps, allowing
+// the host to do the timing (at the cost of variable network latency
+// added to the delivery time).  This implementation schedules
+// messages with future timestamps.  A problem here is that
+// setTimeout() uses delays rather than absolute times and therefore
+// it is not guaranteed to preserve message order.
+//
 function o2ws_schedule_handler(handler, timestamp, address, typespec, info) {
     if (o2ws_clock_synchronized) {
         var now = o2ws_time_get();
         if (timestamp > now) {
-            setTimeout(handler, Math.round(timestamp - now) * 1000, timestamp, 
-                       address, typespec, info);
+            // capture o2ws_message_fields for deferred handler. When the
+            // handler runs, the global o2ws_message_fields is restored for use
+            // in the handler.
+            var fields = o2ws_message_fields;
+            setTimeout(function () {
+                           o2ws_message_fields = fields;
+                           handler(timestamp, address, typespec, info);
+                       }, Math.round((timestamp - now) * 1000));
+        } else { // Past or at current time, so deliver the message.
+            handler(timestamp, address, typespec, info);
         }
-    }
-    if (timestamp <= 0) {  // O2 does not allow negative timestamps, but if
+    } else if (timestamp <= 0) {  // O2 does not allow negative timestamps, but if
         // we get one, we treat it as if it is zero
         handler(timestamp, address, typespec, info);
     } else {

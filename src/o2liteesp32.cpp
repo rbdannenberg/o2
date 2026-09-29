@@ -1,7 +1,8 @@
 // o2liteesp32.c -- discovery implementation for ESP32 o2lite
+// This program is intended for ESP32 under Arduino IDE.
 //
 // Roger B. Dannenberg
-// Aug 2021
+// Aug 2021, rev. 2026
 
 // this also includes some o2lite functions that require C++
 
@@ -37,16 +38,30 @@ void print_line()
 // Time:        0 250 500 750 1500 ...
 // blink_count: 3   2   1   0    3 ...
 // LED:        ON OFF  ON OFF   ON ...
+//
+// To support timing without blocking, `blink_next` holds the time
+// in millis for the next action. If real time is beyond `blink_next`,
+// the action takes place without delay. Thus, if blink() is not
+// called for an extended period, the next call to blink() will
+// start blinking right away. If the application stops calling
+// blink(), it can leave some pending blinks to the future, which
+// we would like to ignore after a long delay. The rule is if
+// `blink_next` + BLINK_PERIOD * 2 < millis(), we clear any pending
+// blinks as if we are at the beginning of the blink sequence. A
+// cleaner approach is to set `blink_count` to zero to restart a
+// blink sequence.
+
 #define BLINK_PERIOD 250
 int blink_count = 0;   // countdown for how many blinks * 2
 int blink_next = 0;    // next time to do something
+int blink_for_o2 = 0;  // do Wi-Fi connection and status blink?
 
-void blink_init()
+void blink_init(int led_pin, int o2_blinks)
 {
-    blink_next = millis();
     blink_count = 0;
+    blink_for_o2 = o2_blinks;
     pinMode(LED_PIN, OUTPUT);  // ESP32 Thing specific output setup
-    pinMode(BUTTON_PIN, INPUT_PULLUP);
+    // pinMode(BUTTON_PIN, INPUT_PULLUP); -- do in the application if needed
 }
 
 // blink N flashes followed by longer interval. This does not
@@ -57,9 +72,19 @@ void blink_init()
 //
 void blink(int n)
 {
-    if (blink_next > millis()) {
+    long msec = millis();
+
+    // if action scheduled for the future, do nothing
+    if (blink_next > msec) {
         return;
     }
+
+    // reset state if a lot of time has elapsed since last call
+    if (blink_next + (BLINK_PERIOD << 1) < msec) {
+        blink_count = (n << 1) - 1;
+        blink_next = msec;
+    }
+
     digitalWrite(LED_PIN, blink_count & 1);
     blink_next += BLINK_PERIOD;
     if (blink_count == 0) {
@@ -71,7 +96,7 @@ void blink(int n)
 
 
 // quick flash -- delays caller by 100ms
-// repeated calls may just appear to stuck on
+// repeated calls may just appear to be stuck on
 void flash()
 {
     digitalWrite(LED_PIN, HIGH);
@@ -152,7 +177,6 @@ void o2ldisc_poll()
         return;
     }
     if (o2l_local_now < resolve_timeout) {
-    if (o2l_local_now < resolve_timeout) {
         blink(2);  // 2 means waiting to find an O2 host
         return;
     }
@@ -169,8 +193,8 @@ void o2ldisc_poll()
         return;
     }
         
-    mdns_result_t *r = results;
-    while (r) {
+    mdns_result_t *r;
+    for (r = results; r; r = r->next) {
         const char *proc_name = NULL;
         const char *vers_num = NULL;
         char internal_ip[O2N_IP_LEN];

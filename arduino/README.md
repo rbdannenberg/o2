@@ -7,6 +7,8 @@ Jan 2022
 A full implementation of O2 is not available, but O2lite works and has been
 tested on a Sparkfun ESP32 Thing connecting over WiFi.
 
+## Building/Using O2lite with Arduino IDE
+
 `o2/src/o2lite.c` has notes and installation tips. This document repeats
 those notes and adds a few extras.
 
@@ -35,6 +37,42 @@ in the Arduino IDE. This tells the IDE to compile and link them.
 The Arduino IDE should take care of the rest.. It will compile
 and link your project with `o2lite.c` and `o2liteesp32.cpp`.
 
-For convenience, you can use `o2litesetup.bat` (on Windows) in this directory to copy o2lite files from the `src` directory to the Arduino project directory of your choice. Files are copied to the path provided as an argument on the command line.
+For convenience, you can use `o2litesetup.bat` (on Windows) in this
+directory to copy o2lite files from the `src` directory to the Arduino
+project directory of your choice. Files are copied to the path
+provided as an argument on the command line.
+
+## Programming Notes
+
+### LED blink interface
+
+This module can use the LED to give Wi-Fi connection and discovery
+status, as well as feedback from other software. To enable blinking,
+the application should call `blink_init(led_pin, o2_status)`, where
+
+  `led_pin` is the pin number for the LED (it is 5 for ESP32 Thing).
+
+  `o2_blinks` is 1 to enable Wi-Fi connection and discovery status via
+  blinking. Using 0 will suppress blinking by O2lite, but still
+  configures blinking for use by your application.
+
+When configured with `o2_blinks == 1`, a pattern of single flashes
+means Wi-Fi connection is in progress during a call to
+`connect_to_wifi`.  A pattern of double flashes means `network_poll`
+is looking for an O2 host.
+
+The function `blink(n)` can be called with some number of flashes,
+e.g., `blink(3)` by any user code.
+
+To use `blink(n)`, you must call it repeatedly with the same value of
+`n` for blinking to take place. `blink(n)` always returns immediately,
+so it should not slow down your program (by much).
+
+## The ESP32 Compile-time Macro
+
+Note that in more recent Arduino IDEs, that ESP32 is defined but
+`#if ESP32` is false, so you if you test for ESP32, use
+`defined(ESP32)`.
+
 
 
